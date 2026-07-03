@@ -21,7 +21,7 @@ test.describe("Game Editor Workflow", () => {
     await editor.expectOpen();
 
     await editor.fillGame({
-      date: "2026-07-15",
+      date: new Date().toISOString().split("T")[0],
       time: "6:00 PM",
       field: "Field 1",
       level: "12U",
