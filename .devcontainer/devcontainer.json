@@ -1,0 +1,21 @@
+{
+  "name": "BlueCrew Codespace",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "postCreateCommand": "npm install && npx playwright install --with-deps chromium",
+  "forwardPorts": [5500],
+  "portsAttributes": {
+    "5500": {
+      "label": "BlueCrew App",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-playwright.playwright",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}
