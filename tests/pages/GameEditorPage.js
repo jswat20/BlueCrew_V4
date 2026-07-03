@@ -37,6 +37,8 @@ export class GameEditorPage {
   }
 
   async expectGameVisible({ homeTeam, awayTeam, field }) {
+    await this.page.getByTestId("view-all-games").click();
+
     await expect(this.page.getByText(homeTeam)).toBeVisible();
     await expect(this.page.getByText(awayTeam)).toBeVisible();
     await expect(this.page.getByText(field)).toBeVisible();
