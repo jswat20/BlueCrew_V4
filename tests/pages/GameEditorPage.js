@@ -39,8 +39,12 @@ export class GameEditorPage {
   async expectGameVisible({ homeTeam, awayTeam, field }) {
     await this.page.getByTestId("view-all-games").click();
 
-    await expect(this.page.getByText(homeTeam)).toBeVisible();
-    await expect(this.page.getByText(awayTeam)).toBeVisible();
-    await expect(this.page.getByText(field)).toBeVisible();
+    const gameRow = this.page
+      .getByRole("row")
+      .filter({ hasText: homeTeam })
+      .filter({ hasText: awayTeam });
+
+    await expect(gameRow).toBeVisible();
+    await expect(gameRow).toContainText(field);
   }
 }
