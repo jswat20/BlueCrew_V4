@@ -1,18 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { GameEditorPage } from "./pages/GameEditorPage.js";
+import { createConsoleMonitor } from "./helpers/consoleMonitor.js";
 
 test.describe("Game Management QA", () => {
   test("Admin can cancel adding a game without saving", async ({ page }) => {
-    const errors = [];
-
-    page.on("pageerror", error => errors.push(error.message));
-
-    page.on("console", message => {
-      if (message.type() === "error") {
-        errors.push(message.text());
-      }
-    });
-
+    const consoleMonitor = createConsoleMonitor(page);
     const editor = new GameEditorPage(page);
 
     await page.goto("/");
@@ -40,6 +32,6 @@ test.describe("Game Management QA", () => {
       page.getByRole("row").filter({ hasText: "Cancel QA Home" })
     ).toHaveCount(0);
 
-    expect(errors).toEqual([]);
+    await consoleMonitor.expectClean();
   });
 });
