@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlueCrew</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="css/schedule.css">
+</head>
+<body>
+  <div class="app-shell" data-testid="app-shell">
+    <aside class="sidebar" data-testid="sidebar">
+      <div class="brand" data-testid="brand">
+        <div class="brand-icon">⚾</div>
+        <div>
+          <h1>BlueCrew</h1>
+          <p>Umpire Portal</p>
+        </div>
+      </div>
+
+      <nav class="nav-menu" data-testid="navigation">
+        <button class="nav-link active" data-page="dashboard" data-testid="nav-dashboard">🏠 Dashboard</button>
+        <button class="nav-link" data-page="schedule" data-testid="nav-schedule">📅 Schedule</button>
+        <button class="nav-link" data-page="crew" data-testid="nav-crew">👥 Crew</button>
+        <button class="nav-link" data-page="reports" data-testid="nav-reports">📈 Reports</button>
+        <button class="nav-link" data-page="settings" data-testid="nav-settings">⚙ Settings</button>
+        <button class="nav-link" data-page="admin" data-testid="nav-admin">🛠 Admin</button>
+      </nav>
+    </aside>
+
+    <main class="main-content" data-testid="main-content">
+      <header class="topbar" data-testid="page-header">
+        <div>
+          <h2 id="page-title" data-testid="page-title">Dashboard</h2>
+          <p id="page-subtitle" data-testid="page-subtitle">Your BlueCrew command center.</p>
+        </div>
+
+        <div class="role-switcher" data-testid="role-switcher">
+          <span>View:</span>
+          <button id="admin-role-btn" class="role-btn active" data-testid="role-admin">Admin</button>
+          <button id="umpire-role-btn" class="role-btn" data-testid="role-umpire">Umpire</button>
+        </div>
+      </header>
+
+      <section id="app-content" class="content-area" data-testid="app-content"></section>
+    </main>
+  </div>
+
+<script src="data/settings.js"></script>
+<script src="data/games.js"></script>
+<script src="data/crew.js"></script>
+<script src="data/storage.js"></script>
+
+<script src="components/dashboard.js"></script>
+<script src="components/crew.js"></script>
+<script src="components/reports.js"></script>
+<script src="components/settings.js"></script>
+<script src="components/admin.js"></script>
+
+<script src="js/constants/assignmentConstants.js"></script>
+
+<script src="js/services/gameTypeService.js"></script>
+<script src="js/services/gameService.js"></script>
+<script src="js/services/conflictService.js"></script>
+<script src="js/services/workloadService.js"></script>
+<script src="js/services/availabilityService.js"></script>
+<script src="js/services/authService.js"></script>
+<script src="js/services/activityService.js"></script>
+<script src="js/services/uiStateService.js"></script>
+<script src="js/services/migrationService.js"></script>
+<script src="js/services/recommendationService.js"></script>
+<script src="js/services/assignmentModelService.js"></script>
+<script src="js/services/assignmentService.js"></script>
+<script src="js/services/crewService.js"></script>
+<script src="js/services/crewConfigurationService.js"></script>
+<script src="js/services/crewBuilderService.js"></script>
+<script src="js/services/dashboardService.js"></script>
+<script src="js/services/toastService.js"></script>
+<script src="js/services/modalService.js"></script>
+<script src="js/services/uiService.js"></script>
+
+<script src="js/ui/statusBadge.js"></script>
+<script src="js/ui/crewDashboard.js"></script>
+
+<script src="js/schedule/assignmentEngine.js"></script>
+<script src="js/schedule/assignmentDrawer.js"></script>
+<script src="js/schedule/gameCard.js"></script>
+<script src="js/schedule/gameEditor.js"></script>
+<script src="js/schedule/workloadPanel.js"></script>
+<script src="js/schedule/openGamesQueue.js"></script>
+<script src="js/schedule/schedule.js"></script>
+<script src="js/schedule/dailyView.js"></script>
+<script src="js/schedule/allGamesView.js"></script>
+
+<script src="js/dashboard/operationsSummary.js"></script>
+<script src="js/dashboard/needsAttention.js"></script>
+<script src="js/dashboard/todaysSchedule.js"></script>
+
+<script src="js/conflicts/conflictCard.js"></script>
+<script src="js/conflicts/conflictFilters.js"></script>
+<script src="js/conflicts/conflictCenter.js"></script>
+
+<script src="js/services/qaService.js"></script>
+
+<script src="app.js"></script>
+</body>
+</html>
