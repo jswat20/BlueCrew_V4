@@ -6,9 +6,9 @@ export class GameEditorPage {
   }
 
   async openFromSchedule() {
-    await this.page.getByTestId("nav-schedule").click();
-    await this.page.getByTestId("add-game-button").click();
-  }
+  await this.page.getByTestId("nav-schedule").click();
+  await this.page.getByTestId("add-game").click();
+}
 
   async expectOpen() {
     await expect(this.page.getByTestId("game-editor")).toBeVisible();
