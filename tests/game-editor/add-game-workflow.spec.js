@@ -6,24 +6,28 @@ test.describe("Game Editor Workflow", () => {
     const errors = [];
 
     page.on("pageerror", error => errors.push(error.message));
+
     page.on("console", message => {
-      if (message.type() === "error") errors.push(message.text());
+      if (message.type() === "error") {
+        errors.push(message.text());
+      }
     });
 
     const editor = new GameEditorPage(page);
 
     await page.goto("/");
+
     await editor.openFromSchedule();
     await editor.expectOpen();
 
     await editor.fillGame({
       date: "2026-07-15",
-      time: "18:00",
-      field: "QA Field 1",
+      time: "6:00 PM",
+      field: "Field 1",
       level: "12U",
       homeTeam: "QA Home",
       awayTeam: "QA Away",
-      gameType: "baseball"
+      gameType: "single"
     });
 
     await editor.save();
@@ -31,7 +35,7 @@ test.describe("Game Editor Workflow", () => {
     await editor.expectGameVisible({
       homeTeam: "QA Home",
       awayTeam: "QA Away",
-      field: "QA Field 1"
+      field: "Field 1"
     });
 
     expect(errors).toEqual([]);
