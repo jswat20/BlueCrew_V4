@@ -1,91 +1,44 @@
-const { expect } = require('@playwright/test');
+import { expect } from "@playwright/test";
 
-class GameEditorPage {
-    constructor(page) {
-        this.page = page;
+export class GameEditorPage {
+  constructor(page) {
+    this.page = page;
+  }
 
-        // Buttons
-        this.addGameButton = page.getByTestId('add-game');
-        this.saveButton = page.getByTestId('save-game');
-        this.cancelButton = page.getByTestId('cancel-game');
+  async openFromSchedule() {
+    await this.page.getByTestId("nav-schedule").click();
+    await this.page.getByTestId("add-game-button").click();
+  }
 
-        // Form fields
-        this.dateInput = page.getByTestId('game-date');
-        this.timeInput = page.getByTestId('game-time');
-        this.levelSelect = page.getByTestId('game-level');
-        this.fieldSelect = page.getByTestId('game-field');
-        this.homeTeamSelect = page.getByTestId('home-team');
-        this.awayTeamSelect = page.getByTestId('away-team');
-        this.gameTypeSelect = page.getByTestId('game-type');
+  async expectOpen() {
+    await expect(this.page.getByTestId("game-editor")).toBeVisible();
+  }
 
-        // Drawer / Dialog
-        this.editor = page.getByTestId('game-editor');
+  async fillGame({
+    date,
+    time,
+    field,
+    level,
+    homeTeam,
+    awayTeam,
+    gameType
+  }) {
+    await this.page.getByTestId("game-date-input").fill(date);
+    await this.page.getByTestId("game-time-input").fill(time);
+    await this.page.getByTestId("game-field-input").fill(field);
+    await this.page.getByTestId("game-level-input").fill(level);
+    await this.page.getByTestId("game-home-team-input").fill(homeTeam);
+    await this.page.getByTestId("game-away-team-input").fill(awayTeam);
+    await this.page.getByTestId("game-type-input").selectOption(gameType);
+  }
 
-        // Result
-        this.gameCards = page.getByTestId('game-card');
-    }
+  async save() {
+    await this.page.getByTestId("save-game-button").click();
+  }
 
-    async openAddGame() {
-        await this.addGameButton.click();
-    }
-
-    async verifyOpen() {
-        await expect(this.editor).toBeVisible();
-    }
-
-    async fillDate(date) {
-        await this.dateInput.fill(date);
-    }
-
-    async fillTime(time) {
-        await this.timeInput.fill(time);
-    }
-
-    async selectLevel(level) {
-        await this.levelSelect.selectOption({ label: level });
-    }
-
-    async selectField(field) {
-        await this.fieldSelect.selectOption({ label: field });
-    }
-
-    async selectHomeTeam(team) {
-        await this.homeTeamSelect.selectOption({ label: team });
-    }
-
-    async selectAwayTeam(team) {
-        await this.awayTeamSelect.selectOption({ label: team });
-    }
-
-    async selectGameType(type) {
-        await this.gameTypeSelect.selectOption({ label: type });
-    }
-
-    async fillGame(game) {
-        await this.fillDate(game.date);
-        await this.fillTime(game.time);
-        await this.selectLevel(game.level);
-        await this.selectField(game.field);
-        await this.selectHomeTeam(game.homeTeam);
-        await this.selectAwayTeam(game.awayTeam);
-        await this.selectGameType(game.gameType);
-    }
-
-    async save() {
-        await this.saveButton.click();
-    }
-
-    async cancel() {
-        await this.cancelButton.click();
-    }
-
-    async verifyClosed() {
-        await expect(this.editor).toBeHidden();
-    }
-
-    async verifyGameExists(text) {
-        await expect(this.gameCards.filter({ hasText: text })).toHaveCount(1);
-    }
+  async expectGameVisible({ homeTeam, awayTeam, field }) {
+    await expect(this.page.getByText(homeTeam)).toBeVisible();
+    await expect(this.page.getByText(awayTeam)).toBeVisible();
+    await expect(this.page.getByText(field)).toBeVisible();
+  }
 }
-
-module.exports = { GameEditorPage };
