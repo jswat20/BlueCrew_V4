@@ -1,18 +1,14 @@
-import { test, expect } from "@playwright/test";
-import { GameEditorPage } from "./pages/GameEditorPage.js";
+import { test, expect } from "./fixtures/app.fixture.js";
 import { createConsoleMonitor } from "./helpers/consoleMonitor.js";
 
 test.describe("Game Management QA", () => {
-  test("Admin can cancel adding a game without saving", async ({ page }) => {
-    const consoleMonitor = createConsoleMonitor(page);
-    const editor = new GameEditorPage(page);
+  test("Admin can cancel adding a game without saving", async ({ app }) => {
+    const consoleMonitor = createConsoleMonitor(app.page);
 
-    await page.goto("/");
+    await app.gameEditorPage.openFromSchedule();
+    await app.gameEditorPage.expectOpen();
 
-    await editor.openFromSchedule();
-    await editor.expectOpen();
-
-    await editor.fillGame({
+    await app.gameEditorPage.fillGame({
       date: new Date().toISOString().split("T")[0],
       time: "6:00 PM",
       field: "Field 1",
@@ -22,16 +18,53 @@ test.describe("Game Management QA", () => {
       gameType: "single"
     });
 
-    await page.getByTestId("cancel-game-button").click();
+    await app.gameEditorPage.cancel();
 
-    await expect(page.getByTestId("game-editor")).not.toBeVisible();
+    await expect(app.page.getByTestId("game-editor")).not.toBeVisible();
 
-    await page.getByTestId("view-all-games").click();
-
-    await expect(
-      page.getByRole("row").filter({ hasText: "Cancel QA Home" })
-    ).toHaveCount(0);
+    await app.gameEditorPage.expectGameNotVisible({
+      homeTeam: "Cancel QA Home",
+      awayTeam: "Cancel QA Away"
+    });
 
     await consoleMonitor.expectClean();
   });
+});
+
+test("Admin can edit an existing game", async ({ app }) => {
+  const consoleMonitor = createConsoleMonitor(app.page);
+
+  const originalGame = {
+    date: new Date().toISOString().split("T")[0],
+    time: "6:00 PM",
+    field: "Field 1",
+    level: "12U",
+    homeTeam: "Edit QA Home",
+    awayTeam: "Edit QA Away",
+    gameType: "single"
+  };
+
+  const updatedGame = {
+    ...originalGame,
+    field: "Field 2",
+    homeTeam: "Edited QA Home"
+  };
+
+  await app.gameEditorPage.createGame(originalGame);
+
+  await app.gameEditorPage.expectGameVisible(originalGame);
+
+  await app.gameEditorPage.openEditForGameByMatchup(originalGame);
+
+  await app.gameEditorPage.fillGame(updatedGame);
+
+  await app.gameEditorPage.save();
+
+  await app.gameEditorPage.expectGameVisible(updatedGame);
+
+  await app.page.reload();
+
+  await app.gameEditorPage.expectGameVisible(updatedGame);
+
+  await consoleMonitor.expectClean();
 });

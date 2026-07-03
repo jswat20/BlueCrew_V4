@@ -32,19 +32,65 @@ export class GameEditorPage {
     await this.page.getByTestId("game-type-input").selectOption(gameType);
   }
 
+  async createGame(game) {
+    await this.openFromSchedule();
+    await this.expectOpen();
+    await this.fillGame(game);
+    await this.save();
+  }
+
   async save() {
     await this.page.getByTestId("save-game-button").click();
   }
 
-  async expectGameVisible({ homeTeam, awayTeam, field }) {
-    await this.page.getByTestId("view-all-games").click();
+  async cancel() {
+    await this.page.getByTestId("cancel-game-button").click();
+  }
 
-    const gameRow = this.page
+  async openAllGames() {
+  await this.page.getByTestId("nav-schedule").click();
+  await this.page.getByTestId("view-all-games").click();
+}
+
+  async openEditForGame(gameId) {
+  await this.openAllGames();
+  await this.page.getByTestId(`edit-game-${gameId}`).click();
+  await this.expectOpen();
+}
+async openEditForGameByMatchup({ homeTeam, awayTeam }) {
+  await this.openAllGames();
+
+  const row = this.gameRow({ homeTeam, awayTeam });
+
+  await expect(row).toBeVisible();
+  await row.getByRole("button", { name: "Edit" }).click();
+
+  await this.expectOpen();
+}
+  gameRow({ homeTeam, awayTeam }) {
+    return this.page
       .getByRole("row")
       .filter({ hasText: homeTeam })
       .filter({ hasText: awayTeam });
+  }
 
-    await expect(gameRow).toBeVisible();
-    await expect(gameRow).toContainText(field);
+  async expectGameVisible({ homeTeam, awayTeam, field }) {
+    await this.openAllGames();
+
+    const row = this.gameRow({ homeTeam, awayTeam });
+
+    await expect(row).toBeVisible();
+
+    if (field) {
+      await expect(row).toContainText(field);
+    }
+  }
+
+  async expectGameNotVisible({ homeTeam, awayTeam }) {
+    await this.openAllGames();
+
+    const row = this.gameRow({ homeTeam, awayTeam });
+
+    await expect(row).toHaveCount(0);
   }
 }

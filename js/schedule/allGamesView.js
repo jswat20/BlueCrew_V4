@@ -85,7 +85,7 @@ function renderAllGamesRow(game) {
     : "Needs Crew";
 
   return `
-    <tr>
+<tr data-testid="game-row-${game.id}">
       <td>${formatShortDate(game.date)}</td>
 
       <td>${game.time || ""}</td>
@@ -119,17 +119,26 @@ function renderAllGamesRow(game) {
       </td>
 
       <td>
-        <button onclick="openAssignmentDrawer('${game.id}')">
-          Assign
-        </button>
+        <button
+  data-testid="assign-game-${game.id}"
+  onclick="openAssignmentDrawer('${game.id}')"
+>
+  Assign
+</button>
 
-        <button onclick="editGame('${game.id}')">
-          Edit
-        </button>
+<button
+  data-testid="edit-game-${game.id}"
+  onclick="editGame('${game.id}')"
+>
+  Edit
+</button>
 
-        <button onclick="deleteGame('${game.id}')">
-          Delete
-        </button>
+<button
+  data-testid="delete-game-${game.id}"
+  onclick="deleteGame('${game.id}')"
+>
+  Delete
+</button>
       </td>
     </tr>
   `;
