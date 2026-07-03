@@ -14,7 +14,7 @@ function openGameEditor(gameId = null) {
   overlay.innerHTML = `
     <div class="assign-drawer-backdrop" onclick="closeGameEditor()"></div>
 
-    <aside class="assign-drawer">
+<aside class="assign-drawer" data-testid="game-editor">
       <div class="assign-drawer-header">
         <h2>${isEditing ? "Edit Game" : "Add Game"}</h2>
         <button onclick="closeGameEditor()">×</button>
@@ -26,7 +26,32 @@ function openGameEditor(gameId = null) {
 
   document.body.appendChild(overlay);
 }
+<input id="edit-date" data-testid="game-date-input" type="date" value="${game.date || ""}" />
 
+<select id="edit-time" data-testid="game-time-input">
+
+<select id="edit-field" data-testid="game-field-input">
+
+<select id="edit-level" data-testid="game-level-input">
+
+<select id="edit-game-type" data-testid="game-type-input">
+
+<input
+  id="edit-away-team"
+  data-testid="game-away-team-input"
+  type="text"
+  value="${game.awayTeam || ""}"
+  placeholder="Away Team"
+/>
+
+<input
+  id="edit-home-team"
+  data-testid="game-home-team-input"
+  type="text"
+  value="${game.homeTeam || ""}"
+  placeholder="Home Team"
+/>
+</select>
 function editGame(gameId) {
   openGameEditor(gameId);
 }
@@ -97,17 +122,19 @@ function renderGameEditorForm(game, isEditing) {
     }
 
     <div class="assign-drawer-actions">
-      <button onclick="saveGameEditor('${game.id || ""}', ${isEditing})">
-        ${isEditing ? "Save Changes" : "Create Game"}
-      </button>
+      <button
+  data-testid="save-game-button"
+  onclick="saveGameEditor('${game.id || ""}', ${isEditing})">
+  ${isEditing ? "Save Changes" : "Create Game"}
+</button>
 
-      <button class="secondary" onclick="closeGameEditor()">
+      <button class="secondary" data-testid="cancel-game-button" onclick="closeGameEditor()">
         Cancel
       </button>
 
       ${
         isEditing
-          ? `<button class="danger-btn" onclick="deleteGame('${game.id}')">Delete</button>`
+          ? `<button class="danger-btn" data-testid="delete-game-button" onclick="deleteGame('${game.id}')">Delete</button>`
           : ""
       }
     </div>
