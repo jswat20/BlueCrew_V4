@@ -89,6 +89,29 @@ function renderGameEditorForm(game, isEditing) {
       value="${game.homeTeam || ""}"
       placeholder="Home Team"
     />
+<input id="edit-date" data-testid="game-date-input" type="date" value="${game.date || ""}" />
+<select id="edit-time" data-testid="game-time-input">
+  ${renderTimeOptions(game.time)}
+</select>
+<select id="edit-field" data-testid="game-field-input">
+<select id="edit-level" data-testid="game-level-input">
+<select id="edit-game-type" data-testid="game-type-input">
+
+<input
+  id="edit-away-team"
+  data-testid="game-away-team-input"
+  type="text"
+  value="${game.awayTeam || ""}"
+  placeholder="Away Team"
+/>
+<input
+  id="edit-home-team"
+  data-testid="game-home-team-input"
+  type="text"
+  value="${game.homeTeam || ""}"
+  placeholder="Home Team"
+/>
+
 
     ${
       isEditing
