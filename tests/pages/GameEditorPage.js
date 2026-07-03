@@ -15,22 +15,22 @@ export class GameEditorPage {
   }
 
   async fillGame({
-    date,
-    time,
-    field,
-    level,
-    homeTeam,
-    awayTeam,
-    gameType
-  }) {
-    await this.page.getByTestId("game-date-input").fill(date);
-    await this.page.getByTestId("game-time-input").fill(time);
-    await this.page.getByTestId("game-field-input").fill(field);
-    await this.page.getByTestId("game-level-input").fill(level);
-    await this.page.getByTestId("game-home-team-input").fill(homeTeam);
-    await this.page.getByTestId("game-away-team-input").fill(awayTeam);
-    await this.page.getByTestId("game-type-input").selectOption(gameType);
-  }
+  date,
+  time,
+  field,
+  level,
+  homeTeam,
+  awayTeam,
+  gameType
+}) {
+  await this.page.getByTestId("game-date-input").fill(date);
+  await this.page.getByTestId("game-time-input").selectOption(time);
+  await this.page.getByTestId("game-field-input").selectOption(field);
+  await this.page.getByTestId("game-level-input").selectOption(level);
+  await this.page.getByTestId("game-home-team-input").fill(homeTeam);
+  await this.page.getByTestId("game-away-team-input").fill(awayTeam);
+  await this.page.getByTestId("game-type-input").selectOption(gameType);
+}
 
   async save() {
     await this.page.getByTestId("save-game-button").click();

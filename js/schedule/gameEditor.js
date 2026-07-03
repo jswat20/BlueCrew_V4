@@ -52,31 +52,32 @@ function createBlankGame() {
 function renderGameEditorForm(game, isEditing) {
   return `
     <label>Date</label>
-    <input id="edit-date" type="date" value="${game.date || ""}" />
+    <input id="edit-date" data-testid="game-date-input" type="date" value="${game.date || ""}" />
 
     <label>Time</label>
-    <select id="edit-time">
+    <select id="edit-time" data-testid="game-time-input">
       ${renderTimeOptions(game.time)}
     </select>
 
     <label>Field</label>
-    <select id="edit-field">
+    <select id="edit-field" data-testid="game-field-input">
       ${renderOptionList(getFieldOptions(), game.field)}
     </select>
 
     <label>Level</label>
-    <select id="edit-level">
+    <select id="edit-level" data-testid="game-level-input">
       ${renderOptionList(getLevelOptions(), game.level)}
     </select>
 
     <label>Game Type</label>
-    <select id="edit-game-type">
+    <select id="edit-game-type" data-testid="game-type-input">
       ${renderGameTypeOptions(game.gameType)}
     </select>
 
     <label>Away Team</label>
     <input
       id="edit-away-team"
+      data-testid="game-away-team-input"
       type="text"
       value="${game.awayTeam || ""}"
       placeholder="Away Team"
@@ -85,33 +86,11 @@ function renderGameEditorForm(game, isEditing) {
     <label>Home Team</label>
     <input
       id="edit-home-team"
+      data-testid="game-home-team-input"
       type="text"
       value="${game.homeTeam || ""}"
       placeholder="Home Team"
     />
-<input id="edit-date" data-testid="game-date-input" type="date" value="${game.date || ""}" />
-<select id="edit-time" data-testid="game-time-input">
-  ${renderTimeOptions(game.time)}
-</select>
-<select id="edit-field" data-testid="game-field-input">
-<select id="edit-level" data-testid="game-level-input">
-<select id="edit-game-type" data-testid="game-type-input">
-
-<input
-  id="edit-away-team"
-  data-testid="game-away-team-input"
-  type="text"
-  value="${game.awayTeam || ""}"
-  placeholder="Away Team"
-/>
-<input
-  id="edit-home-team"
-  data-testid="game-home-team-input"
-  type="text"
-  value="${game.homeTeam || ""}"
-  placeholder="Home Team"
-/>
-
 
     ${
       isEditing
@@ -121,10 +100,10 @@ function renderGameEditorForm(game, isEditing) {
 
     <div class="assign-drawer-actions">
       <button
-  data-testid="save-game-button"
-  onclick="saveGameEditor('${game.id || ""}', ${isEditing})">
-  ${isEditing ? "Save Changes" : "Create Game"}
-</button>
+        data-testid="save-game-button"
+        onclick="saveGameEditor('${game.id || ""}', ${isEditing})">
+        ${isEditing ? "Save Changes" : "Create Game"}
+      </button>
 
       <button class="secondary" data-testid="cancel-game-button" onclick="closeGameEditor()">
         Cancel
@@ -138,7 +117,6 @@ function renderGameEditorForm(game, isEditing) {
     </div>
   `;
 }
-
 function renderExistingGameAssignmentSection(game) {
   return `
     <hr />
