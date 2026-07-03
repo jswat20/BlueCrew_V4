@@ -6,31 +6,31 @@ export class GameEditorPage {
   }
 
   async openFromSchedule() {
-  await this.page.getByTestId("nav-schedule").click();
-  await this.page.getByTestId("add-game").click();
-}
+    await this.page.getByTestId("nav-schedule").click();
+    await this.page.getByTestId("add-game").click();
+  }
 
   async expectOpen() {
     await expect(this.page.getByTestId("game-editor")).toBeVisible();
   }
 
   async fillGame({
-  date,
-  time,
-  field,
-  level,
-  homeTeam,
-  awayTeam,
-  gameType
-}) {
-  await this.page.getByTestId("game-date-input").fill(date);
-  await this.page.getByTestId("game-time-input").selectOption(time);
-  await this.page.getByTestId("game-field-input").selectOption(field);
-  await this.page.getByTestId("game-level-input").selectOption(level);
-  await this.page.getByTestId("game-home-team-input").fill(homeTeam);
-  await this.page.getByTestId("game-away-team-input").fill(awayTeam);
-  await this.page.getByTestId("game-type-input").selectOption(gameType);
-}
+    date,
+    time,
+    field,
+    level,
+    homeTeam,
+    awayTeam,
+    gameType
+  }) {
+    await this.page.getByTestId("game-date-input").fill(date);
+    await this.page.getByTestId("game-time-input").selectOption(time);
+    await this.page.getByTestId("game-field-input").selectOption(field);
+    await this.page.getByTestId("game-level-input").selectOption(level);
+    await this.page.getByTestId("game-home-team-input").fill(homeTeam);
+    await this.page.getByTestId("game-away-team-input").fill(awayTeam);
+    await this.page.getByTestId("game-type-input").selectOption(gameType);
+  }
 
   async save() {
     await this.page.getByTestId("save-game-button").click();
