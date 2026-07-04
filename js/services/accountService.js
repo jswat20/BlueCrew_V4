@@ -31,7 +31,9 @@ const accountService = (() => {
       crewId: account.crewId || null,
       createdAt: account.createdAt || new Date().toISOString(),
       approvedAt: account.approvedAt || null,
-      rejectedAt: account.rejectedAt || null
+      rejectedAt: account.rejectedAt || null,
+      role: account.role || "umpire",
+      lastLogin: account.lastLogin || null,
     };
   }
 
