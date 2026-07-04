@@ -48,30 +48,34 @@ export class GameEditorPage {
   }
 
   async openAllGames() {
-  await this.page.getByTestId("nav-schedule").click();
-  await this.page.getByTestId("view-all-games").click();
-}
+    await this.page.getByTestId("nav-schedule").click();
+    await this.page.getByTestId("view-all-games").click();
+  }
 
-  async openEditForGame(gameId) {
-  await this.openAllGames();
-  await this.page.getByTestId(`edit-game-${gameId}`).click();
-  await this.expectOpen();
-}
-async openEditForGameByMatchup({ homeTeam, awayTeam }) {
-  await this.openAllGames();
-
-  const row = this.gameRow({ homeTeam, awayTeam });
-
-  await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "Edit" }).click();
-
-  await this.expectOpen();
-}
   gameRow({ homeTeam, awayTeam }) {
     return this.page
       .getByRole("row")
       .filter({ hasText: homeTeam })
       .filter({ hasText: awayTeam });
+  }
+
+  async openEditForGame(gameOrId) {
+    await this.openAllGames();
+
+    if (typeof gameOrId === "object") {
+      const row = this.gameRow(gameOrId);
+
+      await expect(row).toBeVisible();
+      await row.getByRole("button", { name: "Edit" }).click();
+    } else {
+      await this.page.getByTestId(`edit-game-${gameOrId}`).click();
+    }
+
+    await this.expectOpen();
+  }
+
+  async openEditForGameByMatchup(game) {
+    await this.openEditForGame(game);
   }
 
   async expectGameVisible({ homeTeam, awayTeam, field }) {
@@ -92,5 +96,21 @@ async openEditForGameByMatchup({ homeTeam, awayTeam }) {
     const row = this.gameRow({ homeTeam, awayTeam });
 
     await expect(row).toHaveCount(0);
+  }
+
+  async deleteGame(game) {
+    await this.deleteGameByMatchup(game);
+  }
+
+  async deleteGameByMatchup({ homeTeam, awayTeam }) {
+    await this.openAllGames();
+
+    const row = this.gameRow({ homeTeam, awayTeam });
+
+    await expect(row).toBeVisible();
+
+    this.page.once("dialog", dialog => dialog.accept());
+
+    await row.getByRole("button", { name: "Delete" }).click();
   }
 }
