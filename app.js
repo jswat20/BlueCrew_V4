@@ -24,6 +24,10 @@ const pages = {
     title: "Login",
     subtitle: "Access your umpire portal."
   },
+    "my-schedule": {
+    title: "My Schedule",
+    subtitle: "Your assigned games."
+  },
   schedule: {
     title: "Schedule",
     subtitle: "View and Manage Game Schedules."
@@ -172,7 +176,9 @@ function renderAdminView(page) {
     reports: typeof renderReports === "function" ? renderReports : null,
     settings: typeof renderSettings === "function" ? renderSettings : null,
     admin: typeof renderAdmin === "function" ? renderAdmin : null,
-    accounts: typeof renderAccounts === "function" ? renderAccounts : null
+    accounts: typeof renderAccounts === "function" ? renderAccounts : null,
+    "my-schedule": typeof renderMySchedule === "function" ? renderMySchedule : null,
+
   };
 
   const renderer = renderers[page];
@@ -199,7 +205,14 @@ function renderUmpireView(page) {
             "Crew Dashboard",
             "Crew dashboard is unavailable."
           );
-
+    case "my-schedule":
+      return typeof renderMySchedule === "function"
+        ? renderMySchedule()
+        : placeholderPage(
+            "My Schedule",
+            "My Schedule is unavailable."
+          );
+          
     default:
       return placeholderPage(
         "Coming Soon",
