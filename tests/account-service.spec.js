@@ -143,3 +143,154 @@ test.describe("Account Service", () => {
     expect(result).toBeNull();
   });
 });
+test("links an approved account to a crew member", async ({ page }) => {
+  await page.goto("/");
+
+  const result = await page.evaluate(() => {
+    localStorage.removeItem("bluecrew_accounts");
+
+    const account = accountService.createAccount({
+      firstName: "Link",
+      lastName: "Tester",
+      email: `link-${Date.now()}@test.com`
+    }).data;
+
+    accountService.approveAccount(account.id);
+
+    const crewMember = crewService.getAll()[0];
+
+    return accountService.linkCrew(account.id, crewMember.id);
+  });
+
+  expect(result.success).toBe(true);
+  expect(result.data.crewId).toBeTruthy();
+});
+
+test("rejects linking a pending account", async ({ page }) => {
+  await page.goto("/");
+
+  const result = await page.evaluate(() => {
+    localStorage.removeItem("bluecrew_accounts");
+
+    const account = accountService.createAccount({
+      firstName: "Pending",
+      lastName: "Tester",
+      email: `pending-${Date.now()}@test.com`
+    }).data;
+
+    const crewMember = crewService.getAll()[0];
+
+    return accountService.linkCrew(account.id, crewMember.id);
+  });
+
+  expect(result.success).toBe(false);
+});
+
+test("rejects linking to a nonexistent crew member", async ({ page }) => {
+  await page.goto("/");
+
+  const result = await page.evaluate(() => {
+    localStorage.removeItem("bluecrew_accounts");
+
+    const account = accountService.createAccount({
+      firstName: "Invalid",
+      lastName: "Crew",
+      email: `invalid-${Date.now()}@test.com`
+    }).data;
+
+    accountService.approveAccount(account.id);
+
+    return accountService.linkCrew(account.id, "does-not-exist");
+  });
+
+  expect(result.success).toBe(false);
+});
+
+test("prevents linking two accounts to the same crew member", async ({ page }) => {
+  await page.goto("/");
+
+  const result = await page.evaluate(() => {
+    localStorage.removeItem("bluecrew_accounts");
+
+    const first = accountService.createAccount({
+      firstName: "One",
+      lastName: "Tester",
+      email: `one-${Date.now()}@test.com`
+    }).data;
+
+    const second = accountService.createAccount({
+      firstName: "Two",
+      lastName: "Tester",
+      email: `two-${Date.now()}@test.com`
+    }).data;
+
+    accountService.approveAccount(first.id);
+    accountService.approveAccount(second.id);
+
+    const crewMember = crewService.getAll()[0];
+
+    accountService.linkCrew(first.id, crewMember.id);
+
+    return accountService.linkCrew(second.id, crewMember.id);
+  });
+
+  expect(result.success).toBe(false);
+});
+
+test("unlinks a crew member", async ({ page }) => {
+  await page.goto("/");
+
+  const result = await page.evaluate(() => {
+    localStorage.removeItem("bluecrew_accounts");
+
+    const account = accountService.createAccount({
+      firstName: "Unlink",
+      lastName: "Tester",
+      email: `unlink-${Date.now()}@test.com`
+    }).data;
+
+    accountService.approveAccount(account.id);
+
+    const crewMember = crewService.getAll()[0];
+
+    accountService.linkCrew(account.id, crewMember.id);
+
+    return accountService.unlinkCrew(account.id);
+  });
+
+  expect(result.success).toBe(true);
+  expect(result.data.crewId).toBeNull();
+});
+
+test("returns only approved accounts that are not linked", async ({ page }) => {
+  await page.goto("/");
+
+  const result = await page.evaluate(() => {
+    localStorage.removeItem("bluecrew_accounts");
+
+    const unlinked = accountService.createAccount({
+      firstName: "Available",
+      lastName: "Account",
+      email: `available-${Date.now()}@test.com`
+    }).data;
+
+    const linked = accountService.createAccount({
+      firstName: "Linked",
+      lastName: "Account",
+      email: `linked-${Date.now()}@test.com`
+    }).data;
+
+    accountService.approveAccount(unlinked.id);
+    accountService.approveAccount(linked.id);
+
+    const crewMember = crewService.getAll()[0];
+
+    accountService.linkCrew(linked.id, crewMember.id);
+
+    return accountService.getUnlinkedApprovedAccounts();
+  });
+
+  expect(result).toHaveLength(1);
+  expect(result[0].crewId).toBeNull();
+  expect(result[0].status).toBe("approved");
+});

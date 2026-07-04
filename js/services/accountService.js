@@ -125,6 +125,67 @@ const accountService = (() => {
     return mutationResult(true, "Account updated.", account);
   }
 
+  function linkCrew(accountId, crewId) {
+  const accounts = getAll();
+
+  const account = accounts.find(a => a.id === accountId);
+
+  if (!account) {
+    return mutationResult(false, "Account not found.");
+  }
+
+  if (account.status !== "approved") {
+    return mutationResult(false, "Only approved accounts may be linked.");
+  }
+
+  const crewMember = crewService.getById(crewId);
+
+  if (!crewMember) {
+    return mutationResult(false, "Crew member not found.");
+  }
+
+  const existingLink = accounts.find(
+    a => a.id !== accountId && a.crewId === crewId
+  );
+
+  if (existingLink) {
+    return mutationResult(
+      false,
+      "Crew member is already linked to another account."
+    );
+  }
+
+  account.crewId = crewId;
+
+  saveAll(accounts);
+
+  return mutationResult(true, "Crew linked successfully.", account);
+}
+
+function unlinkCrew(accountId) {
+  const accounts = getAll();
+
+  const account = accounts.find(a => a.id === accountId);
+
+  if (!account) {
+    return mutationResult(false, "Account not found.");
+  }
+
+  account.crewId = null;
+
+  saveAll(accounts);
+
+  return mutationResult(true, "Crew unlinked successfully.", account);
+}
+
+function getUnlinkedApprovedAccounts() {
+  return getAll().filter(
+    account =>
+      account.status === "approved" &&
+      account.crewId === null
+  );
+}
+
   function deleteAccount(accountId) {
     const accounts = getAll();
     const nextAccounts = accounts.filter(account => account.id !== accountId);
@@ -139,14 +200,17 @@ const accountService = (() => {
   }
 
   return {
-    getAll,
-    createAccount,
-    approveAccount,
-    rejectAccount,
-    getPendingAccounts,
-    getApprovedAccounts,
-    getById,
-    updateAccount,
-    deleteAccount
-  };
+  getAll,
+  createAccount,
+  approveAccount,
+  rejectAccount,
+  getPendingAccounts,
+  getApprovedAccounts,
+  getUnlinkedApprovedAccounts,
+  getById,
+  updateAccount,
+  deleteAccount,
+  linkCrew,
+  unlinkCrew
+};
 })();
