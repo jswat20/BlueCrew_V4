@@ -16,21 +16,36 @@ const portalService = (() => {
       .getAll()
       .filter(game => isGameAssignedToCrew(game, account.crewId))
       .sort(sortByDateTime)
-      .map(game => ({
-        id: game.id,
-        date: game.date,
-        time: game.time,
-        field: game.field,
-        level: game.level,
-        homeTeam: game.homeTeam,
-        awayTeam: game.awayTeam,
-        matchup: `${game.awayTeam} @ ${game.homeTeam}`,
-        assignmentStatus: assignmentService.getStatus(game),
-        assignmentStatusLabel:
-          typeof getAssignmentStatusLabel === "function"
-            ? getAssignmentStatusLabel(game)
-            : assignmentService.getStatus(game)
-      }));
+      .map(mapGame);
+  }
+
+  function getClaimableGames() {
+    const account = getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return [];
+    }
+
+    return assignmentService
+      .getClaimableGames()
+      .sort(sortByDateTime)
+      .map(mapGame);
+  }
+
+  function claimGame(gameId) {
+    const account = getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return {
+        success: false,
+        message: "No logged in umpire."
+      };
+    }
+
+    return assignmentService.claimGame(
+      gameId,
+      account.crewId
+    );
   }
 
   function isGameAssignedToCrew(game, crewId) {
@@ -47,43 +62,32 @@ const portalService = (() => {
     );
   }
 
-  function sortByDateTime(a, b) {
-    return `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`);
+  function mapGame(game) {
+    return {
+      id: game.id,
+      date: game.date,
+      time: game.time,
+      field: game.field,
+      level: game.level,
+      homeTeam: game.homeTeam,
+      awayTeam: game.awayTeam,
+      matchup: `${game.awayTeam} @ ${game.homeTeam}`,
+      assignmentStatus: assignmentService.getStatus(game),
+      assignmentStatusLabel:
+        typeof getAssignmentStatusLabel === "function"
+          ? getAssignmentStatusLabel(game)
+          : assignmentService.getStatus(game)
+    };
   }
 
-  function getClaimableGames() {
-    const account = getCurrentAccount();
-
-    if (!account || !account.crewId) {
-      return [];
-    }
-
-    return gameService
-      .getAll()
-      .filter(game =>
-        assignmentService.getStatus(game) === AssignmentStatus.OPEN_FOR_CLAIM
-      )
-      .sort(sortByDateTime)
-      .map(game => ({
-        id: game.id,
-        date: game.date,
-        time: game.time,
-        field: game.field,
-        level: game.level,
-        homeTeam: game.homeTeam,
-        awayTeam: game.awayTeam,
-        matchup: `${game.awayTeam} @ ${game.homeTeam}`,
-        assignmentStatus: assignmentService.getStatus(game),
-        assignmentStatusLabel:
-          typeof getAssignmentStatusLabel === "function"
-            ? getAssignmentStatusLabel(game)
-            : assignmentService.getStatus(game)
-      }));
+  function sortByDateTime(a, b) {
+    return `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`);
   }
 
   return {
     getCurrentAccount,
     getMySchedule,
     getClaimableGames,
+    claimGame
   };
 })();

@@ -212,6 +212,13 @@ function renderUmpireView(page) {
             "My Schedule",
             "My Schedule is unavailable."
           );
+      case "claim-games":
+  return typeof renderClaimGames === "function"
+    ? renderClaimGames()
+    : placeholderPage(
+        "Claim Games",
+        "Claim Games is unavailable."
+      );
           
     default:
       return placeholderPage(
