@@ -48,6 +48,6 @@ function handleLoginSubmit(event) {
   messageEl.textContent = result.message;
 
   if (result.success) {
-    renderApp();
+    renderPage("dashboard");
   }
 }

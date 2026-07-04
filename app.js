@@ -20,6 +20,10 @@ const pages = {
     title: "Dashboard",
     subtitle: "Assignments, Schedules, and Activity."
   },
+  login: {
+    title: "Login",
+    subtitle: "Access your umpire portal."
+  },
   schedule: {
     title: "Schedule",
     subtitle: "View and Manage Game Schedules."
@@ -157,6 +161,7 @@ function runPageSetup(page) {
 function renderAdminView(page) {
   const renderers = {
     dashboard: typeof renderDashboard === "function" ? renderDashboard : null,
+    login: typeof renderLogin === "function" ? renderLogin : null,
     schedule: typeof renderSchedule === "function" ? renderSchedule : null,
     crew: typeof renderCrew === "function" ? renderCrew : null,
     reports: typeof renderReports === "function" ? renderReports : null,
