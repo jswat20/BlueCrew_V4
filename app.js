@@ -44,6 +44,11 @@ const pages = {
     title: "Admin",
     subtitle: "Administrative Tools and Controls."
   }
+  ,
+  accounts: {
+    title: "Accounts",
+    subtitle: "Manage Umpire Registrations and Approvals."
+  }
 };
 
 function initializeApp() {
@@ -166,7 +171,8 @@ function renderAdminView(page) {
     crew: typeof renderCrew === "function" ? renderCrew : null,
     reports: typeof renderReports === "function" ? renderReports : null,
     settings: typeof renderSettings === "function" ? renderSettings : null,
-    admin: typeof renderAdmin === "function" ? renderAdmin : null
+    admin: typeof renderAdmin === "function" ? renderAdmin : null,
+    accounts: typeof renderAccounts === "function" ? renderAccounts : null
   };
 
   const renderer = renderers[page];
