@@ -1,11 +1,7 @@
-// tests/fixtures/app.fixture.js
+import { test as base } from "@playwright/test";
 
-import { test as base, expect } from "@playwright/test";
-
-import { AppPage } from "../pages/AppPage";
-import { SchedulePage } from "../pages/SchedulePage";
-import { GameEditorPage } from "../pages/GameEditorPage";
-import { AssignmentDrawerPage } from "../pages/AssignmentDrawerPage";
+import { GameEditorPage } from "../pages/GameEditorPage.js";
+import { AssignmentPage } from "../pages/AssignmentPage.js";
 
 export const test = base.extend({
   app: async ({ page }, use) => {
@@ -13,14 +9,14 @@ export const test = base.extend({
 
     const app = {
       page,
-      appPage: new AppPage(page),
-      schedulePage: new SchedulePage(page),
+
       gameEditorPage: new GameEditorPage(page),
-      assignmentDrawerPage: new AssignmentDrawerPage(page)
+
+      assignmentPage: new AssignmentPage(page)
     };
 
     await use(app);
   }
 });
 
-export { expect };
+export { expect } from "@playwright/test";
