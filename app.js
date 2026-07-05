@@ -52,6 +52,10 @@ const pages = {
     title: "Accounts",
     subtitle: "Manage Umpire Registrations and Approvals."
   },
+    "claims-queue": {
+    title: "Claims Queue",
+    subtitle: "Review and manage pending umpire claims."
+  },
   "my-claims": {
     title: "My Claims",
     subtitle: "View and Manage Your Claimed Games."
@@ -181,7 +185,8 @@ function renderAdminView(page) {
     admin: typeof renderAdmin === "function" ? renderAdmin : null,
     accounts: typeof renderAccounts === "function" ? renderAccounts : null,
     "my-schedule": typeof renderMySchedule === "function" ? renderMySchedule : null,
-
+    "claims-queue": typeof renderClaimsQueue === "function" ? renderClaimsQueue : null,
+    
   };
 
   const renderer = renderers[page];

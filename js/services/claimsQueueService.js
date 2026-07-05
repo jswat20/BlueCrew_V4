@@ -4,12 +4,27 @@ const claimsQueueService = (() => {
       .getAll()
       .flatMap(game =>
         (game.assignments || [])
-          .filter(assignment =>
-            assignment.status === AssignmentStatus.PENDING_APPROVAL
+          .filter(
+            assignment =>
+              assignment.status === AssignmentStatus.PENDING_APPROVAL
           )
           .map(assignment => ({
             game,
-            assignment
+            assignment,
+            gameId: game.id,
+            assignmentId: assignment.id,
+            matchup: `${game.awayTeam} @ ${game.homeTeam}`,
+            date: game.date,
+            time: game.time,
+            field: game.field,
+            level: game.level,
+            position: assignment.position,
+            claimedBy: assignment.claimedBy,
+            claimedByName:
+              assignment.claimedByName ||
+              assignment.claimedBy ||
+              "Unknown Umpire",
+            status: assignment.status
           }))
       );
   }
