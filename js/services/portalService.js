@@ -83,11 +83,32 @@ const portalService = (() => {
   function sortByDateTime(a, b) {
     return `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`);
   }
+function getMyPendingClaims() {
+  const account = getCurrentAccount();
 
+  if (!account || !account.crewId) {
+    return [];
+  }
+
+  return gameService
+    .getAll()
+    .flatMap(game =>
+      (game.assignments || [])
+        .filter(assignment =>
+          assignment.status === AssignmentStatus.PENDING_APPROVAL &&
+          assignment.claimedBy === account.crewId
+        )
+        .map(assignment => ({
+          game,
+          assignment
+        }))
+    );
+}
   return {
     getCurrentAccount,
     getMySchedule,
     getClaimableGames,
-    claimGame
+    claimGame,
+    getMyPendingClaims
   };
 })();

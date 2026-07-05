@@ -47,11 +47,14 @@ const pages = {
   admin: {
     title: "Admin",
     subtitle: "Administrative Tools and Controls."
-  }
-  ,
+  },
   accounts: {
     title: "Accounts",
     subtitle: "Manage Umpire Registrations and Approvals."
+  },
+  "my-claims": {
+    title: "My Claims",
+    subtitle: "View and Manage Your Claimed Games."
   }
 };
 
@@ -218,6 +221,13 @@ function renderUmpireView(page) {
     : placeholderPage(
         "Claim Games",
         "Claim Games is unavailable."
+      );
+      case "my-claims":
+  return typeof renderMyClaims === "function"
+    ? renderMyClaims()
+    : placeholderPage(
+        "My Claims",
+        "My Claims is unavailable."
       );
           
     default:
