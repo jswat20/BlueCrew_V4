@@ -1029,3 +1029,28 @@ body {
   padding: 24px;
   box-shadow: -12px 0 30px rgba(0, 0, 0, 0.18);
 }
+.claim-queue-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.claim-queue-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .5rem 1rem;
+}
+
+.claim-queue-details p {
+  margin: 0;
+}
+
+.claim-queue-actions {
+  display: flex;
+  gap: .75rem;
+}
