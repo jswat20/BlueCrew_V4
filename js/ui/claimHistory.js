@@ -1,6 +1,7 @@
 function renderClaimHistory() {
   const approvedClaims = claimsQueueService.getApprovedClaims();
   const rejectedClaims = claimsQueueService.getRejectedClaims();
+  const summary = claimsQueueService.getClaimHistorySummary();
 
   if (!approvedClaims.length && !rejectedClaims.length) {
     return `
@@ -17,7 +18,7 @@ function renderClaimHistory() {
     <section class="page-section" data-testid="claim-history">
       <h2>Claim History</h2>
 
-      ${renderClaimHistorySummary(approvedClaims, rejectedClaims)}
+${renderClaimHistorySummary(summary)}
 
       <section data-testid="claim-history-approved">
         <h3>Approved Claims</h3>
@@ -32,37 +33,27 @@ function renderClaimHistory() {
   `;
 }
 
-function renderClaimHistorySummary(approvedClaims, rejectedClaims) {
-  const today = new Date().toISOString().split("T")[0];
-
-  const approvedToday = approvedClaims.filter(claim =>
-    claim.assignment.claimProcessedAt?.startsWith(today)
-  ).length;
-
-  const rejectedToday = rejectedClaims.filter(claim =>
-    claim.assignment.claimProcessedAt?.startsWith(today)
-  ).length;
-
+function renderClaimHistorySummary(summary) {
   return `
     <section class="claim-history-summary" data-testid="claim-history-summary">
       <article class="claim-history-summary-card" data-testid="claim-history-approved-today">
         <h3>Approved Today</h3>
-        <p>${approvedToday}</p>
+        <p>${summary.approvedToday}</p>
       </article>
 
       <article class="claim-history-summary-card" data-testid="claim-history-rejected-today">
         <h3>Rejected Today</h3>
-        <p>${rejectedToday}</p>
+        <p>${summary.rejectedToday}</p>
       </article>
 
       <article class="claim-history-summary-card" data-testid="claim-history-total-approved">
         <h3>Total Approved</h3>
-        <p>${approvedClaims.length}</p>
+        <p>${summary.totalApproved}</p>
       </article>
 
       <article class="claim-history-summary-card" data-testid="claim-history-total-rejected">
         <h3>Total Rejected</h3>
-        <p>${rejectedClaims.length}</p>
+        <p>${summary.totalRejected}</p>
       </article>
     </section>
   `;

@@ -75,6 +75,25 @@ const claimsQueueService = (() => {
     return claims;
   }
 
+  function getClaimHistorySummary() {
+    const approvedClaims = getClaimHistory({ status: "approved" });
+    const rejectedClaims = getClaimHistory({ status: "rejected" });
+    const today = new Date().toISOString().split("T")[0];
+
+    return {
+      approvedToday: approvedClaims.filter(claim =>
+        claim.assignment.claimProcessedAt?.startsWith(today)
+      ).length,
+
+      rejectedToday: rejectedClaims.filter(claim =>
+        claim.assignment.claimProcessedAt?.startsWith(today)
+      ).length,
+
+      totalApproved: approvedClaims.length,
+      totalRejected: rejectedClaims.length
+    };
+  }
+
   function getApprovedClaims() {
     return getClaimHistory({
       status: "approved"
@@ -98,6 +117,7 @@ const claimsQueueService = (() => {
   return {
     getPendingClaims,
     getClaimHistory,
+    getClaimHistorySummary,
     getApprovedClaims,
     getRejectedClaims,
     approveClaim,
