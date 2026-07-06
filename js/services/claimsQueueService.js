@@ -30,15 +30,62 @@ const claimsQueueService = (() => {
     return getClaimsByStatus(AssignmentStatus.PENDING_APPROVAL);
   }
 
-  function getApprovedClaims() {
-  return getClaimsByStatus(AssignmentStatus.ASSIGNED)
-    .filter(claim => claim.assignment.claimProcessed && claim.assignment.claimStatus === "approved");
-}
+  function getClaimHistory(options = {}) {
+    const {
+      status = "all",
+      sort = "desc"
+    } = options;
 
-function getRejectedClaims() {
-  return getClaimsByStatus(AssignmentStatus.OPEN_FOR_CLAIM)
-    .filter(claim => claim.assignment.claimProcessed && claim.assignment.claimStatus === "rejected");
-}
+    let claims = [
+      ...getClaimsByStatus(AssignmentStatus.ASSIGNED)
+        .filter(
+          claim =>
+            claim.assignment.claimProcessed &&
+            claim.assignment.claimStatus === "approved"
+        ),
+
+      ...getClaimsByStatus(AssignmentStatus.OPEN_FOR_CLAIM)
+        .filter(
+          claim =>
+            claim.assignment.claimProcessed &&
+            claim.assignment.claimStatus === "rejected"
+        )
+    ];
+
+    if (status !== "all") {
+      claims = claims.filter(
+        claim => claim.assignment.claimStatus === status
+      );
+    }
+
+    claims.sort((a, b) => {
+      const aTime = new Date(
+        a.assignment.claimProcessedAt || a.date || 0
+      ).getTime();
+
+      const bTime = new Date(
+        b.assignment.claimProcessedAt || b.date || 0
+      ).getTime();
+
+      return sort === "asc"
+        ? aTime - bTime
+        : bTime - aTime;
+    });
+
+    return claims;
+  }
+
+  function getApprovedClaims() {
+    return getClaimHistory({
+      status: "approved"
+    });
+  }
+
+  function getRejectedClaims() {
+    return getClaimHistory({
+      status: "rejected"
+    });
+  }
 
   function approveClaim(gameId, assignmentId) {
     return assignmentService.approveClaim(gameId, assignmentId);
@@ -50,6 +97,7 @@ function getRejectedClaims() {
 
   return {
     getPendingClaims,
+    getClaimHistory,
     getApprovedClaims,
     getRejectedClaims,
     approveClaim,
