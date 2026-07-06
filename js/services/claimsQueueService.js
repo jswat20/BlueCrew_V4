@@ -1,13 +1,10 @@
 const claimsQueueService = (() => {
-  function getPendingClaims() {
+  function getClaimsByStatus(status) {
     return gameService
       .getAll()
       .flatMap(game =>
         (game.assignments || [])
-          .filter(
-            assignment =>
-              assignment.status === AssignmentStatus.PENDING_APPROVAL
-          )
+          .filter(assignment => assignment.status === status)
           .map(assignment => ({
             game,
             assignment,
@@ -29,6 +26,20 @@ const claimsQueueService = (() => {
       );
   }
 
+  function getPendingClaims() {
+    return getClaimsByStatus(AssignmentStatus.PENDING_APPROVAL);
+  }
+
+  function getApprovedClaims() {
+  return getClaimsByStatus(AssignmentStatus.ASSIGNED)
+    .filter(claim => claim.assignment.claimProcessed && claim.assignment.claimStatus === "approved");
+}
+
+function getRejectedClaims() {
+  return getClaimsByStatus(AssignmentStatus.OPEN_FOR_CLAIM)
+    .filter(claim => claim.assignment.claimProcessed && claim.assignment.claimStatus === "rejected");
+}
+
   function approveClaim(gameId, assignmentId) {
     return assignmentService.approveClaim(gameId, assignmentId);
   }
@@ -39,6 +50,8 @@ const claimsQueueService = (() => {
 
   return {
     getPendingClaims,
+    getApprovedClaims,
+    getRejectedClaims,
     approveClaim,
     rejectClaim
   };

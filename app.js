@@ -186,7 +186,7 @@ function renderAdminView(page) {
     accounts: typeof renderAccounts === "function" ? renderAccounts : null,
     "my-schedule": typeof renderMySchedule === "function" ? renderMySchedule : null,
     "claims-queue": typeof renderClaimsQueue === "function" ? renderClaimsQueue : null,
-    
+    "claim-history": typeof renderClaimHistory === "function" ? renderClaimHistory : null,
   };
 
   const renderer = renderers[page];

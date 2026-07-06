@@ -578,9 +578,17 @@ function lockAssignmentSlot(gameId, assignmentId) {
       return mutationResult(false, "No pending claim found.");
     }
 
-    assignment.crewId = assignment.claimedBy;
-    assignment.claimedBy = "";
-    assignment.status = STATUS.ASSIGNED;
+    assignment.claimedByName =
+  assignment.claimedByName ||
+  assignment.claimedBy ||
+  "Unknown Umpire";
+
+assignment.claimProcessed = true;
+assignment.claimStatus = "approved";
+
+assignment.crewId = assignment.claimedBy;
+assignment.claimedBy = "";
+assignment.status = STATUS.ASSIGNED;
 
     game.assignmentMode = "claim";
 
@@ -607,8 +615,16 @@ function lockAssignmentSlot(gameId, assignmentId) {
       return mutationResult(false, "No pending claim found.");
     }
 
-    assignment.claimedBy = "";
-    assignment.status = STATUS.OPEN_FOR_CLAIM;
+    assignment.claimedByName =
+  assignment.claimedByName ||
+  assignment.claimedBy ||
+  "Unknown Umpire";
+
+assignment.claimProcessed = true;
+assignment.claimStatus = "rejected";
+
+assignment.claimedBy = "";
+assignment.status = STATUS.OPEN_FOR_CLAIM;
 
     syncLegacyFields(game);
     saveGames(games);
