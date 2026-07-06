@@ -45,25 +45,26 @@ if (window.qaService) {
         });
       },
 
-      async createPendingClaim() {
-        await this.loginAsApprovedUmpire();
+async createPendingClaim(overrides = {}) {
+  await this.loginAsApprovedUmpire();
 
-        await page.evaluate(() => {
-          const game = gameService.create({
-            date: new Date().toISOString().split("T")[0],
-            time: "6:00 PM",
-            field: "Field 1",
-            level: "12U",
-            homeTeam: "Pending Home",
-            awayTeam: "Pending Away",
-            gameType: "single"
-          }).data;
+  await page.evaluate((gameOverrides) => {
+    const game = gameService.create({
+      date: new Date().toISOString().split("T")[0],
+      time: "6:00 PM",
+      field: "Field 1",
+      level: "12U",
+      homeTeam: "Pending Home",
+      awayTeam: "Pending Away",
+      gameType: "single",
+      ...gameOverrides
+    }).data;
 
-          assignmentService.openForClaim(game.id);
+    assignmentService.openForClaim(game.id);
 
-          portalService.claimGame(game.id, `${game.id}-plate`);
-        });
-      }
+    portalService.claimGame(game.id, `${game.id}-plate`);
+  }, overrides);
+}
     };
 
     await use(app);
