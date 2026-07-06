@@ -1,7 +1,15 @@
+let claimHistoryStatusFilter = "all";
+
 function renderClaimHistory() {
   const approvedClaims = claimsQueueService.getApprovedClaims();
   const rejectedClaims = claimsQueueService.getRejectedClaims();
   const summary = claimsQueueService.getClaimHistorySummary();
+
+  const filteredApprovedClaims =
+    claimHistoryStatusFilter === "rejected" ? [] : approvedClaims;
+
+  const filteredRejectedClaims =
+    claimHistoryStatusFilter === "approved" ? [] : rejectedClaims;
 
   if (!approvedClaims.length && !rejectedClaims.length) {
     return `
@@ -18,19 +26,55 @@ function renderClaimHistory() {
     <section class="page-section" data-testid="claim-history">
       <h2>Claim History</h2>
 
-${renderClaimHistorySummary(summary)}
+      ${renderClaimHistorySummary(summary)}
+      ${renderClaimHistoryFilters()}
 
       <section data-testid="claim-history-approved">
         <h3>Approved Claims</h3>
-        ${approvedClaims.map(claim => renderClaimHistoryCard(claim, "approved")).join("")}
+        ${filteredApprovedClaims.map(claim => renderClaimHistoryCard(claim, "approved")).join("")}
       </section>
 
       <section data-testid="claim-history-rejected">
         <h3>Rejected Claims</h3>
-        ${rejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected")).join("")}
+        ${filteredRejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected")).join("")}
       </section>
     </section>
   `;
+}
+
+function renderClaimHistoryFilters() {
+  return `
+    <div class="claim-history-filters" data-testid="claim-history-filters">
+      <button
+        type="button"
+        data-testid="claim-history-filter-all"
+        class="${claimHistoryStatusFilter === "all" ? "active" : ""}"
+        onclick="setClaimHistoryStatusFilter('all')">
+        All
+      </button>
+
+      <button
+        type="button"
+        data-testid="claim-history-filter-approved"
+        class="${claimHistoryStatusFilter === "approved" ? "active" : ""}"
+        onclick="setClaimHistoryStatusFilter('approved')">
+        Approved
+      </button>
+
+      <button
+        type="button"
+        data-testid="claim-history-filter-rejected"
+        class="${claimHistoryStatusFilter === "rejected" ? "active" : ""}"
+        onclick="setClaimHistoryStatusFilter('rejected')">
+        Rejected
+      </button>
+    </div>
+  `;
+}
+
+function setClaimHistoryStatusFilter(filter) {
+  claimHistoryStatusFilter = filter;
+  renderPage("claim-history");
 }
 
 function renderClaimHistorySummary(summary) {
