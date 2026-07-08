@@ -1,20 +1,27 @@
 let claimHistoryStatusFilter = "all";
+let claimHistoryDateRangeFilter = "all";
 
 function renderClaimHistory() {
-  const approvedClaims = claimsQueueService.getApprovedClaims();
-  const rejectedClaims = claimsQueueService.getRejectedClaims();
+  const claims = claimsQueueService.getClaimHistory({
+    status: claimHistoryStatusFilter,
+    dateRange: claimHistoryDateRangeFilter
+  });
+
   const summary = claimsQueueService.getClaimHistorySummary();
 
-  const filteredApprovedClaims =
-    claimHistoryStatusFilter === "rejected" ? [] : approvedClaims;
+  const filteredApprovedClaims = claims.filter(
+    claim => claim.assignment.claimStatus === "approved"
+  );
 
-  const filteredRejectedClaims =
-    claimHistoryStatusFilter === "approved" ? [] : rejectedClaims;
+  const filteredRejectedClaims = claims.filter(
+    claim => claim.assignment.claimStatus === "rejected"
+  );
 
-  if (!approvedClaims.length && !rejectedClaims.length) {
+  if (!claims.length) {
     return `
       <section class="page-section" data-testid="claim-history">
         <h2>Claim History</h2>
+        ${renderClaimHistoryFilters()}
         <div class="empty-state" data-testid="claim-history-empty">
           There is no claim history.
         </div>
@@ -69,11 +76,50 @@ function renderClaimHistoryFilters() {
         Rejected
       </button>
     </div>
+
+    <div class="claim-history-date-filters" data-testid="claim-history-date-filters">
+      <button
+        type="button"
+        data-testid="claim-history-date-filter-all"
+        class="${claimHistoryDateRangeFilter === "all" ? "active" : ""}"
+        onclick="setClaimHistoryDateRangeFilter('all')">
+        All Time
+      </button>
+
+      <button
+        type="button"
+        data-testid="claim-history-date-filter-today"
+        class="${claimHistoryDateRangeFilter === "today" ? "active" : ""}"
+        onclick="setClaimHistoryDateRangeFilter('today')">
+        Today
+      </button>
+
+      <button
+        type="button"
+        data-testid="claim-history-date-filter-7"
+        class="${claimHistoryDateRangeFilter === "7" ? "active" : ""}"
+        onclick="setClaimHistoryDateRangeFilter('7')">
+        Last 7 Days
+      </button>
+
+      <button
+        type="button"
+        data-testid="claim-history-date-filter-30"
+        class="${claimHistoryDateRangeFilter === "30" ? "active" : ""}"
+        onclick="setClaimHistoryDateRangeFilter('30')">
+        Last 30 Days
+      </button>
+    </div>
   `;
 }
 
 function setClaimHistoryStatusFilter(filter) {
   claimHistoryStatusFilter = filter;
+  renderPage("claim-history");
+}
+
+function setClaimHistoryDateRangeFilter(filter) {
+  claimHistoryDateRangeFilter = filter;
   renderPage("claim-history");
 }
 

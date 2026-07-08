@@ -30,9 +30,34 @@ const claimsQueueService = (() => {
     return getClaimsByStatus(AssignmentStatus.PENDING_APPROVAL);
   }
 
+  function matchesDateRange(claim, dateRange) {
+    if (!dateRange || dateRange === "all") return true;
+
+    const processedAt = claim.assignment.claimProcessedAt || claim.date;
+
+    if (!processedAt) return false;
+
+    const claimDate = new Date(processedAt);
+    const today = new Date();
+
+    claimDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.floor(
+      (today.getTime() - claimDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (dateRange === "today") return diffDays === 0;
+    if (dateRange === "7") return diffDays >= 0 && diffDays <= 7;
+    if (dateRange === "30") return diffDays >= 0 && diffDays <= 30;
+
+    return true;
+  }
+
   function getClaimHistory(options = {}) {
     const {
       status = "all",
+      dateRange = "all",
       sort = "desc"
     } = options;
 
@@ -57,6 +82,8 @@ const claimsQueueService = (() => {
         claim => claim.assignment.claimStatus === status
       );
     }
+
+    claims = claims.filter(claim => matchesDateRange(claim, dateRange));
 
     claims.sort((a, b) => {
       const aTime = new Date(
