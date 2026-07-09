@@ -131,5 +131,37 @@ test.describe("Notifications UI", () => {
       app.page.getByTestId("notifications-mark-all-read")
     ).toHaveCount(0);
   });
+test("filters notifications by unread status", async ({ app }) => {
+  const result = await app.page.evaluate(() => {
+    notificationService.clearAll();
 
+    notificationService.create({
+      type: "claim",
+      title: "Unread notification",
+      message: "Unread message"
+    });
+
+    const read = notificationService.create({
+  type: "claim",
+  title: "Read notification",
+  message: "Read message"
+}).data;
+
+    notificationService.markAsRead(read.id);
+
+    return {
+      unread: notificationService.getNotifications({ status: "unread" }),
+      read: notificationService.getNotifications({ status: "read" }),
+      all: notificationService.getNotifications({ status: "all" })
+    };
+  });
+
+  expect(result.unread).toHaveLength(1);
+  expect(result.unread[0].title).toBe("Unread notification");
+
+  expect(result.read).toHaveLength(1);
+  expect(result.read[0].title).toBe("Read notification");
+
+  expect(result.all).toHaveLength(2);
+});
 });

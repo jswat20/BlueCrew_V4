@@ -112,6 +112,22 @@ const notificationService = (() => {
     };
   }
 
+  function getNotifications(options = {}) {
+    const status = options.status || "all";
+
+    const notifications = getAll();
+
+    if (status === "unread") {
+      return notifications.filter(notification => !notification.read);
+    }
+
+    if (status === "read") {
+      return notifications.filter(notification => notification.read);
+    }
+
+    return notifications;
+  }
+
   return {
     getAll,
     create,
@@ -120,6 +136,7 @@ const notificationService = (() => {
     getUnreadCount,
     markAsRead,
     markAllAsRead,
-    clearAll
+    clearAll,
+    getNotifications
   };
 })();

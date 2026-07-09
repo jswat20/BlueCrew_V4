@@ -96,4 +96,30 @@ function handleMarkAllNotificationsRead() {
   if (!result.success) return;
 
   renderPage("notifications");
+
+  let selectedNotificationStatus = "all";
+
+  const notifications = notificationService.getNotifications({
+  status: selectedNotificationStatus
+});
+
+}
+function renderNotificationFilters() {
+  return `
+    <div class="filter-group" data-testid="notification-filters">
+      <button data-testid="notification-filter-all" class="${selectedNotificationStatus === "all" ? "active" : ""}" onclick="setNotificationFilter('all')">
+        All
+      </button>
+      <button data-testid="notification-filter-unread" class="${selectedNotificationStatus === "unread" ? "active" : ""}" onclick="setNotificationFilter('unread')">
+        Unread
+      </button>
+      <button data-testid="notification-filter-read" class="${selectedNotificationStatus === "read" ? "active" : ""}" onclick="setNotificationFilter('read')">
+        Read
+      </button>
+    </div>
+  `;
+}
+function setNotificationFilter(status) {
+  selectedNotificationStatus = status;
+  renderPage("notifications");
 }
