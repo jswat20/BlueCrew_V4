@@ -86,4 +86,29 @@ test.describe("Notification Service", () => {
 
     expect(unreadCount).toBe(0);
   });
+  test("returns notifications newest first", async ({ app }) => {
+  const result = await app.page.evaluate(() => {
+    notificationService.clearAll();
+
+    notificationService.create({
+      type: "claim",
+      title: "Old notification",
+      message: "Old message",
+      createdAt: "2026-07-01T12:00:00.000Z"
+    });
+
+    notificationService.create({
+      type: "claim",
+      title: "New notification",
+      message: "New message",
+      createdAt: "2026-07-09T12:00:00.000Z"
+    });
+
+    return notificationService.getNotifications({ status: "all" });
+  });
+
+  expect(result).toHaveLength(2);
+  expect(result[0].title).toBe("New notification");
+  expect(result[1].title).toBe("Old notification");
+});
 });

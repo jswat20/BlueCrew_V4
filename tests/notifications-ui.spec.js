@@ -164,4 +164,20 @@ test("filters notifications by unread status", async ({ app }) => {
 
   expect(result.all).toHaveLength(2);
 });
+test("shows notification timestamps", async ({ app }) => {
+  await app.page.evaluate(() => {
+    notificationService.clearAll();
+
+    notificationService.create({
+      type: "claim",
+      title: "Timestamped notification",
+      message: "Timestamp message",
+      createdAt: "2026-07-09T12:00:00.000Z"
+    });
+  });
+
+  await app.page.getByTestId("nav-notifications").click();
+
+  await expect(app.page.getByTestId("notification-timestamp")).toBeVisible();
+});
 });

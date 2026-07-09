@@ -64,6 +64,10 @@ function renderNotificationCard(notification) {
         ${notification.createdAt}
       </small>
 
+      <p data-testid="notification-timestamp">
+  ${formatNotificationTimestamp(notification.createdAt)}
+</p>
+
       ${
         notification.read
           ? ""
@@ -80,6 +84,11 @@ function renderNotificationCard(notification) {
       }
     </article>
   `;
+}
+function formatNotificationTimestamp(createdAt) {
+  if (!createdAt) return "";
+
+  return new Date(createdAt).toLocaleString();
 }
 
 function handleMarkNotificationRead(notificationId) {
