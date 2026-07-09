@@ -164,6 +164,8 @@ if (window.qaService) {
     </div>
   `;
 
+  updateNotificationBadge();
+  
   runPageSetup(page);
 }
 
@@ -199,6 +201,23 @@ function renderAdminView(page) {
   return renderer
     ? renderer()
     : placeholderPage("Page Not Found", "This page does not exist yet.");
+}
+
+function updateNotificationBadge() {
+  const badge = document.querySelector('[data-testid="notifications-badge"]');
+
+  if (!badge || typeof notificationService === "undefined") return;
+
+  const unreadCount = notificationService.getUnreadCount();
+
+  if (!unreadCount) {
+    badge.textContent = "";
+    badge.hidden = true;
+    return;
+  }
+
+  badge.textContent = String(unreadCount);
+  badge.hidden = false;
 }
 
 function renderUmpireView(page) {
@@ -317,6 +336,8 @@ function placeholderPage(title, message) {
     </div>
   `;
 }
+
+window.updateNotificationBadge = updateNotificationBadge;
 
 // ----------------------------------------------------
 // QA Error Tracking

@@ -560,6 +560,14 @@ function lockAssignmentSlot(gameId, assignmentId) {
 
     activityService?.log?.("Game claimed and awaiting approval.", game);
 
+notificationService?.create?.({
+  type: "claim-submitted",
+  title: "New Claim Submitted",
+  message: `${game.awayTeam} @ ${game.homeTeam} has been claimed and is awaiting approval.`,
+  relatedId: game.id,
+  audience: "admin"
+});
+
     return mutationResult(true, "Claim submitted for approval.", game);
   }
 
@@ -597,6 +605,14 @@ assignment.status = STATUS.ASSIGNED;
 
     activityService?.log?.("Claim approved.", game);
 
+notificationService?.create?.({
+  type: "claim-approved",
+  title: "Claim Approved",
+  message: `${game.awayTeam} @ ${game.homeTeam} claim has been approved.`,
+  relatedId: game.id,
+  audience: "umpire"
+});
+
     return mutationResult(true, "Claim approved.", game);
   }
 
@@ -630,6 +646,14 @@ assignment.status = STATUS.OPEN_FOR_CLAIM;
     saveGames(games);
 
     activityService?.log?.("Claim rejected.", game);
+
+notificationService?.create?.({
+  type: "claim-rejected",
+  title: "Claim Rejected",
+  message: `${game.awayTeam} @ ${game.homeTeam} claim has been rejected.`,
+  relatedId: game.id,
+  audience: "umpire"
+});
 
     return mutationResult(true, "Claim rejected.", game);
   }
