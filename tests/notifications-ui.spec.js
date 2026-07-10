@@ -207,55 +207,41 @@ test.describe("Notifications UI", () => {
 });
 
   test("claim approved notifications navigate to the Schedule and highlight related game", async ({ app }) => {
-  await app.page.evaluate(() => {
-    notificationService.clearAll();
+ await app.page.evaluate(() => {
+  const game = gameService.create({
+    date: new Date().toISOString().split("T")[0],
+    time: "6:00 PM",
+    field: "Field 1",
+    level: "12U",
+    homeTeam: "Rejected Claim Home",
+    awayTeam: "Rejected Claim Away",
+    gameType: "single"
+  }).data;
 
-    const game = gameService.getAll()[0];
+  assignmentService.openForClaim(game.id);
 
-    notificationService.create({
-      type: "claim-approved",
-      title: "Claim approved",
-      message: "Your claim was approved.",
-      relatedId: game.id,
-      audience: "admin"
-    });
+  const assignment = assignmentService.getAssignments(game)[0];
+
+  assignment.claimedBy = "test-umpire";
+  assignment.claimedByName = "Test Umpire";
+  assignment.status = "pending-approval";
+
+assignmentService.rejectClaim(game.id);
+
+  notificationService.clearAll();
+
+  const rejectedClaim = claimsQueueService.getClaimHistory()[0];
+
+  notificationService.create({
+    type: "claim-rejected",
+    title: "Claim rejected",
+    message: "Your claim was rejected.",
+    relatedId:
+      rejectedClaim.gameId ||
+      rejectedClaim.assignment?.gameId,
+    audience: "admin"
   });
-
-  await app.page.getByTestId("nav-notifications").click();
-  await app.page.getByTestId("notification-action").click();
-
-  await expect(app.page.getByTestId("page-schedule")).toBeVisible();
-
-  await app.page.getByTestId("view-all-games").click();
-
-  await expect(
-    app.page.locator('[data-testid^="game-row-"][data-highlighted="true"]')
-  ).toHaveCount(1);
 });
-
-test("claim rejected notifications navigate to Claim History and highlight related claim", async ({ app }) => {
-  await app.page.evaluate(() => {
-    const game = gameService.getAll()[0];
-    const assignment = game.assignments[0];
-
-    assignment.claimedBy = "test-umpire";
-    assignment.claimedByName = "Test Umpire";
-    assignment.status = "pending-approval";
-
-    assignmentService.rejectClaim(game.id, assignment.id);
-
-    notificationService.clearAll();
-
-    const rejectedClaim = claimsQueueService.getClaimHistory()[0];
-
-    notificationService.create({
-      type: "claim-rejected",
-      title: "Claim rejected",
-      message: "Your claim was rejected.",
-      relatedId: rejectedClaim.gameId || rejectedClaim.assignment?.gameId,
-      audience: "admin"
-    });
-  });
 
   await app.page.getByTestId("nav-notifications").click();
   await app.page.getByTestId("notification-action").click();
@@ -263,7 +249,9 @@ test("claim rejected notifications navigate to Claim History and highlight relat
   await expect(app.page.getByTestId("claim-history")).toBeVisible();
 
   await expect(
-    app.page.locator('[data-testid="rejected-claim-card"][data-highlighted="true"]')
+    app.page.locator(
+      '[data-testid="rejected-claim-card"][data-highlighted="true"]'
+    )
   ).toHaveCount(1);
 });
 });

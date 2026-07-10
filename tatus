@@ -1,0 +1,315 @@
+[1mdiff --git a/index.html b/index.html[m
+[1mindex e727526..7c6e3ef 100644[m
+[1m--- a/index.html[m
+[1m+++ b/index.html[m
+[36m@@ -104,8 +104,15 @@[m
+ <script src="js/services/notificationService.js"></script>[m
+ <script src="js/services/scheduleImportService.js"></script>[m
+ <script src="js/services/scheduleExportService.js"></script>[m
+[32m+[m
+[32m+[m[32m<script src="js/demo/demoCrew.js"></script>[m
+[32m+[m[32m<script src="js/demo/demoGames.js"></script>[m
+[32m+[m[32m<script src="js/demo/demoAccounts.js"></script>[m
+[32m+[m
+ <script src="js/services/demoDataService.js"></script>[m
+ [m
+[32m+[m
+[32m+[m
+ <script src="js/ui/statusBadge.js"></script>[m
+ <script src="js/ui/crewDashboard.js"></script>[m
+ <script src="js/ui/accountRegistration.js"></script>[m
+[36m@@ -143,4 +150,4 @@[m
+ <script src="js/ui/availability.js"></script>[m
+ <script src="app.js"></script>[m
+ </body>[m
+[31m-</html>[m
+\ No newline at end of file[m
+[32m+[m[32m</html>[m
+[1mdiff --git a/js/services/demoDataService.js b/js/services/demoDataService.js[m
+[1mindex 3a201b3..fed817c 100644[m
+[1m--- a/js/services/demoDataService.js[m
+[1m+++ b/js/services/demoDataService.js[m
+[36m@@ -1,8 +1,61 @@[m
+ // js/services/demoDataService.js[m
+ [m
+ const demoDataService = (() => {[m
+[31m-[m
+   let loaded = false;[m
+[32m+[m[32m  let originalCrew = null;[m
+[32m+[m[32m  let originalGames = null;[m
+[32m+[m
+[32m+[m[32m  const DEMO_CREW = [[m
+[32m+[m[32m    {[m
+[32m+[m[32m      id: "demo-crew-1",[m
+[32m+[m[32m      firstName: "Ethan",[m
+[32m+[m[32m      lastName: "Parker",[m
+[32m+[m[32m      email: "ethan@demo.test",[m
+[32m+[m[32m      levels: ["8U", "10U"],[m
+[32m+[m[32m      active: true,[m
+[32m+[m[32m      demoData: true[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m      id: "demo-crew-2",[m
+[32m+[m[32m      firstName: "Noah",[m
+[32m+[m[32m      lastName: "Brooks",[m
+[32m+[m[32m      email: "noah@demo.test",[m
+[32m+[m[32m      levels: ["8U", "10U", "12U"],[m
+[32m+[m[32m      active: true,[m
+[32m+[m[32m      demoData: true[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m      id: "demo-crew-3",[m
+[32m+[m[32m      firstName: "Caleb",[m
+[32m+[m[32m      lastName: "Turner",[m
+[32m+[m[32m      email: "caleb@demo.test",[m
+[32m+[m[32m      levels: ["10U", "12U"],[m
+[32m+[m[32m      active: true,[m
+[32m+[m[32m      demoData: true[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m      id: "demo-crew-4",[m
+[32m+[m[32m      firstName: "Logan",[m
+[32m+[m[32m      lastName: "Mitchell",[m
+[32m+[m[32m      email: "logan@demo.test",[m
+[32m+[m[32m      levels: ["10U", "12U", "14U"],[m
+[32m+[m[32m      active: true,[m
+[32m+[m[32m      demoData: true[m
+[32m+[m[32m    }[m
+[32m+[m[32m  ];[m
+[32m+[m
+[32m+[m[32m  function clone(value) {[m
+[32m+[m[32m    return structuredClone(value);[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  function createDate(offsetDays) {[m
+[32m+[m[32m    const date = new Date();[m
+[32m+[m
+[32m+[m[32m    date.setHours(12, 0, 0, 0);[m
+[32m+[m[32m    date.setDate(date.getDate() + offsetDays);[m
+[32m+[m
+[32m+[m[32m    return date.toISOString().split("T")[0];[m
+[32m+[m[32m  }[m
+ [m
+   function isLoaded() {[m
+     return loaded;[m
+[36m@@ -11,13 +64,53 @@[m [mconst demoDataService = (() => {[m
+   function getSummary() {[m
+     return {[m
+       loaded,[m
+[31m-      crew: 0,[m
+[31m-      games: 0,[m
+[31m-      accounts: 0[m
+[32m+[m[32m      crew: crewService.getAll().length,[m
+[32m+[m[32m      games: gameService.getAll().length,[m
+[32m+[m[32m      accounts:[m
+[32m+[m[32m        typeof accountService !== "undefined"[m
+[32m+[m[32m          ? accountService.getAll().length[m
+[32m+[m[32m          : 0[m
+     };[m
+   }[m
+ [m
+[32m+[m[32m  function createDemoGames() {[m
+[32m+[m[32m    return demoGameData.getAll().map(definition => {[m
+[32m+[m[32m      const game = {[m
+[32m+[m[32m        id: definition.id,[m
+[32m+[m[32m        date: createDate(definition.dateOffset),[m
+[32m+[m[32m        time: definition.time,[m
+[32m+[m[32m        field: definition.field,[m
+[32m+[m[32m        level: definition.level,[m
+[32m+[m[32m        awayTeam: definition.awayTeam,[m
+[32m+[m[32m        homeTeam: definition.homeTeam,[m
+[32m+[m[32m        gameType: definition.gameType,[m
+[32m+[m[32m        demoData: true[m
+[32m+[m[32m      };[m
+[32m+[m
+[32m+[m[32m      assignmentService.normalizeGame(game);[m
+[32m+[m
+[32m+[m[32m      return game;[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }[m
+[32m+[m
+   function loadLeague() {[m
+[32m+[m[32m    if (loaded) {[m
+[32m+[m[32m      return {[m
+[32m+[m[32m        success: true,[m
+[32m+[m[32m        message: "Demo league already loaded.",[m
+[32m+[m[32m        data: getSummary()[m
+[32m+[m[32m      };[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    originalCrew = clone(crewService.getAll());[m
+[32m+[m[32m    originalGames = clone(gameService.getAll());[m
+[32m+[m
+[32m+[m[32m    crew = clone(DEMO_CREW);[m
+[32m+[m[32m    games = createDemoGames();[m
+[32m+[m
+[32m+[m[32m    saveCrew();[m
+[32m+[m[32m    saveGames();[m
+[32m+[m
+     loaded = true;[m
+ [m
+     return {[m
+[36m@@ -27,10 +120,32 @@[m [mconst demoDataService = (() => {[m
+     };[m
+   }[m
+ [m
+[32m+[m[32m  function resetLeague() {[m
+[32m+[m[32m    if (originalCrew !== null) {[m
+[32m+[m[32m      crew = clone(originalCrew);[m
+[32m+[m[32m      saveCrew();[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    if (originalGames !== null) {[m
+[32m+[m[32m      games = clone(originalGames);[m
+[32m+[m[32m      saveGames();[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    originalCrew = null;[m
+[32m+[m[32m    originalGames = null;[m
+[32m+[m[32m    loaded = false;[m
+[32m+[m
+[32m+[m[32m    return {[m
+[32m+[m[32m      success: true,[m
+[32m+[m[32m      message: "Original data restored.",[m
+[32m+[m[32m      data: getSummary()[m
+[32m+[m[32m    };[m
+[32m+[m[32m  }[m
+[32m+[m
+   return {[m
+     isLoaded,[m
+     getSummary,[m
+[31m-    loadLeague[m
+[32m+[m[32m    loadLeague,[m
+[32m+[m[32m    resetLeague[m
+   };[m
+[31m-[m
+[31m-})();[m
+\ No newline at end of file[m
+[32m+[m[32m})();[m
+[1mdiff --git a/tests/demo-data-service.spec.js b/tests/demo-data-service.spec.js[m
+[1mindex 8e0d040..ddde271 100644[m
+[1m--- a/tests/demo-data-service.spec.js[m
+[1m+++ b/tests/demo-data-service.spec.js[m
+[36m@@ -1,42 +1,104 @@[m
+ import { test, expect } from "./fixtures/app.fixture.js";[m
+ [m
+ test.describe("Demo Data Service", () => {[m
+[32m+[m[32m  test("starts unloaded", async ({ app }) => {[m
+[32m+[m[32m    const summary = await app.page.evaluate(() =>[m
+[32m+[m[32m      demoDataService.getSummary()[m
+[32m+[m[32m    );[m
+ [m
+[31m-  test("service loads", async ({ app }) => {[m
+[32m+[m[32m    expect(summary.loaded).toBe(false);[m
+[32m+[m[32m  });[m
+ [m
+[31m-    const exists = await app.page.evaluate(() => {[m
+[31m-      return typeof demoDataService !== "undefined";[m
+[32m+[m[32m  test("loads demo crew and games", async ({ app }) => {[m
+[32m+[m[32m    const summary = await app.page.evaluate(() => {[m
+[32m+[m[32m      demoDataService.loadLeague();[m
+[32m+[m[32m      return demoDataService.getSummary();[m
+     });[m
+ [m
+[31m-    expect(exists).toBe(true);[m
+[31m-[m
+[32m+[m[32m    expect(summary.loaded).toBe(true);[m
+[32m+[m[32m    expect(summary.crew).toBe(4);[m
+[32m+[m[32m    expect(summary.games).toBe(8);[m
+   });[m
+ [m
+[31m-  test("starts unloaded", async ({ app }) => {[m
+[32m+[m[32m  test("creates valid assignment models for demo games", async ({ app }) => {[m
+[32m+[m[32m    const result = await app.page.evaluate(() => {[m
+[32m+[m[32m      demoDataService.loadLeague();[m
+ [m
+[31m-    const summary = await app.page.evaluate(() => {[m
+[31m-      return demoDataService.getSummary();[m
+[32m+[m[32m      return gameService.getAll().map(game => ({[m
+[32m+[m[32m        id: game.id,[m
+[32m+[m[32m        gameType: game.gameType,[m
+[32m+[m[32m        assignments:[m
+[32m+[m[32m          assignmentService.getAssignments(game).length[m
+[32m+[m[32m      }));[m
+     });[m
+ [m
+[31m-    expect(summary.loaded).toBe(false);[m
+[31m-    expect(summary.games).toBe(0);[m
+[31m-    expect(summary.crew).toBe(0);[m
+[31m-    expect(summary.accounts).toBe(0);[m
+[32m+[m[32m    expect(result).toHaveLength(8);[m
+ [m
+[31m-  });[m
+[32m+[m[32m    expect([m
+[32m+[m[32m      result.find(game => game.id === "demo-game-001")[m
+[32m+[m[32m        .assignments[m
+[32m+[m[32m    ).toBe(1);[m
+ [m
+[31m-  test("loadLeague updates state", async ({ app }) => {[m
+[32m+[m[32m    expect([m
+[32m+[m[32m      result.find(game => game.id === "demo-game-002")[m
+[32m+[m[32m        .assignments[m
+[32m+[m[32m    ).toBe(2);[m
+[32m+[m[32m  });[m
+ [m
+[32m+[m[32m  test("does not duplicate demo data", async ({ app }) => {[m
+     const summary = await app.page.evaluate(() => {[m
+[31m-[m
+[32m+[m[32m      demoDataService.loadLeague();[m
+       demoDataService.loadLeague();[m
+ [m
+       return demoDataService.getSummary();[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    expect(summary.crew).toBe(4);[m
+[32m+[m[32m    expect(summary.games).toBe(8);[m
+[32m+[m[32m  });[m
+[32m+[m
+[32m+[m[32m  test("restores original crew and games", async ({ app }) => {[m
+[32m+[m[32m    const result = await app.page.evaluate(() => {[m
+[32m+[m[32m      const originalCrewIds =[m
+[32m+[m[32m        crewService.getAll().map(member => member.id);[m
+ [m
+[32m+[m[32m      const originalGameIds =[m
+[32m+[m[32m        gameService.getAll().map(game => game.id);[m
+[32m+[m
+[32m+[m[32m      demoDataService.loadLeague();[m
+[32m+[m[32m      demoDataService.resetLeague();[m
+[32m+[m
+[32m+[m[32m      return {[m
+[32m+[m[32m        originalCrewIds,[m
+[32m+[m[32m        restoredCrewIds:[m
+[32m+[m[32m          crewService.getAll().map(member => member.id),[m
+[32m+[m[32m        originalGameIds,[m
+[32m+[m[32m        restoredGameIds:[m
+[32m+[m[32m          gameService.getAll().map(game => game.id)[m
+[32m+[m[32m      };[m
+     });[m
+ [m
+[31m-    expect(summary.loaded).toBe(true);[m
+[32m+[m[32m    expect(result.restoredCrewIds)[m
+[32m+[m[32m      .toEqual(result.originalCrewIds);[m
+ [m
+[32m+[m[32m    expect(result.restoredGameIds)[m
+[32m+[m[32m      .toEqual(result.originalGameIds);[m
+   });[m
+ [m
+[31m-});[m
+\ No newline at end of file[m
+[32m+[m[32m  test("populates upcoming games on the dashboard", async ({ app }) => {[m
+[32m+[m[32m    await app.page.evaluate(() => {[m
+[32m+[m[32m      demoDataService.loadLeague();[m
+[32m+[m[32m      renderPage("dashboard");[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    const upcomingCount = await app.page[m
+[32m+[m[32m      .getByTestId("dashboard-summary-upcoming-games-value")[m
+[32m+[m[32m      .textContent();[m
+[32m+[m
+[32m+[m[32m    expect(Number(upcomingCount)).toBeGreaterThan(0);[m
+[32m+[m
+[32m+[m[32m    await expect([m
+[32m+[m[32m      app.page.getByTestId("dashboard-upcoming-games")[m
+[32m+[m[32m    ).toBeVisible();[m
+[32m+[m[32m  });[m
+[32m+[m[32m});[m
