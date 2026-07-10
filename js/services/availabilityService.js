@@ -3,6 +3,21 @@
 const availabilityService = (() => {
   const MAX_GAMES_PER_DAY = 2;
 
+  const STATUS = Object.freeze({
+    AVAILABLE: "available",
+    UNAVAILABLE: "unavailable",
+    MAYBE: "maybe"
+  });
+
+  const VALID_STATUSES = new Set(Object.values(STATUS));
+
+  /*
+   * Assignment evaluation
+   *
+   * These methods preserve the existing availabilityService API.
+   * Date-based availability will influence evaluation in a later phase.
+   */
+
   function evaluate(crewId, game, position = "Plate") {
     const crew = crewService.getById(crewId);
 
@@ -89,7 +104,7 @@ const availabilityService = (() => {
 
     if (
       typeof conflictService !== "undefined" &&
-      conflictService.hasConflict
+      typeof conflictService.hasConflict === "function"
     ) {
       return conflictService.hasConflict(crewId, game);
     }
@@ -102,11 +117,13 @@ const availabilityService = (() => {
 
       if (!sameDate || !sameTime) return false;
 
-      if (otherGame.crewId === crewId) return true;
+      if (String(otherGame.crewId) === String(crewId)) {
+        return true;
+      }
 
       if (Array.isArray(otherGame.assignments)) {
-        return otherGame.assignments.some(assignment =>
-          assignment.crewId === crewId
+        return otherGame.assignments.some(
+          assignment => String(assignment.crewId) === String(crewId)
         );
       }
 
@@ -119,7 +136,7 @@ const availabilityService = (() => {
 
     if (
       typeof workloadService !== "undefined" &&
-      workloadService.getDailyWorkload
+      typeof workloadService.getDailyWorkload === "function"
     ) {
       return workloadService.getDailyWorkload(crewId, game.date);
     }
@@ -127,11 +144,13 @@ const availabilityService = (() => {
     return gameService.getAll().filter(otherGame => {
       if (otherGame.date !== game.date) return false;
 
-      if (otherGame.crewId === crewId) return true;
+      if (String(otherGame.crewId) === String(crewId)) {
+        return true;
+      }
 
       if (Array.isArray(otherGame.assignments)) {
-        return otherGame.assignments.some(assignment =>
-          assignment.crewId === crewId
+        return otherGame.assignments.some(
+          assignment => String(assignment.crewId) === String(crewId)
         );
       }
 
@@ -144,7 +163,7 @@ const availabilityService = (() => {
 
     if (
       typeof recommendationService !== "undefined" &&
-      recommendationService.isCrewEligibleForGame
+      typeof recommendationService.isCrewEligibleForGame === "function"
     ) {
       return recommendationService.isCrewEligibleForGame(crew.id, game);
     }
@@ -156,10 +175,185 @@ const availabilityService = (() => {
     return crew.levels.includes(game.level);
   }
 
+  /*
+   * Date-based availability
+   */
+
+  function setAvailability({ crewId, date, status } = {}) {
+    const member = crewService.getById(crewId);
+    const normalizedDate = normalizeDate(date);
+    const normalizedStatus = normalizeStatus(status);
+
+    if (!member || !normalizedDate || !normalizedStatus) {
+      return null;
+    }
+
+    const availability = ensureDateAvailability(member);
+
+    availability[normalizedDate] = normalizedStatus;
+
+    persistCrew();
+
+    return {
+      crewId: member.id,
+      date: normalizedDate,
+      status: normalizedStatus
+    };
+  }
+
+  function getAvailability(crewId, date) {
+    const member = crewService.getById(crewId);
+    const normalizedDate = normalizeDate(date);
+
+    if (!member || !normalizedDate) {
+      return null;
+    }
+
+    const availability = getDateAvailability(member);
+
+    return availability[normalizedDate] || STATUS.AVAILABLE;
+  }
+
+  function clearAvailability(crewId, date) {
+    const member = crewService.getById(crewId);
+    const normalizedDate = normalizeDate(date);
+
+    if (!member || !normalizedDate) {
+      return false;
+    }
+
+    const availability = getDateAvailability(member);
+
+    if (!Object.prototype.hasOwnProperty.call(availability, normalizedDate)) {
+      return false;
+    }
+
+    delete availability[normalizedDate];
+
+    persistCrew();
+
+    return true;
+  }
+
+  function getCrewAvailability(crewId) {
+    const member = crewService.getById(crewId);
+
+    if (!member) {
+      return [];
+    }
+
+    const availability = getDateAvailability(member);
+
+    return Object.entries(availability)
+      .filter(([date, status]) => {
+        return !!normalizeDate(date) && VALID_STATUSES.has(status);
+      })
+      .map(([date, status]) => ({
+        crewId: member.id,
+        date,
+        status
+      }))
+      .sort((left, right) => left.date.localeCompare(right.date));
+  }
+
+  function getAvailableCrew(date) {
+    const normalizedDate = normalizeDate(date);
+
+    if (!normalizedDate) {
+      return [];
+    }
+
+    return crewService.getAll().filter(member => {
+      return getAvailability(member.id, normalizedDate) === STATUS.AVAILABLE;
+    });
+  }
+
+  function getUnavailableCrew(date) {
+    const normalizedDate = normalizeDate(date);
+
+    if (!normalizedDate) {
+      return [];
+    }
+
+    return crewService.getAll().filter(member => {
+      return getAvailability(member.id, normalizedDate) === STATUS.UNAVAILABLE;
+    });
+  }
+
+  function normalizeStatus(status) {
+    const normalizedStatus = String(status || "")
+      .trim()
+      .toLowerCase();
+
+    return VALID_STATUSES.has(normalizedStatus)
+      ? normalizedStatus
+      : null;
+  }
+
+  function normalizeDate(date) {
+    const normalizedDate = String(date || "").trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+      return null;
+    }
+
+    const parsedDate = new Date(`${normalizedDate}T00:00:00Z`);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return null;
+    }
+
+    if (parsedDate.toISOString().slice(0, 10) !== normalizedDate) {
+      return null;
+    }
+
+    return normalizedDate;
+  }
+
+  function getDateAvailability(member) {
+    if (
+      !member ||
+      !member.dateAvailability ||
+      typeof member.dateAvailability !== "object" ||
+      Array.isArray(member.dateAvailability)
+    ) {
+      return {};
+    }
+
+    return member.dateAvailability;
+  }
+
+  function ensureDateAvailability(member) {
+    if (
+      !member.dateAvailability ||
+      typeof member.dateAvailability !== "object" ||
+      Array.isArray(member.dateAvailability)
+    ) {
+      member.dateAvailability = {};
+    }
+
+    return member.dateAvailability;
+  }
+
+  function persistCrew() {
+    if (typeof saveCrew === "function") {
+      saveCrew();
+    }
+  }
+
   return {
+    STATUS,
+
     evaluate,
     canAssign,
     isAvailable,
-    getAvailabilityScore
+    getAvailabilityScore,
+
+    setAvailability,
+    getAvailability,
+    clearAvailability,
+    getCrewAvailability,
+    getAvailableCrew,
+    getUnavailableCrew
   };
 })();
