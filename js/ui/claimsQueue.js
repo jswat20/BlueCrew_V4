@@ -1,6 +1,7 @@
 const selectedClaimIds = new Set();
 
-function renderClaimsQueue() {
+function renderClaimsQueue(context = {}) {
+  const highlightedId = context.highlightId;
   const claims = claimsQueueService.getPendingClaims();
 
   if (!claims.length) {
@@ -21,54 +22,51 @@ function renderClaimsQueue() {
       <h2>Claims Queue</h2>
 
       <div class="claim-queue-bulk-actions">
-        <button
-          type="button"
-          data-testid="select-all-claims"
-          onclick="handleSelectAllClaims()"
-        >
-          Select All
-        </button>
+        <button type="button" data-testid="select-all-claims" onclick="handleSelectAllClaims()">Select All</button>
 
-        <button
-          type="button"
-          data-testid="clear-selected-claims"
-          onclick="handleClearSelectedClaims()"
-          ${selectedClaimIds.size === 0 ? "disabled" : ""}
-        >
+        <button type="button" data-testid="clear-selected-claims" onclick="handleClearSelectedClaims()" ${selectedClaimIds.size === 0 ? "disabled" : ""}>
           Clear Selection
         </button>
 
-        <button
-          type="button"
-          data-testid="bulk-approve-claims"
-          onclick="handleBulkApproveClaims()"
-          ${selectedClaimIds.size === 0 ? "disabled" : ""}
-        >
+        <button type="button" data-testid="bulk-approve-claims" onclick="handleBulkApproveClaims()" ${selectedClaimIds.size === 0 ? "disabled" : ""}>
           Approve Selected
         </button>
 
-        <button
-          type="button"
-          data-testid="bulk-reject-claims"
-          onclick="handleBulkRejectClaims()"
-          ${selectedClaimIds.size === 0 ? "disabled" : ""}
-        >
+        <button type="button" data-testid="bulk-reject-claims" onclick="handleBulkRejectClaims()" ${selectedClaimIds.size === 0 ? "disabled" : ""}>
           Reject Selected
         </button>
       </div>
 
       <div class="claims-queue-list" data-testid="claims-queue-list">
-        ${claims.map(renderClaimQueueCard).join("")}
+        ${claims.map(claim => renderClaimQueueCard(claim, highlightedId)).join("")}
       </div>
     </section>
   `;
 }
 
-function renderClaimQueueCard(claim) {
+function renderClaimQueueCard(claim, highlightedId) {
+  console.log({
+    highlightedId,
+    relatedId: claim.relatedId,
+    gameId: claim.gameId,
+    id: claim.id,
+    assignmentId: claim.assignmentId
+  });
+
   const isSelected = selectedClaimIds.has(claim.assignmentId);
 
+  const claimId = claim.relatedId || claim.gameId || claim.id;
+
+  const isHighlighted =
+    highlightedId &&
+    String(claimId) === String(highlightedId);
+
   return `
-    <article class="claim-queue-card" data-testid="claim-queue-card">
+    <article
+      class="claim-queue-card ${isHighlighted ? "is-highlighted" : ""}"
+      data-testid="claim-queue-card"
+      ${isHighlighted ? 'data-highlighted="true"' : ""}
+    >
       <label>
         <input
           type="checkbox"

@@ -1,8 +1,10 @@
 let claimHistoryStatusFilter = "all";
 let claimHistoryDateRangeFilter = "all";
 
-function renderClaimHistory() {
-  const claims = claimsQueueService.getClaimHistory({
+function renderClaimHistory(context = {}) {
+  const highlightedId = context.highlightId;
+
+    const claims = claimsQueueService.getClaimHistory({
     status: claimHistoryStatusFilter,
     dateRange: claimHistoryDateRangeFilter
   });
@@ -38,12 +40,12 @@ function renderClaimHistory() {
 
       <section data-testid="claim-history-approved">
         <h3>Approved Claims</h3>
-        ${filteredApprovedClaims.map(claim => renderClaimHistoryCard(claim, "approved")).join("")}
+${filteredApprovedClaims.map(claim => renderClaimHistoryCard(claim, "approved", highlightedId)).join("")}
       </section>
 
       <section data-testid="claim-history-rejected">
         <h3>Rejected Claims</h3>
-        ${filteredRejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected")).join("")}
+        ${filteredRejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected", highlightedId)).join("")}
       </section>
     </section>
   `;
@@ -149,9 +151,23 @@ function renderClaimHistorySummary(summary) {
   `;
 }
 
-function renderClaimHistoryCard(claim, status) {
+function renderClaimHistoryCard(claim, status, highlightedId) {
+  const claimId =
+    claim.relatedId ||
+    claim.gameId ||
+    claim.id ||
+    claim.assignment?.gameId;
+
+  const isHighlighted =
+    highlightedId &&
+    String(claimId) === String(highlightedId);
+
   return `
-    <article class="claim-history-card" data-testid="${status}-claim-card">
+    <article
+      class="claim-history-card ${isHighlighted ? "is-highlighted" : ""}"
+      data-testid="${status}-claim-card"
+      ${isHighlighted ? 'data-highlighted="true"' : ""}
+    >
       <h4>${claim.matchup}</h4>
 
       <p>Position: ${claim.position}</p>

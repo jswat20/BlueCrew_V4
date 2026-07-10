@@ -1,15 +1,49 @@
+let selectedNotificationStatus = "all";
+
+const notificationActionConfig = {
+  claim: {
+    label: "View Claim",
+    page: "claims-queue",
+    context: relatedId => ({
+      highlightId: relatedId
+    })
+  },
+  "claim-submitted": {
+    label: "View Claim",
+    page: "claims-queue",
+    context: relatedId => ({
+      highlightId: relatedId
+    })
+  },
+  "claim-approved": {
+    label: "View Assignment",
+    page: "schedule",
+    context: relatedId => ({
+      highlightId: relatedId
+    })
+  },
+  "claim-rejected": {
+    label: "View History",
+    page: "claim-history",
+    context: relatedId => ({
+      highlightId: relatedId
+    })
+  }
+};
+
 function renderNotifications() {
-  const notifications = notificationService.getAll();
+  const notifications = notificationService.getNotifications({
+    status: selectedNotificationStatus
+  });
 
   if (!notifications.length) {
     return `
       <section class="page-section" data-testid="notifications">
         <h2>Notifications</h2>
 
-        <div
-          class="empty-state"
-          data-testid="notifications-empty"
-        >
+        ${renderNotificationFilters()}
+
+        <div class="empty-state" data-testid="notifications-empty">
           You have no notifications.
         </div>
       </section>
@@ -20,20 +54,47 @@ function renderNotifications() {
     <section class="page-section" data-testid="notifications">
       <h2>Notifications</h2>
 
-${renderMarkAllNotificationsReadButton()}
+      ${renderNotificationFilters()}
+      ${renderMarkAllNotificationsReadButton()}
 
       <div data-testid="notifications-list">
-        ${notifications
-          .map(renderNotificationCard)
-          .join("")}
+        ${notifications.map(renderNotificationCard).join("")}
       </div>
     </section>
   `;
 }
 
-function handleMarkAllNotificationsRead() {
-  notificationService.markAllAsRead();
-  renderPage("notifications");
+function renderNotificationFilters() {
+  return `
+    <div class="filter-group" data-testid="notification-filters">
+      <button
+        type="button"
+        data-testid="notification-filter-all"
+        class="${selectedNotificationStatus === "all" ? "active" : ""}"
+        onclick="setNotificationFilter('all')"
+      >
+        All
+      </button>
+
+      <button
+        type="button"
+        data-testid="notification-filter-unread"
+        class="${selectedNotificationStatus === "unread" ? "active" : ""}"
+        onclick="setNotificationFilter('unread')"
+      >
+        Unread
+      </button>
+
+      <button
+        type="button"
+        data-testid="notification-filter-read"
+        class="${selectedNotificationStatus === "read" ? "active" : ""}"
+        onclick="setNotificationFilter('read')"
+      >
+        Read
+      </button>
+    </div>
+  `;
 }
 
 function renderMarkAllNotificationsReadButton() {
@@ -52,21 +113,16 @@ function renderMarkAllNotificationsReadButton() {
 
 function renderNotificationCard(notification) {
   return `
-    <article
-      class="notification-card"
-      data-testid="notification-card"
-    >
+    <article class="notification-card" data-testid="notification-card">
       <h3>${notification.title}</h3>
 
       <p>${notification.message}</p>
 
-      <small>
-        ${notification.createdAt}
-      </small>
-
       <p data-testid="notification-timestamp">
-  ${formatNotificationTimestamp(notification.createdAt)}
-</p>
+        ${formatNotificationTimestamp(notification.createdAt)}
+      </p>
+
+      ${renderNotificationAction(notification)}
 
       ${
         notification.read
@@ -85,6 +141,49 @@ function renderNotificationCard(notification) {
     </article>
   `;
 }
+
+function getNotificationAction(type) {
+  return notificationActionConfig[type] || null;
+}
+
+function renderNotificationAction(notification) {
+  const action = getNotificationAction(notification.type);
+
+  if (!action) return "";
+
+  return `
+    <button
+      type="button"
+      data-testid="notification-action"
+      data-notification-type="${notification.type}"
+      data-related-id="${notification.relatedId || ""}"
+      onclick="handleNotificationAction(
+        this.dataset.notificationType,
+        this.dataset.relatedId
+      )"
+    >
+      ${action.label}
+    </button>
+  `;
+}
+
+function handleNotificationAction(type, relatedId) {
+  const action = getNotificationAction(type);
+
+  if (!action) return;
+
+  const context = action.context
+    ? action.context(relatedId)
+    : {};
+
+  navigateTo(action.page, context);
+}
+
+function setNotificationFilter(status) {
+  selectedNotificationStatus = status;
+  renderPage("notifications");
+}
+
 function formatNotificationTimestamp(createdAt) {
   if (!createdAt) return "";
 
@@ -104,31 +203,5 @@ function handleMarkAllNotificationsRead() {
 
   if (!result.success) return;
 
-  renderPage("notifications");
-
-  let selectedNotificationStatus = "all";
-
-  const notifications = notificationService.getNotifications({
-  status: selectedNotificationStatus
-});
-
-}
-function renderNotificationFilters() {
-  return `
-    <div class="filter-group" data-testid="notification-filters">
-      <button data-testid="notification-filter-all" class="${selectedNotificationStatus === "all" ? "active" : ""}" onclick="setNotificationFilter('all')">
-        All
-      </button>
-      <button data-testid="notification-filter-unread" class="${selectedNotificationStatus === "unread" ? "active" : ""}" onclick="setNotificationFilter('unread')">
-        Unread
-      </button>
-      <button data-testid="notification-filter-read" class="${selectedNotificationStatus === "read" ? "active" : ""}" onclick="setNotificationFilter('read')">
-        Read
-      </button>
-    </div>
-  `;
-}
-function setNotificationFilter(status) {
-  selectedNotificationStatus = status;
   renderPage("notifications");
 }

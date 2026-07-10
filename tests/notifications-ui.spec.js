@@ -1,7 +1,6 @@
 import { test, expect } from "./fixtures/app.fixture.js";
 
 test.describe("Notifications UI", () => {
-
   test("shows an empty state when there are no notifications", async ({ app }) => {
     await app.page.evaluate(() => {
       notificationService.clearAll();
@@ -9,9 +8,7 @@ test.describe("Notifications UI", () => {
 
     await app.page.getByTestId("nav-notifications").click();
 
-    await expect(
-      app.page.getByTestId("notifications-empty")
-    ).toBeVisible();
+    await expect(app.page.getByTestId("notifications-empty")).toBeVisible();
   });
 
   test("shows notification cards", async ({ app }) => {
@@ -30,9 +27,7 @@ test.describe("Notifications UI", () => {
     await app.page.getByTestId("nav-notifications").click();
 
     await expect(app.page.getByTestId("notification-card")).toHaveCount(1);
-    await expect(
-      app.page.getByText("New claim submitted")
-    ).toBeVisible();
+    await expect(app.page.getByText("New claim submitted")).toBeVisible();
     await expect(
       app.page.getByText("Pending Away @ Pending Home has been claimed.")
     ).toBeVisible();
@@ -50,9 +45,7 @@ test.describe("Notifications UI", () => {
 
     await app.page.reload();
 
-    await expect(
-      app.page.getByTestId("notifications-badge")
-    ).toHaveText("1");
+    await expect(app.page.getByTestId("notifications-badge")).toHaveText("1");
   });
 
   test("hides the badge when there are no unread notifications", async ({ app }) => {
@@ -62,9 +55,7 @@ test.describe("Notifications UI", () => {
 
     await app.page.reload();
 
-    await expect(
-      app.page.getByTestId("notifications-badge")
-    ).toBeHidden();
+    await expect(app.page.getByTestId("notifications-badge")).toBeHidden();
   });
 
   test("marks a notification as read", async ({ app }) => {
@@ -79,20 +70,13 @@ test.describe("Notifications UI", () => {
 
     await app.page.reload();
 
-    await expect(
-      app.page.getByTestId("notifications-badge")
-    ).toHaveText("1");
+    await expect(app.page.getByTestId("notifications-badge")).toHaveText("1");
 
     await app.page.getByTestId("nav-notifications").click();
     await app.page.getByTestId("notification-mark-read").click();
 
-    await expect(
-      app.page.getByTestId("notifications-badge")
-    ).toBeHidden();
-
-    await expect(
-      app.page.getByTestId("notification-mark-read")
-    ).toHaveCount(0);
+    await expect(app.page.getByTestId("notifications-badge")).toBeHidden();
+    await expect(app.page.getByTestId("notification-mark-read")).toHaveCount(0);
   });
 
   test("marks all notifications as read", async ({ app }) => {
@@ -112,72 +96,174 @@ test.describe("Notifications UI", () => {
 
     await app.page.reload();
 
-    await expect(
-      app.page.getByTestId("notifications-badge")
-    ).toHaveText("2");
+    await expect(app.page.getByTestId("notifications-badge")).toHaveText("2");
 
     await app.page.getByTestId("nav-notifications").click();
     await app.page.getByTestId("notifications-mark-all-read").click();
 
-    await expect(
-      app.page.getByTestId("notifications-badge")
-    ).toBeHidden();
-
-    await expect(
-      app.page.getByTestId("notification-mark-read")
-    ).toHaveCount(0);
-
-    await expect(
-      app.page.getByTestId("notifications-mark-all-read")
-    ).toHaveCount(0);
+    await expect(app.page.getByTestId("notifications-badge")).toBeHidden();
+    await expect(app.page.getByTestId("notification-mark-read")).toHaveCount(0);
+    await expect(app.page.getByTestId("notifications-mark-all-read")).toHaveCount(0);
   });
-test("filters notifications by unread status", async ({ app }) => {
-  const result = await app.page.evaluate(() => {
-    notificationService.clearAll();
 
-    notificationService.create({
-      type: "claim",
-      title: "Unread notification",
-      message: "Unread message"
+  test("filters notifications by unread status", async ({ app }) => {
+    const result = await app.page.evaluate(() => {
+      notificationService.clearAll();
+
+      notificationService.create({
+        type: "claim",
+        title: "Unread notification",
+        message: "Unread message"
+      });
+
+      const read = notificationService.create({
+        type: "claim",
+        title: "Read notification",
+        message: "Read message"
+      }).data;
+
+      notificationService.markAsRead(read.id);
+
+      return {
+        unread: notificationService.getNotifications({ status: "unread" }),
+        read: notificationService.getNotifications({ status: "read" }),
+        all: notificationService.getNotifications({ status: "all" })
+      };
     });
 
-    const read = notificationService.create({
-  type: "claim",
-  title: "Read notification",
-  message: "Read message"
-}).data;
+    expect(result.unread).toHaveLength(1);
+    expect(result.unread[0].title).toBe("Unread notification");
 
-    notificationService.markAsRead(read.id);
+    expect(result.read).toHaveLength(1);
+    expect(result.read[0].title).toBe("Read notification");
 
-    return {
-      unread: notificationService.getNotifications({ status: "unread" }),
-      read: notificationService.getNotifications({ status: "read" }),
-      all: notificationService.getNotifications({ status: "all" })
-    };
+    expect(result.all).toHaveLength(2);
   });
 
-  expect(result.unread).toHaveLength(1);
-  expect(result.unread[0].title).toBe("Unread notification");
+  test("shows notification timestamps", async ({ app }) => {
+    await app.page.evaluate(() => {
+      notificationService.clearAll();
 
-  expect(result.read).toHaveLength(1);
-  expect(result.read[0].title).toBe("Read notification");
+      notificationService.create({
+        type: "claim",
+        title: "Timestamped notification",
+        message: "Timestamp message",
+        createdAt: "2026-07-09T12:00:00.000Z"
+      });
+    });
 
-  expect(result.all).toHaveLength(2);
-});
-test("shows notification timestamps", async ({ app }) => {
+    await app.page.getByTestId("nav-notifications").click();
+
+    await expect(app.page.getByTestId("notification-timestamp")).toBeVisible();
+  });
+
+  test("claim notifications navigate to the Claims Queue", async ({ app }) => {
+    await app.page.evaluate(() => {
+      notificationService.clearAll();
+
+      notificationService.create({
+        type: "claim",
+        title: "New claim submitted",
+        message: "Pending Away @ Pending Home has been claimed.",
+        relatedId: "game-1",
+        audience: "admin"
+      });
+    });
+
+    await app.page.getByTestId("nav-notifications").click();
+    await app.page.getByTestId("notification-action").click();
+
+    await expect(app.page.getByTestId("claims-queue")).toBeVisible();
+  });
+
+  test("claim submitted notification opens Claims Queue and highlights related claim", async ({ app }) => {
+  await app.createPendingClaim();
+
   await app.page.evaluate(() => {
+    authService.loginAsAdmin();
+    document.body.dataset.role = "admin";
+
     notificationService.clearAll();
+
+    const claim = claimsQueueService.getPendingClaims()[0];
 
     notificationService.create({
       type: "claim",
-      title: "Timestamped notification",
-      message: "Timestamp message",
-      createdAt: "2026-07-09T12:00:00.000Z"
+      title: "New claim submitted",
+      message: "Pending Away @ Pending Home has been claimed.",
+      relatedId: claim.gameId,
+      audience: "admin"
     });
   });
 
   await app.page.getByTestId("nav-notifications").click();
+  await app.page.getByTestId("notification-action").click();
 
-  await expect(app.page.getByTestId("notification-timestamp")).toBeVisible();
+  await expect(app.page.getByTestId("claims-queue")).toBeVisible();
+
+  await expect(
+    app.page.locator('[data-testid="claim-queue-card"][data-highlighted="true"]')
+  ).toHaveCount(1);
+});
+
+  test("claim approved notifications navigate to the Schedule and highlight related game", async ({ app }) => {
+  await app.page.evaluate(() => {
+    notificationService.clearAll();
+
+    const game = gameService.getAll()[0];
+
+    notificationService.create({
+      type: "claim-approved",
+      title: "Claim approved",
+      message: "Your claim was approved.",
+      relatedId: game.id,
+      audience: "admin"
+    });
+  });
+
+  await app.page.getByTestId("nav-notifications").click();
+  await app.page.getByTestId("notification-action").click();
+
+  await expect(app.page.getByTestId("page-schedule")).toBeVisible();
+
+  await app.page.getByTestId("view-all-games").click();
+
+  await expect(
+    app.page.locator('[data-testid^="game-row-"][data-highlighted="true"]')
+  ).toHaveCount(1);
+});
+
+test("claim rejected notifications navigate to Claim History and highlight related claim", async ({ app }) => {
+  await app.page.evaluate(() => {
+    const game = gameService.getAll()[0];
+    const assignment = game.assignments[0];
+
+    assignment.claimedBy = "test-umpire";
+    assignment.claimedByName = "Test Umpire";
+    assignment.status = "pending-approval";
+
+    assignmentService.rejectClaim(game.id, assignment.id);
+
+    notificationService.clearAll();
+
+    const rejectedClaim = claimsQueueService.getClaimHistory()[0];
+
+    notificationService.create({
+      type: "claim-rejected",
+      title: "Claim rejected",
+      message: "Your claim was rejected.",
+      relatedId: rejectedClaim.gameId || rejectedClaim.assignment?.gameId,
+      audience: "admin"
+    });
+  });
+
+  await app.page.getByTestId("nav-notifications").click();
+  await app.page.getByTestId("notification-action").click();
+
+  await expect(app.page.getByTestId("claim-history")).toBeVisible();
+
+  await expect(
+    app.page.locator('[data-testid="rejected-claim-card"][data-highlighted="true"]')
+  ).toHaveCount(1);
 });
 });

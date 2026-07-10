@@ -2,6 +2,7 @@
 
 let currentScheduleView = "daily";
 let currentScheduleDate = null;
+let currentScheduleContext = {};
 
 function renderSchedule() {
   return `
@@ -80,7 +81,9 @@ function setScheduleView(view) {
   renderScheduleContent();
 }
 
-function renderScheduleContent() {
+function renderScheduleContent(context = currentScheduleContext) {
+  currentScheduleContext = context || {};
+
   const container =
     document.getElementById("schedule-content");
 
@@ -93,7 +96,7 @@ function renderScheduleContent() {
     return;
   }
 
-  renderAllGamesTable(container);
+  renderAllGamesTable(container, currentScheduleContext);
 }
 
 function updateScheduleTabState() {

@@ -1,7 +1,7 @@
 // js/schedule/allGamesView.js
 
-function renderAllGamesTable(container) {
-  let games = [...gameService.getAll()];
+function renderAllGamesTable(container, context = {}) {
+    let games = [...gameService.getAll()];
 
 const filter =
   typeof getCurrentScheduleFilter === "function"
@@ -62,7 +62,7 @@ const filter =
         <tbody>
           ${
             sortedGames.length
-              ? sortedGames.map(renderAllGamesRow).join("")
+? sortedGames.map(game => renderAllGamesRow(game, context)).join("")
               : `
                 <tr>
                   <td colspan="8">
@@ -77,15 +77,22 @@ const filter =
   `;
 }
 
-function renderAllGamesRow(game) {
-  const assigned = assignmentService.isAssigned(game);
+function renderAllGamesRow(game, context = {}) {
+    const assigned = assignmentService.isAssigned(game);
 
   const crewName = assigned
     ? crewService.getDisplayName(game.crewId)
     : "Needs Crew";
+const isHighlighted =
+  context.highlightId &&
+  String(game.id) === String(context.highlightId);
 
   return `
-<tr data-testid="game-row-${game.id}">
+<tr
+  class="${isHighlighted ? "is-highlighted" : ""}"
+  data-testid="game-row-${game.id}"
+  ${isHighlighted ? 'data-highlighted="true"' : ""}
+>
       <td>${formatShortDate(game.date)}</td>
 
       <td>${game.time || ""}</td>

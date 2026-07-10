@@ -1,6 +1,7 @@
 // app.js
 
 let currentPage = "dashboard";
+let currentPageContext = {};
 
 // ----------------------------------------------------
 // QA / Playwright Support
@@ -24,7 +25,7 @@ const pages = {
     title: "Login",
     subtitle: "Access your umpire portal."
   },
-    "my-schedule": {
+  "my-schedule": {
     title: "My Schedule",
     subtitle: "Your assigned games."
   },
@@ -52,13 +53,17 @@ const pages = {
     title: "Accounts",
     subtitle: "Manage Umpire Registrations and Approvals."
   },
-  "notifications": {
-  label: "Notifications",
-  roles: ["admin"]
-},
-    "claims-queue": {
+  notifications: {
+    title: "Notifications",
+    subtitle: "Review recent alerts and updates."
+  },
+  "claims-queue": {
     title: "Claims Queue",
     subtitle: "Review and manage pending umpire claims."
+  },
+  "claim-history": {
+    title: "Claim History",
+    subtitle: "Review processed claims."
   },
   "my-claims": {
     title: "My Claims",
@@ -103,44 +108,49 @@ function setupRoleSwitcher() {
   adminButton.addEventListener("click", () => {
     authService.loginAsAdmin();
 
-window.BlueCrew.test.currentRole = "admin";
+    window.BlueCrew.test.currentRole = "admin";
 
-if (window.qaService) {
-    qaService.setRole("admin");
-}
+    if (window.qaService) {
+      qaService.setRole("admin");
+    }
+
     document.body.dataset.role = "admin";
 
     adminButton.classList.add("active");
     umpireButton.classList.remove("active");
 
-    renderPage(currentPage);
+    renderPage(currentPage, currentPageContext);
   });
 
   umpireButton.addEventListener("click", () => {
     authService.loginAsUmpire();
 
-window.BlueCrew.test.currentRole = "umpire";
+    window.BlueCrew.test.currentRole = "umpire";
 
-if (window.qaService) {
-    qaService.setRole("umpire");
-}
+    if (window.qaService) {
+      qaService.setRole("umpire");
+    }
+
     document.body.dataset.role = "umpire";
 
     umpireButton.classList.add("active");
     adminButton.classList.remove("active");
 
-    renderPage(currentPage);
+    renderPage(currentPage, currentPageContext);
   });
 }
 
-function renderPage(page) {
+function renderPage(page, context = {}) {
   currentPage = page;
+  currentPageContext = context;
 
-window.BlueCrew.test.currentPage = page;
+  window.BlueCrew.test.currentPage = page;
 
-if (window.qaService) {
+  if (window.qaService) {
     qaService.setPage(page);
-}  document.body.dataset.page = page;
+  }
+
+  document.body.dataset.page = page;
 
   if (typeof closeAssignDrawer === "function") {
     closeAssignDrawer();
@@ -153,8 +163,8 @@ if (window.qaService) {
   if (!content) return;
 
   const viewHtml = authService.isUmpire()
-    ? renderUmpireView(page)
-    : renderAdminView(page);
+    ? renderUmpireView(page, context)
+    : renderAdminView(page, context);
 
   content.innerHTML = `
     <div
@@ -165,22 +175,26 @@ if (window.qaService) {
   `;
 
   updateNotificationBadge();
-  
-  runPageSetup(page);
+
+  runPageSetup(page, context);
 }
 
-function runPageSetup(page) {
+function navigateTo(page, context = {}) {
+  renderPage(page, context);
+}
+
+function runPageSetup(page, context = {}) {
   if (page !== "schedule") return;
 
   if (authService.isAdmin()) {
     currentScheduleDate =
       currentScheduleDate || gameService.getFirstDateOrToday();
 
-    renderScheduleContent();
+    renderScheduleContent(context);
   }
 }
 
-function renderAdminView(page) {
+function renderAdminView(page, context = {}) {
   const renderers = {
     dashboard: typeof renderDashboard === "function" ? renderDashboard : null,
     login: typeof renderLogin === "function" ? renderLogin : null,
@@ -189,18 +203,53 @@ function renderAdminView(page) {
     reports: typeof renderReports === "function" ? renderReports : null,
     settings: typeof renderSettings === "function" ? renderSettings : null,
     admin: typeof renderAdmin === "function" ? renderAdmin : null,
-    "notifications": typeof renderNotifications === "function" ? renderNotifications : null,
+    notifications: typeof renderNotifications === "function" ? renderNotifications : null,
     accounts: typeof renderAccounts === "function" ? renderAccounts : null,
     "my-schedule": typeof renderMySchedule === "function" ? renderMySchedule : null,
     "claims-queue": typeof renderClaimsQueue === "function" ? renderClaimsQueue : null,
-    "claim-history": typeof renderClaimHistory === "function" ? renderClaimHistory : null,
+    "claim-history": typeof renderClaimHistory === "function" ? renderClaimHistory : null
   };
 
   const renderer = renderers[page];
 
   return renderer
-    ? renderer()
+    ? renderer(context)
     : placeholderPage("Page Not Found", "This page does not exist yet.");
+}
+
+function renderUmpireView(page, context = {}) {
+  switch (page) {
+    case "dashboard":
+      return typeof renderCrewDashboard === "function"
+        ? renderCrewDashboard(context)
+        : placeholderPage("Crew Dashboard", "Crew dashboard is unavailable.");
+
+    case "schedule":
+      return typeof renderCrewDashboard === "function"
+        ? renderCrewDashboard(context)
+        : placeholderPage("Crew Dashboard", "Crew dashboard is unavailable.");
+
+    case "my-schedule":
+      return typeof renderMySchedule === "function"
+        ? renderMySchedule(context)
+        : placeholderPage("My Schedule", "My Schedule is unavailable.");
+
+    case "claim-games":
+      return typeof renderClaimGames === "function"
+        ? renderClaimGames(context)
+        : placeholderPage("Claim Games", "Claim Games is unavailable.");
+
+    case "my-claims":
+      return typeof renderMyClaims === "function"
+        ? renderMyClaims(context)
+        : placeholderPage("My Claims", "My Claims is unavailable.");
+
+    default:
+      return placeholderPage(
+        "Coming Soon",
+        "This page is not yet available for crew members."
+      );
+  }
 }
 
 function updateNotificationBadge() {
@@ -218,53 +267,6 @@ function updateNotificationBadge() {
 
   badge.textContent = String(unreadCount);
   badge.hidden = false;
-}
-
-function renderUmpireView(page) {
-  switch (page) {
-    case "dashboard":
-      return typeof renderCrewDashboard === "function"
-        ? renderCrewDashboard()
-        : placeholderPage(
-            "Crew Dashboard",
-            "Crew dashboard is unavailable."
-          );
-
-    case "schedule":
-      return typeof renderCrewDashboard === "function"
-        ? renderCrewDashboard()
-        : placeholderPage(
-            "Crew Dashboard",
-            "Crew dashboard is unavailable."
-          );
-    case "my-schedule":
-      return typeof renderMySchedule === "function"
-        ? renderMySchedule()
-        : placeholderPage(
-            "My Schedule",
-            "My Schedule is unavailable."
-          );
-      case "claim-games":
-  return typeof renderClaimGames === "function"
-    ? renderClaimGames()
-    : placeholderPage(
-        "Claim Games",
-        "Claim Games is unavailable."
-      );
-      case "my-claims":
-  return typeof renderMyClaims === "function"
-    ? renderMyClaims()
-    : placeholderPage(
-        "My Claims",
-        "My Claims is unavailable."
-      );
-          
-    default:
-      return placeholderPage(
-        "Coming Soon",
-        "This page is not yet available for crew members."
-      );
-  }
 }
 
 function updateActiveNav(page) {
@@ -338,6 +340,7 @@ function placeholderPage(title, message) {
 }
 
 window.updateNotificationBadge = updateNotificationBadge;
+window.navigateTo = navigateTo;
 
 // ----------------------------------------------------
 // QA Error Tracking
