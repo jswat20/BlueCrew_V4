@@ -1,7 +1,11 @@
 // js/schedule/scheduleImport.js
 
+let currentScheduleImportPreview = null;
+
 function openScheduleImport() {
   closeScheduleImport();
+
+  currentScheduleImportPreview = null;
 
   const overlay = document.createElement("div");
   overlay.id = "schedule-import-overlay";
@@ -19,7 +23,9 @@ function openScheduleImport() {
       <div class="assign-drawer-header">
         <h2>Import Schedule</h2>
 
-        <button onclick="closeScheduleImport()">
+        <button
+          aria-label="Close schedule import"
+          onclick="closeScheduleImport()">
           ×
         </button>
       </div>
@@ -39,6 +45,13 @@ function openScheduleImport() {
 
       <div class="assign-drawer-actions">
         <button
+          data-testid="schedule-import-submit"
+          onclick="importSchedulePreview()"
+          disabled>
+          Import
+        </button>
+
+        <button
           class="secondary"
           data-testid="schedule-import-close"
           onclick="closeScheduleImport()">
@@ -56,6 +69,8 @@ function closeScheduleImport() {
   document
     .getElementById("schedule-import-overlay")
     ?.remove();
+
+  currentScheduleImportPreview = null;
 }
 
 async function readScheduleImportFile(event) {
@@ -76,6 +91,8 @@ function renderScheduleImportPreview(preview) {
     document.getElementById("schedule-import-preview");
 
   if (!container) return;
+
+  currentScheduleImportPreview = preview;
 
   container.innerHTML = `
     <hr>
@@ -109,4 +126,50 @@ function renderScheduleImportPreview(preview) {
         : "<p>No valid games.</p>"
     }
   `;
+
+  updateScheduleImportButton();
+}
+
+function updateScheduleImportButton() {
+  const importButton =
+    document.querySelector(
+      '[data-testid="schedule-import-submit"]'
+    );
+
+  if (!importButton) return;
+
+  importButton.disabled =
+    !currentScheduleImportPreview?.games?.length;
+}
+
+function importSchedulePreview() {
+  const games =
+    currentScheduleImportPreview?.games || [];
+
+  if (!games.length) return;
+
+  const importButton =
+    document.querySelector(
+      '[data-testid="schedule-import-submit"]'
+    );
+
+  if (importButton) {
+    importButton.disabled = true;
+  }
+
+  games.forEach(game => {
+    gameService.create(game);
+  });
+
+  const importedCount = games.length;
+
+  closeScheduleImport();
+
+  renderScheduleContent();
+
+  toastService.success(
+    `Imported ${importedCount} ${
+      importedCount === 1 ? "game" : "games"
+    }.`
+  );
 }
