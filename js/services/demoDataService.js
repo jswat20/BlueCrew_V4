@@ -4,6 +4,7 @@ const demoDataService = (() => {
   let loaded = false;
   let originalCrew = null;
   let originalGames = null;
+  let originalAccounts = null;
 
   const DEMO_CREW = [
     {
@@ -93,6 +94,105 @@ const demoDataService = (() => {
     });
   }
 
+  function clearAccounts() {
+    accountService
+      .getAll()
+      .forEach(account => {
+        accountService.deleteAccount(account.id);
+      });
+  }
+
+  function createAccountDefinition(definition) {
+    const creationResult = accountService.createAccount({
+      id: definition.id,
+      firstName: definition.firstName,
+      lastName: definition.lastName,
+      email: definition.email,
+      phone: definition.phone,
+      createdAt: definition.createdAt,
+      role: definition.role || "umpire"
+    });
+
+    if (!creationResult.success) {
+      return creationResult;
+    }
+
+    const accountId = creationResult.data.id;
+
+    if (definition.status === "approved") {
+      const approvalResult =
+        accountService.approveAccount(accountId);
+
+      if (!approvalResult.success) {
+        return approvalResult;
+      }
+
+      if (definition.crewId) {
+        return accountService.linkCrew(
+          accountId,
+          definition.crewId
+        );
+      }
+
+      return approvalResult;
+    }
+
+    if (definition.status === "rejected") {
+      return accountService.rejectAccount(accountId);
+    }
+
+    if (definition.status === "inactive") {
+      return accountService.updateAccount(accountId, {
+        status: "inactive",
+        crewId: null
+      });
+    }
+
+    return creationResult;
+  }
+
+  function loadDemoAccounts() {
+    clearAccounts();
+
+    const definitions = demoAccountData.getAll();
+
+    for (const definition of definitions) {
+      const result = createAccountDefinition(definition);
+
+      if (!result.success) {
+        return {
+          success: false,
+          message: result.message,
+          data: getSummary()
+        };
+      }
+    }
+
+    return {
+      success: true,
+      message: "Demo accounts loaded.",
+      data: accountService.getAll()
+    };
+  }
+
+  function restoreAccounts(accounts) {
+    clearAccounts();
+
+    for (const account of accounts) {
+      const result = accountService.createAccount(account);
+
+      if (!result.success) {
+        return result;
+      }
+    }
+
+    return {
+      success: true,
+      message: "Original accounts restored.",
+      data: accountService.getAll()
+    };
+  }
+
   function loadLeague() {
     if (loaded) {
       return {
@@ -104,12 +204,35 @@ const demoDataService = (() => {
 
     originalCrew = clone(crewService.getAll());
     originalGames = clone(gameService.getAll());
+    originalAccounts = clone(accountService.getAll());
 
     crew = clone(DEMO_CREW);
     games = createDemoGames();
 
     saveCrew();
     saveGames();
+
+    const accountResult = loadDemoAccounts();
+
+    if (!accountResult.success) {
+      crew = clone(originalCrew);
+      games = clone(originalGames);
+
+      saveCrew();
+      saveGames();
+
+      restoreAccounts(originalAccounts);
+
+      originalCrew = null;
+      originalGames = null;
+      originalAccounts = null;
+
+      return {
+        success: false,
+        message: accountResult.message,
+        data: getSummary()
+      };
+    }
 
     loaded = true;
 
@@ -131,8 +254,13 @@ const demoDataService = (() => {
       saveGames();
     }
 
+    if (originalAccounts !== null) {
+      restoreAccounts(originalAccounts);
+    }
+
     originalCrew = null;
     originalGames = null;
+    originalAccounts = null;
     loaded = false;
 
     return {
