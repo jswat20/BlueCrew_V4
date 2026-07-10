@@ -263,36 +263,63 @@ const crewBuilderService = (() => {
       };
     }
 
-    const recommendations =
-      recommendationService.getRecommendedCrewForGame(draft.game) || [];
-
-    const availableCrew = recommendations
-      .filter(item =>
-        item.crewId &&
-        item.active !== false &&
-        item.conflict !== true &&
-        item.eligible !== false
-      )
-      .map(item => item.crewId);
-
     const usedCrewIds = new Set(
       draft.assignments
         .filter(item => item.crewId)
-        .map(item => item.crewId)
+        .map(item => String(item.crewId))
     );
 
+    /*
+     * Recalculate recommendations for every open slot.
+     *
+     * This allows partner preferences to respond to locked,
+     * existing, and newly auto-filled draft assignments.
+     */
     draft.assignments.forEach(assignment => {
-      if (assignment.locked || assignment.crewId) return;
+      if (
+        assignment.locked ||
+        assignment.crewId
+      ) {
+        return;
+      }
 
-      const nextCrewId = availableCrew.find(crewId => !usedCrewIds.has(crewId));
+      const assignedCrewIds =
+        draft.assignments
+          .filter(item => item.crewId)
+          .map(item => String(item.crewId));
 
-      if (!nextCrewId) return;
+      const recommendations =
+        recommendationService
+          .getRecommendedCrewForGame(
+            draft.game,
+            {
+              assignedCrewIds,
+              position: assignment.position
+            }
+          ) || [];
 
-      assignment.crewId = nextCrewId;
+      const nextRecommendation =
+        recommendations.find(item =>
+          item.crewId &&
+          item.active !== false &&
+          item.conflict !== true &&
+          item.eligible !== false &&
+          !usedCrewIds.has(
+            String(item.crewId)
+          )
+        );
+
+      if (!nextRecommendation) return;
+
+      assignment.crewId =
+        nextRecommendation.crewId;
+
       assignment.status = "assigned";
       assignment.claimedBy = "";
 
-      usedCrewIds.add(nextCrewId);
+      usedCrewIds.add(
+        String(nextRecommendation.crewId)
+      );
     });
 
     return {

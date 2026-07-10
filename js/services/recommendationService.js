@@ -6,7 +6,17 @@ const DATE_AVAILABILITY_PENALTIES = Object.freeze({
   unavailable: -60
 });
 
-function evaluateCrew(crewId, game, position = "Plate") {
+const CREW_PREFERENCE_SCORES = Object.freeze({
+  preferredPartner: 20,
+  avoidedPartner: -30,
+  preferredLevel: 10
+});
+
+function evaluateCrew(
+  crewId,
+  game,
+  position = "Plate"
+) {
   if (
     typeof availabilityService !== "undefined" &&
     typeof availabilityService.evaluate === "function"
@@ -33,7 +43,8 @@ function getDateAvailability(crewId, game) {
   if (
     !game?.date ||
     typeof availabilityService === "undefined" ||
-    typeof availabilityService.getAvailability !== "function"
+    typeof availabilityService.getAvailability !==
+      "function"
   ) {
     return "available";
   }
@@ -52,7 +63,9 @@ function applyDateAvailability(
   dateAvailability
 ) {
   const penalty =
-    DATE_AVAILABILITY_PENALTIES[dateAvailability] ?? 0;
+    DATE_AVAILABILITY_PENALTIES[
+      dateAvailability
+    ] ?? 0;
 
   switch (dateAvailability) {
     case "maybe":
@@ -69,6 +82,113 @@ function applyDateAvailability(
   }
 
   return score + penalty;
+}
+
+function normalizeAssignedCrewIds(values) {
+  if (!Array.isArray(values)) return [];
+
+  return [
+    ...new Set(
+      values
+        .map(value => String(value || "").trim())
+        .filter(Boolean)
+    )
+  ];
+}
+
+function evaluatePreferences(
+  member,
+  game,
+  options = {}
+) {
+  const assignedCrewIds =
+    normalizeAssignedCrewIds(
+      options.assignedCrewIds
+    );
+
+  const preferences =
+    typeof crewService.getPreferences === "function"
+      ? crewService.getPreferences(member)
+      : {
+          preferredCrewIds: [],
+          avoidedCrewIds: [],
+          preferredLevels: []
+        };
+
+  const preferredCrewIds = new Set(
+    preferences.preferredCrewIds || []
+  );
+
+  const avoidedCrewIds = new Set(
+    preferences.avoidedCrewIds || []
+  );
+
+  const preferenceMatches = [];
+  const reasons = [];
+
+  let preferenceScore = 0;
+
+  assignedCrewIds
+    .filter(id => id !== String(member.id))
+    .forEach(assignedCrewId => {
+      if (preferredCrewIds.has(assignedCrewId)) {
+        preferenceScore +=
+          CREW_PREFERENCE_SCORES.preferredPartner;
+
+        preferenceMatches.push({
+          type: "preferred_partner",
+          crewId: assignedCrewId,
+          score:
+            CREW_PREFERENCE_SCORES.preferredPartner
+        });
+
+        reasons.push(
+          "Preferred partner is already assigned to this game."
+        );
+      }
+
+      if (avoidedCrewIds.has(assignedCrewId)) {
+        preferenceScore +=
+          CREW_PREFERENCE_SCORES.avoidedPartner;
+
+        preferenceMatches.push({
+          type: "avoided_partner",
+          crewId: assignedCrewId,
+          score:
+            CREW_PREFERENCE_SCORES.avoidedPartner
+        });
+
+        reasons.push(
+          "An avoided partner is already assigned to this game."
+        );
+      }
+    });
+
+  if (
+    game?.level &&
+    Array.isArray(preferences.preferredLevels) &&
+    preferences.preferredLevels.includes(game.level)
+  ) {
+    preferenceScore +=
+      CREW_PREFERENCE_SCORES.preferredLevel;
+
+    preferenceMatches.push({
+      type: "preferred_level",
+      level: game.level,
+      score:
+        CREW_PREFERENCE_SCORES.preferredLevel
+    });
+
+    reasons.push(
+      "Crew member prefers this game level."
+    );
+  }
+
+  return {
+    preferenceScore,
+    preferenceMatches,
+    reasons
+  };
 }
 
 const recommendationService = {
@@ -88,18 +208,29 @@ const recommendationService = {
 
     if (!member) return false;
 
-    if (!member.levels || member.levels.length === 0) {
+    if (
+      !member.levels ||
+      member.levels.length === 0
+    ) {
       return true;
     }
 
     return member.levels.includes(game.level);
   },
 
-  scoreCrewForGame(member, game) {
+  scoreCrewForGame(
+    member,
+    game,
+    options = {}
+  ) {
     const crewId = member.id;
 
     const evaluation =
-      evaluateCrew(crewId, game);
+      evaluateCrew(
+        crewId,
+        game,
+        options.position || "Plate"
+      );
 
     /*
      * Legacy game-specific availability remains supported.
@@ -108,16 +239,20 @@ const recommendationService = {
      * retain its existing behavior for backward compatibility.
      */
     const availability =
-      crewService.getAvailability(game.id, crewId);
+      crewService.getAvailability(
+        game.id,
+        crewId
+      );
 
     const dateAvailability =
       getDateAvailability(crewId, game);
 
     let score = evaluation.score;
 
-    const reasons = Array.isArray(evaluation.reasons)
-      ? [...evaluation.reasons]
-      : [];
+    const reasons =
+      Array.isArray(evaluation.reasons)
+        ? [...evaluation.reasons]
+        : [];
 
     switch (availability) {
       case "available":
@@ -131,13 +266,29 @@ const recommendationService = {
         break;
 
       default:
-        reasons.push("No availability response");
+        reasons.push(
+          "No availability response"
+        );
     }
 
     score = applyDateAvailability(
       score,
       reasons,
       dateAvailability
+    );
+
+    const preferenceEvaluation =
+      evaluatePreferences(
+        member,
+        game,
+        options
+      );
+
+    score +=
+      preferenceEvaluation.preferenceScore;
+
+    reasons.push(
+      ...preferenceEvaluation.reasons
     );
 
     return {
@@ -147,13 +298,19 @@ const recommendationService = {
 
       score,
 
+      preferenceScore:
+        preferenceEvaluation.preferenceScore,
+
+      preferenceMatches:
+        preferenceEvaluation.preferenceMatches,
+
       /*
        * Existing legacy result field.
        */
       availability,
 
       /*
-       * New advisory date-based availability field.
+       * Advisory date-based availability field.
        */
       dateAvailability,
 
@@ -178,20 +335,32 @@ const recommendationService = {
     });
   },
 
-  getRecommendedCrewForGame(game) {
+  getRecommendedCrewForGame(
+    game,
+    options = {}
+  ) {
     return this.rankRecommendations(
       crewService
         .getAll()
         .map(member =>
-          this.scoreCrewForGame(member, game)
+          this.scoreCrewForGame(
+            member,
+            game,
+            options
+          )
         )
     );
   },
 
-  getBestCrewForGame(game) {
+  getBestCrewForGame(
+    game,
+    options = {}
+  ) {
     return (
-      this.getRecommendedCrewForGame(game)[0] ||
-      null
+      this.getRecommendedCrewForGame(
+        game,
+        options
+      )[0] || null
     );
   }
 };
