@@ -14,6 +14,107 @@ function getCrewDisplayName(member) {
   );
 }
 
+function escapeAssignmentHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function escapeAssignmentJs(value) {
+  return String(value ?? "")
+    .replaceAll("\\", "\\\\")
+    .replaceAll("'", "\\'");
+}
+
+function getAssignmentAvailability(crewId, gameDate) {
+  if (!crewId || !gameDate) {
+    return null;
+  }
+
+  return availabilityService.getAvailability(
+    crewId,
+    gameDate
+  );
+}
+
+function getAssignmentAvailabilityDisplay(status) {
+  const presentation = {
+    available: {
+      label: "Available",
+      className: "availability-badge-available"
+    },
+    maybe: {
+      label: "Maybe",
+      className: "availability-badge-maybe"
+    },
+    unavailable: {
+      label: "Unavailable",
+      className: "availability-badge-unavailable"
+    }
+  };
+
+  return presentation[status] || null;
+}
+
+function getCrewOptionLabel(member, gameDate) {
+  const displayName = getCrewDisplayName(member);
+
+  const status = getAssignmentAvailability(
+    member.id,
+    gameDate
+  );
+
+  if (status === "maybe") {
+    return `${displayName} — Maybe`;
+  }
+
+  if (status === "unavailable") {
+    return `${displayName} — Unavailable`;
+  }
+
+  return displayName;
+}
+
+function renderAssignmentAvailabilityBadge(
+  assignment,
+  gameDate
+) {
+  if (!assignment?.crewId) {
+    return "";
+  }
+
+  const status = getAssignmentAvailability(
+    assignment.crewId,
+    gameDate
+  );
+
+  const display =
+    getAssignmentAvailabilityDisplay(status);
+
+  if (!display) {
+    return "";
+  }
+
+  return `
+    <div
+      class="
+        assignment-availability
+        availability-badge
+        ${display.className}
+      "
+      data-testid="assignment-availability-${escapeAssignmentHtml(
+        assignment.position
+      )}"
+      data-availability="${escapeAssignmentHtml(status)}"
+    >
+      ${escapeAssignmentHtml(display.label)}
+    </div>
+  `;
+}
+
 function openAssignmentDrawer(gameId) {
   const game = gameService.getById(gameId);
 
@@ -53,8 +154,13 @@ function closeAssignmentDrawer() {
     qaService.logAction("Close Assignment Drawer");
   }
 
-  const existing = document.querySelector(".assignment-drawer-overlay");
-  if (existing) existing.remove();
+  const existing = document.querySelector(
+    ".assignment-drawer-overlay"
+  );
+
+  if (existing) {
+    existing.remove();
+  }
 }
 
 function cancelCrewBuilder() {
@@ -62,11 +168,19 @@ function cancelCrewBuilder() {
 }
 
 function renderAssignmentDrawer() {
-  const existing = document.querySelector(".assignment-drawer-overlay");
-  if (existing) existing.remove();
+  const existing = document.querySelector(
+    ".assignment-drawer-overlay"
+  );
+
+  if (existing) {
+    existing.remove();
+  }
 
   const draft = crewBuilderService.getDraft();
-  if (!draft) return;
+
+  if (!draft) {
+    return;
+  }
 
   const game = draft.game;
   const assignments = draft.assignments || [];
@@ -80,12 +194,12 @@ function renderAssignmentDrawer() {
   overlay.innerHTML = `
     <div
       class="assignment-drawer-overlay"
-      data-testid="assignment-overlay">
-
+      data-testid="assignment-overlay"
+    >
       <div
         class="assignment-drawer"
-        data-testid="assignment-drawer">
-
+        data-testid="assignment-drawer"
+      >
         <div class="assignment-drawer-header">
           <div>
             <h2 data-testid="assignment-title">
@@ -93,15 +207,20 @@ function renderAssignmentDrawer() {
             </h2>
 
             <p data-testid="assignment-game-summary">
-              ${formatDate(game.date)} · ${game.time}<br>
-              ${game.awayTeam} @ ${game.homeTeam}
+              ${formatDate(game.date)} · ${escapeAssignmentHtml(
+                game.time
+              )}<br>
+              ${escapeAssignmentHtml(
+                game.awayTeam
+              )} @ ${escapeAssignmentHtml(game.homeTeam)}
             </p>
           </div>
 
           <button
             class="drawer-close-btn"
             data-testid="assignment-close"
-            onclick="cancelCrewBuilder()">
+            onclick="cancelCrewBuilder()"
+          >
             ×
           </button>
         </div>
@@ -110,32 +229,43 @@ function renderAssignmentDrawer() {
 
         <div
           class="assignment-drawer-body"
-          data-testid="assignment-body">
-          ${assignments.map(renderCrewBuilderSlot).join("")}
+          data-testid="assignment-body"
+        >
+          ${assignments
+            .map(assignment =>
+              renderCrewBuilderSlot(
+                assignment,
+                game.date
+              )
+            )
+            .join("")}
         </div>
 
         <div
           class="assignment-drawer-footer"
-          data-testid="assignment-footer">
-
+          data-testid="assignment-footer"
+        >
           <button
             class="secondary-btn"
             data-testid="assignment-autofill"
-            onclick="autoFillCrewDraft()">
+            onclick="autoFillCrewDraft()"
+          >
             Auto Fill Crew
           </button>
 
           <button
             class="secondary-btn"
             data-testid="assignment-cancel"
-            onclick="cancelCrewBuilder()">
+            onclick="cancelCrewBuilder()"
+          >
             Cancel
           </button>
 
           <button
             class="primary-btn"
             data-testid="assignment-save"
-            onclick="saveCrewDraft()">
+            onclick="saveCrewDraft()"
+          >
             Save Crew
           </button>
         </div>
@@ -146,58 +276,108 @@ function renderAssignmentDrawer() {
   document.body.appendChild(overlay);
 }
 
-function renderCrewBuilderSlot(assignment) {
+function renderCrewBuilderSlot(
+  assignment,
+  gameDate
+) {
   const crewMembers = crewService
     .getAll()
     .filter(member => member.active !== false);
 
   const crewOptions = crewMembers
     .map(member => {
-      const displayName = getCrewDisplayName(member);
+      const optionLabel = getCrewOptionLabel(
+        member,
+        gameDate
+      );
+
+      const selected =
+        String(member.id) ===
+        String(assignment.crewId);
 
       return `
         <option
-          value="${member.id}"
-          ${String(member.id) === String(assignment.crewId) ? "selected" : ""}
+          value="${escapeAssignmentHtml(member.id)}"
+          data-availability="${escapeAssignmentHtml(
+            getAssignmentAvailability(
+              member.id,
+              gameDate
+            ) || "available"
+          )}"
+          ${selected ? "selected" : ""}
         >
-          ${displayName}
+          ${escapeAssignmentHtml(optionLabel)}
         </option>
       `;
     })
     .join("");
 
+  const position = escapeAssignmentHtml(
+    assignment.position
+  );
+
+  const assignmentId = escapeAssignmentJs(
+    assignment.id
+  );
+
   const lockedLabel = assignment.locked
-    ? `<span class="slot-lock-label" data-testid="assignment-locked-${assignment.position}">Locked</span>`
+    ? `
+      <span
+        class="slot-lock-label"
+        data-testid="assignment-locked-${position}"
+      >
+        Locked
+      </span>
+    `
     : "";
 
   return `
     <div
-      class="crew-builder-slot ${assignment.locked ? "locked" : ""}"
-      data-testid="assignment-slot-${assignment.position}">
-
+      class="
+        crew-builder-slot
+        ${assignment.locked ? "locked" : ""}
+      "
+      data-testid="assignment-slot-${position}"
+    >
       <div
         class="crew-builder-slot-info"
-        data-testid="assignment-slot-info-${assignment.position}">
-        <strong>${assignment.position}</strong>
+        data-testid="assignment-slot-info-${position}"
+      >
+        <strong>${position}</strong>
         ${lockedLabel}
       </div>
 
       <div
         class="crew-builder-slot-controls"
-        data-testid="assignment-slot-controls-${assignment.position}">
-
+        data-testid="assignment-slot-controls-${position}"
+      >
         <select
-          data-testid="assignment-${assignment.position}"
+          data-testid="assignment-${position}"
           ${assignment.locked ? "disabled" : ""}
-          onchange="updateDraftAssignment('${assignment.id}', this.value)">
-          <option value="">Needs crew member</option>
+          onchange="updateDraftAssignment(
+            '${assignmentId}',
+            this.value
+          )"
+        >
+          <option value="">
+            Needs crew member
+          </option>
+
           ${crewOptions}
         </select>
 
+        ${renderAssignmentAvailabilityBadge(
+          assignment,
+          gameDate
+        )}
+
         <button
           class="secondary-btn small-btn"
-          data-testid="assignment-lock-${assignment.position}"
-          onclick="toggleAssignmentLock('${assignment.id}')">
+          data-testid="assignment-lock-${position}"
+          onclick="toggleAssignmentLock(
+            '${assignmentId}'
+          )"
+        >
           ${assignment.locked ? "Unlock" : "Lock"}
         </button>
       </div>
@@ -210,7 +390,8 @@ function renderCrewBuilderValidation(issues) {
     return `
       <div
         class="drawer-validation success"
-        data-testid="assignment-validation">
+        data-testid="assignment-validation"
+      >
         ✅ Crew is ready to save.
       </div>
     `;
@@ -219,25 +400,49 @@ function renderCrewBuilderValidation(issues) {
   return `
     <div
       class="drawer-validation"
-      data-testid="assignment-validation">
-      ${issues.map(issue => `
-        <div
-          class="validation-${issue.severity}"
-          data-testid="assignment-validation-${issue.severity}">
-          ${issue.severity === "error" ? "⛔" : "⚠️"}
-          ${issue.message}
-        </div>
-      `).join("")}
+      data-testid="assignment-validation"
+    >
+      ${issues
+        .map(
+          issue => `
+            <div
+              class="validation-${escapeAssignmentHtml(
+                issue.severity
+              )}"
+              data-testid="assignment-validation-${escapeAssignmentHtml(
+                issue.severity
+              )}"
+            >
+              ${
+                issue.severity === "error"
+                  ? "⛔"
+                  : "⚠️"
+              }
+
+              ${escapeAssignmentHtml(issue.message)}
+            </div>
+          `
+        )
+        .join("")}
     </div>
   `;
 }
 
-function updateDraftAssignment(assignmentId, crewId) {
-  const result = crewBuilderService.updateAssignment(assignmentId, crewId);
+function updateDraftAssignment(
+  assignmentId,
+  crewId
+) {
+  const result =
+    crewBuilderService.updateAssignment(
+      assignmentId,
+      crewId
+    );
 
   if (window.qaService) {
     qaService.setAssignment(assignmentId);
-    qaService.logAction("Update Draft Assignment");
+    qaService.logAction(
+      "Update Draft Assignment"
+    );
   }
 
   if (!result.success) {
@@ -256,10 +461,15 @@ function toggleAssignmentLock(assignmentId) {
     return;
   }
 
-  const assignment = draft.assignments.find(item => item.id === assignmentId);
+  const assignment = draft.assignments.find(
+    item => item.id === assignmentId
+  );
 
   if (!assignment) {
-    toastService.show("Assignment slot not found.");
+    toastService.show(
+      "Assignment slot not found."
+    );
+
     return;
   }
 
@@ -267,7 +477,9 @@ function toggleAssignmentLock(assignmentId) {
 
   if (window.qaService) {
     qaService.setAssignment(assignmentId);
-    qaService.logAction("Toggle Assignment Lock");
+    qaService.logAction(
+      "Toggle Assignment Lock"
+    );
   }
 
   renderAssignmentDrawer();
@@ -299,8 +511,13 @@ function saveCrewDraft() {
     return;
   }
 
-  const existing = document.querySelector(".assignment-drawer-overlay");
-  if (existing) existing.remove();
+  const existing = document.querySelector(
+    ".assignment-drawer-overlay"
+  );
+
+  if (existing) {
+    existing.remove();
+  }
 
   activeAssignmentGameId = null;
 
@@ -308,9 +525,13 @@ function saveCrewDraft() {
     qaService.closeDrawer();
   }
 
-  if (typeof renderScheduleContent === "function") {
+  if (
+    typeof renderScheduleContent === "function"
+  ) {
     renderScheduleContent();
-  } else if (typeof renderPage === "function") {
+  } else if (
+    typeof renderPage === "function"
+  ) {
     renderPage("schedule");
   }
 }

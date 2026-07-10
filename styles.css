@@ -1249,3 +1249,51 @@ body {
     flex-direction: column;
   }
 }
+/* =========================================================
+   Assignment availability
+   ========================================================= */
+
+.assignment-availability {
+  align-self: flex-start;
+}
+
+.availability-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.availability-badge-available {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.availability-badge-maybe {
+  color: #854d0e;
+  background: #fef9c3;
+  border-color: #fde047;
+}
+
+.availability-badge-unavailable {
+  color: #991b1b;
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.crew-builder-slot-controls {
+  gap: 8px;
+}
+
+.crew-builder-slot-controls select {
+  min-width: 0;
+}
