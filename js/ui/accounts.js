@@ -1,20 +1,132 @@
 // js/ui/accounts.js
 
+const selectedPendingAccountIds = new Set();
+
 function renderAccounts() {
-  const pendingAccounts = accountService.getPendingAccounts();
-  const unlinkedAccounts = accountService.getUnlinkedApprovedAccounts();
+  const selectedFilter =
+    typeof uiStateService?.getAccountFilter === "function"
+      ? uiStateService.getAccountFilter()
+      : "all";
+
+  const pendingAccounts =
+    accountService.getPendingAccounts();
+
+  const approvedAccounts =
+    accountService.getApprovedAccounts();
+
+  const unlinkedAccounts =
+    accountService.getUnlinkedApprovedAccounts();
+
+  const linkedAccounts =
+    approvedAccounts.filter(account => account.crewId !== null);
+
+  const selectedPendingAccountIds = new Set();
+
   const crewMembers = crewService.getAll();
 
   return `
     <section
       class="panel"
-      data-testid="accounts-page">
+      data-testid="accounts-page"
+      data-account-filter="${selectedFilter}">
 
       <h2>Accounts</h2>
+
       <p class="muted">
         Review and manage umpire registrations.
       </p>
 
+      ${renderAccountFilters(selectedFilter)}
+
+      ${
+        selectedFilter === "all" ||
+        selectedFilter === "pending"
+          ? renderPendingAccountsSection(pendingAccounts)
+          : ""
+      }
+
+      ${
+        selectedFilter === "all"
+          ? "<hr>"
+          : ""
+      }
+
+      ${
+        selectedFilter === "all" ||
+        selectedFilter === "unlinked"
+          ? renderUnlinkedAccountsSection(
+              unlinkedAccounts,
+              crewMembers
+            )
+          : ""
+      }
+
+      ${
+        selectedFilter === "approved"
+          ? renderApprovedAccountsSection(
+              approvedAccounts,
+              crewMembers
+            )
+          : ""
+      }
+
+      ${
+        selectedFilter === "linked"
+          ? renderLinkedAccountsSection(
+              linkedAccounts,
+              crewMembers
+            )
+          : ""
+      }
+    </section>
+  `;
+}
+
+function renderAccountFilters(selectedFilter) {
+  const filters = [
+    { id: "all", label: "All" },
+    { id: "pending", label: "Pending" },
+    { id: "approved", label: "Approved" },
+    { id: "linked", label: "Linked" },
+    { id: "unlinked", label: "Unlinked" }
+  ];
+
+  return `
+    <div
+      class="filter-group"
+      data-testid="account-filters">
+
+      ${filters.map(filter => `
+        <button
+          type="button"
+          class="filter-button ${
+            selectedFilter === filter.id ? "active" : ""
+          }"
+          data-testid="account-filter-${filter.id}"
+          aria-pressed="${
+            selectedFilter === filter.id
+              ? "true"
+              : "false"
+          }"
+          onclick="setAccountFilter('${filter.id}')">
+          ${filter.label}
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function setAccountFilter(filter) {
+  uiStateService.setAccountFilter(filter);
+  renderPage("accounts");
+}
+
+function renderPendingAccountsSection(pendingAccounts) {
+  const hasSelection =
+    selectedPendingAccountIds.size > 0;
+
+  return `
+    <section data-testid="pending-accounts-section">
       <h3>Pending Approval</h3>
 
       ${
@@ -27,6 +139,39 @@ function renderAccounts() {
             </div>
           `
           : `
+            <div
+              class="pending-account-bulk-actions"
+              data-testid="pending-account-bulk-actions">
+
+              <button
+                type="button"
+                data-testid="approve-selected-accounts"
+                onclick="approveSelectedAccounts()"
+                ${hasSelection ? "" : "disabled"}>
+                Approve Selected
+              </button>
+
+              <button
+                type="button"
+                data-testid="reject-selected-accounts"
+                onclick="rejectSelectedAccounts()"
+                ${hasSelection ? "" : "disabled"}>
+                Reject Selected
+              </button>
+
+              <button
+                type="button"
+                data-testid="clear-account-selection"
+                onclick="clearPendingAccountSelection()"
+                ${hasSelection ? "" : "disabled"}>
+                Clear Selection
+              </button>
+
+              <span data-testid="selected-account-count">
+                ${selectedPendingAccountIds.size} selected
+              </span>
+            </div>
+
             <div data-testid="pending-accounts-list">
               ${pendingAccounts
                 .map(renderPendingAccountRow)
@@ -34,9 +179,16 @@ function renderAccounts() {
             </div>
           `
       }
+    </section>
+  `;
+}
 
-      <hr>
-
+function renderUnlinkedAccountsSection(
+  unlinkedAccounts,
+  crewMembers
+) {
+  return `
+    <section data-testid="unlinked-accounts-section">
       <h3>Approved - Needs Crew Link</h3>
 
       ${
@@ -51,7 +203,80 @@ function renderAccounts() {
           : `
             <div data-testid="unlinked-account-list">
               ${unlinkedAccounts
-                .map(account => renderUnlinkedAccount(account, crewMembers))
+                .map(account =>
+                  renderUnlinkedAccount(
+                    account,
+                    crewMembers
+                  )
+                )
+                .join("")}
+            </div>
+          `
+      }
+    </section>
+  `;
+}
+
+function renderApprovedAccountsSection(
+  approvedAccounts,
+  crewMembers
+) {
+  return `
+    <section data-testid="approved-accounts-section">
+      <h3>Approved Accounts</h3>
+
+      ${
+        approvedAccounts.length === 0
+          ? `
+            <div
+              class="empty-state"
+              data-testid="approved-accounts-empty">
+              No approved accounts.
+            </div>
+          `
+          : `
+            <div data-testid="approved-account-list">
+              ${approvedAccounts
+                .map(account =>
+                  renderApprovedAccount(
+                    account,
+                    crewMembers
+                  )
+                )
+                .join("")}
+            </div>
+          `
+      }
+    </section>
+  `;
+}
+
+function renderLinkedAccountsSection(
+  linkedAccounts,
+  crewMembers
+) {
+  return `
+    <section data-testid="linked-accounts-section">
+      <h3>Linked Accounts</h3>
+
+      ${
+        linkedAccounts.length === 0
+          ? `
+            <div
+              class="empty-state"
+              data-testid="linked-accounts-empty">
+              No approved accounts are linked.
+            </div>
+          `
+          : `
+            <div data-testid="linked-account-list">
+              ${linkedAccounts
+                .map(account =>
+                  renderApprovedAccount(
+                    account,
+                    crewMembers
+                  )
+                )
                 .join("")}
             </div>
           `
@@ -61,10 +286,27 @@ function renderAccounts() {
 }
 
 function renderPendingAccountRow(account) {
+  const accountId = String(account.id);
+  const isSelected =
+    selectedPendingAccountIds.has(accountId);
+
   return `
     <div
       class="card pending-account"
       data-testid="pending-account-${account.id}">
+
+      <label>
+        <input
+          type="checkbox"
+          data-testid="select-account-${account.id}"
+          value="${account.id}"
+          ${isSelected ? "checked" : ""}
+          onchange="togglePendingAccountSelection(
+            '${account.id}',
+            this.checked
+          )">
+        Select
+      </label>
 
       <div class="pending-account-details">
         <strong>
@@ -95,8 +337,121 @@ function renderPendingAccountRow(account) {
   `;
 }
 
+function togglePendingAccountSelection(accountId, selected) {
+  const normalizedId = String(accountId);
+
+  if (selected) {
+    selectedPendingAccountIds.add(normalizedId);
+  } else {
+    selectedPendingAccountIds.delete(normalizedId);
+  }
+
+  updatePendingBulkControls();
+}
+
+function updatePendingBulkControls() {
+  const hasSelection =
+    selectedPendingAccountIds.size > 0;
+
+  const approveButton = document.querySelector(
+    '[data-testid="approve-selected-accounts"]'
+  );
+
+  const rejectButton = document.querySelector(
+    '[data-testid="reject-selected-accounts"]'
+  );
+
+  const clearButton = document.querySelector(
+    '[data-testid="clear-account-selection"]'
+  );
+
+  const count = document.querySelector(
+    '[data-testid="selected-account-count"]'
+  );
+
+  if (approveButton) {
+    approveButton.disabled = !hasSelection;
+  }
+
+  if (rejectButton) {
+    rejectButton.disabled = !hasSelection;
+  }
+
+  if (clearButton) {
+    clearButton.disabled = !hasSelection;
+  }
+
+  if (count) {
+    count.textContent =
+      `${selectedPendingAccountIds.size} selected`;
+  }
+}
+
+function clearPendingAccountSelection() {
+  selectedPendingAccountIds.clear();
+  renderPage("accounts");
+}
+
+function approveSelectedAccounts() {
+  const accountIds =
+    Array.from(selectedPendingAccountIds);
+
+  if (!accountIds.length) return;
+
+  const result =
+    accountService.approveAccounts(accountIds);
+
+  selectedPendingAccountIds.clear();
+
+  toastService?.show?.(result.message);
+  renderPage("accounts");
+}
+
+function rejectSelectedAccounts() {
+  const accountIds =
+    Array.from(selectedPendingAccountIds);
+
+  if (!accountIds.length) return;
+
+  const result =
+    accountService.rejectAccounts(accountIds);
+
+  selectedPendingAccountIds.clear();
+
+  toastService?.show?.(result.message);
+  renderPage("accounts");
+}
+
+function renderApprovedAccount(account, crewMembers) {
+  const crewMember = crewMembers.find(member =>
+    String(member.id) === String(account.crewId)
+  );
+
+  return `
+    <div
+      class="card"
+      data-testid="approved-account-${account.id}">
+
+      <strong>
+        ${account.firstName} ${account.lastName}
+      </strong>
+
+      <div>${account.email}</div>
+
+      <small>
+        ${
+          crewMember
+            ? `Linked to ${crewMember.firstName} ${crewMember.lastName}`
+            : "Not linked to a crew member"
+        }
+      </small>
+    </div>
+  `;
+}
+
 function approvePendingAccount(accountId) {
-  const result = accountService.approveAccount(accountId);
+  const result =
+    accountService.approveAccount(accountId);
 
   alert(result.message);
 
@@ -104,7 +459,8 @@ function approvePendingAccount(accountId) {
 }
 
 function rejectPendingAccount(accountId) {
-  const result = accountService.rejectAccount(accountId);
+  const result =
+    accountService.rejectAccount(accountId);
 
   alert(result.message);
 
@@ -112,8 +468,11 @@ function rejectPendingAccount(accountId) {
 }
 
 function formatAccountDate(dateString) {
+  if (!dateString) return "Unknown";
+
   return new Date(dateString).toLocaleDateString();
 }
+
 function renderUnlinkedAccount(account, crewMembers) {
   return `
     <div
@@ -147,19 +506,21 @@ function renderUnlinkedAccount(account, crewMembers) {
         onclick="linkCrewAccount('${account.id}')">
         Link Crew
       </button>
-
     </div>
   `;
 }
+
 function linkCrewAccount(accountId) {
   const select = document.getElementById(
     `crew-select-${accountId}`
   );
 
-  const crewId = select.value;
+  const crewId = select?.value;
 
   if (!crewId) {
-    toastService?.show?.("Select a crew member first.");
+    toastService?.show?.(
+      "Select a crew member first."
+    );
     return;
   }
 
@@ -172,4 +533,3 @@ function linkCrewAccount(accountId) {
 
   renderPage("accounts");
 }
-// end of file - duplicate template and function removed

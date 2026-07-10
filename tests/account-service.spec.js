@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Account Service", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
+
     await page.evaluate(() => {
       localStorage.removeItem("bluecrew_accounts");
     });
@@ -46,7 +47,9 @@ test.describe("Account Service", () => {
     expect(result.message).toContain("already exists");
   });
 
-  test("approves an account and links it to a crew profile", async ({ page }) => {
+  test("approves an account and links it to a crew profile", async ({
+    page
+  }) => {
     const result = await page.evaluate(() => {
       const created = accountService.createAccount({
         firstName: "Approved",
@@ -54,7 +57,10 @@ test.describe("Account Service", () => {
         email: "approved@example.com"
       });
 
-      return accountService.approveAccount(created.data.id, 12);
+      return accountService.approveAccount(
+        created.data.id,
+        12
+      );
     });
 
     expect(result.success).toBe(true);
@@ -79,9 +85,103 @@ test.describe("Account Service", () => {
     expect(result.data.rejectedAt).toBeTruthy();
   });
 
-  test("returns pending and approved accounts separately", async ({ page }) => {
+  test("approves multiple accounts", async ({ page }) => {
     const result = await page.evaluate(() => {
-      const pending = accountService.createAccount({
+      const accountIds = [];
+
+      for (let index = 0; index < 3; index++) {
+        const created = accountService.createAccount({
+          firstName: `Bulk${index}`,
+          lastName: "Approve",
+          email: `bulk-approve-${index}@test.com`
+        });
+
+        accountIds.push(created.data.id);
+      }
+
+      return {
+        operation:
+          accountService.approveAccounts(accountIds),
+        pendingAccounts:
+          accountService.getPendingAccounts(),
+        approvedAccounts:
+          accountService.getApprovedAccounts()
+      };
+    });
+
+    expect(result.operation.success).toBe(true);
+    expect(result.operation.data.processed).toBe(3);
+    expect(result.operation.data.approved).toBe(3);
+    expect(result.operation.data.failed).toBe(0);
+
+    expect(result.pendingAccounts).toHaveLength(0);
+    expect(result.approvedAccounts).toHaveLength(3);
+  });
+
+  test("rejects multiple accounts", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const accountIds = [];
+
+      for (let index = 0; index < 3; index++) {
+        const created = accountService.createAccount({
+          firstName: `Bulk${index}`,
+          lastName: "Reject",
+          email: `bulk-reject-${index}@test.com`
+        });
+
+        accountIds.push(created.data.id);
+      }
+
+      return {
+        operation:
+          accountService.rejectAccounts(accountIds),
+        pendingAccounts:
+          accountService.getPendingAccounts(),
+        rejectedAccounts:
+          accountService
+            .getAll()
+            .filter(account =>
+              account.status === "rejected"
+            )
+      };
+    });
+
+    expect(result.operation.success).toBe(true);
+    expect(result.operation.data.processed).toBe(3);
+    expect(result.operation.data.rejected).toBe(3);
+    expect(result.operation.data.failed).toBe(0);
+
+    expect(result.pendingAccounts).toHaveLength(0);
+    expect(result.rejectedAccounts).toHaveLength(3);
+  });
+
+  test("bulk account operations report invalid account ids", async ({
+    page
+  }) => {
+    const result = await page.evaluate(() => {
+      const created = accountService.createAccount({
+        firstName: "Valid",
+        lastName: "Account",
+        email: "valid-bulk@test.com"
+      });
+
+      return accountService.approveAccounts([
+        created.data.id,
+        "missing-account"
+      ]);
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data.processed).toBe(2);
+    expect(result.data.approved).toBe(1);
+    expect(result.data.failed).toBe(1);
+  });
+
+  test("returns pending and approved accounts separately", async ({
+    page
+  }) => {
+    const result = await page.evaluate(() => {
+      accountService.createAccount({
         firstName: "Pending",
         lastName: "Umpire",
         email: "pending@example.com"
@@ -93,22 +193,31 @@ test.describe("Account Service", () => {
         email: "approved-list@example.com"
       });
 
-      accountService.approveAccount(approved.data.id, 22);
+      accountService.approveAccount(
+        approved.data.id,
+        22
+      );
 
       return {
-        pendingAccounts: accountService.getPendingAccounts(),
-        approvedAccounts: accountService.getApprovedAccounts()
+        pendingAccounts:
+          accountService.getPendingAccounts(),
+        approvedAccounts:
+          accountService.getApprovedAccounts()
       };
     });
 
     expect(result.pendingAccounts).toHaveLength(1);
-    expect(result.pendingAccounts[0].email).toBe("pending@example.com");
+    expect(result.pendingAccounts[0].email)
+      .toBe("pending@example.com");
 
     expect(result.approvedAccounts).toHaveLength(1);
-    expect(result.approvedAccounts[0].email).toBe("approved-list@example.com");
+    expect(result.approvedAccounts[0].email)
+      .toBe("approved-list@example.com");
   });
 
-  test("updates an account without changing its id", async ({ page }) => {
+  test("updates an account without changing its id", async ({
+    page
+  }) => {
     const result = await page.evaluate(() => {
       const created = accountService.createAccount({
         firstName: "Update",
@@ -116,13 +225,17 @@ test.describe("Account Service", () => {
         email: "update@example.com"
       });
 
-      return accountService.updateAccount(created.data.id, {
-        firstName: "Updated",
-        phone: "555-999-0000"
-      });
+      return accountService.updateAccount(
+        created.data.id,
+        {
+          firstName: "Updated",
+          phone: "555-999-0000"
+        }
+      );
     });
 
     expect(result.success).toBe(true);
+    expect(result.data.id).toBeTruthy();
     expect(result.data.firstName).toBe("Updated");
     expect(result.data.phone).toBe("555-999-0000");
   });
@@ -142,155 +255,174 @@ test.describe("Account Service", () => {
 
     expect(result).toBeNull();
   });
-});
-test("links an approved account to a crew member", async ({ page }) => {
-  await page.goto("/");
 
-  const result = await page.evaluate(() => {
-    localStorage.removeItem("bluecrew_accounts");
+  test("links an approved account to a crew member", async ({
+    page
+  }) => {
+    const result = await page.evaluate(() => {
+      const account = accountService.createAccount({
+        firstName: "Link",
+        lastName: "Tester",
+        email: "link@test.com"
+      }).data;
 
-    const account = accountService.createAccount({
-      firstName: "Link",
-      lastName: "Tester",
-      email: `link-${Date.now()}@test.com`
-    }).data;
+      accountService.approveAccount(account.id);
 
-    accountService.approveAccount(account.id);
+      const crewMember = crewService.getAll()[0];
 
-    const crewMember = crewService.getAll()[0];
+      return accountService.linkCrew(
+        account.id,
+        crewMember.id
+      );
+    });
 
-    return accountService.linkCrew(account.id, crewMember.id);
+    expect(result.success).toBe(true);
+    expect(result.data.crewId).toBeTruthy();
   });
 
-  expect(result.success).toBe(true);
-  expect(result.data.crewId).toBeTruthy();
-});
+  test("rejects linking a pending account", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const account = accountService.createAccount({
+        firstName: "Pending",
+        lastName: "Tester",
+        email: "pending-link@test.com"
+      }).data;
 
-test("rejects linking a pending account", async ({ page }) => {
-  await page.goto("/");
+      const crewMember = crewService.getAll()[0];
 
-  const result = await page.evaluate(() => {
-    localStorage.removeItem("bluecrew_accounts");
+      return accountService.linkCrew(
+        account.id,
+        crewMember.id
+      );
+    });
 
-    const account = accountService.createAccount({
-      firstName: "Pending",
-      lastName: "Tester",
-      email: `pending-${Date.now()}@test.com`
-    }).data;
-
-    const crewMember = crewService.getAll()[0];
-
-    return accountService.linkCrew(account.id, crewMember.id);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain(
+      "Only approved accounts"
+    );
   });
 
-  expect(result.success).toBe(false);
-});
+  test("rejects linking to a nonexistent crew member", async ({
+    page
+  }) => {
+    const result = await page.evaluate(() => {
+      const account = accountService.createAccount({
+        firstName: "Invalid",
+        lastName: "Crew",
+        email: "invalid-crew@test.com"
+      }).data;
 
-test("rejects linking to a nonexistent crew member", async ({ page }) => {
-  await page.goto("/");
+      accountService.approveAccount(account.id);
 
-  const result = await page.evaluate(() => {
-    localStorage.removeItem("bluecrew_accounts");
+      return accountService.linkCrew(
+        account.id,
+        "does-not-exist"
+      );
+    });
 
-    const account = accountService.createAccount({
-      firstName: "Invalid",
-      lastName: "Crew",
-      email: `invalid-${Date.now()}@test.com`
-    }).data;
-
-    accountService.approveAccount(account.id);
-
-    return accountService.linkCrew(account.id, "does-not-exist");
+    expect(result.success).toBe(false);
+    expect(result.message).toContain(
+      "Crew member not found"
+    );
   });
 
-  expect(result.success).toBe(false);
-});
+  test("prevents linking two accounts to the same crew member", async ({
+    page
+  }) => {
+    const result = await page.evaluate(() => {
+      const first = accountService.createAccount({
+        firstName: "One",
+        lastName: "Tester",
+        email: "first-link@test.com"
+      }).data;
 
-test("prevents linking two accounts to the same crew member", async ({ page }) => {
-  await page.goto("/");
+      const second = accountService.createAccount({
+        firstName: "Two",
+        lastName: "Tester",
+        email: "second-link@test.com"
+      }).data;
 
-  const result = await page.evaluate(() => {
-    localStorage.removeItem("bluecrew_accounts");
+      accountService.approveAccount(first.id);
+      accountService.approveAccount(second.id);
 
-    const first = accountService.createAccount({
-      firstName: "One",
-      lastName: "Tester",
-      email: `one-${Date.now()}@test.com`
-    }).data;
+      const crewMember = crewService.getAll()[0];
 
-    const second = accountService.createAccount({
-      firstName: "Two",
-      lastName: "Tester",
-      email: `two-${Date.now()}@test.com`
-    }).data;
+      accountService.linkCrew(
+        first.id,
+        crewMember.id
+      );
 
-    accountService.approveAccount(first.id);
-    accountService.approveAccount(second.id);
+      return accountService.linkCrew(
+        second.id,
+        crewMember.id
+      );
+    });
 
-    const crewMember = crewService.getAll()[0];
-
-    accountService.linkCrew(first.id, crewMember.id);
-
-    return accountService.linkCrew(second.id, crewMember.id);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain(
+      "already linked"
+    );
   });
 
-  expect(result.success).toBe(false);
-});
+  test("unlinks a crew member", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const account = accountService.createAccount({
+        firstName: "Unlink",
+        lastName: "Tester",
+        email: "unlink@test.com"
+      }).data;
 
-test("unlinks a crew member", async ({ page }) => {
-  await page.goto("/");
+      accountService.approveAccount(account.id);
 
-  const result = await page.evaluate(() => {
-    localStorage.removeItem("bluecrew_accounts");
+      const crewMember = crewService.getAll()[0];
 
-    const account = accountService.createAccount({
-      firstName: "Unlink",
-      lastName: "Tester",
-      email: `unlink-${Date.now()}@test.com`
-    }).data;
+      accountService.linkCrew(
+        account.id,
+        crewMember.id
+      );
 
-    accountService.approveAccount(account.id);
+      return accountService.unlinkCrew(account.id);
+    });
 
-    const crewMember = crewService.getAll()[0];
-
-    accountService.linkCrew(account.id, crewMember.id);
-
-    return accountService.unlinkCrew(account.id);
+    expect(result.success).toBe(true);
+    expect(result.data.crewId).toBeNull();
   });
 
-  expect(result.success).toBe(true);
-  expect(result.data.crewId).toBeNull();
-});
+  test("returns only approved accounts that are not linked", async ({
+    page
+  }) => {
+    const result = await page.evaluate(() => {
+      const unlinked = accountService.createAccount({
+        firstName: "Available",
+        lastName: "Account",
+        email: "available@test.com"
+      }).data;
 
-test("returns only approved accounts that are not linked", async ({ page }) => {
-  await page.goto("/");
+      const linked = accountService.createAccount({
+        firstName: "Linked",
+        lastName: "Account",
+        email: "linked@test.com"
+      }).data;
 
-  const result = await page.evaluate(() => {
-    localStorage.removeItem("bluecrew_accounts");
+      accountService.approveAccount(unlinked.id);
+      accountService.approveAccount(linked.id);
 
-    const unlinked = accountService.createAccount({
-      firstName: "Available",
-      lastName: "Account",
-      email: `available-${Date.now()}@test.com`
-    }).data;
+      const crewMember = crewService.getAll()[0];
 
-    const linked = accountService.createAccount({
-      firstName: "Linked",
-      lastName: "Account",
-      email: `linked-${Date.now()}@test.com`
-    }).data;
+      accountService.linkCrew(
+        linked.id,
+        crewMember.id
+      );
 
-    accountService.approveAccount(unlinked.id);
-    accountService.approveAccount(linked.id);
+      return accountService
+        .getUnlinkedApprovedAccounts();
+    });
 
-    const crewMember = crewService.getAll()[0];
-
-    accountService.linkCrew(linked.id, crewMember.id);
-
-    return accountService.getUnlinkedApprovedAccounts();
+    expect(result).toHaveLength(1);
+    expect(result[0].email).toBe(
+      "available@test.com"
+    );
+    expect(result[0].crewId).toBeNull();
+    expect(result[0].status).toBe("approved");
   });
-
-  expect(result).toHaveLength(1);
-  expect(result[0].crewId).toBeNull();
-  expect(result[0].status).toBe("approved");
 });

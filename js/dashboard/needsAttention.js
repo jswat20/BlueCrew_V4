@@ -70,8 +70,9 @@ function handleNeedsAttentionClick(action) {
       return;
 
     case "pending-accounts":
-      renderPage("accounts");
-      return;
+  uiStateService.setAccountFilter("pending");
+  renderPage("accounts");
+  return;
 
     default:
       renderPage("dashboard");

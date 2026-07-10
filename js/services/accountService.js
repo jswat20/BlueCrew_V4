@@ -61,39 +61,91 @@ const accountService = (() => {
     return mutationResult(true, "Account created and pending approval.", account);
   }
 
-  function approveAccount(accountId, crewId = null) {
-    const accounts = getAll();
-    const account = accounts.find(account => account.id === accountId);
+ function approveAccount(accountId, crewId = null) {
+  const accounts = getAll();
+  const account = accounts.find(account => account.id === accountId);
 
-    if (!account) {
-      return mutationResult(false, "Account not found.");
-    }
-
-    account.status = "approved";
-    account.crewId = crewId || account.crewId || null;
-    account.approvedAt = new Date().toISOString();
-    account.rejectedAt = null;
-
-    saveAll(accounts);
-
-    return mutationResult(true, "Account approved.", account);
+  if (!account) {
+    return mutationResult(false, "Account not found.");
   }
 
-  function rejectAccount(accountId) {
-    const accounts = getAll();
-    const account = accounts.find(account => account.id === accountId);
+  account.status = "approved";
+  account.crewId = crewId || account.crewId || null;
+  account.approvedAt = new Date().toISOString();
+  account.rejectedAt = null;
 
-    if (!account) {
-      return mutationResult(false, "Account not found.");
+  saveAll(accounts);
+
+  return mutationResult(true, "Account approved.", account);
+}
+
+function approveAccounts(accountIds = []) {
+  const summary = {
+    processed: 0,
+    approved: 0,
+    failed: 0
+  };
+
+  for (const accountId of accountIds) {
+    summary.processed++;
+
+    const result = approveAccount(accountId);
+
+    if (result.success) {
+      summary.approved++;
+    } else {
+      summary.failed++;
     }
-
-    account.status = "rejected";
-    account.rejectedAt = new Date().toISOString();
-
-    saveAll(accounts);
-
-    return mutationResult(true, "Account rejected.", account);
   }
+
+  return mutationResult(
+    true,
+    `${summary.approved} account(s) approved.`,
+    summary
+  );
+}
+
+function rejectAccount(accountId) {
+  const accounts = getAll();
+  const account = accounts.find(account => account.id === accountId);
+
+  if (!account) {
+    return mutationResult(false, "Account not found.");
+  }
+
+  account.status = "rejected";
+  account.rejectedAt = new Date().toISOString();
+
+  saveAll(accounts);
+
+  return mutationResult(true, "Account rejected.", account);
+}
+
+function rejectAccounts(accountIds = []) {
+  const summary = {
+    processed: 0,
+    rejected: 0,
+    failed: 0
+  };
+
+  for (const accountId of accountIds) {
+    summary.processed++;
+
+    const result = rejectAccount(accountId);
+
+    if (result.success) {
+      summary.rejected++;
+    } else {
+      summary.failed++;
+    }
+  }
+
+  return mutationResult(
+    true,
+    `${summary.rejected} account(s) rejected.`,
+    summary
+  );
+}
 
   function getPendingAccounts() {
     return getAll().filter(account => account.status === "pending");
@@ -203,7 +255,9 @@ function getUnlinkedApprovedAccounts() {
   getAll,
   createAccount,
   approveAccount,
+  approveAccounts,
   rejectAccount,
+  rejectAccounts,
   getPendingAccounts,
   getApprovedAccounts,
   getUnlinkedApprovedAccounts,

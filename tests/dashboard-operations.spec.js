@@ -220,18 +220,24 @@ test.describe("Operations Dashboard", () => {
     );
   });
 
-  test("pending accounts summary navigates to accounts", async ({
-    app
-  }) => {
-    await app.page.evaluate(() => renderPage("dashboard"));
+  test("pending accounts summary navigates to pending accounts", async ({
+  app
+}) => {
+  await app.page.evaluate(() => renderPage("dashboard"));
 
-    await app.page
-      .getByTestId("dashboard-summary-pending-accounts")
-      .click();
+  await app.page
+    .getByTestId("dashboard-summary-pending-accounts")
+    .click();
 
-    await expect(app.page.locator("body")).toHaveAttribute(
-      "data-page",
-      "accounts"
-    );
-  });
+  await expect(app.page.locator("body")).toHaveAttribute(
+    "data-page",
+    "accounts"
+  );
+
+  const filter = await app.page.evaluate(() =>
+    uiStateService.getAccountFilter()
+  );
+
+  expect(filter).toBe("pending");
+});
 });

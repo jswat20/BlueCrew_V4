@@ -80,3 +80,194 @@ test("Admin can link an approved account to a crew member", async ({ app }) => {
 
   await consoleMonitor.expectClean();
 });
+test("dashboard pending accounts opens the pending filter", async ({ app }) => {
+  await app.page.evaluate(() => {
+    accountService.createAccount({
+      firstName: "Dashboard",
+      lastName: "Pending",
+      email: `dashboard-pending-${Date.now()}@test.com`
+    });
+
+    renderPage("dashboard");
+  });
+
+  await app.page
+    .getByTestId("dashboard-summary-pending-accounts")
+    .click();
+
+  await expect(app.page.locator("body")).toHaveAttribute(
+    "data-page",
+    "accounts"
+  );
+
+  await expect(
+    app.page.getByTestId("accounts-page")
+  ).toHaveAttribute("data-account-filter", "pending");
+
+  await expect(
+    app.page.getByTestId("pending-accounts-section")
+  ).toBeVisible();
+
+  await expect(
+    app.page.getByTestId("unlinked-accounts-section")
+  ).not.toBeVisible();
+});
+
+test("account filters switch between pending and unlinked views", async ({ app }) => {
+  await app.page.evaluate(() => {
+    const pending = accountService.createAccount({
+      firstName: "Filter",
+      lastName: "Pending",
+      email: `filter-pending-${Date.now()}@test.com`
+    });
+
+    const approved = accountService.createAccount({
+      firstName: "Filter",
+      lastName: "Approved",
+      email: `filter-approved-${Date.now()}@test.com`
+    });
+
+    accountService.approveAccount(approved.data.id);
+    uiStateService.setAccountFilter("pending");
+    renderPage("accounts");
+  });
+
+  await expect(
+    app.page.getByTestId("pending-accounts-section")
+  ).toBeVisible();
+
+  await expect(
+    app.page.getByTestId("unlinked-accounts-section")
+  ).not.toBeVisible();
+
+  await app.page
+    .getByTestId("account-filter-unlinked")
+    .click();
+
+  await expect(
+    app.page.getByTestId("unlinked-accounts-section")
+  ).toBeVisible();
+
+  await expect(
+    app.page.getByTestId("pending-accounts-section")
+  ).not.toBeVisible();
+});
+
+test("rejecting a pending account removes it from the pending view", async ({ app }) => {
+  const account = await app.page.evaluate(() => {
+    const created = accountService.createAccount({
+      firstName: "Reject",
+      lastName: "Pending",
+      email: `reject-pending-${Date.now()}@test.com`
+    });
+
+    uiStateService.setAccountFilter("pending");
+    renderPage("accounts");
+
+    return created.data;
+  });
+
+  await app.page
+    .getByTestId(`reject-account-${account.id}`)
+    .click();
+
+  await expect(
+    app.page.getByTestId(`pending-account-${account.id}`)
+  ).not.toBeVisible();
+});
+test("bulk account actions are disabled until an account is selected", async ({ app }) => {
+  await app.page.evaluate(() => {
+    accountService.createAccount({
+      firstName: "Bulk",
+      lastName: "One",
+      email: `bulk-one-${Date.now()}@test.com`
+    });
+
+    renderPage("accounts");
+  });
+
+  await expect(
+    app.page.getByTestId("approve-selected-accounts")
+  ).toBeDisabled();
+
+  await expect(
+    app.page.getByTestId("reject-selected-accounts")
+  ).toBeDisabled();
+});
+test("selecting a pending account enables bulk actions", async ({ app }) => {
+  const id = await app.page.evaluate(() => {
+    return accountService.createAccount({
+      firstName: "Bulk",
+      lastName: "Two",
+      email: `bulk-two-${Date.now()}@test.com`
+    }).data.id;
+  });
+
+  await app.page.evaluate(() => renderPage("accounts"));
+
+  await app.page
+    .getByTestId(`select-account-${id}`)
+    .check();
+
+  await expect(
+    app.page.getByTestId("approve-selected-accounts")
+  ).toBeEnabled();
+
+  await expect(
+    app.page.getByTestId("reject-selected-accounts")
+  ).toBeEnabled();
+});
+test("bulk approve removes selected pending accounts", async ({ app }) => {
+  const ids = await app.page.evaluate(() => {
+    return [1, 2].map(i =>
+      accountService.createAccount({
+        firstName: `Approve${i}`,
+        lastName: "Bulk",
+        email: `approve-${i}-${Date.now()}@test.com`
+      }).data.id
+    );
+  });
+
+  await app.page.evaluate(() => renderPage("accounts"));
+
+  for (const id of ids) {
+    await app.page
+      .getByTestId(`select-account-${id}`)
+      .check();
+  }
+
+  await app.page
+    .getByTestId("approve-selected-accounts")
+    .click();
+
+  await expect(
+    app.page.getByTestId("pending-accounts-empty")
+  ).toBeVisible();
+});
+test("bulk reject removes selected pending accounts", async ({ app }) => {
+  const ids = await app.page.evaluate(() => {
+    return [1, 2].map(i =>
+      accountService.createAccount({
+        firstName: `Reject${i}`,
+        lastName: "Bulk",
+        email: `reject-${i}-${Date.now()}@test.com`
+      }).data.id
+    );
+  });
+
+  await app.page.evaluate(() => renderPage("accounts"));
+
+  for (const id of ids) {
+    await app.page
+      .getByTestId(`select-account-${id}`)
+      .check();
+  }
+
+  await app.page
+    .getByTestId("reject-selected-accounts")
+    .click();
+
+  await expect(
+    app.page.getByTestId("pending-accounts-empty")
+  ).toBeVisible();
+});

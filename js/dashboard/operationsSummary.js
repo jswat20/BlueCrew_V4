@@ -62,8 +62,9 @@ function handleDashboardTileClick(action) {
       return;
 
     case "pending-accounts":
-      renderPage("accounts");
-      return;
+  uiStateService.setAccountFilter("pending");
+  renderPage("accounts");
+  return;
 
     default:
       openDashboardSchedule("all");

@@ -3,11 +3,12 @@
 const uiStateService = (() => {
 
   const state = {
-    scheduleFilter: "all",
-    selectedDate: null,
-    selectedCrew: null,
-    selectedGame: null
-  };
+  scheduleFilter: "all",
+  accountFilter: "all",
+  selectedDate: null,
+  selectedCrew: null,
+  selectedGame: null
+};
 
   function getState() {
     return state;
@@ -20,7 +21,13 @@ const uiStateService = (() => {
   function getScheduleFilter() {
     return state.scheduleFilter;
   }
+function setAccountFilter(filter) {
+  state.accountFilter = filter;
+}
 
+function getAccountFilter() {
+  return state.accountFilter;
+}
   function setSelectedDate(date) {
     state.selectedDate = date;
   }
@@ -46,7 +53,8 @@ const uiStateService = (() => {
   }
 
   function clearSelections() {
-    state.scheduleFilter = "all";
+state.scheduleFilter = "all";
+state.accountFilter = "all";
     state.selectedDate = null;
     state.selectedCrew = null;
     state.selectedGame = null;
@@ -57,6 +65,9 @@ const uiStateService = (() => {
 
     setScheduleFilter,
     getScheduleFilter,
+
+setAccountFilter,
+getAccountFilter,
 
     setSelectedDate,
     getSelectedDate,
