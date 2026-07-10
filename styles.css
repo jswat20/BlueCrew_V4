@@ -1054,3 +1054,17 @@ body {
   display: flex;
   gap: .75rem;
 }
+.is-highlighted {
+  border: 2px solid #f4b400;
+  box-shadow: 0 0 0 3px rgba(244, 180, 0, 0.18);
+  background: rgba(244, 180, 0, 0.08);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+.is-highlighted {
+  border: 2px solid #f4b400;
+  box-shadow: 0 0 0 3px rgba(244, 180, 0, 0.18);
+  background-color: rgba(244, 180, 0, 0.08);
+  transition:
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
