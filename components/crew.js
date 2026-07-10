@@ -193,8 +193,48 @@ function openEditCrewDrawer(memberId) {
     </aside>
   `);
 }
+function renderPreferenceCheckboxList(
+  member,
+  selectedIds = [],
+  inputClass
+) {
+  const selected = new Set(
+    (selectedIds || []).map(id => String(id))
+  );
+
+  return crew
+    .filter(c => String(c.id) !== String(member.id))
+    .sort((a, b) =>
+      getCrewFullName(a).localeCompare(getCrewFullName(b))
+    )
+    .map(c => `
+      <label class="checkbox-row">
+        <input
+          type="checkbox"
+          class="${inputClass}"
+          value="${c.id}"
+          ${
+            selected.has(String(c.id))
+              ? "checked"
+              : ""
+          }
+        />
+        <span>${getCrewFullName(c)}</span>
+      </label>
+    `)
+    .join("");
+}
 
 function renderEditCrewDrawerContent(member) {
+   const preferences =
+    typeof crewService !== "undefined" &&
+    crewService.getPreferences
+      ? crewService.getPreferences(member.id)
+      : {
+          preferredCrewIds: [],
+          avoidedCrewIds: [],
+          preferredLevels: []
+        };
   return `
     <div class="drawer-header">
       <div>
@@ -235,6 +275,52 @@ function renderEditCrewDrawerContent(member) {
                 value="${level}"
                 class="crew-level-checkbox"
                 ${member.levels.includes(level) ? "checked" : ""}
+              />
+              <span>${level}</span>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Preferred Partners</label>
+
+        <div class="checkbox-list">
+          ${renderPreferenceCheckboxList(
+            member,
+            preferences.preferredCrewIds,
+            "crew-preferred-checkbox"
+          )}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Avoid Partners</label>
+
+        <div class="checkbox-list">
+          ${renderPreferenceCheckboxList(
+            member,
+            preferences.avoidedCrewIds,
+            "crew-avoided-checkbox"
+          )}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Preferred Game Levels</label>
+
+        <div class="checkbox-list">
+          ${settings.levels.map(level => `
+            <label class="checkbox-row">
+              <input
+                type="checkbox"
+                class="crew-preferred-level-checkbox"
+                value="${level}"
+                ${
+                  (preferences.preferredLevels || [])
+                    .includes(level)
+                      ? "checked"
+                      : ""
+                }
               />
               <span>${level}</span>
             </label>
@@ -288,6 +374,43 @@ function saveCrewEdits(memberId) {
 
   member.levels = [...document.querySelectorAll(".crew-level-checkbox:checked")]
     .map(box => box.value);
+
+    const preferredCrewIds = [
+  ...document.querySelectorAll(
+    ".crew-preferred-checkbox:checked"
+  )
+].map(box => box.value);
+
+const avoidedCrewIds = [
+  ...document.querySelectorAll(
+    ".crew-avoided-checkbox:checked"
+  )
+].map(box => box.value);
+
+const preferredLevels = [
+  ...document.querySelectorAll(
+    ".crew-preferred-level-checkbox:checked"
+  )
+].map(box => box.value);
+
+const preferenceResult =
+  crewService.setPreferences(
+    member.id,
+    {
+      preferredCrewIds,
+      avoidedCrewIds,
+      preferredLevels
+    }
+  );
+
+if (!preferenceResult.success) {
+  alert(
+    preferenceResult.message ||
+    "Crew preferences could not be saved."
+  );
+
+  return;
+}
 
   saveCrew();
 
