@@ -57,6 +57,17 @@ function renderSchedule() {
     Import CSV
   </button>
 
+    <button
+    data-testid="export-schedule"
+    onclick="exportSchedule()"
+    ${
+      gameService.getAll().length
+        ? ""
+        : "disabled"
+    }>
+    Export CSV
+  </button>
+  
   <button
     data-testid="today"
     onclick="goToToday()">
@@ -95,8 +106,13 @@ function renderScheduleContent(context = currentScheduleContext) {
 
   if (!container) return;
 
-  updateScheduleTabState();
+  if (
+    typeof updateScheduleExportButton === "function"
+  ) {
+    updateScheduleExportButton();
+  }
 
+  updateScheduleTabState();
   if (currentScheduleView === "daily") {
     renderDailySchedule(container);
     return;
