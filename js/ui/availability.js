@@ -1,0 +1,523 @@
+// js/ui/availability.js
+
+const availabilityPageState = {
+  selectedCrewId: "",
+  selectedDate: "",
+  selectedStatus: "available",
+  editingDate: ""
+};
+
+function renderAvailability() {
+  const crewMembers = crewService.getAll();
+
+  ensureAvailabilityPageState(crewMembers);
+
+  const selectedCrew = crewService.getById(
+    availabilityPageState.selectedCrewId
+  );
+
+  const entries = selectedCrew
+    ? availabilityService.getCrewAvailability(selectedCrew.id)
+    : [];
+
+  return `
+    <section
+      class="page-section availability-page"
+      data-testid="availability-page"
+    >
+      <div class="availability-page-header">
+        <div>
+          <h2>Availability</h2>
+          <p>
+            Manage crew availability by date.
+          </p>
+        </div>
+      </div>
+
+      ${
+        crewMembers.length
+          ? renderAvailabilityForm(crewMembers)
+          : renderAvailabilityNoCrew()
+      }
+
+      ${
+        selectedCrew
+          ? renderAvailabilityList(selectedCrew, entries)
+          : ""
+      }
+    </section>
+  `;
+}
+
+function ensureAvailabilityPageState(crewMembers) {
+  if (
+    availabilityPageState.selectedCrewId &&
+    crewMembers.some(
+      member =>
+        String(member.id) ===
+        String(availabilityPageState.selectedCrewId)
+    )
+  ) {
+    return;
+  }
+
+  availabilityPageState.selectedCrewId =
+    crewMembers.length
+      ? String(crewMembers[0].id)
+      : "";
+}
+
+function renderAvailabilityForm(crewMembers) {
+  return `
+    <section
+      class="availability-form-card"
+      data-testid="availability-form"
+    >
+      <div class="availability-form-grid">
+        <label class="availability-field">
+          <span>Crew Member</span>
+
+          <select
+            data-testid="availability-crew-select"
+            onchange="handleAvailabilityCrewChange(this.value)"
+          >
+            ${crewMembers
+              .map(member => `
+                <option
+                  value="${escapeAvailabilityHtml(member.id)}"
+                  ${
+                    String(member.id) ===
+                    String(availabilityPageState.selectedCrewId)
+                      ? "selected"
+                      : ""
+                  }
+                >
+                  ${escapeAvailabilityHtml(
+                    crewService.getName(member)
+                  )}
+                </option>
+              `)
+              .join("")}
+          </select>
+        </label>
+
+        <label class="availability-field">
+          <span>Date</span>
+
+          <input
+            type="date"
+            value="${escapeAvailabilityHtml(
+              availabilityPageState.selectedDate
+            )}"
+            data-testid="availability-date-input"
+            onchange="handleAvailabilityDateChange(this.value)"
+          >
+        </label>
+      </div>
+
+      <fieldset
+        class="availability-status-fieldset"
+        data-testid="availability-status-options"
+      >
+        <legend>Status</legend>
+
+        <div class="availability-status-options">
+          ${renderAvailabilityStatusOption(
+            "available",
+            "Available"
+          )}
+
+          ${renderAvailabilityStatusOption(
+            "maybe",
+            "Maybe"
+          )}
+
+          ${renderAvailabilityStatusOption(
+            "unavailable",
+            "Unavailable"
+          )}
+        </div>
+      </fieldset>
+
+      <div class="availability-form-actions">
+        <button
+          type="button"
+          class="primary-button"
+          data-testid="availability-save"
+          onclick="handleSaveAvailability()"
+        >
+          ${
+            availabilityPageState.editingDate
+              ? "Update Availability"
+              : "Save Availability"
+          }
+        </button>
+
+        ${
+          availabilityPageState.editingDate
+            ? `
+              <button
+                type="button"
+                data-testid="availability-cancel-edit"
+                onclick="handleCancelAvailabilityEdit()"
+              >
+                Cancel Edit
+              </button>
+            `
+            : ""
+        }
+      </div>
+    </section>
+  `;
+}
+
+function renderAvailabilityStatusOption(status, label) {
+  const checked =
+    availabilityPageState.selectedStatus === status;
+
+  return `
+    <label
+      class="
+        availability-status-option
+        availability-status-${status}
+        ${checked ? "is-selected" : ""}
+      "
+    >
+      <input
+        type="radio"
+        name="availability-status"
+        value="${status}"
+        data-testid="availability-status-${status}"
+        ${checked ? "checked" : ""}
+        onchange="handleAvailabilityStatusChange(this.value)"
+      >
+
+      <span>${label}</span>
+    </label>
+  `;
+}
+
+function renderAvailabilityNoCrew() {
+  return `
+    <div
+      class="empty-state"
+      data-testid="availability-no-crew"
+    >
+      There are no crew members available to manage.
+    </div>
+  `;
+}
+
+function renderAvailabilityList(selectedCrew, entries) {
+  return `
+    <section
+      class="availability-list-section"
+      data-testid="availability-list-section"
+    >
+      <div class="availability-list-header">
+        <div>
+          <h3>Current Availability</h3>
+
+          <p data-testid="availability-selected-crew-name">
+            ${escapeAvailabilityHtml(
+              crewService.getName(selectedCrew)
+            )}
+          </p>
+        </div>
+
+        <span
+          class="availability-entry-count"
+          data-testid="availability-entry-count"
+        >
+          ${entries.length}
+          ${entries.length === 1 ? "entry" : "entries"}
+        </span>
+      </div>
+
+      ${
+        entries.length
+          ? `
+            <div
+              class="availability-list"
+              data-testid="availability-list"
+            >
+              ${entries
+                .map(renderAvailabilityEntry)
+                .join("")}
+            </div>
+          `
+          : `
+            <div
+              class="empty-state"
+              data-testid="availability-empty"
+            >
+              No availability has been entered for this crew member.
+            </div>
+          `
+      }
+    </section>
+  `;
+}
+
+function renderAvailabilityEntry(entry) {
+  return `
+    <article
+      class="availability-entry-card"
+      data-testid="availability-entry"
+      data-date="${escapeAvailabilityHtml(entry.date)}"
+      data-status="${escapeAvailabilityHtml(entry.status)}"
+    >
+      <div class="availability-entry-details">
+        <strong data-testid="availability-entry-date">
+          ${formatAvailabilityDate(entry.date)}
+        </strong>
+
+        <span
+          class="
+            availability-status-badge
+            availability-status-badge-${entry.status}
+          "
+          data-testid="availability-entry-status"
+        >
+          ${formatAvailabilityStatus(entry.status)}
+        </span>
+      </div>
+
+      <div class="availability-entry-actions">
+        <button
+          type="button"
+          data-testid="availability-edit-${escapeAvailabilityHtml(
+            entry.date
+          )}"
+          onclick="handleEditAvailability('${escapeAvailabilityJs(
+            entry.date
+          )}')"
+        >
+          Edit
+        </button>
+
+        <button
+          type="button"
+          class="danger-button"
+          data-testid="availability-remove-${escapeAvailabilityHtml(
+            entry.date
+          )}"
+          onclick="handleRemoveAvailability('${escapeAvailabilityJs(
+            entry.date
+          )}')"
+        >
+          Remove
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function handleAvailabilityCrewChange(crewId) {
+  availabilityPageState.selectedCrewId =
+    String(crewId || "");
+
+  resetAvailabilityEditor();
+
+  renderPage("availability");
+}
+
+function handleAvailabilityDateChange(date) {
+  availabilityPageState.selectedDate =
+    String(date || "");
+}
+
+function handleAvailabilityStatusChange(status) {
+  availabilityPageState.selectedStatus =
+    String(status || "available");
+
+  document
+    .querySelectorAll(".availability-status-option")
+    .forEach(option => {
+      option.classList.remove("is-selected");
+    });
+
+  const selectedInput = document.querySelector(
+    `[data-testid="availability-status-${status}"]`
+  );
+
+  selectedInput
+    ?.closest(".availability-status-option")
+    ?.classList.add("is-selected");
+}
+
+function handleSaveAvailability() {
+  const crewId =
+    availabilityPageState.selectedCrewId;
+
+  const dateInput = document.querySelector(
+    '[data-testid="availability-date-input"]'
+  );
+
+  const selectedStatusInput = document.querySelector(
+    'input[name="availability-status"]:checked'
+  );
+
+  const date =
+    dateInput?.value ||
+    availabilityPageState.selectedDate;
+
+  const status =
+    selectedStatusInput?.value ||
+    availabilityPageState.selectedStatus;
+
+  if (!crewId) {
+    showAvailabilityError(
+      "Choose a crew member."
+    );
+    return;
+  }
+
+  if (!date) {
+    showAvailabilityError(
+      "Choose an availability date."
+    );
+    return;
+  }
+
+  const result =
+    availabilityService.setAvailability({
+      crewId,
+      date,
+      status
+    });
+
+  if (!result) {
+    showAvailabilityError(
+      "Unable to save availability."
+    );
+    return;
+  }
+
+  availabilityPageState.selectedDate = "";
+  availabilityPageState.selectedStatus =
+    "available";
+  availabilityPageState.editingDate = "";
+
+  showAvailabilitySuccess(
+    "Availability saved."
+  );
+
+  renderPage("availability");
+}
+
+function handleEditAvailability(date) {
+  const status =
+    availabilityService.getAvailability(
+      availabilityPageState.selectedCrewId,
+      date
+    );
+
+  availabilityPageState.selectedDate = date;
+  availabilityPageState.selectedStatus =
+    status || "available";
+  availabilityPageState.editingDate = date;
+
+  renderPage("availability");
+}
+
+function handleCancelAvailabilityEdit() {
+  resetAvailabilityEditor();
+  renderPage("availability");
+}
+
+function handleRemoveAvailability(date) {
+  const removed =
+    availabilityService.clearAvailability(
+      availabilityPageState.selectedCrewId,
+      date
+    );
+
+  if (!removed) {
+    showAvailabilityError(
+      "Unable to remove availability."
+    );
+    return;
+  }
+
+  if (
+    availabilityPageState.editingDate === date
+  ) {
+    resetAvailabilityEditor();
+  }
+
+  showAvailabilitySuccess(
+    "Availability removed."
+  );
+
+  renderPage("availability");
+}
+
+function resetAvailabilityEditor() {
+  availabilityPageState.selectedDate = "";
+  availabilityPageState.selectedStatus =
+    "available";
+  availabilityPageState.editingDate = "";
+}
+
+function formatAvailabilityStatus(status) {
+  const labels = {
+    available: "Available",
+    maybe: "Maybe",
+    unavailable: "Unavailable"
+  };
+
+  return labels[status] || status;
+}
+
+function formatAvailabilityDate(date) {
+  if (!date) return "";
+
+  const parsed = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function showAvailabilitySuccess(message) {
+  if (
+    typeof toastService !== "undefined" &&
+    typeof toastService.success === "function"
+  ) {
+    toastService.success(message);
+  }
+}
+
+function showAvailabilityError(message) {
+  if (
+    typeof toastService !== "undefined" &&
+    typeof toastService.error === "function"
+  ) {
+    toastService.error(message);
+    return;
+  }
+
+  alert(message);
+}
+
+function escapeAvailabilityHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function escapeAvailabilityJs(value) {
+  return String(value ?? "")
+    .replaceAll("\\", "\\\\")
+    .replaceAll("'", "\\'");
+}

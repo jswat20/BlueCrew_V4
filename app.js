@@ -53,6 +53,10 @@ const pages = {
     title: "Accounts",
     subtitle: "Manage Umpire Registrations and Approvals."
   },
+  availability: {
+    title: "Availability",
+    subtitle: "Manage Crew Availability by Date."
+  },
   notifications: {
     title: "Notifications",
     subtitle: "Review recent alerts and updates."
@@ -207,7 +211,12 @@ function renderAdminView(page, context = {}) {
     accounts: typeof renderAccounts === "function" ? renderAccounts : null,
     "my-schedule": typeof renderMySchedule === "function" ? renderMySchedule : null,
     "claims-queue": typeof renderClaimsQueue === "function" ? renderClaimsQueue : null,
-    "claim-history": typeof renderClaimHistory === "function" ? renderClaimHistory : null
+    "claim-history": typeof renderClaimHistory === "function" ? renderClaimHistory : null,
+    availability:
+      typeof renderAvailability === "function"
+        ? renderAvailability
+        : null,
+
   };
 
   const renderer = renderers[page];
