@@ -425,4 +425,128 @@ test.describe("Account Service", () => {
     expect(result[0].crewId).toBeNull();
     expect(result[0].status).toBe("approved");
   });
+test("defaults new accounts to the umpire role", async ({ page }) => {
+  const result = await page.evaluate(() => {
+    return accountService.createAccount({
+      firstName: "Default",
+      lastName: "Role",
+      email: "default-role@test.com"
+    });
+  });
+
+  expect(result.success).toBe(true);
+  expect(result.data.role).toBe("umpire");
+});
+
+test("updates an account role", async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const account = accountService.createAccount({
+      firstName: "Role",
+      lastName: "Update",
+      email: "role-update@test.com"
+    }).data;
+
+    return accountService.updateRole(
+      account.id,
+      "assigner"
+    );
+  });
+
+  expect(result.success).toBe(true);
+  expect(result.data.role).toBe("assigner");
+});
+
+test("rejects an invalid account role", async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const account = accountService.createAccount({
+      firstName: "Invalid",
+      lastName: "Role",
+      email: "invalid-role@test.com"
+    }).data;
+
+    return {
+      operation: accountService.updateRole(
+        account.id,
+        "mascot"
+      ),
+      account: accountService.getById(account.id)
+    };
+  });
+
+  expect(result.operation.success).toBe(false);
+  expect(result.operation.message).toContain(
+    "Invalid account role"
+  );
+  expect(result.account.role).toBe("umpire");
+});
+
+test("returns accounts by role", async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const administrator =
+      accountService.createAccount({
+        firstName: "Admin",
+        lastName: "User",
+        email: "admin-role@test.com"
+      }).data;
+
+    const assigner =
+      accountService.createAccount({
+        firstName: "Assigner",
+        lastName: "User",
+        email: "assigner-role@test.com"
+      }).data;
+
+    accountService.updateRole(
+      administrator.id,
+      "administrator"
+    );
+
+    accountService.updateRole(
+      assigner.id,
+      "assigner"
+    );
+
+    return {
+      administrators:
+        accountService.getByRole("administrator"),
+      assigners:
+        accountService.getByRole("assigner"),
+      umpires:
+        accountService.getByRole("umpire")
+    };
+  });
+
+  expect(result.administrators).toHaveLength(1);
+  expect(result.assigners).toHaveLength(1);
+  expect(result.umpires).toHaveLength(0);
+});
+
+test("summarizes account roles", async ({ page }) => {
+  const summary = await page.evaluate(() => {
+    const roles = [
+      "administrator",
+      "assigner",
+      "umpire",
+      "umpire"
+    ];
+
+    roles.forEach((role, index) => {
+      const account = accountService.createAccount({
+        firstName: `Role${index}`,
+        lastName: "Summary",
+        email: `role-summary-${index}@test.com`
+      }).data;
+
+      accountService.updateRole(account.id, role);
+    });
+
+    return accountService.getRoleSummary();
+  });
+
+  expect(summary).toEqual({
+    administrator: 1,
+    assigner: 1,
+    umpire: 2
+  });
+});
 });

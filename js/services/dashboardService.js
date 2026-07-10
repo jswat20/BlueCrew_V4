@@ -18,7 +18,6 @@ const dashboardService = (() => {
 
     return String(a.field || "").localeCompare(String(b.field || ""));
   }
-
   function getUpcomingGameRecords() {
     const today = getToday();
 
@@ -111,6 +110,31 @@ const dashboardService = (() => {
 
     return accountService.getPendingAccounts();
   }
+function getPendingAccounts() {
+  if (
+    typeof accountService === "undefined" ||
+    typeof accountService.getPendingAccounts !== "function"
+  ) {
+    return [];
+  }
+
+  return accountService.getPendingAccounts();
+}
+
+function getRoleSummary() {
+  if (
+    typeof accountService === "undefined" ||
+    typeof accountService.getRoleSummary !== "function"
+  ) {
+    return {
+      administrator: 0,
+      assigner: 0,
+      umpire: 0
+    };
+  }
+
+  return accountService.getRoleSummary();
+}
 
   function getOperationsSummary() {
     const upcomingGames = getUpcomingGameCount();
@@ -241,13 +265,14 @@ const dashboardService = (() => {
   }
 
   return {
-    getOperationsSummary,
-    getNeedsAttention,
-    getUpcomingGames,
-    getUpcomingGameCount,
-    getOpenAssignments,
-    getPendingClaims,
-    getPendingAccounts,
-    getTodaysSchedule
-  };
+  getOperationsSummary,
+  getNeedsAttention,
+  getUpcomingGames,
+  getUpcomingGameCount,
+  getOpenAssignments,
+  getPendingClaims,
+  getPendingAccounts,
+  getRoleSummary,
+  getTodaysSchedule
+};
 })();

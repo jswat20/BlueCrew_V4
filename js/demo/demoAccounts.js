@@ -10,6 +10,7 @@ const demoAccountData = (() => {
       phone: "555-0101",
       status: "approved",
       crewId: "demo-crew-1",
+      role: "administrator",
       createdAt: "2026-01-10T14:00:00.000Z"
     },
     {
@@ -20,6 +21,7 @@ const demoAccountData = (() => {
       phone: "555-0102",
       status: "approved",
       crewId: "demo-crew-2",
+      role: "assigner",
       createdAt: "2026-01-12T15:30:00.000Z"
     },
     {
@@ -30,6 +32,7 @@ const demoAccountData = (() => {
       phone: "555-0103",
       status: "pending",
       crewId: null,
+      role: "umpire",
       createdAt: "2026-02-03T18:15:00.000Z"
     },
     {
@@ -40,6 +43,7 @@ const demoAccountData = (() => {
       phone: "555-0104",
       status: "pending",
       crewId: null,
+      role: "assigner",
       createdAt: "2026-02-05T19:20:00.000Z"
     },
     {
@@ -50,6 +54,7 @@ const demoAccountData = (() => {
       phone: "555-0105",
       status: "rejected",
       crewId: null,
+      role: "umpire",
       createdAt: "2026-01-22T16:45:00.000Z"
     },
     {
@@ -60,6 +65,7 @@ const demoAccountData = (() => {
       phone: "555-0106",
       status: "inactive",
       crewId: null,
+      role: "administrator",
       createdAt: "2025-12-18T13:10:00.000Z"
     }
   ];

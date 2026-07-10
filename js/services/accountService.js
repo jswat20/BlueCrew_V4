@@ -2,7 +2,23 @@
 
 const accountService = (() => {
   const STORAGE_KEY = "bluecrew_accounts";
+const ACCOUNT_ROLES = Object.freeze({
+  ADMINISTRATOR: "administrator",
+  ASSIGNER: "assigner",
+  UMPIRE: "umpire"
+});
 
+const VALID_ACCOUNT_ROLES = Object.values(ACCOUNT_ROLES);
+
+function normalizeRole(role) {
+  return VALID_ACCOUNT_ROLES.includes(role)
+    ? role
+    : ACCOUNT_ROLES.UMPIRE;
+}
+
+function isValidRole(role) {
+  return VALID_ACCOUNT_ROLES.includes(role);
+}
   function mutationResult(success, message, data = null) {
     return { success, message, data };
   }
@@ -32,7 +48,7 @@ const accountService = (() => {
       createdAt: account.createdAt || new Date().toISOString(),
       approvedAt: account.approvedAt || null,
       rejectedAt: account.rejectedAt || null,
-      role: account.role || "umpire",
+role: normalizeRole(account.role),
       lastLogin: account.lastLogin || null,
     };
   }
@@ -237,7 +253,57 @@ function getUnlinkedApprovedAccounts() {
       account.crewId === null
   );
 }
+function getRoles() {
+  return [...VALID_ACCOUNT_ROLES];
+}
 
+function updateRole(accountId, role) {
+  if (!isValidRole(role)) {
+    return mutationResult(false, "Invalid account role.");
+  }
+
+  const accounts = getAll();
+  const account = accounts.find(item => item.id === accountId);
+
+  if (!account) {
+    return mutationResult(false, "Account not found.");
+  }
+
+  account.role = role;
+
+  saveAll(accounts);
+
+  return mutationResult(
+    true,
+    "Account role updated.",
+    account
+  );
+}
+
+function getByRole(role) {
+  if (!isValidRole(role)) {
+    return [];
+  }
+
+  return getAll().filter(
+    account => normalizeRole(account.role) === role
+  );
+}
+
+function getRoleSummary() {
+  return getAll().reduce(
+    (summary, account) => {
+      const role = normalizeRole(account.role);
+      summary[role] += 1;
+      return summary;
+    },
+    {
+      administrator: 0,
+      assigner: 0,
+      umpire: 0
+    }
+  );
+}
   function deleteAccount(accountId) {
     const accounts = getAll();
     const nextAccounts = accounts.filter(account => account.id !== accountId);
@@ -252,19 +318,23 @@ function getUnlinkedApprovedAccounts() {
   }
 
   return {
-  getAll,
-  createAccount,
-  approveAccount,
-  approveAccounts,
-  rejectAccount,
-  rejectAccounts,
-  getPendingAccounts,
-  getApprovedAccounts,
-  getUnlinkedApprovedAccounts,
-  getById,
-  updateAccount,
-  deleteAccount,
-  linkCrew,
-  unlinkCrew
-};
+    getAll,
+    createAccount,
+    approveAccount,
+    approveAccounts,
+    rejectAccount,
+    rejectAccounts,
+    getPendingAccounts,
+    getApprovedAccounts,
+    getUnlinkedApprovedAccounts,
+    getById,
+    updateAccount,
+    deleteAccount,
+    linkCrew,
+    unlinkCrew,
+    getRoles,
+    updateRole,
+    getByRole,
+    getRoleSummary
+  };
 })();

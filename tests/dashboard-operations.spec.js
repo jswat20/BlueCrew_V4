@@ -240,4 +240,34 @@ test.describe("Operations Dashboard", () => {
 
   expect(filter).toBe("pending");
 });
+test("dashboard exposes account role counts", async ({ page }) => {
+  const summary = await page.evaluate(() => {
+    localStorage.removeItem("bluecrew_accounts");
+
+    const roles = [
+      "administrator",
+      "assigner",
+      "umpire",
+      "umpire"
+    ];
+
+    roles.forEach((role, index) => {
+      const account = accountService.createAccount({
+        firstName: `Dashboard${index}`,
+        lastName: "Role",
+        email: `dashboard-role-${index}@test.com`
+      }).data;
+
+      accountService.updateRole(account.id, role);
+    });
+
+    return dashboardService.getRoleSummary();
+  });
+
+  expect(summary).toEqual({
+    administrator: 1,
+    assigner: 1,
+    umpire: 2
+  });
+});
 });
