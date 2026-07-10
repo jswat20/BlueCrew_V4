@@ -1,13 +1,26 @@
-// needsAttention.js
+// js/dashboard/needsAttention.js
 
 function renderNeedsAttention() {
   const items = dashboardService.getNeedsAttention();
+  const totalAttentionItems = items.reduce(
+    (total, item) => total + item.count,
+    0
+  );
 
   return `
-    <section class="dashboard-card needs-attention">
+    <section
+      class="dashboard-card needs-attention"
+      data-testid="dashboard-needs-attention">
+
       <div class="card-header">
         <h2>Needs Attention</h2>
-        <span class="card-subtitle">Issues to review</span>
+        <span class="card-subtitle">
+          ${
+            totalAttentionItems
+              ? `${totalAttentionItems} items to review`
+              : "Everything looks good"
+          }
+        </span>
       </div>
 
       <div class="attention-list">
@@ -19,26 +32,48 @@ function renderNeedsAttention() {
 
 function renderAttentionItem(item) {
   return `
-    <button 
+    <button
+      type="button"
       class="attention-item attention-${item.severity}"
-      onclick="handleNeedsAttentionClick('${item.action}')"
-    >
+      data-testid="dashboard-attention-${item.id}"
+      onclick="handleNeedsAttentionClick('${item.action}')">
+
       <div>
         <strong>${item.title}</strong>
         <span>${getAttentionMessage(item)}</span>
       </div>
 
-      <div class="attention-count">${item.count}</div>
+      <div
+        class="attention-count"
+        data-testid="dashboard-attention-${item.id}-count">
+        ${item.count}
+      </div>
     </button>
   `;
 }
 
 function getAttentionMessage(item) {
-  if (item.count === 0) return "No issues found";
+  if (item.count === 0) return "No action needed";
   if (item.count === 1) return "1 item needs review";
+
   return `${item.count} items need review`;
 }
 
 function handleNeedsAttentionClick(action) {
-  renderPage("schedule");
+  switch (action) {
+    case "open-assignments":
+      openDashboardSchedule("open");
+      return;
+
+    case "pending-claims":
+      renderPage("claims-queue");
+      return;
+
+    case "pending-accounts":
+      renderPage("accounts");
+      return;
+
+    default:
+      renderPage("dashboard");
+  }
 }

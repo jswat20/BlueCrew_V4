@@ -1,229 +1,253 @@
-// dashboardService.js
+// js/services/dashboardService.js
 
 const dashboardService = (() => {
+  const UPCOMING_GAME_LIMIT = 8;
 
-  function getDashboardConflicts() {
-    if (
-      typeof conflictService !== "undefined" &&
-      typeof conflictService.getConflicts === "function"
-    ) {
-      return conflictService.getConflicts();
-    }
-
-    if (
-      typeof conflictService !== "undefined" &&
-      typeof conflictService.findConflicts === "function"
-    ) {
-      return conflictService.findConflicts();
-    }
-
-    return [];
+  function getToday() {
+    return new Date().toISOString().split("T")[0];
   }
 
-  
-  function getOperationsSummary() {
-
-  const allGames = gameService.getAll();
-
-  const today = new Date().toISOString().split("T")[0];
-
-  const todaysGames = allGames.filter(game => game.date === today);
-
-  const assigned = todaysGames.filter(game => {
-    const status = assignmentService.getStatus(game);
-
-    return (
-      status === AssignmentStatus.ASSIGNED ||
-      status === AssignmentStatus.LOCKED
-    );
-  });
-
-  const open = todaysGames.filter(game => {
-    const status = assignmentService.getStatus(game);
-
-    return (
-      status === AssignmentStatus.NEEDS_ASSIGNMENT ||
-      status === AssignmentStatus.OPEN_FOR_CLAIM ||
-      status === AssignmentStatus.PENDING_APPROVAL
-    );
-  });
-
-  const conflicts = getDashboardConflicts().length;
-
-  const activeCrew = crewService
-    .getAll()
-    .filter(member => member.active)
-    .length;
-
-  const coverage =
-    todaysGames.length === 0
-      ? 100
-      : Math.round((assigned.length / todaysGames.length) * 100);
-
-  return [
-    {
-      id: "today",
-      label: "Today's Games",
-      value: todaysGames.length,
-      color: "blue",
-      action: "today"
-    },
-    {
-      id: "assigned",
-      label: "Assigned / Locked",
-      value: assigned.length,
-      color: "green",
-      action: "assigned"
-    },
-    {
-      id: "open",
-      label: "Needs Workflow",
-      value: open.length,
-      color: open.length > 0 ? "orange" : "green",
-      action: "open"
-    },
-    {
-      id: "coverage",
-      label: "Coverage",
-      value: `${coverage}%`,
-      color:
-        coverage >= 90
-          ? "green"
-          : coverage >= 70
-          ? "orange"
-          : "red",
-      action: "coverage"
-    },
-    {
-      id: "conflicts",
-      label: "Conflicts",
-      value: conflicts,
-      color: conflicts > 0 ? "red" : "green",
-      action: "conflicts"
-    },
-    {
-      id: "crew",
-      label: "Active Crew",
-      value: activeCrew,
-      color: "purple",
-      action: "crew"
+  function compareGames(a, b) {
+    if ((a.date || "") !== (b.date || "")) {
+      return String(a.date || "").localeCompare(String(b.date || ""));
     }
-  ];
-}
 
-  function getNeedsAttention() {
+    if ((a.time || "") !== (b.time || "")) {
+      return String(a.time || "").localeCompare(String(b.time || ""));
+    }
 
-    const openAssignments = assignmentService.getOpenGames();
+    return String(a.field || "").localeCompare(String(b.field || ""));
+  }
 
-    const conflicts = getDashboardConflicts();
+  function getUpcomingGameRecords() {
+    const today = getToday();
 
-    const inactiveAssignments =
-      assignmentService.getInactiveAssignments();
+    return gameService
+      .getAll()
+      .filter(game => game.date && game.date >= today)
+      .sort(compareGames);
+  }
 
-    const eligibilityIssues =
-      assignmentService.getEligibilityIssues();
+  function getAssignments(game) {
+    if (
+      typeof assignmentService !== "undefined" &&
+      typeof assignmentService.getAssignments === "function"
+    ) {
+      return assignmentService.getAssignments(game);
+    }
+
+    return Array.isArray(game.assignments)
+      ? game.assignments
+      : [];
+  }
+
+  function isOpenAssignment(assignment) {
+    return (
+      !assignment.crewId &&
+      assignment.status !== AssignmentStatus.PENDING_APPROVAL &&
+      assignment.status !== AssignmentStatus.LOCKED
+    );
+  }
+
+  function isPendingClaim(assignment) {
+    return (
+      assignment.status === AssignmentStatus.PENDING_APPROVAL &&
+      Boolean(assignment.claimedBy)
+    );
+  }
+
+  function getUpcomingGames() {
+    return getUpcomingGameRecords()
+      .slice(0, UPCOMING_GAME_LIMIT)
+      .map(toDashboardGame);
+  }
+
+  function getUpcomingGameCount() {
+    return getUpcomingGameRecords().length;
+  }
+
+  function getOpenAssignments() {
+    return getUpcomingGameRecords().flatMap(game =>
+      getAssignments(game)
+        .filter(isOpenAssignment)
+        .map(assignment => ({
+          game,
+          assignment,
+          gameId: game.id,
+          assignmentId: assignment.id
+        }))
+    );
+  }
+
+  function getPendingClaims() {
+    if (
+      typeof claimsQueueService !== "undefined" &&
+      typeof claimsQueueService.getPendingClaims === "function"
+    ) {
+      return claimsQueueService
+        .getPendingClaims()
+        .filter(claim => !claim.date || claim.date >= getToday());
+    }
+
+    return getUpcomingGameRecords().flatMap(game =>
+      getAssignments(game)
+        .filter(isPendingClaim)
+        .map(assignment => ({
+          game,
+          assignment,
+          gameId: game.id,
+          assignmentId: assignment.id
+        }))
+    );
+  }
+
+  function getPendingAccounts() {
+    if (
+      typeof accountService === "undefined" ||
+      typeof accountService.getPendingAccounts !== "function"
+    ) {
+      return [];
+    }
+
+    return accountService.getPendingAccounts();
+  }
+
+  function getOperationsSummary() {
+    const upcomingGames = getUpcomingGameCount();
+    const openAssignments = getOpenAssignments().length;
+    const pendingClaims = getPendingClaims().length;
+    const pendingAccounts = getPendingAccounts().length;
 
     return [
       {
-        id: "openAssignments",
-        title: "Open Assignments",
-        count: openAssignments.length,
-        severity:
-          openAssignments.length > 0
-            ? "warning"
-            : "success",
-        action: "openAssignments"
+        id: "upcoming-games",
+        label: "Upcoming Games",
+        value: upcomingGames,
+        color: "blue",
+        action: "upcoming-games"
       },
       {
-        id: "conflicts",
-        title: "Conflicts",
-        count: conflicts.length,
-        severity:
-          conflicts.length > 0
-            ? "danger"
-            : "success",
-        action: "conflicts"
+        id: "open-assignments",
+        label: "Open Assignments",
+        value: openAssignments,
+        color: openAssignments > 0 ? "orange" : "green",
+        action: "open-assignments"
       },
       {
-        id: "inactiveAssignments",
-        title: "Inactive Crew Assigned",
-        count: inactiveAssignments.length,
-        severity:
-          inactiveAssignments.length > 0
-            ? "warning"
-            : "success",
-        action: "inactiveAssignments"
+        id: "pending-claims",
+        label: "Pending Claims",
+        value: pendingClaims,
+        color: pendingClaims > 0 ? "orange" : "green",
+        action: "pending-claims"
       },
       {
-        id: "eligibilityIssues",
-        title: "Eligibility Issues",
-        count: eligibilityIssues.length,
-        severity:
-          eligibilityIssues.length > 0
-            ? "danger"
-            : "success",
-        action: "eligibilityIssues"
+        id: "pending-accounts",
+        label: "Pending Accounts",
+        value: pendingAccounts,
+        color: pendingAccounts > 0 ? "orange" : "green",
+        action: "pending-accounts"
       }
     ];
   }
 
-  function getPendingClaims() {
+  function getNeedsAttention() {
+    const openAssignments = getOpenAssignments();
+    const pendingClaims = getPendingClaims();
+    const pendingAccounts = getPendingAccounts();
 
-  return gameService
-    .getAll()
-    .filter(game =>
-      assignmentService.isPendingApproval(game)
-    )
-    .map(game => ({
+    return [
+      {
+        id: "open-assignments",
+        title: "Open Assignments",
+        count: openAssignments.length,
+        severity: openAssignments.length ? "warning" : "clear",
+        action: "open-assignments"
+      },
+      {
+        id: "pending-claims",
+        title: "Pending Claims",
+        count: pendingClaims.length,
+        severity: pendingClaims.length ? "warning" : "clear",
+        action: "pending-claims"
+      },
+      {
+        id: "pending-accounts",
+        title: "Pending Accounts",
+        count: pendingAccounts.length,
+        severity: pendingAccounts.length ? "warning" : "clear",
+        action: "pending-accounts"
+      }
+    ];
+  }
+
+  function getCrewNames(game) {
+    const names = getAssignments(game)
+      .filter(assignment => assignment.crewId)
+      .map(assignment => {
+        if (
+          typeof crewService !== "undefined" &&
+          typeof crewService.getDisplayName === "function"
+        ) {
+          return crewService.getDisplayName(assignment.crewId);
+        }
+
+        return assignment.crewId;
+      })
+      .filter(Boolean);
+
+    return [...new Set(names)];
+  }
+
+  function toDashboardGame(game) {
+    const assignments = getAssignments(game);
+    const openAssignmentCount =
+      assignments.filter(isOpenAssignment).length;
+    const pendingClaimCount =
+      assignments.filter(isPendingClaim).length;
+    const crewNames = getCrewNames(game);
+
+    return {
       id: game.id,
-      matchup: `${game.awayTeam} @ ${game.homeTeam}`,
       date: game.date,
-      time: game.time,
-      claimedBy:
-        crewService.getDisplayName(game.claimedBy)
-    }));
+      time: game.time || "",
+      field: game.field || "",
+      level: game.level || "",
+      matchup: `${game.awayTeam || "Away"} @ ${game.homeTeam || "Home"}`,
+      assignmentCount: assignments.length,
+      openAssignmentCount,
+      pendingClaimCount,
+      fullyStaffed:
+        assignments.length > 0 &&
+        openAssignmentCount === 0 &&
+        pendingClaimCount === 0,
+      crewName:
+        crewNames.length > 0
+          ? crewNames.join(", ")
+          : "No umpire assigned"
+    };
+  }
 
-}
-
+  // Backward-compatible alias for existing callers.
   function getTodaysSchedule() {
+    const today = getToday();
 
-    const today = new Date().toISOString().split("T")[0];
-
-    return gameService
-      .getAll()
+    return getUpcomingGameRecords()
       .filter(game => game.date === today)
-      .sort((a, b) => a.time.localeCompare(b.time))
-      .map(game => {
-
-        const assigned =
-          assignmentService.isAssigned(game);
-
-        return {
-  id: game.id,
-  time: game.time,
-  matchup: `${game.awayTeam} @ ${game.homeTeam}`,
-  field: game.field,
-  level: game.level,
-  assigned,
-  assignmentStatus: assignmentService.getStatus(game),
-  assignmentStatusLabel:
-    typeof getAssignmentStatusLabel === "function"
-      ? getAssignmentStatusLabel(game)
-      : assignmentService.getStatus(game),
-  crewName: assigned
-    ? crewService.getDisplayName(game.crewId)
-    : "Needs Crew"
-};
-
-      });
-
+      .map(toDashboardGame)
+      .map(game => ({
+        ...game,
+        assigned: game.fullyStaffed
+      }));
   }
 
   return {
     getOperationsSummary,
     getNeedsAttention,
-    getTodaysSchedule,
-    getPendingClaims
+    getUpcomingGames,
+    getUpcomingGameCount,
+    getOpenAssignments,
+    getPendingClaims,
+    getPendingAccounts,
+    getTodaysSchedule
   };
-
 })();

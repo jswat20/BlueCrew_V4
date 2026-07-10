@@ -1,10 +1,10 @@
-// dashboard.js
-
-// dashboard.js
+// components/dashboard.js
 
 function renderDashboard() {
   return `
-    <div class="dashboard-grid">
+    <div
+      class="dashboard-grid"
+      data-testid="operations-dashboard">
 
       ${
         typeof renderOperationsSummary === "function"
@@ -19,27 +19,13 @@ function renderDashboard() {
       }
 
       ${
-        typeof renderTodaysSchedule === "function"
-          ? renderTodaysSchedule()
-          : ""
-      }
-
-      ${
-        typeof renderCrewStatus === "function"
-          ? renderCrewStatus()
-          : ""
-      }
-
-      ${
-        typeof renderAIRecommendations === "function"
-          ? renderAIRecommendations()
-          : ""
-      }
-
-      ${
-        typeof renderRecentActivity === "function"
-          ? renderRecentActivity()
-          : ""
+        typeof renderUpcomingSchedule === "function"
+          ? renderUpcomingSchedule()
+          : (
+              typeof renderTodaysSchedule === "function"
+                ? renderTodaysSchedule()
+                : ""
+            )
       }
 
     </div>

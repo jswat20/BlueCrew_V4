@@ -1,13 +1,16 @@
-// operationsSummary.js
+// js/dashboard/operationsSummary.js
 
 function renderOperationsSummary() {
   const tiles = dashboardService.getOperationsSummary();
 
   return `
-    <section class="dashboard-card operations-summary">
+    <section
+      class="dashboard-card operations-summary"
+      data-testid="operations-summary">
+
       <div class="card-header">
-        <h2>Operations Summary</h2>
-        <span class="card-subtitle">Today's Snapshot</span>
+        <h2>Schedule Overview</h2>
+        <span class="card-subtitle">Upcoming workload</span>
       </div>
 
       <div class="summary-grid">
@@ -19,47 +22,50 @@ function renderOperationsSummary() {
 
 function renderSummaryTile(tile) {
   return `
-    <button 
-      class="summary-tile summary-${tile.color}" 
-      onclick="handleDashboardTileClick('${tile.action}')"
-    >
-      <div class="summary-value">${tile.value}</div>
+    <button
+      type="button"
+      class="summary-tile summary-${tile.color}"
+      data-testid="dashboard-summary-${tile.id}"
+      onclick="handleDashboardTileClick('${tile.action}')">
+
+      <div
+        class="summary-value"
+        data-testid="dashboard-summary-${tile.id}-value">
+        ${tile.value}
+      </div>
+
       <div class="summary-label">${tile.label}</div>
     </button>
   `;
 }
 
-function handleDashboardTileClick(action) {
-
+function openDashboardSchedule(filter = "all") {
   uiStateService.clearSelections();
+  uiStateService.setScheduleFilter(filter);
 
+  renderPage("schedule");
+  setScheduleView("all");
+}
+
+function handleDashboardTileClick(action) {
   switch (action) {
+    case "upcoming-games":
+      openDashboardSchedule("all");
+      return;
 
-    case "today":
-      uiStateService.setScheduleFilter("today");
-      break;
+    case "open-assignments":
+      openDashboardSchedule("open");
+      return;
 
-    case "assigned":
-      uiStateService.setScheduleFilter("assigned");
-      break;
+    case "pending-claims":
+      renderPage("claims-queue");
+      return;
 
-    case "open":
-      uiStateService.setScheduleFilter("open");
-      break;
-
-    case "conflicts":
-      uiStateService.setScheduleFilter("conflicts");
-      break;
-
-    case "crew":
-      renderPage("crew");
+    case "pending-accounts":
+      renderPage("accounts");
       return;
 
     default:
-      uiStateService.setScheduleFilter("all");
+      openDashboardSchedule("all");
   }
-
- renderPage("schedule");
-
-setScheduleView("all");
 }
