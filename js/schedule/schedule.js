@@ -35,35 +35,41 @@ function renderSchedule() {
         </div>
 
         <div
-          class="schedule-date-nav"
-          data-testid="schedule-date-nav">
+  class="schedule-date-nav"
+  data-testid="schedule-date-nav">
 
-          <button
-            data-testid="previous-date"
-            onclick="goToPreviousGameDate()">
-            ◀ Previous
-          </button>
+  <button
+    data-testid="previous-date"
+    onclick="goToPreviousGameDate()">
+    ◀ Previous
+  </button>
 
-          <button
-            class="primary"
-            data-testid="add-game"
-            onclick="openGameEditor()">
-            + Add Game
-          </button>
+  <button
+    class="primary"
+    data-testid="add-game"
+    onclick="openGameEditor()">
+    + Add Game
+  </button>
 
-          <button
-            data-testid="today"
-            onclick="goToToday()">
-            Today
-          </button>
+  <button
+    data-testid="import-schedule"
+    onclick="openScheduleImport()">
+    Import CSV
+  </button>
 
-          <button
-            data-testid="next-date"
-            onclick="goToNextGameDate()">
-            Next ▶
-          </button>
+  <button
+    data-testid="today"
+    onclick="goToToday()">
+    Today
+  </button>
 
-        </div>
+  <button
+    data-testid="next-date"
+    onclick="goToNextGameDate()">
+    Next ▶
+  </button>
+
+          </div>
 
       </div>
 
