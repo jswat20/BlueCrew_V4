@@ -2,6 +2,8 @@
 
 const selectedPendingAccountIds = new Set();
 
+let selectedRoleFilter = "all";
+
 function renderAccounts() {
   const selectedFilter =
     typeof uiStateService?.getAccountFilter === "function"
@@ -20,6 +22,28 @@ function renderAccounts() {
   const linkedAccounts =
     approvedAccounts.filter(account => account.crewId !== null);
 
+    const filterByRole = accounts => {
+  if (selectedRoleFilter === "all") {
+    return accounts;
+  }
+
+  return accounts.filter(
+    account => account.role === selectedRoleFilter
+  );
+};
+
+const filteredPendingAccounts =
+  filterByRole(pendingAccounts);
+
+const filteredApprovedAccounts =
+  filterByRole(approvedAccounts);
+
+const filteredUnlinkedAccounts =
+  filterByRole(unlinkedAccounts);
+
+const filteredLinkedAccounts =
+  filterByRole(linkedAccounts);
+
   const selectedPendingAccountIds = new Set();
 
   const crewMembers = crewService.getAll();
@@ -36,12 +60,12 @@ function renderAccounts() {
         Review and manage umpire registrations.
       </p>
 
-      ${renderAccountFilters(selectedFilter)}
-
+${renderAccountFilters(selectedFilter)}
+${renderRoleFilters()}
       ${
         selectedFilter === "all" ||
         selectedFilter === "pending"
-          ? renderPendingAccountsSection(pendingAccounts)
+          ? renderPendingAccountsSection(filteredPendingAccounts)
           : ""
       }
 
@@ -55,7 +79,7 @@ function renderAccounts() {
         selectedFilter === "all" ||
         selectedFilter === "unlinked"
           ? renderUnlinkedAccountsSection(
-              unlinkedAccounts,
+    filteredUnlinkedAccounts,
               crewMembers
             )
           : ""
@@ -64,7 +88,7 @@ function renderAccounts() {
       ${
         selectedFilter === "approved"
           ? renderApprovedAccountsSection(
-              approvedAccounts,
+    filteredApprovedAccounts,
               crewMembers
             )
           : ""
@@ -73,7 +97,7 @@ function renderAccounts() {
       ${
         selectedFilter === "linked"
           ? renderLinkedAccountsSection(
-              linkedAccounts,
+    filteredLinkedAccounts,
               crewMembers
             )
           : ""
@@ -115,7 +139,41 @@ function renderAccountFilters(selectedFilter) {
     </div>
   `;
 }
+function renderRoleFilters() {
+  const filters = [
+    ["all", "All Roles"],
+    ["administrator", "Administrator"],
+    ["assigner", "Assigner"],
+    ["umpire", "Umpire"]
+  ];
 
+  return `
+    <div
+      class="filter-group"
+      data-testid="account-role-filters">
+
+      ${filters.map(([id, label]) => `
+        <button
+          type="button"
+          class="filter-button ${
+            selectedRoleFilter === id ? "active" : ""
+          }"
+          data-testid="account-role-filter-${id}"
+          onclick="setAccountRoleFilter('${id}')">
+
+          ${label}
+
+        </button>
+      `).join("")}
+
+    </div>
+  `;
+}
+
+function setAccountRoleFilter(role) {
+  selectedRoleFilter = role;
+  renderPage("accounts");
+}
 function setAccountFilter(filter) {
   uiStateService.setAccountFilter(filter);
   renderPage("accounts");
@@ -314,7 +372,39 @@ function renderPendingAccountRow(account) {
         </strong>
 
         <div>${account.email}</div>
+<div>
 
+  <label>
+
+    Role
+
+    <select
+      data-testid="account-role-${account.id}"
+      onchange="changePendingAccountRole(
+        '${account.id}',
+        this.value
+      )">
+
+      ${accountService.getRoles().map(role => `
+        <option
+          value="${role}"
+          ${
+            account.role === role
+              ? "selected"
+              : ""
+          }>
+          ${
+            role.charAt(0).toUpperCase() +
+            role.slice(1)
+          }
+        </option>
+      `).join("")}
+
+    </select>
+
+  </label>
+
+</div>
         <small>
           Registered ${formatAccountDate(account.createdAt)}
         </small>
@@ -438,6 +528,11 @@ function renderApprovedAccount(account, crewMembers) {
 
       <div>${account.email}</div>
 
+      <div
+        data-testid="account-role-display-${account.id}">
+        Role: ${formatAccountRole(account.role)}
+      </div>
+
       <small>
         ${
           crewMember
@@ -447,6 +542,23 @@ function renderApprovedAccount(account, crewMembers) {
       </small>
     </div>
   `;
+}
+
+function changePendingAccountRole(accountId, role) {
+  const account =
+    accountService.getById(accountId);
+
+  if (!account) {
+    toastService?.error?.("Account not found.");
+    return;
+  }
+
+  const result =
+    accountService.updateRole(account.id, role);
+
+  if (!result.success) {
+    toastService?.error?.(result.message);
+  }
 }
 
 function approvePendingAccount(accountId) {
@@ -473,6 +585,16 @@ function formatAccountDate(dateString) {
   return new Date(dateString).toLocaleDateString();
 }
 
+function formatAccountRole(role) {
+  const normalizedRole =
+    role || "umpire";
+
+  return (
+    normalizedRole.charAt(0).toUpperCase() +
+    normalizedRole.slice(1)
+  );
+}
+
 function renderUnlinkedAccount(account, crewMembers) {
   return `
     <div
@@ -484,6 +606,11 @@ function renderUnlinkedAccount(account, crewMembers) {
       </strong>
 
       <div>${account.email}</div>
+
+      <div
+        data-testid="account-role-display-${account.id}">
+        Role: ${formatAccountRole(account.role)}
+      </div>
 
       <select
         data-testid="crew-select-${account.id}"

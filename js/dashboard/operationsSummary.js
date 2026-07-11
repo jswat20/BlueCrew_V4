@@ -70,3 +70,59 @@ function handleDashboardTileClick(action) {
       openDashboardSchedule("all");
   }
 }
+
+function renderAccountRoleSummary() {
+  const summary =
+    dashboardService.getRoleSummary();
+
+  const roles = [
+    {
+      id: "administrator",
+      label: "Administrators",
+      value: summary.administrator
+    },
+    {
+      id: "assigner",
+      label: "Assigners",
+      value: summary.assigner
+    },
+    {
+      id: "umpire",
+      label: "Umpires",
+      value: summary.umpire
+    }
+  ];
+
+  return `
+    <section
+      class="dashboard-card account-role-summary"
+      data-testid="account-role-summary">
+
+      <div class="card-header">
+        <h2>Account Roles</h2>
+        <span class="card-subtitle">
+          Current account distribution
+        </span>
+      </div>
+
+      <div class="summary-grid">
+        ${roles.map(role => `
+          <div
+            class="summary-tile"
+            data-testid="dashboard-role-${role.id}">
+
+            <div
+              class="summary-value"
+              data-testid="dashboard-role-${role.id}-value">
+              ${role.value}
+            </div>
+
+            <div class="summary-label">
+              ${role.label}
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}

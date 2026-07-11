@@ -271,3 +271,106 @@ test("bulk reject removes selected pending accounts", async ({ app }) => {
     app.page.getByTestId("pending-accounts-empty")
   ).toBeVisible();
 });
+test("displays an approved account role", async ({ app }) => {
+  const account = await app.page.evaluate(() => {
+    const created = accountService.createAccount({
+      firstName: "Role",
+      lastName: "Display",
+      email: `role-display-${Date.now()}@test.com`
+    });
+
+    accountService.updateRole(
+      created.data.id,
+      "assigner"
+    );
+
+    accountService.approveAccount(
+      created.data.id
+    );
+
+    uiStateService.setAccountFilter("approved");
+    renderPage("accounts");
+
+    return created.data;
+  });
+
+  await expect(
+    app.page.getByTestId(
+      `account-role-display-${account.id}`
+    )
+  ).toHaveText("Role: Assigner");
+});
+
+test("changes a pending account role", async ({ app }) => {
+  const account = await app.page.evaluate(() => {
+    const created = accountService.createAccount({
+      firstName: "Role",
+      lastName: "Change",
+      email: `role-change-${Date.now()}@test.com`
+    });
+
+    renderPage("accounts");
+
+    return created.data;
+  });
+
+  await app.page
+    .getByTestId(`account-role-${account.id}`)
+    .selectOption("administrator");
+
+  const role = await app.page.evaluate(accountId => {
+    return accountService
+      .getById(accountId)
+      .role;
+  }, account.id);
+
+  expect(role).toBe("administrator");
+});
+
+test("filters accounts by role", async ({ app }) => {
+  const accounts = await app.page.evaluate(() => {
+    const administrator =
+      accountService.createAccount({
+        firstName: "Filter",
+        lastName: "Administrator",
+        email: `filter-admin-${Date.now()}@test.com`
+      }).data;
+
+    const umpire =
+      accountService.createAccount({
+        firstName: "Filter",
+        lastName: "Umpire",
+        email: `filter-umpire-${Date.now()}@test.com`
+      }).data;
+
+    accountService.updateRole(
+      administrator.id,
+      "administrator"
+    );
+
+    renderPage("accounts");
+
+    return {
+      administrator,
+      umpire
+    };
+  });
+
+  await app.page
+    .getByTestId(
+      "account-role-filter-administrator"
+    )
+    .click();
+
+  await expect(
+    app.page.getByTestId(
+      `pending-account-${accounts.administrator.id}`
+    )
+  ).toBeVisible();
+
+  await expect(
+    app.page.getByTestId(
+      `pending-account-${accounts.umpire.id}`
+    )
+  ).not.toBeVisible();
+});

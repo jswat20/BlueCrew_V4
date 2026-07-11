@@ -13,6 +13,12 @@ function renderDashboard() {
       }
 
       ${
+        typeof renderAccountRoleSummary === "function"
+          ? renderAccountRoleSummary()
+          : ""
+      }
+
+      ${
         typeof renderNeedsAttention === "function"
           ? renderNeedsAttention()
           : ""
