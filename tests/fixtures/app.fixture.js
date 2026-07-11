@@ -35,6 +35,10 @@ export const test = base.extend({
           authService.loginAsUmpire();
 document.body.dataset.role = "umpire";
 
+if (typeof refreshNavigationAuthorization === "function") {
+  refreshNavigationAuthorization();
+}
+
 if (window.BlueCrew?.test) {
   window.BlueCrew.test.currentRole = "umpire";
 }

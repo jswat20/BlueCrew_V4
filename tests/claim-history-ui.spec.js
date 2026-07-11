@@ -20,9 +20,13 @@ async function createApprovedAndRejectedClaims(
   });
 
   await app.page.evaluate(() => {
-    authService.loginAsAdmin();
-    document.body.dataset.role = "admin";
-  });
+  authService.loginAsAdmin();
+  document.body.dataset.role = "admin";
+
+  if (typeof refreshNavigationAuthorization === "function") {
+    refreshNavigationAuthorization();
+  }
+});
 
   await app.page.getByTestId("nav-claims-queue").click();
 
@@ -39,6 +43,10 @@ async function createApprovedAndRejectedClaims(
   await app.page.evaluate(() => {
     authService.loginAsAdmin();
     document.body.dataset.role = "admin";
+
+    if (typeof refreshNavigationAuthorization === "function") {
+      refreshNavigationAuthorization();
+    }
   });
 
   await app.page.getByTestId("nav-claims-queue").click();
@@ -114,6 +122,10 @@ async function createApprovedAndRejectedClaims(
     await app.page.evaluate(() => {
       authService.loginAsAdmin();
       document.body.dataset.role = "admin";
+
+      if (typeof refreshNavigationAuthorization === "function") {
+        refreshNavigationAuthorization();
+      }
     });
 
     await app.page.getByTestId("nav-claims-queue").click();
@@ -137,6 +149,10 @@ async function createApprovedAndRejectedClaims(
     await app.page.evaluate(() => {
       authService.loginAsAdmin();
       document.body.dataset.role = "admin";
+
+      if (typeof refreshNavigationAuthorization === "function") {
+        refreshNavigationAuthorization();
+      }
     });
 
     await app.page.getByTestId("nav-claims-queue").click();

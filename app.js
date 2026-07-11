@@ -90,6 +90,10 @@ function initializeApp() {
   setupNavigation();
   setupRoleSwitcher();
 
+  if (typeof refreshNavigationAuthorization === "function") {
+    refreshNavigationAuthorization();
+  }
+
   renderPage("dashboard");
 
   window.BlueCrew.test.initialized = true;
@@ -144,7 +148,33 @@ function setupRoleSwitcher() {
   });
 }
 
+function renderAccessDenied(page) {
+  const pageName =
+    pages[page]?.title ||
+    String(page || "requested page");
+
+  return `
+    <section
+      class="access-denied"
+      data-testid="access-denied">
+
+      <h2 data-testid="access-denied-title">
+        Access Denied
+      </h2>
+
+      <p data-testid="access-denied-message">
+        You do not have permission to access
+        ${pageName}.
+      </p>
+    </section>
+  `;
+}
+
 function renderPage(page, context = {}) {
+  if (typeof refreshNavigationAuthorization === "function") {
+    refreshNavigationAuthorization();
+  }
+
   currentPage = page;
   currentPageContext = context;
 
@@ -165,6 +195,35 @@ function renderPage(page, context = {}) {
 
   const content = document.getElementById("app-content");
   if (!content) return;
+
+  const isAuthorized =
+    typeof authorizationService === "undefined" ||
+    typeof authorizationService.canView !== "function" ||
+    authorizationService.canView(page);
+
+  if (!isAuthorized) {
+    const title = document.getElementById("page-title");
+    const subtitle = document.getElementById("page-subtitle");
+
+    if (title) {
+      title.textContent = "Access Denied";
+    }
+
+    if (subtitle) {
+      subtitle.textContent =
+        "You do not have permission to view this page.";
+    }
+
+    content.innerHTML = `
+      <div
+        class="page-wrapper"
+        data-testid="page-${page}">
+        ${renderAccessDenied(page)}
+      </div>
+    `;
+
+    return;
+  }
 
   const viewHtml = authService.isUmpire()
     ? renderUmpireView(page, context)
