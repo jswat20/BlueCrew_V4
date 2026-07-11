@@ -1,4 +1,21 @@
 const claimsQueueService = (() => {
+    function requireApproveClaims() {
+    if (
+      typeof authorizationService !== "undefined" &&
+      !authorizationService.canApproveClaims()
+    ) {
+      return mutationResult(false, "Unauthorized.");
+    }
+
+    return null;
+  }
+    function mutationResult(success, message, data = null) {
+    return {
+      success,
+      message,
+      data
+    };
+  }
   function getClaimsByStatus(status) {
     return gameService
       .getAll()
@@ -133,13 +150,31 @@ const claimsQueueService = (() => {
     });
   }
 
-  function approveClaim(gameId, assignmentId) {
-    return assignmentService.approveClaim(gameId, assignmentId);
+function approveClaim(gameId, assignmentId) {
+  const denied = requireApproveClaims();
+
+  if (denied) {
+    return denied;
   }
 
-  function rejectClaim(gameId, assignmentId) {
-    return assignmentService.rejectClaim(gameId, assignmentId);
+  return assignmentService.approveClaim(
+    gameId,
+    assignmentId
+  );
+}
+
+function rejectClaim(gameId, assignmentId) {
+  const denied = requireApproveClaims();
+
+  if (denied) {
+    return denied;
   }
+
+  return assignmentService.rejectClaim(
+    gameId,
+    assignmentId
+  );
+}
 
   return {
     getPendingClaims,
