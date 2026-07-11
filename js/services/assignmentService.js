@@ -230,6 +230,12 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
   }
 
   function assignPosition(gameId, position, crewId) {
+    const authorization = requireAssignGames();
+
+    if (authorization) {
+      return authorization;
+    }
+
     const { games, game } = findGame(gameId);
 
     if (!game) return mutationResult(false, "Game not found.");
@@ -269,6 +275,12 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
   }
 
   function assignToAssignment(gameId, assignmentId, crewId) {
+    const authorization = requireAssignGames();
+
+    if (authorization) {
+      return authorization;
+    }
+
     const { games, game } = findGame(gameId);
 
     if (!game) return mutationResult(false, "Game not found.");
@@ -318,6 +330,12 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
 }
 
 function openAssignmentForClaims(gameId, assignmentId) {
+  const authorization = requireAssignGames();
+
+  if (authorization) {
+    return authorization;
+  }
+
   const { games, game } = findGame(gameId);
 
   if (!game) return mutationResult(false, "Game not found.");
@@ -348,6 +366,12 @@ function openAssignmentForClaims(gameId, assignmentId) {
 }
 
 function clearAssignmentSlot(gameId, assignmentId) {
+  const authorization = requireAssignGames();
+
+  if (authorization) {
+    return authorization;
+  }
+
   const { games, game } = findGame(gameId);
 
   if (!game) return mutationResult(false, "Game not found.");
@@ -432,6 +456,12 @@ activityService?.log?.(`${assignment.position} claim rejected.`, game);
 }
 
 function lockAssignmentSlot(gameId, assignmentId) {
+  const authorization = requireAssignGames();
+
+  if (authorization) {
+    return authorization;
+  }
+
   const { games, game } = findGame(gameId);
 
   if (!game) return mutationResult(false, "Game not found.");
@@ -458,12 +488,6 @@ function lockAssignmentSlot(gameId, assignmentId) {
 }
 
   function assignCrew(gameId, crewId) {
-    const authorization = requireAssignGames();
-
-    if (authorization) {
-      return authorization;
-    }
-
     const { game } = findGame(gameId);
     if (!game) return mutationResult(false, "Game not found.");
 

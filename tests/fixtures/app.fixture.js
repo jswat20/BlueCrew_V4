@@ -77,9 +77,30 @@ async createPendingClaim(overrides = {}) {
       ...gameOverrides
     }).data;
 
-    assignmentService.openForClaim(game.id);
+    // Opening an assignment is an administrative mutation.
+    authService.loginAsAdmin();
 
-    portalService.claimGame(game.id, `${game.id}-plate`);
+    const opened = assignmentService.openForClaim(game.id);
+
+    if (!opened.success) {
+      throw new Error(
+        opened.message || "Could not open assignment for claims."
+      );
+    }
+
+    // Claim submission remains umpire self-service.
+    authService.loginAsUmpire();
+
+    const claimed = portalService.claimGame(
+      game.id,
+      `${game.id}-plate`
+    );
+
+    if (!claimed.success) {
+      throw new Error(
+        claimed.message || "Could not submit assignment claim."
+      );
+    }
   }, overrides);
 }
     };
