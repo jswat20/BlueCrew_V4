@@ -37,6 +37,15 @@ const authService = (() => {
     };
   }
 
+  function loginAsAssigner() {
+    currentUser = {
+      id: "assigner",
+      role: "assigner",
+      crewId: null,
+      name: "Assigner"
+    };
+  }
+
   function loginAsUmpire() {
     const firstCrewMember = crewService.getAll()[0];
 
@@ -66,6 +75,7 @@ const authService = (() => {
     currentCrewId,
     currentUserName,
     loginAsAdmin,
+    loginAsAssigner,
     loginAsUmpire,
     loginAsCrew
   };

@@ -549,4 +549,82 @@ test("summarizes account roles", async ({ page }) => {
     umpire: 2
   });
 });
+test.describe("Account Service Authorization", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+
+    await page.evaluate(() => {
+      localStorage.removeItem("bluecrew_accounts");
+    });
+  });
+
+  test("administrator may approve an account", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      authService.loginAsAdmin();
+
+      const account = accountService.createAccount({
+        firstName: "Admin",
+        lastName: "Test",
+        email: "admin-auth@test.com"
+      }).data;
+
+      return accountService.approveAccount(account.id);
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  test("assigner cannot approve an account", async ({ page }) => {
+    const result = await page.evaluate(() => {
+authService.loginAsAssigner();
+      const account = accountService.createAccount({
+        firstName: "Assigner",
+        lastName: "Denied",
+        email: "assigner-auth@test.com"
+      }).data;
+
+      return accountService.approveAccount(account.id);
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.message).toBe("Unauthorized.");
+  });
+
+  test("umpire cannot approve an account", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      authService.loginAsUmpire();
+
+      const account = accountService.createAccount({
+        firstName: "Umpire",
+        lastName: "Denied",
+        email: "umpire-auth@test.com"
+      }).data;
+
+      return accountService.approveAccount(account.id);
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.message).toBe("Unauthorized.");
+  });
+
+  test("unauthorized approval does not modify the account", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      authService.loginAsAdmin();
+
+      const account = accountService.createAccount({
+        firstName: "Protected",
+        lastName: "Account",
+        email: "protected@test.com"
+      }).data;
+
+authService.loginAsAssigner();
+      accountService.approveAccount(account.id);
+
+      return accountService.getById(account.id);
+    });
+
+    expect(result.status).toBe("pending");
+    expect(result.approvedAt).toBeNull();
+  });
+});
 });

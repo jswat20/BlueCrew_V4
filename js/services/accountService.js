@@ -10,6 +10,17 @@ const ACCOUNT_ROLES = Object.freeze({
 
 const VALID_ACCOUNT_ROLES = Object.values(ACCOUNT_ROLES);
 
+function requireManageAccounts() {
+  if (
+    typeof authorizationService !== "undefined" &&
+    !authorizationService.canManageAccounts()
+  ) {
+    return mutationResult(false, "Unauthorized.");
+  }
+
+  return null;
+}
+
 function normalizeRole(role) {
   return VALID_ACCOUNT_ROLES.includes(role)
     ? role
@@ -78,6 +89,12 @@ role: normalizeRole(account.role),
   }
 
  function approveAccount(accountId, crewId = null) {
+    const authorization = requireManageAccounts();
+
+    if (authorization) {
+      return authorization;
+    }
+
   const accounts = getAll();
   const account = accounts.find(account => account.id === accountId);
 
@@ -96,6 +113,12 @@ role: normalizeRole(account.role),
 }
 
 function approveAccounts(accountIds = []) {
+    const authorization = requireManageAccounts();
+
+    if (authorization) {
+      return authorization;
+    }
+
   const summary = {
     processed: 0,
     approved: 0,
@@ -122,6 +145,12 @@ function approveAccounts(accountIds = []) {
 }
 
 function rejectAccount(accountId) {
+    const authorization = requireManageAccounts();
+
+    if (authorization) {
+      return authorization;
+    }
+
   const accounts = getAll();
   const account = accounts.find(account => account.id === accountId);
 
@@ -138,6 +167,12 @@ function rejectAccount(accountId) {
 }
 
 function rejectAccounts(accountIds = []) {
+    const authorization = requireManageAccounts();
+
+    if (authorization) {
+      return authorization;
+    }
+
   const summary = {
     processed: 0,
     rejected: 0,
@@ -176,6 +211,12 @@ function rejectAccounts(accountIds = []) {
   }
 
   function updateAccount(accountId, updates = {}) {
+    const authorization = requireManageAccounts();
+
+    if (authorization) {
+      return authorization;
+    }
+
     const accounts = getAll();
     const account = accounts.find(account => account.id === accountId);
 
@@ -194,6 +235,12 @@ function rejectAccounts(accountIds = []) {
   }
 
   function linkCrew(accountId, crewId) {
+    const authorization = requireManageAccounts();
+
+    if (authorization) {
+      return authorization;
+    }
+
   const accounts = getAll();
 
   const account = accounts.find(a => a.id === accountId);
@@ -231,6 +278,12 @@ function rejectAccounts(accountIds = []) {
 }
 
 function unlinkCrew(accountId) {
+    const authorization = requireManageAccounts();
+
+    if (authorization) {
+      return authorization;
+    }
+
   const accounts = getAll();
 
   const account = accounts.find(a => a.id === accountId);
@@ -258,6 +311,12 @@ function getRoles() {
 }
 
 function updateRole(accountId, role) {
+    const authorization = requireManageAccounts();
+
+    if (authorization) {
+      return authorization;
+    }
+
   if (!isValidRole(role)) {
     return mutationResult(false, "Invalid account role.");
   }
@@ -305,6 +364,12 @@ function getRoleSummary() {
   );
 }
   function deleteAccount(accountId) {
+    const authorization = requireManageAccounts();
+
+    if (authorization) {
+      return authorization;
+    }
+
     const accounts = getAll();
     const nextAccounts = accounts.filter(account => account.id !== accountId);
 

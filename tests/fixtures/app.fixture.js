@@ -50,7 +50,20 @@ if (window.qaService) {
       },
 
 async createPendingClaim(overrides = {}) {
-  await this.loginAsApprovedUmpire();
+  const alreadyLoggedInAsUmpire = await page.evaluate(() => {
+    if (
+      typeof authService === "undefined" ||
+      typeof authService.getCurrentUser !== "function"
+    ) {
+      return false;
+    }
+
+    return authService.getCurrentUser()?.role === "umpire";
+  });
+
+  if (!alreadyLoggedInAsUmpire) {
+    await this.loginAsApprovedUmpire();
+  }
 
   await page.evaluate((gameOverrides) => {
     const game = gameService.create({
