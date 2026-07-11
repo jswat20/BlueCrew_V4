@@ -218,6 +218,17 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
     return { success, message, data };
   }
 
+  function requireAssignGames() {
+    if (
+      typeof authorizationService !== "undefined" &&
+      !authorizationService.canAssignGames()
+    ) {
+      return mutationResult(false, "Unauthorized.");
+    }
+
+    return null;
+  }
+
   function assignPosition(gameId, position, crewId) {
     const { games, game } = findGame(gameId);
 
@@ -447,6 +458,12 @@ function lockAssignmentSlot(gameId, assignmentId) {
 }
 
   function assignCrew(gameId, crewId) {
+    const authorization = requireAssignGames();
+
+    if (authorization) {
+      return authorization;
+    }
+
     const { game } = findGame(gameId);
     if (!game) return mutationResult(false, "Game not found.");
 
@@ -457,6 +474,12 @@ function lockAssignmentSlot(gameId, assignmentId) {
   }
 
   function updateAssignment(gameId, value) {
+  const authorization = requireAssignGames();
+
+  if (authorization) {
+    return authorization;
+  }
+
   // Legacy: updateAssignment(gameId, crewId)
   if (
     value === "" ||
@@ -486,6 +509,12 @@ function lockAssignmentSlot(gameId, assignmentId) {
 }
 
   function clearAssignment(gameId) {
+    const authorization = requireAssignGames();
+
+    if (authorization) {
+      return authorization;
+    }
+
     const { games, game } = findGame(gameId);
 
     if (!game) return mutationResult(false, "Game not found.");
@@ -512,6 +541,12 @@ function lockAssignmentSlot(gameId, assignmentId) {
   }
 
   function openForClaims(gameId) {
+    const authorization = requireAssignGames();
+
+    if (authorization) {
+      return authorization;
+    }
+
     const { games, game } = findGame(gameId);
 
     if (!game) return mutationResult(false, "Game not found.");
@@ -659,6 +694,12 @@ notificationService?.create?.({
   }
 
   function lockAssignment(gameId) {
+    const authorization = requireAssignGames();
+
+    if (authorization) {
+      return authorization;
+    }
+
     const { games, game } = findGame(gameId);
 
     if (!game) return mutationResult(false, "Game not found.");
@@ -679,6 +720,12 @@ notificationService?.create?.({
   }
 
   function unlockAssignment(gameId) {
+    const authorization = requireAssignGames();
+
+    if (authorization) {
+      return authorization;
+    }
+
     const { games, game } = findGame(gameId);
 
     if (!game) return mutationResult(false, "Game not found.");
