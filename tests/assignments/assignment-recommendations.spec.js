@@ -92,7 +92,44 @@ test.describe(
         ).not.toHaveText("");
       }
     );
+test(
+  "renders structured recommendation highlights",
+  async ({ page }) => {
+    await setupRecommendationDrawer(page);
 
+    const highlights =
+      page.getByTestId(
+        "recommendation-highlights-Plate"
+      );
+
+    await expect(
+      highlights
+    ).toBeVisible();
+
+    const highlightItems =
+      highlights.locator(
+        "[data-highlight-type]"
+      );
+
+    expect(
+      await highlightItems.count()
+    ).toBeGreaterThan(0);
+
+    const firstHighlight =
+      highlightItems.first();
+
+    await expect(
+      firstHighlight
+    ).not.toHaveText("");
+
+    await expect(
+      firstHighlight
+    ).toHaveAttribute(
+      "data-highlight-priority",
+      /\d+/
+    );
+  }
+);
     test(
       "renders recommendation score and supporting details",
       async ({ page }) => {

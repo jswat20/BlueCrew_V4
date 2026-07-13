@@ -137,17 +137,42 @@ test.describe("Recommendation Service Contract", () => {
         );
 
       return {
-        keys: Object.keys(recommendation),
-        workload: recommendation.workload,
-        workloadCount:
-          recommendation.workloadCount,
-        reasonsIsArray:
-          Array.isArray(recommendation.reasons),
-        preferenceMatchesIsArray:
-          Array.isArray(
-            recommendation.preferenceMatches
-          )
-      };
+  keys: Object.keys(recommendation),
+
+  explanationKeys:
+    Object.keys(
+      recommendation.explanation
+    ),
+
+  workload:
+    recommendation.workload,
+
+  workloadCount:
+    recommendation.workloadCount,
+
+  reasonsIsArray:
+    Array.isArray(
+      recommendation.reasons
+    ),
+
+  explanationReasonsIsArray:
+    Array.isArray(
+      recommendation.explanation.reasons
+    ),
+
+  explanationHighlightsIsArray:
+    Array.isArray(
+      recommendation.explanation.highlights
+    ),
+
+  explanationHighlights:
+    recommendation.explanation.highlights,
+
+  preferenceMatchesIsArray:
+    Array.isArray(
+      recommendation.preferenceMatches
+    )
+};
     });
 
     expect(result.keys).toEqual(
@@ -168,12 +193,49 @@ test.describe("Recommendation Service Contract", () => {
         "preferenceMatches",
         "reasons"
       ])
+      
     );
+    expect(result.explanationKeys)
+  .toEqual(
+    expect.arrayContaining([
+      "score",
+      "available",
+      "availability",
+      "dateAvailability",
+      "eligible",
+      "conflict",
+      "workload",
+      "preferenceScore",
+      "preferenceMatches",
+      "highlights",
+      "reasons"
+    ])
+  );
+expect(
+  result.explanationHighlightsIsArray
+).toBe(true);
+
+expect(
+  result.explanationHighlights.length
+).toBeGreaterThan(0);
+
+expect(
+  result.explanationHighlights[0]
+).toEqual(
+  expect.objectContaining({
+    type: expect.any(String),
+    priority: expect.any(Number),
+    label: expect.any(String)
+  })
+);
 
     expect(result.workload)
       .toBe(result.workloadCount);
 
     expect(result.reasonsIsArray).toBe(true);
+expect(
+  result.explanationReasonsIsArray
+).toBe(true);
 
     expect(
       result.preferenceMatchesIsArray
@@ -244,7 +306,13 @@ test.describe("Recommendation Service Contract", () => {
         preferenceScore:
           preferred.preferenceScore,
         matches:
-          preferred.preferenceMatches
+          preferred.preferenceMatches,
+        explanationHighlightsIsArray:
+          Array.isArray(
+            preferred.explanation.highlights
+          ),
+        explanationHighlights:
+          preferred.explanation.highlights
       };
     });
 

@@ -1297,3 +1297,56 @@ body {
 .crew-builder-slot-controls select {
   min-width: 0;
 }
+/* BlueCrew 2027.6 — ranked assignment recommendations */
+
+.assignment-recommendation-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.assignment-recommendation-card {
+  border: 1px solid var(--border-color, #d7dce2);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.recommendation-card-header,
+.recommendation-metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.recommendation-card-header {
+  justify-content: space-between;
+}
+
+.recommendation-rank {
+  margin-right: 0.4rem;
+  font-weight: 700;
+}
+
+.recommendation-score {
+  font-weight: 700;
+}
+
+.recommendation-metrics {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.recommendation-reasons {
+  margin: 0.6rem 0;
+  padding-left: 1.25rem;
+}
+
+.recommendation-use-btn {
+  margin-top: 0.25rem;
+}
+
+.crew-builder-slot.locked
+  .assignment-recommendation-card {
+  opacity: 0.7;
+}

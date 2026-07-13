@@ -190,6 +190,101 @@ function evaluatePreferences(
     reasons
   };
 }
+function buildRecommendationHighlights({
+  availability,
+  dateAvailability,
+  evaluation,
+  preferenceEvaluation
+}) {
+  const highlights = [];
+
+  if (
+    availability === "available" ||
+    dateAvailability === "available"
+  ) {
+    highlights.push({
+      type: "availability",
+      priority: 10,
+      label: "Available for this assignment"
+    });
+  }
+
+  if (dateAvailability === "maybe") {
+    highlights.push({
+      type: "availability",
+      priority: 20,
+      label: "Availability marked Maybe"
+    });
+  }
+
+  if (
+    availability === "unavailable" ||
+    dateAvailability === "unavailable"
+  ) {
+    highlights.push({
+      type: "availability",
+      priority: 90,
+      label: "Marked unavailable"
+    });
+  }
+
+  if (evaluation.conflict) {
+    highlights.push({
+      type: "conflict",
+      priority: 100,
+      label: "Scheduling conflict detected"
+    });
+  } else {
+    highlights.push({
+      type: "conflict",
+      priority: 30,
+      label: "No scheduling conflicts"
+    });
+  }
+
+  highlights.push({
+    type: "workload",
+    priority: 40,
+    label:
+      `Current workload: ${
+        evaluation.workload ?? 0
+      }`
+  });
+
+  if (
+    preferenceEvaluation.preferenceScore > 0
+  ) {
+    highlights.push({
+      type: "preference",
+      priority: 20,
+      label: "Matches crew preferences"
+    });
+  }
+
+  if (
+    preferenceEvaluation.preferenceScore < 0
+  ) {
+    highlights.push({
+      type: "preference",
+      priority: 80,
+      label: "Conflicts with crew preferences"
+    });
+  }
+
+  if (evaluation.eligible === false) {
+    highlights.push({
+      type: "eligibility",
+      priority: 100,
+      label: "Not eligible for this assignment"
+    });
+  }
+
+  return highlights.sort(
+    (a, b) =>
+      Number(a.priority || 0) -
+      Number(b.priority || 0)
+  );
+}
 
 const recommendationService = {
   hasSameTimeConflict(game, crewId) {
@@ -285,21 +380,58 @@ const recommendationService = {
       );
 
     score +=
-      preferenceEvaluation.preferenceScore;
+  preferenceEvaluation.preferenceScore;
 
-    reasons.push(
-      ...preferenceEvaluation.reasons
-    );
+reasons.push(
+  ...preferenceEvaluation.reasons
+);
+const highlights =
+  buildRecommendationHighlights({
+    availability,
+    dateAvailability,
+    evaluation,
+    preferenceEvaluation
+  });
+const explanation = {
+  score,
 
-    return {
-      crewId,
-      member,
-      name: crewService.getName(member),
+  available:
+    availability === "available",
 
-      score,
+  availability,
 
-      preferenceScore:
-        preferenceEvaluation.preferenceScore,
+  dateAvailability,
+
+  eligible: evaluation.eligible,
+
+  conflict: evaluation.conflict,
+
+  workload: evaluation.workload,
+
+  preferenceScore:
+    preferenceEvaluation.preferenceScore,
+
+  preferenceMatches:
+    preferenceEvaluation.preferenceMatches,
+
+  highlights,
+
+  reasons: [...reasons]
+};
+
+reasons.push(...preferenceEvaluation.reasons);
+
+return {
+  crewId,
+  member,
+  name: crewService.getName(member),
+
+  score,
+
+  explanation,
+
+  preferenceScore:
+    preferenceEvaluation.preferenceScore,
 
       preferenceMatches:
         preferenceEvaluation.preferenceMatches,

@@ -389,101 +389,497 @@ ${renderAssignmentRecommendation(
       </div>
   `;
 }
-function renderAssignmentRecommendation(
-  assignment,
-  game
+function getAssignmentRecommendationAvailability(
+  recommendation
 ) {
-  const recommendation =
-    recommendationService
-      .getRecommendedCrewForGame(
-        game,
-        {
-          position: assignment.position
-        }
-      )[0];
+  return (
+    recommendation.dateAvailability ||
+    recommendation.availability ||
+    (
+      recommendation.available === false
+        ? "unavailable"
+        : "available"
+    )
+  );
+}
 
-  if (!recommendation) {
+function getAssignmentRecommendationWorkload(
+  recommendation
+) {
+  return (
+    recommendation.workloadCount ??
+    recommendation.workload ??
+    0
+  );
+}
+
+function getAssignmentRecommendationConflictLabel(
+  recommendation
+) {
+  return recommendation.conflict
+    ? "Conflict"
+    : "No conflict";
+}
+
+function getAssignmentRecommendationAvailabilityLabel(
+  recommendation
+) {
+  const availability =
+    getAssignmentRecommendationAvailability(
+      recommendation
+    );
+
+  switch (availability) {
+    case "available":
+      return "Available";
+
+    case "maybe":
+      return "Maybe";
+
+    case "unavailable":
+      return "Unavailable";
+
+    default:
+      return String(availability || "Unknown");
+  }
+}
+
+function getAssignedCrewIdsForRecommendation(
+  assignment
+) {
+  const draft = crewBuilderService.getDraft();
+
+  if (!draft) {
+    return [];
+  }
+
+  return draft.assignments
+    .filter(item =>
+      String(item.id) !== String(assignment.id) &&
+      item.crewId
+    )
+    .map(item => String(item.crewId));
+}
+
+function renderAssignmentRecommendationReasons(
+  recommendation,
+  assignment,
+  rank
+) {
+  const position = escapeAssignmentHtml(
+    assignment.position
+  );
+
+  const reasonsTestId =
+    rank === 1
+      ? `recommendation-reasons-${position}`
+      : `recommendation-reasons-${position}-${rank}`;
+
+  const reasons =
+    Array.isArray(recommendation.reasons)
+      ? recommendation.reasons.filter(Boolean)
+      : [];
+
+  if (!reasons.length) {
+    return `
+      <div
+        class="recommendation-reasons"
+        data-testid="${reasonsTestId}"
+      >
+        No additional recommendation notes.
+      </div>
+    `;
+  }
+
+  return `
+    <ul
+      class="recommendation-reasons"
+      data-testid="${reasonsTestId}"
+    >
+      ${reasons
+        .map(reason => `
+          <li>
+            ${escapeAssignmentHtml(reason)}
+          </li>
+        `)
+        .join("")}
+    </ul>
+  `;
+}
+function renderAssignmentRecommendationExplanation(
+  recommendation,
+  assignment,
+  rank
+) {
+  const position = escapeAssignmentHtml(
+    assignment.position
+  );
+
+  const explanation =
+    recommendation.explanation || {};
+
+  const explanationTestId =
+    rank === 1
+      ? `recommendation-explanation-${position}`
+      : `recommendation-explanation-${position}-${rank}`;
+
+  const availability =
+    getAssignmentRecommendationAvailabilityLabel(
+      recommendation
+    );
+
+  const workload =
+    explanation.workload ??
+    recommendation.workload ??
+    recommendation.workloadCount ??
+    0;
+
+  const conflictLabel =
+    explanation.conflict
+      ? "Scheduling conflict detected"
+      : "No scheduling conflicts";
+
+  return `
+    <div
+      class="recommendation-explanation"
+      data-testid="${explanationTestId}"
+    >
+      <strong class="recommendation-explanation-title">
+        Why this recommendation
+      </strong>
+
+      <div class="recommendation-explanation-summary">
+        Ranked by recommendation score for this assignment.
+      </div>
+
+      <div class="recommendation-explanation-details">
+        <span>
+          Availability:
+          ${escapeAssignmentHtml(availability)}
+        </span>
+
+        <span>
+          Workload:
+          ${escapeAssignmentHtml(workload)}
+        </span>
+
+        <span>
+          ${escapeAssignmentHtml(conflictLabel)}
+        </span>
+      </div>
+    </div>
+  `;
+}
+function renderAssignmentRecommendationHighlights(
+  recommendation,
+  assignment,
+  rank
+) {
+  const position = escapeAssignmentHtml(
+    assignment.position
+  );
+
+  const highlights =
+    Array.isArray(
+      recommendation.explanation?.highlights
+    )
+      ? recommendation.explanation.highlights
+      : [];
+
+  const highlightsTestId =
+    rank === 1
+      ? `recommendation-highlights-${position}`
+      : `recommendation-highlights-${position}-${rank}`;
+
+  if (!highlights.length) {
     return "";
   }
 
   return `
-    <div
-      class="assignment-recommendation"
-      data-testid="assignment-recommendation-${assignment.position}"
-      data-crew-id="${escapeAssignmentHtml(recommendation.crewId)}"
+    <ul
+      class="recommendation-highlights"
+      data-testid="${highlightsTestId}"
     >
+      ${highlights
+        .map((highlight, index) => `
+          <li
+            class="
+              recommendation-highlight
+              recommendation-highlight-${escapeAssignmentHtml(
+                highlight.type
+              )}
+            "
+            data-testid="${highlightsTestId}-${index + 1}"
+            data-highlight-type="${escapeAssignmentHtml(
+              highlight.type
+            )}"
+            data-highlight-priority="${escapeAssignmentHtml(
+              highlight.priority
+            )}"
+          >
+            ${escapeAssignmentHtml(
+              highlight.label
+            )}
+          </li>
+        `)
+        .join("")}
+    </ul>
+  `;
+}
+function renderAssignmentRecommendationCard(
+  recommendation,
+  assignment,
+  rank
+) {
+  const position = escapeAssignmentHtml(
+    assignment.position
+  );
 
-      <div class="recommendation-title">
-        ⭐ Recommended
+  const assignmentId = escapeAssignmentJs(
+    assignment.id
+  );
+
+  const crewId = escapeAssignmentJs(
+    recommendation.crewId
+  );
+
+  /*
+   * Preserve the original DOM contract for recommendation #1.
+   *
+   * Recommendations #2 and #3 receive ranked selectors.
+   */
+  const cardTestId =
+    `assignment-recommendation-card-${position}-${rank}`;
+
+  const nameTestId =
+    rank === 1
+      ? `recommendation-name-${position}`
+      : `recommendation-name-${position}-${rank}`;
+
+  const scoreTestId =
+    rank === 1
+      ? `recommendation-score-${position}`
+      : `recommendation-score-${position}-${rank}`;
+
+  const availabilityTestId =
+    rank === 1
+      ? `recommendation-availability-${position}`
+      : `recommendation-availability-${position}-${rank}`;
+
+  const conflictTestId =
+    rank === 1
+      ? `recommendation-conflict-${position}`
+      : `recommendation-conflict-${position}-${rank}`;
+
+  const workloadTestId =
+    rank === 1
+      ? `recommendation-workload-${position}`
+      : `recommendation-workload-${position}-${rank}`;
+
+  const useButtonTestId =
+    rank === 1
+      ? `use-recommendation-${position}`
+      : `use-recommendation-${position}-${rank}`;
+
+  const recommendationName =
+    recommendation.name ||
+    getCrewDisplayName(
+      recommendation.member
+    );
+
+  return `
+    <div
+      class="assignment-recommendation-card"
+      data-testid="${cardTestId}"
+      data-recommendation-rank="${rank}"
+      data-crew-id="${escapeAssignmentHtml(
+        recommendation.crewId
+      )}"
+      data-score="${escapeAssignmentHtml(
+        recommendation.score
+      )}"
+    >
+      <div class="recommendation-card-header">
+        <div>
+          <span
+            class="recommendation-rank"
+            data-testid="recommendation-rank-${position}-${rank}"
+          >
+            #${rank}
+          </span>
+
+          <strong
+            class="recommendation-name"
+            data-testid="${nameTestId}"
+          >
+            ${escapeAssignmentHtml(
+              recommendationName
+            )}
+          </strong>
+        </div>
+
+        <span
+          class="recommendation-score"
+          data-testid="${scoreTestId}"
+        >
+          Score: ${escapeAssignmentHtml(
+            recommendation.score
+          )}
+        </span>
       </div>
 
-      <div
-        class="recommendation-name"
-        data-testid="recommendation-name-${assignment.position}"
-      >
-        ${recommendation.name}
+            <div class="recommendation-metrics">
+        <span
+          data-testid="${availabilityTestId}"
+        >
+          Availability:
+          ${escapeAssignmentHtml(
+            getAssignmentRecommendationAvailabilityLabel(
+              recommendation
+            )
+          )}
+        </span>
+
+        <span
+          data-testid="${conflictTestId}"
+        >
+          Conflict:
+          ${escapeAssignmentHtml(
+            getAssignmentRecommendationConflictLabel(
+              recommendation
+            )
+          )}
+        </span>
+
+        <span
+          data-testid="${workloadTestId}"
+        >
+          Workload:
+          ${escapeAssignmentHtml(
+            getAssignmentRecommendationWorkload(
+              recommendation
+            )
+          )}
+        </span>
       </div>
 
-      <div
-        data-testid="recommendation-score-${assignment.position}"
-      >
-        Score: ${recommendation.score}
-      </div>
+${renderAssignmentRecommendationExplanation(
+  recommendation,
+  assignment,
+  rank
+)}
 
-      <div
-        data-testid="recommendation-availability-${assignment.position}"
-      >
-        Availability:
-        ${
-          recommendation.dateAvailability ||
-          recommendation.availability
-        }
-      </div>
+${renderAssignmentRecommendationHighlights(
+  recommendation,
+  assignment,
+  rank
+)}
 
-      <div
-        data-testid="recommendation-conflict-${assignment.position}"
-      >
-        Conflict:
-        ${recommendation.conflict ? "Yes" : "No"}
-      </div>
-
-      <div
-        data-testid="recommendation-workload-${assignment.position}"
-      >
-        Workload:
-        ${recommendation.workload}
-      </div>
-
-      ${
-        recommendation.reasons.length
-          ? `
-            <ul
-              data-testid="recommendation-reasons-${assignment.position}"
-            >
-              ${recommendation.reasons
-                .map(reason => `<li>${reason}</li>`)
-                .join("")}
-            </ul>
-          `
-          : ""
-      }
-
+${renderAssignmentRecommendationReasons(
+  recommendation,
+  assignment,
+  rank
+)}
       <button
-        type="button"
-        class="secondary-btn small-btn"
-        data-testid="use-recommendation-${assignment.position}"
-        onclick="useAssignmentRecommendation(
-          '${escapeAssignmentJs(assignment.id)}',
-          '${escapeAssignmentJs(recommendation.crewId)}'
-        )"
+        class="
+          secondary-btn
+          small-btn
+          recommendation-use-btn
+        "
+        data-testid="${useButtonTestId}"
+        data-recommendation-button-rank="${rank}"
         ${assignment.locked ? "disabled" : ""}
+        onclick="updateDraftAssignment(
+          '${assignmentId}',
+          '${crewId}'
+        )"
       >
         Use Recommendation
       </button>
-
     </div>
   `;
 }
+
+function renderAssignmentRecommendation(
+  assignment,
+  game
+) {
+  if (
+    typeof recommendationService === "undefined" ||
+    typeof recommendationService
+      .getRecommendedCrewForGame !== "function"
+  ) {
+    return "";
+  }
+
+  const assignedCrewIds =
+    getAssignedCrewIdsForRecommendation(
+      assignment
+    );
+
+  const recommendations =
+    (
+      recommendationService
+        .getRecommendedCrewForGame(
+          game,
+          {
+            position: assignment.position,
+            assignedCrewIds
+          }
+        ) || []
+    )
+      .filter(recommendation =>
+        recommendation?.crewId &&
+        !assignedCrewIds.includes(
+          String(recommendation.crewId)
+        )
+      )
+      .slice(0, 3);
+
+  if (!recommendations.length) {
+    return "";
+  }
+
+  const position = escapeAssignmentHtml(
+    assignment.position
+  );
+
+  const firstRecommendation =
+    recommendations[0];
+
+  return `
+    <div
+      class="assignment-recommendation"
+      data-testid="assignment-recommendation-${position}"
+      data-crew-id="${escapeAssignmentHtml(
+        firstRecommendation.crewId
+      )}"
+      data-score="${escapeAssignmentHtml(
+        firstRecommendation.score
+      )}"
+    >
+      <div class="recommendation-title">
+        ⭐ Top Recommendations
+      </div>
+
+      <div
+        class="assignment-recommendation-list"
+        data-testid="assignment-recommendation-list-${position}"
+      >
+        ${recommendations
+          .map((recommendation, index) =>
+            renderAssignmentRecommendationCard(
+              recommendation,
+              assignment,
+              index + 1
+            )
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderCrewBuilderValidation(issues) {
   if (!issues.length) {
     return `
