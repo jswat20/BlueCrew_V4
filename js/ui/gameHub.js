@@ -165,6 +165,251 @@ function toggleGameHubChecklistItem(
   return result;
 }
 
+
+function formatGameCompletionDate(
+  completionTime
+) {
+  if (!completionTime) {
+    return {
+      date: "",
+      time: ""
+    };
+  }
+
+  const completedAt =
+    new Date(completionTime);
+
+  if (
+    Number.isNaN(completedAt.getTime())
+  ) {
+    return {
+      date: "",
+      time: ""
+    };
+  }
+
+  return {
+    date: completedAt.toLocaleDateString(
+      undefined,
+      {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      }
+    ),
+    time: completedAt.toLocaleTimeString(
+      undefined,
+      {
+        hour: "numeric",
+        minute: "2-digit"
+      }
+    )
+  };
+}
+
+function renderGameHubCompletion(game) {
+  const completion = game.completion || {
+    completed: false,
+    completionTime: null,
+    completedBy: "",
+    completionStatus: "incomplete",
+    homeScore: null,
+    awayScore: null
+  };
+
+  if (!completion.completed) {
+    return `
+      <section
+        class="card game-hub-section game-hub-completion"
+        data-testid="game-hub-completion"
+      >
+        <h3>Game Completion</h3>
+
+        <p
+          data-testid="game-hub-completion-incomplete"
+        >
+          Game not yet completed.
+        </p>
+
+        <button
+          type="button"
+          class="button button-primary"
+          data-testid="game-hub-complete-game"
+          onclick="completeGameFromHub('${game.id}')"
+        >
+          Complete Game
+        </button>
+
+        <p
+          class="form-status"
+          data-testid="game-hub-completion-status"
+          aria-live="polite"
+        ></p>
+      </section>
+    `;
+  }
+
+  const completedAt =
+    formatGameCompletionDate(
+      completion.completionTime
+    );
+
+  return `
+    <section
+      class="card game-hub-section game-hub-completion"
+      data-testid="game-hub-completion"
+    >
+      <h3>Game Completion</h3>
+
+      <p
+        class="game-hub-completion-complete"
+        data-testid="game-hub-completion-complete"
+      >
+        <strong>✓ Game Completed</strong>
+      </p>
+
+      <dl>
+        <div>
+          <dt>Completed by:</dt>
+          <dd
+            data-testid="game-hub-completed-by"
+          >
+            ${completion.completedBy}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Completed:</dt>
+          <dd
+            data-testid="game-hub-completed-at"
+          >
+            <div>${completedAt.date}</div>
+            <div>${completedAt.time}</div>
+          </dd>
+        </div>
+      </dl>
+
+      <div
+        class="game-hub-final-score"
+        data-testid="game-hub-final-score"
+      >
+        <h4>Final Score</h4>
+
+        <div class="form-group">
+          <label
+            for="game-hub-away-score"
+          >
+            ${game.awayTeam}
+          </label>
+
+          <input
+            id="game-hub-away-score"
+            type="number"
+            inputmode="numeric"
+            data-testid="game-hub-away-score"
+            value="${
+              completion.awayScore === null
+                ? ""
+                : completion.awayScore
+            }"
+          />
+        </div>
+
+        <div class="form-group">
+          <label
+            for="game-hub-home-score"
+          >
+            ${game.homeTeam}
+          </label>
+
+          <input
+            id="game-hub-home-score"
+            type="number"
+            inputmode="numeric"
+            data-testid="game-hub-home-score"
+            value="${
+              completion.homeScore === null
+                ? ""
+                : completion.homeScore
+            }"
+          />
+        </div>
+
+        <button
+          type="button"
+          class="button button-primary"
+          data-testid="game-hub-save-score"
+          onclick="saveGameScoreFromHub('${game.id}')"
+        >
+          Save Score
+        </button>
+
+        <p
+          class="form-status"
+          data-testid="game-hub-score-status"
+          aria-live="polite"
+        ></p>
+      </div>
+    </section>
+  `;
+}
+
+function completeGameFromHub(gameId) {
+  const result =
+    portalService.completeGame(gameId);
+
+  if (result.success) {
+    renderPage("game-hub", {
+      gameId
+    });
+
+    return;
+  }
+
+  const status = document.querySelector(
+    '[data-testid="game-hub-completion-status"]'
+  );
+
+  if (status) {
+    status.textContent =
+      result.message ||
+      "Unable to complete game.";
+  }
+}
+
+
+function saveGameScoreFromHub(gameId) {
+  const homeScoreInput =
+    document.getElementById(
+      "game-hub-home-score"
+    );
+
+  const awayScoreInput =
+    document.getElementById(
+      "game-hub-away-score"
+    );
+
+  const result =
+    portalService.saveGameScore(
+      gameId,
+      homeScoreInput
+        ? homeScoreInput.value
+        : "",
+      awayScoreInput
+        ? awayScoreInput.value
+        : ""
+    );
+
+  const status = document.querySelector(
+    '[data-testid="game-hub-score-status"]'
+  );
+
+  if (status) {
+    status.textContent =
+      result.message || "";
+  }
+}
+
 function renderGameHubSection(
   game,
   key,
@@ -348,6 +593,8 @@ function renderGameHub(context = {}) {
       ${renderGameHubCrewNotes(game)}
 
       ${renderGameHubChecklist(game)}
+
+      ${renderGameHubCompletion(game)}
 
       <div
         class="game-hub-sections"

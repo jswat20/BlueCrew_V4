@@ -411,6 +411,214 @@ const portalService = (() => {
     };
   }
 
+
+  function getGameCompletion(gameId) {
+    const game = gameService.getById(gameId);
+
+    if (!game) {
+      return {
+        completed: false,
+        completionTime: null,
+        completedBy: "",
+        completionStatus: "incomplete",
+        homeScore: null,
+        awayScore: null
+      };
+    }
+
+    return {
+      completed: game.completed === true,
+      completionTime:
+        game.completionTime || null,
+      completedBy:
+        game.completedBy || "",
+      completionStatus:
+        game.completionStatus ||
+        (game.completed === true
+          ? "completed"
+          : "incomplete"),
+      homeScore:
+        game.homeScore === null ||
+        game.homeScore === undefined
+          ? null
+          : Number(game.homeScore),
+      awayScore:
+        game.awayScore === null ||
+        game.awayScore === undefined
+          ? null
+          : Number(game.awayScore)
+    };
+  }
+
+  function getCompletionAccountName(account) {
+    if (!account) {
+      return "";
+    }
+
+    const fullName = [
+      account.firstName,
+      account.lastName
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    return (
+      fullName ||
+      account.name ||
+      account.email ||
+      "Umpire"
+    );
+  }
+
+  function completeGame(gameId) {
+    const account = getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return {
+        success: false,
+        message: "No logged in umpire."
+      };
+    }
+
+    const game = gameService.getById(gameId);
+
+    if (!game) {
+      return {
+        success: false,
+        message: "Game not found."
+      };
+    }
+
+    if (
+      !isGameAssignedToCrew(
+        game,
+        account.crewId
+      )
+    ) {
+      return {
+        success: false,
+        message:
+          "You are not assigned to this game."
+      };
+    }
+
+    if (game.completed === true) {
+      return {
+        success: true,
+        message: "Game already completed.",
+        data: getGameCompletion(gameId)
+      };
+    }
+
+    const completionTime =
+      new Date().toISOString();
+
+    const completedBy =
+      getCompletionAccountName(account);
+
+    const result = gameService.update(
+      gameId,
+      {
+        completed: true,
+        completionTime,
+        completedBy,
+        completionStatus: "completed"
+      }
+    );
+
+    if (!result.success) {
+      return result;
+    }
+
+    return {
+      success: true,
+      message: "Game completed.",
+      data: getGameCompletion(gameId)
+    };
+  }
+
+
+  function saveGameScore(
+    gameId,
+    homeScore,
+    awayScore
+  ) {
+    const account = getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return {
+        success: false,
+        message: "No logged in umpire."
+      };
+    }
+
+    const game = gameService.getById(gameId);
+
+    if (!game) {
+      return {
+        success: false,
+        message: "Game not found."
+      };
+    }
+
+    if (
+      !isGameAssignedToCrew(
+        game,
+        account.crewId
+      )
+    ) {
+      return {
+        success: false,
+        message:
+          "You are not assigned to this game."
+      };
+    }
+
+    if (game.completed !== true) {
+      return {
+        success: false,
+        message:
+          "Complete the game before saving a score."
+      };
+    }
+
+    const normalizedHomeScore =
+      Number(homeScore);
+
+    const normalizedAwayScore =
+      Number(awayScore);
+
+    if (
+      !Number.isFinite(normalizedHomeScore) ||
+      !Number.isFinite(normalizedAwayScore)
+    ) {
+      return {
+        success: false,
+        message:
+          "Enter a numeric score for both teams."
+      };
+    }
+
+    const result = gameService.update(
+      gameId,
+      {
+        homeScore: normalizedHomeScore,
+        awayScore: normalizedAwayScore
+      }
+    );
+
+    if (!result.success) {
+      return result;
+    }
+
+    return {
+      success: true,
+      message: "Final score saved.",
+      data: getGameCompletion(gameId)
+    };
+  }
+
   function normalizeOptionalValue(value) {
     if (value === null || value === undefined) {
       return "";
@@ -903,6 +1111,7 @@ const portalService = (() => {
       }));
 
     return {
+      completion: getGameCompletion(game.id),
       id: game.id,
       date: game.date,
       time: game.time,
@@ -965,6 +1174,9 @@ const portalService = (() => {
   }
 
   return {
+    saveGameScore,
+    getGameCompletion,
+    completeGame,
     getCurrentAccount,
     getMySchedule,
     getGameHub,

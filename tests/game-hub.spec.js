@@ -342,4 +342,249 @@ test.describe("Game Hub", () => {
       ).toContainText("1 of 4 complete");
     }
   );
+
+  test(
+    "completes a game and persists completion",
+    async ({ app }) => {
+      const { gameId } =
+        await setupGameHub(app);
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-completion"
+        )
+      ).toBeVisible();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-completion-incomplete"
+        )
+      ).toContainText(
+        "Game not yet completed."
+      );
+
+      const completeButton =
+        app.page.getByTestId(
+          "game-hub-complete-game"
+        );
+
+      await expect(
+        completeButton
+      ).toBeVisible();
+
+      await completeButton.click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-completion-complete"
+        )
+      ).toContainText(
+        "Game Completed"
+      );
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-completed-by"
+        )
+      ).toContainText("Game Hub");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-completed-at"
+        )
+      ).not.toBeEmpty();
+
+      const persistedCompletion =
+        await app.page.evaluate(
+          selectedGameId => {
+            const game =
+              gameService.getById(
+                selectedGameId
+              );
+
+            return {
+              completed:
+                game.completed,
+              completionTime:
+                game.completionTime,
+              completedBy:
+                game.completedBy,
+              completionStatus:
+                game.completionStatus
+            };
+          },
+          gameId
+        );
+
+      expect(
+        persistedCompletion.completed
+      ).toBe(true);
+
+      expect(
+        persistedCompletion.completionTime
+      ).toBeTruthy();
+
+      expect(
+        persistedCompletion.completedBy
+      ).toBe("Game Hub");
+
+      expect(
+        persistedCompletion.completionStatus
+      ).toBe("completed");
+
+      await app.page
+        .getByTestId("game-hub-back")
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "my-schedule"
+        )
+      ).toBeVisible();
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-completion-complete"
+        )
+      ).toContainText(
+        "Game Completed"
+      );
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-completed-by"
+        )
+      ).toContainText("Game Hub");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-completed-at"
+        )
+      ).not.toBeEmpty();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-complete-game"
+        )
+      ).toHaveCount(0);
+    }
+  );
+
+
+  test(
+    "saves and persists the final score after completion",
+    async ({ app }) => {
+      const { gameId } =
+        await setupGameHub(app);
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-final-score"
+        )
+      ).toHaveCount(0);
+
+      await app.page
+        .getByTestId(
+          "game-hub-complete-game"
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-final-score"
+        )
+      ).toBeVisible();
+
+      await app.page
+        .getByTestId(
+          "game-hub-away-score"
+        )
+        .fill("3");
+
+      await app.page
+        .getByTestId(
+          "game-hub-home-score"
+        )
+        .fill("7");
+
+      await app.page
+        .getByTestId(
+          "game-hub-save-score"
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-score-status"
+        )
+      ).toContainText(
+        "Final score saved."
+      );
+
+      const persistedScore =
+        await app.page.evaluate(
+          selectedGameId => {
+            const game =
+              gameService.getById(
+                selectedGameId
+              );
+
+            return {
+              homeScore: game.homeScore,
+              awayScore: game.awayScore
+            };
+          },
+          gameId
+        );
+
+      expect(
+        persistedScore.homeScore
+      ).toBe(7);
+
+      expect(
+        persistedScore.awayScore
+      ).toBe(3);
+
+      await app.page
+        .getByTestId("game-hub-back")
+        .click();
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-away-score"
+        )
+      ).toHaveValue("3");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-home-score"
+        )
+      ).toHaveValue("7");
+    }
+  );
+
 });
