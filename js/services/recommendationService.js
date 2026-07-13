@@ -319,6 +319,14 @@ const recommendationService = {
       active: evaluation.active,
       conflict: evaluation.conflict,
 
+      /*
+       * Preferred public field for recommendation consumers.
+       */
+      workload: evaluation.workload,
+
+      /*
+       * Backward-compatible alias for existing callers.
+       */
       workloadCount: evaluation.workload,
 
       reasons
@@ -326,12 +334,31 @@ const recommendationService = {
   },
 
   rankRecommendations(recommendations) {
-    return recommendations.sort((a, b) => {
-      if (b.score !== a.score) {
-        return b.score - a.score;
+    if (!Array.isArray(recommendations)) {
+      return [];
+    }
+
+    return [...recommendations].sort((a, b) => {
+      const scoreDifference =
+        Number(b?.score || 0) -
+        Number(a?.score || 0);
+
+      if (scoreDifference !== 0) {
+        return scoreDifference;
       }
 
-      return a.name.localeCompare(b.name);
+      const nameDifference =
+        String(a?.name || "").localeCompare(
+          String(b?.name || "")
+        );
+
+      if (nameDifference !== 0) {
+        return nameDifference;
+      }
+
+      return String(a?.crewId || "").localeCompare(
+        String(b?.crewId || "")
+      );
     });
   },
 
