@@ -387,6 +387,29 @@ const portalService = (() => {
     };
   }
 
+  function normalizeOptionalValue(value) {
+    if (value === null || value === undefined) {
+      return "";
+    }
+
+    return String(value).trim();
+  }
+
+  function getGameInformation(game) {
+    return {
+      field: normalizeOptionalValue(game.field),
+      venue: normalizeOptionalValue(game.venue),
+      address: normalizeOptionalValue(game.address),
+      notes: normalizeOptionalValue(
+        game.notes || game.gameNotes
+      ),
+      specialInstructions: normalizeOptionalValue(
+        game.specialInstructions ||
+        game.instructions
+      )
+    };
+  }
+
   function mapGame(game, crewId) {
     const crewAssignments =
       getCrewAssignments(game, crewId);
@@ -400,16 +423,20 @@ const portalService = (() => {
     const arrivalRecommendation =
       getArrivalRecommendation(game);
 
+    const gameInformation =
+      getGameInformation(game);
+
     return {
       id: game.id,
       date: game.date,
       time: game.time,
-      field: game.field,
+      field: gameInformation.field,
       level: game.level,
       homeTeam: game.homeTeam,
       awayTeam: game.awayTeam,
       matchup:
         `${game.awayTeam} @ ${game.homeTeam}`,
+      gameInformation,
       position: positions.join(", "),
       positions,
       partners: getPartners(game, crewId),

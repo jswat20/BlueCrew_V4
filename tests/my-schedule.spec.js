@@ -540,3 +540,236 @@ test.describe(
     );
   }
 );
+
+async function setupMyScheduleGameInformation(
+  app,
+  gameInformation = {}
+) {
+  return app.page.evaluate(
+    information => {
+      const accountResult =
+        accountService.createAccount({
+          firstName: "Game",
+          lastName: "Information",
+          email:
+            `game.information.${Date.now()}@example.com`,
+          password: "password123"
+        });
+
+      const crew = crewService.getAll()[0];
+
+      accountService.approveAccount(
+        accountResult.data.id
+      );
+
+      accountService.updateAccount(
+        accountResult.data.id,
+        {
+          crewId: crew.id
+        }
+      );
+
+      loginService.login(
+        accountResult.data.email,
+        "password123"
+      );
+
+      authService.loginAsUmpire();
+
+      const gameResult = gameService.create({
+        date: "2099-03-15",
+        time: "7:00 PM",
+        field: information.field || "Field 7",
+        level: "13U",
+        homeTeam: "Information Home",
+        awayTeam: "Information Away",
+        gameType: "single"
+      });
+
+      const game = gameService
+        .getAll()
+        .find(
+          item =>
+            String(item.id) ===
+            String(gameResult.data.id)
+        );
+
+      game.crewId = crew.id;
+      game.assignmentStatus = "assigned";
+
+      Object.assign(game, information);
+
+      if (
+        typeof gameService.save ===
+        "function"
+      ) {
+        gameService.save();
+      }
+
+      renderPage("my-schedule");
+
+      return {
+        gameId: game.id
+      };
+    },
+    gameInformation
+  );
+}
+
+test.describe(
+  "My Schedule game information",
+  () => {
+    test(
+      "renders enhanced game information",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleGameInformation(
+            app,
+            {
+              field: "Championship Field",
+              venue: "BlueCrew Sports Complex",
+              address: "100 Umpire Way",
+              notes: "Tournament semifinal",
+              specialInstructions:
+                "Enter through the east gate"
+            }
+          );
+
+        const information =
+          app.page.getByTestId(
+            `my-schedule-game-information-${result.gameId}`
+          );
+
+        await expect(information).toContainText(
+          "Championship Field"
+        );
+
+        await expect(information).toContainText(
+          "BlueCrew Sports Complex"
+        );
+
+        await expect(information).toContainText(
+          "100 Umpire Way"
+        );
+
+        await expect(information).toContainText(
+          "Tournament semifinal"
+        );
+
+        await expect(information).toContainText(
+          "Enter through the east gate"
+        );
+      }
+    );
+
+    test(
+      "renders the optional venue and address",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleGameInformation(
+            app,
+            {
+              venue: "Junior Baseball Park",
+              address: "25 Main Street"
+            }
+          );
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-venue-${result.gameId}`
+          )
+        ).toHaveText(
+          "Junior Baseball Park"
+        );
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-address-${result.gameId}`
+          )
+        ).toHaveText(
+          "25 Main Street"
+        );
+      }
+    );
+
+    test(
+      "renders optional game notes",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleGameInformation(
+            app,
+            {
+              notes:
+                "Meet the crew behind home plate."
+            }
+          );
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-notes-${result.gameId}`
+          )
+        ).toContainText(
+          "Meet the crew behind home plate."
+        );
+      }
+    );
+
+    test(
+      "omits unavailable optional game information",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleGameInformation(
+            app,
+            {
+              field: "Field 7",
+              venue: "",
+              address: "",
+              notes: "",
+              specialInstructions: ""
+            }
+          );
+
+        const information =
+          app.page.getByTestId(
+            `my-schedule-game-information-${result.gameId}`
+          );
+
+        await expect(information).toContainText(
+          "Field 7"
+        );
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-venue-${result.gameId}`
+          )
+        ).toHaveCount(0);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-address-${result.gameId}`
+          )
+        ).toHaveCount(0);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-notes-${result.gameId}`
+          )
+        ).toHaveCount(0);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-special-instructions-${result.gameId}`
+          )
+        ).toHaveCount(0);
+
+        await expect(information).not.toContainText(
+          "Unavailable"
+        );
+
+        await expect(information).not.toContainText(
+          "N/A"
+        );
+      }
+    );
+  }
+);

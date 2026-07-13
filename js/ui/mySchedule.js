@@ -37,7 +37,7 @@ function renderMySchedule() {
               <th>Date</th>
               <th>Time</th>
               <th>Game</th>
-              <th>Field</th>
+              <th>Game Information</th>
               <th>Level</th>
               <th>Position</th>
               <th>Crew</th>
@@ -101,13 +101,86 @@ function renderMyScheduleBadges(game) {
     .join("");
 }
 
+function renderMyScheduleGameInformation(game) {
+  const information =
+    game.gameInformation || {};
+
+  const details = [
+    information.field
+      ? `
+          <div
+            data-testid="my-schedule-field-${game.id}"
+          >
+            <strong>${information.field}</strong>
+          </div>
+        `
+      : "",
+    information.venue
+      ? `
+          <div
+            data-testid="my-schedule-venue-${game.id}"
+          >
+            ${information.venue}
+          </div>
+        `
+      : "",
+    information.address
+      ? `
+          <div
+            class="muted"
+            data-testid="my-schedule-address-${game.id}"
+          >
+            ${information.address}
+          </div>
+        `
+      : "",
+    information.notes
+      ? `
+          <div
+            class="my-schedule-game-note"
+            data-testid="my-schedule-notes-${game.id}"
+          >
+            <strong>Notes:</strong>
+            ${information.notes}
+          </div>
+        `
+      : "",
+    information.specialInstructions
+      ? `
+          <div
+            class="my-schedule-special-instructions"
+            data-testid="my-schedule-special-instructions-${game.id}"
+          >
+            <strong>Instructions:</strong>
+            ${information.specialInstructions}
+          </div>
+        `
+      : ""
+  ]
+    .filter(Boolean)
+    .join("");
+
+  return `
+    <div
+      class="my-schedule-game-information"
+      data-testid="my-schedule-game-information-${game.id}"
+    >
+      ${details}
+    </div>
+  `;
+}
+
 function renderMyScheduleRow(game) {
   return `
     <tr data-testid="my-schedule-row-${game.id}">
       <td>${game.date}</td>
       <td>${game.time}</td>
       <td>${game.matchup}</td>
-      <td>${game.field}</td>
+
+      <td>
+        ${renderMyScheduleGameInformation(game)}
+      </td>
+
       <td>${game.level}</td>
 
       <td
