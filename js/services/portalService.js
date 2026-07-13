@@ -662,6 +662,70 @@ const portalService = (() => {
     ];
   }
 
+  function getCrewNotes(game, crewId) {
+    const notesByCrew =
+      game.crewNotesByCrewId &&
+      typeof game.crewNotesByCrewId === "object"
+        ? game.crewNotesByCrewId
+        : {};
+
+    return normalizeOptionalValue(
+      notesByCrew[String(crewId)]
+    );
+  }
+
+  function saveCrewNotes(gameId, notes) {
+    const account = getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return {
+        success: false,
+        message: "No logged in umpire."
+      };
+    }
+
+    const game = gameService.getById(gameId);
+
+    if (
+      !game ||
+      !isGameAssignedToCrew(game, account.crewId)
+    ) {
+      return {
+        success: false,
+        message: "Game is not available."
+      };
+    }
+
+    const crewNotesByCrewId = {
+      ...(
+        game.crewNotesByCrewId &&
+        typeof game.crewNotesByCrewId === "object"
+          ? game.crewNotesByCrewId
+          : {}
+      ),
+      [String(account.crewId)]:
+        normalizeOptionalValue(notes)
+    };
+
+    const result = gameService.update(
+      game.id,
+      {
+        crewNotesByCrewId
+      }
+    );
+
+    return {
+      success: result.success,
+      message: result.success
+        ? "Crew notes saved."
+        : result.message,
+      notes:
+        crewNotesByCrewId[
+          String(account.crewId)
+        ]
+    };
+  }
+
   function mapGame(game, crewId) {
     const crewAssignments =
       getCrewAssignments(game, crewId);
@@ -724,6 +788,8 @@ const portalService = (() => {
         getStatusBadges(status),
       gameDayStatus:
         getGameDayStatus(status),
+      crewNotes:
+        getCrewNotes(game, crewId),
       gameDayChecklist:
         getGameDayChecklist({
           status,
@@ -768,6 +834,7 @@ const portalService = (() => {
     getCurrentAccount,
     getMySchedule,
     getGameHub,
+    saveCrewNotes,
     getClaimableGames,
     claimGame,
     getMyPendingClaims,

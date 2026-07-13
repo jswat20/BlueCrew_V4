@@ -1,5 +1,77 @@
 // js/ui/gameHub.js
 
+function escapeGameHubText(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function renderGameHubCrewNotes(game) {
+  return `
+    <section
+      class="card game-hub-section game-hub-notes"
+      data-testid="game-hub-crew-notes"
+    >
+      <h3>Crew Notes</h3>
+
+      <label
+        for="game-hub-crew-notes-input"
+        class="muted"
+      >
+        Personal notes for this assignment
+      </label>
+
+      <textarea
+        id="game-hub-crew-notes-input"
+        class="game-hub-notes-input"
+        data-testid="game-hub-crew-notes-input"
+        rows="5"
+        placeholder="Add reminders, questions, or pregame notes..."
+      >${escapeGameHubText(game.crewNotes)}</textarea>
+
+      <div class="game-hub-notes-footer">
+        <button
+          class="button"
+          type="button"
+          onclick="saveGameHubCrewNotes('${game.id}')"
+          data-testid="game-hub-save-crew-notes"
+        >
+          Save Notes
+        </button>
+
+        <span
+          class="muted"
+          data-testid="game-hub-crew-notes-status"
+          aria-live="polite"
+        ></span>
+      </div>
+    </section>
+  `;
+}
+
+function saveGameHubCrewNotes(gameId) {
+  const input = document.getElementById(
+    "game-hub-crew-notes-input"
+  );
+
+  const status = document.querySelector(
+    '[data-testid="game-hub-crew-notes-status"]'
+  );
+
+  const result = portalService.saveCrewNotes(
+    gameId,
+    input ? input.value : ""
+  );
+
+  if (status) {
+    status.textContent = result.message;
+  }
+
+  return result;
+}
+
 function renderGameHubSection(
   game,
   key,
@@ -184,6 +256,8 @@ function renderGameHub(context = {}) {
           </div>
         </div>
       </div>
+
+      ${renderGameHubCrewNotes(game)}
 
       <div
         class="game-hub-sections"

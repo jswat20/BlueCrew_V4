@@ -38,6 +38,11 @@ async function setupGameHub(app) {
       date: "2099-03-15",
       time: "6:30 PM",
       field: "Game Hub Field",
+      venue: "BlueCrew Sports Complex",
+      address: "123 Umpire Way",
+      notes: "Tournament semifinal",
+      specialInstructions:
+        "Use the north parking lot.",
       level: "12U",
       homeTeam: "Game Hub Home",
       awayTeam: "Game Hub Away",
@@ -132,6 +137,31 @@ test.describe("Game Hub", () => {
         )
       ).toContainText("Plate");
 
+      const gameInformation =
+        app.page.getByTestId(
+          "game-hub-section-game-information"
+        );
+
+      await expect(gameInformation).toContainText(
+        "Game Hub Field"
+      );
+
+      await expect(gameInformation).toContainText(
+        "BlueCrew Sports Complex"
+      );
+
+      await expect(gameInformation).toContainText(
+        "123 Umpire Way"
+      );
+
+      await expect(gameInformation).toContainText(
+        "Tournament semifinal"
+      );
+
+      await expect(gameInformation).toContainText(
+        "Use the north parking lot."
+      );
+
       await expect(
         app.page.getByTestId(
           "game-hub-summary-status"
@@ -156,7 +186,7 @@ test.describe("Game Hub", () => {
         )
       ).toBeVisible();
 
-      const sectionKeys = [
+           const sectionKeys = [
         "game-information",
         "crew",
         "arrival",
@@ -189,6 +219,61 @@ test.describe("Game Hub", () => {
           `my-schedule-row-${gameId}`
         )
       ).toBeVisible();
+    }
+  );
+
+  test(
+    "saves crew notes for the selected game",
+    async ({ app }) => {
+      const { gameId } =
+        await setupGameHub(app);
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      const notes =
+        app.page.getByTestId(
+          "game-hub-crew-notes-input"
+        );
+
+      await expect(notes).toBeVisible();
+
+      await notes.fill(
+        "Confirm the plate meeting at 6:10."
+      );
+
+      await app.page
+        .getByTestId(
+          "game-hub-save-crew-notes"
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-crew-notes-status"
+        )
+      ).toContainText("Crew notes saved.");
+
+      await app.page.evaluate(
+        selectedGameId => {
+          renderPage("my-schedule");
+          renderPage("game-hub", {
+            gameId: selectedGameId
+          });
+        },
+        gameId
+      );
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-crew-notes-input"
+        )
+      ).toHaveValue(
+        "Confirm the plate meeting at 6:10."
+      );
     }
   );
 });
