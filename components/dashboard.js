@@ -25,6 +25,12 @@ function renderDashboard() {
       }
 
       ${
+        typeof renderReviewQueueSummary === "function"
+          ? renderReviewQueueSummary()
+          : ""
+      }
+
+      ${
         typeof renderUpcomingSchedule === "function"
           ? renderUpcomingSchedule()
           : (

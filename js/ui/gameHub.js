@@ -761,7 +761,9 @@ function renderGameHubSection(
   `;
 }
 
-function renderGameHubQuickActions() {
+function renderGameHubQuickActions(
+  reviewMode = false
+) {
   return `
     <div
       class="game-hub-actions"
@@ -770,45 +772,67 @@ function renderGameHubQuickActions() {
       <button
         class="button button-secondary"
         type="button"
-        onclick="renderPage('my-schedule')"
+        onclick="renderPage('${
+          reviewMode
+            ? "review-queue"
+            : "my-schedule"
+        }')"
         data-testid="game-hub-back"
       >
-        ← Back to My Schedule
+        ${
+          reviewMode
+            ? "← Back to Review Queue"
+            : "← Back to My Schedule"
+        }
       </button>
 
-      <button
-        class="button button-secondary"
-        type="button"
-        onclick="renderPage('availability')"
-        data-testid="game-hub-availability"
-      >
-        View Availability
-      </button>
+      ${
+        reviewMode
+          ? ""
+          : `
+              <button
+                class="button button-secondary"
+                type="button"
+                onclick="renderPage('availability')"
+                data-testid="game-hub-availability"
+              >
+                View Availability
+              </button>
 
-      <button
-        class="button button-secondary"
-        type="button"
-        onclick="renderPage('claim-games')"
-        data-testid="game-hub-claim-games"
-      >
-        Claim Games
-      </button>
+              <button
+                class="button button-secondary"
+                type="button"
+                onclick="renderPage('claim-games')"
+                data-testid="game-hub-claim-games"
+              >
+                Claim Games
+              </button>
+            `
+      }
     </div>
   `;
 }
 
 function renderGameHub(context = {}) {
-  const game = portalService.getGameHub(
-    context.gameId
-  );
+  const reviewMode =
+    context.reviewMode === true;
+
+  const game = reviewMode
+    ? portalService.getReviewGame(
+        context.gameId
+      )
+    : portalService.getGameHub(
+        context.gameId
+      );
 
   if (!game) {
     return `
       <section
         class="page-section"
         data-testid="game-hub"
+      data-review-mode="${reviewMode}"
       >
-        ${renderGameHubQuickActions()}
+        ${renderGameHubQuickActions(reviewMode)}
 
         <h2>Game Hub</h2>
 
@@ -870,8 +894,9 @@ function renderGameHub(context = {}) {
       class="page-section game-hub"
       data-testid="game-hub"
       data-game-id="${game.id}"
+      data-review-mode="${reviewMode}"
     >
-      ${renderGameHubQuickActions()}
+      ${renderGameHubQuickActions(reviewMode)}
 
       <h2>Game Hub</h2>
 

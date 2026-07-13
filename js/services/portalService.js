@@ -1276,6 +1276,46 @@ const portalService = (() => {
     };
   }
 
+  function getReviewGame(gameId) {
+    const game =
+      gameService.getById(gameId);
+
+    if (!game) {
+      return null;
+    }
+
+    const review =
+      game.review &&
+      typeof game.review === "object"
+        ? game.review
+        : {};
+
+    if (
+      review.submittedForReview !== true &&
+      review.status !== "submitted"
+    ) {
+      return null;
+    }
+
+    const assignments =
+      getAssignments(game);
+
+    const assignedCrew =
+      assignments.find(
+        assignment => assignment.crewId
+      );
+
+    const crewId =
+      assignedCrew?.crewId ||
+      game.crewId ||
+      "";
+
+    return {
+      ...mapGame(game, crewId),
+      reviewMode: true
+    };
+  }
+
   function mapGame(game, crewId) {
     const crewAssignments =
       getCrewAssignments(game, crewId);
@@ -1401,6 +1441,7 @@ const portalService = (() => {
     getCurrentAccount,
     getMySchedule,
     getGameHub,
+    getReviewGame,
     saveCrewNotes,
     toggleChecklistItem,
     getClaimableGames,

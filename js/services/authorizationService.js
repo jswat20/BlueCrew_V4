@@ -91,8 +91,15 @@ const authorizationService = (() => {
   ROLES.UMPIRE
 ]),
 "game-hub": Object.freeze([
+  ROLES.ADMINISTRATOR,
+  ROLES.ASSIGNER,
   ROLES.UMPIRE
 ]),
+"review-queue": Object.freeze([
+  "administrator",
+  "assigner"
+]),
+
     "claims-queue": Object.freeze([
       ROLES.ADMINISTRATOR,
       ROLES.ASSIGNER

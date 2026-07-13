@@ -33,6 +33,10 @@ const pages = {
   title: "Game Hub",
   subtitle: "Game day information."
 },
+  "review-queue": {
+    title: "Review Queue",
+    subtitle: "Review submitted game reports."
+  },
   schedule: {
     title: "Schedule",
     subtitle: "View and Manage Game Schedules."
@@ -275,7 +279,9 @@ function renderAdminView(page, context = {}) {
     "my-schedule": typeof renderMySchedule === "function" ? renderMySchedule : null,
     "claims-queue": typeof renderClaimsQueue === "function" ? renderClaimsQueue : null,
     "claim-history": typeof renderClaimHistory === "function" ? renderClaimHistory : null,
-    "game-hub": typeof renderGameHub === "function" ? renderGameHub : null, 
+    "game-hub": typeof renderGameHub === "function" ? renderGameHub : null,
+    "review-queue": typeof renderReviewQueue === "function" ? renderReviewQueue : null,
+ 
     availability: typeof renderAvailability === "function" ? renderAvailability : null,
   };
 
