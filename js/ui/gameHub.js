@@ -207,6 +207,128 @@ function formatGameCompletionDate(
   };
 }
 
+
+function escapeGameHubReportValue(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function renderGameHubReports(
+  game,
+  completion
+) {
+  const reports =
+    completion.reports || {
+      incidents: false,
+      ejections: false,
+      protests: false,
+      rainout: false,
+      notes: ""
+    };
+
+  return `
+    <div
+      class="game-hub-reports"
+      data-testid="game-hub-reports"
+    >
+      <h4>Game Reports</h4>
+
+      <label
+        class="game-hub-report-option"
+      >
+        <input
+          type="checkbox"
+          data-testid="game-hub-report-incidents"
+          ${
+            reports.incidents
+              ? "checked"
+              : ""
+          }
+        />
+        Incident Report
+      </label>
+
+      <label
+        class="game-hub-report-option"
+      >
+        <input
+          type="checkbox"
+          data-testid="game-hub-report-ejections"
+          ${
+            reports.ejections
+              ? "checked"
+              : ""
+          }
+        />
+        Ejection
+      </label>
+
+      <label
+        class="game-hub-report-option"
+      >
+        <input
+          type="checkbox"
+          data-testid="game-hub-report-protests"
+          ${
+            reports.protests
+              ? "checked"
+              : ""
+          }
+        />
+        Protest
+      </label>
+
+      <label
+        class="game-hub-report-option"
+      >
+        <input
+          type="checkbox"
+          data-testid="game-hub-report-rainout"
+          ${
+            reports.rainout
+              ? "checked"
+              : ""
+          }
+        />
+        Rainout
+      </label>
+
+      <div class="form-group">
+        <label
+          for="game-hub-report-notes"
+        >
+          Additional Notes
+        </label>
+
+        <textarea
+          id="game-hub-report-notes"
+          data-testid="game-hub-report-notes"
+          rows="4"
+        >${escapeGameHubReportValue(
+          reports.notes
+        )}</textarea>
+      </div>
+
+      <button
+        type="button"
+        class="button button-primary"
+        data-testid="game-hub-save-reports"
+        onclick="saveGameReportsFromHub('${game.id}')"
+      >
+        Save Reports
+      </button>
+
+      <p
+        class="form-status"
+        data-testid="game-hub-reports-status"
+        aria-live="polite"
+      ></p>
+    </div>
+  `;
+}
+
 function renderGameHubCompletion(game) {
   const completion = game.completion || {
     completed: false,
@@ -214,7 +336,14 @@ function renderGameHubCompletion(game) {
     completedBy: "",
     completionStatus: "incomplete",
     homeScore: null,
-    awayScore: null
+    awayScore: null,
+    reports: {
+      incidents: false,
+      ejections: false,
+      protests: false,
+      rainout: false,
+      notes: ""
+    }
   };
 
   if (!completion.completed) {
@@ -350,6 +479,11 @@ function renderGameHubCompletion(game) {
           aria-live="polite"
         ></p>
       </div>
+
+      ${renderGameHubReports(
+        game,
+        completion
+      )}
     </section>
   `;
 }
@@ -402,6 +536,60 @@ function saveGameScoreFromHub(gameId) {
 
   const status = document.querySelector(
     '[data-testid="game-hub-score-status"]'
+  );
+
+  if (status) {
+    status.textContent =
+      result.message || "";
+  }
+}
+
+
+function saveGameReportsFromHub(gameId) {
+  const incidents =
+    document.querySelector(
+      '[data-testid="game-hub-report-incidents"]'
+    );
+
+  const ejections =
+    document.querySelector(
+      '[data-testid="game-hub-report-ejections"]'
+    );
+
+  const protests =
+    document.querySelector(
+      '[data-testid="game-hub-report-protests"]'
+    );
+
+  const rainout =
+    document.querySelector(
+      '[data-testid="game-hub-report-rainout"]'
+    );
+
+  const notes =
+    document.querySelector(
+      '[data-testid="game-hub-report-notes"]'
+    );
+
+  const result =
+    portalService.saveGameReports(
+      gameId,
+      {
+        incidents:
+          incidents?.checked === true,
+        ejections:
+          ejections?.checked === true,
+        protests:
+          protests?.checked === true,
+        rainout:
+          rainout?.checked === true,
+        notes:
+          notes?.value || ""
+      }
+    );
+
+  const status = document.querySelector(
+    '[data-testid="game-hub-reports-status"]'
   );
 
   if (status) {

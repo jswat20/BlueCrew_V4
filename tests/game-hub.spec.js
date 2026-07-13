@@ -587,4 +587,167 @@ test.describe("Game Hub", () => {
     }
   );
 
+
+  test(
+    "saves and persists game reports after completion",
+    async ({ app }) => {
+      const { gameId } =
+        await setupGameHub(app);
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-reports"
+        )
+      ).toHaveCount(0);
+
+      await app.page
+        .getByTestId(
+          "game-hub-complete-game"
+        )
+        .click();
+
+      await app.page
+        .getByTestId(
+          "game-hub-away-score"
+        )
+        .fill("3");
+
+      await app.page
+        .getByTestId(
+          "game-hub-home-score"
+        )
+        .fill("7");
+
+      await app.page
+        .getByTestId(
+          "game-hub-save-score"
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-reports"
+        )
+      ).toBeVisible();
+
+      await app.page
+        .getByTestId(
+          "game-hub-report-incidents"
+        )
+        .check();
+
+      await app.page
+        .getByTestId(
+          "game-hub-report-rainout"
+        )
+        .check();
+
+      await app.page
+        .getByTestId(
+          "game-hub-report-notes"
+        )
+        .fill(
+          "Lightning delay ended the game early."
+        );
+
+      await app.page
+        .getByTestId(
+          "game-hub-save-reports"
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-reports-status"
+        )
+      ).toContainText(
+        "Game reports saved."
+      );
+
+      const persistedReports =
+        await app.page.evaluate(
+          selectedGameId => {
+            const game =
+              gameService.getById(
+                selectedGameId
+              );
+
+            return game.reports;
+          },
+          gameId
+        );
+
+      expect(
+        persistedReports
+      ).toEqual({
+        incidents: true,
+        ejections: false,
+        protests: false,
+        rainout: true,
+        notes:
+          "Lightning delay ended the game early."
+      });
+
+      await app.page
+        .getByTestId("game-hub-back")
+        .click();
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-report-incidents"
+        )
+      ).toBeChecked();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-report-ejections"
+        )
+      ).not.toBeChecked();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-report-protests"
+        )
+      ).not.toBeChecked();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-report-rainout"
+        )
+      ).toBeChecked();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-report-notes"
+        )
+      ).toHaveValue(
+        "Lightning delay ended the game early."
+      );
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-away-score"
+        )
+      ).toHaveValue("3");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-home-score"
+        )
+      ).toHaveValue("7");
+    }
+  );
+
 });

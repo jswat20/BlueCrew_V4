@@ -412,6 +412,111 @@ const portalService = (() => {
   }
 
 
+
+  function getGameReports(gameId) {
+    const game = gameService.getById(gameId);
+
+    const reports =
+      game &&
+      game.reports &&
+      typeof game.reports === "object"
+        ? game.reports
+        : {};
+
+    return {
+      incidents:
+        reports.incidents === true,
+      ejections:
+        reports.ejections === true,
+      protests:
+        reports.protests === true,
+      rainout:
+        reports.rainout === true,
+      notes:
+        reports.notes === null ||
+        reports.notes === undefined
+          ? ""
+          : String(reports.notes)
+    };
+  }
+
+  function saveGameReports(
+    gameId,
+    reports = {}
+  ) {
+    const account = getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return {
+        success: false,
+        message: "No logged in umpire."
+      };
+    }
+
+    const game = gameService.getById(gameId);
+
+    if (!game) {
+      return {
+        success: false,
+        message: "Game not found."
+      };
+    }
+
+    if (
+      !isGameAssignedToCrew(
+        game,
+        account.crewId
+      )
+    ) {
+      return {
+        success: false,
+        message:
+          "You are not assigned to this game."
+      };
+    }
+
+    if (game.completed !== true) {
+      return {
+        success: false,
+        message:
+          "Complete the game before saving reports."
+      };
+    }
+
+    const normalizedReports = {
+      incidents:
+        reports.incidents === true,
+      ejections:
+        reports.ejections === true,
+      protests:
+        reports.protests === true,
+      rainout:
+        reports.rainout === true,
+      notes:
+        reports.notes === null ||
+        reports.notes === undefined
+          ? ""
+          : String(reports.notes).trim()
+    };
+
+    const result = gameService.update(
+      gameId,
+      {
+        reports: normalizedReports
+      }
+    );
+
+    if (!result.success) {
+      return result;
+    }
+
+    return {
+      success: true,
+      message: "Game reports saved.",
+      data: getGameReports(gameId)
+    };
+  }
+
   function getGameCompletion(gameId) {
     const game = gameService.getById(gameId);
 
@@ -422,7 +527,8 @@ const portalService = (() => {
         completedBy: "",
         completionStatus: "incomplete",
         homeScore: null,
-        awayScore: null
+        awayScore: null,
+        reports: getGameReports(gameId)
       };
     }
 
@@ -446,7 +552,8 @@ const portalService = (() => {
         game.awayScore === null ||
         game.awayScore === undefined
           ? null
-          : Number(game.awayScore)
+          : Number(game.awayScore),
+      reports: getGameReports(gameId)
     };
   }
 
@@ -1174,6 +1281,8 @@ const portalService = (() => {
   }
 
   return {
+    getGameReports,
+    saveGameReports,
     saveGameScore,
     getGameCompletion,
     completeGame,
