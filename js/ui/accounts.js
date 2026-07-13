@@ -10,41 +10,21 @@ function renderAccounts() {
       ? uiStateService.getAccountFilter()
       : "all";
 
+  const roleOptions = {
+    role: selectedRoleFilter
+  };
+
   const pendingAccounts =
-    accountService.getPendingAccounts();
+    accountService.getPendingAccounts(roleOptions);
 
   const approvedAccounts =
-    accountService.getApprovedAccounts();
+    accountService.getApprovedAccounts(roleOptions);
 
   const unlinkedAccounts =
-    accountService.getUnlinkedApprovedAccounts();
+    accountService.getUnlinkedApprovedAccounts(roleOptions);
 
   const linkedAccounts =
     approvedAccounts.filter(account => account.crewId !== null);
-
-    const filterByRole = accounts => {
-  if (selectedRoleFilter === "all") {
-    return accounts;
-  }
-
-  return accounts.filter(
-    account => account.role === selectedRoleFilter
-  );
-};
-
-const filteredPendingAccounts =
-  filterByRole(pendingAccounts);
-
-const filteredApprovedAccounts =
-  filterByRole(approvedAccounts);
-
-const filteredUnlinkedAccounts =
-  filterByRole(unlinkedAccounts);
-
-const filteredLinkedAccounts =
-  filterByRole(linkedAccounts);
-
-  const selectedPendingAccountIds = new Set();
 
   const crewMembers = crewService.getAll();
 
@@ -65,7 +45,7 @@ ${renderRoleFilters()}
       ${
         selectedFilter === "all" ||
         selectedFilter === "pending"
-          ? renderPendingAccountsSection(filteredPendingAccounts)
+          ? renderPendingAccountsSection(pendingAccounts)
           : ""
       }
 
@@ -79,7 +59,7 @@ ${renderRoleFilters()}
         selectedFilter === "all" ||
         selectedFilter === "unlinked"
           ? renderUnlinkedAccountsSection(
-    filteredUnlinkedAccounts,
+    unlinkedAccounts,
               crewMembers
             )
           : ""
@@ -88,7 +68,7 @@ ${renderRoleFilters()}
       ${
         selectedFilter === "approved"
           ? renderApprovedAccountsSection(
-    filteredApprovedAccounts,
+    approvedAccounts,
               crewMembers
             )
           : ""
@@ -97,7 +77,7 @@ ${renderRoleFilters()}
       ${
         selectedFilter === "linked"
           ? renderLinkedAccountsSection(
-    filteredLinkedAccounts,
+    linkedAccounts,
               crewMembers
             )
           : ""
@@ -159,6 +139,11 @@ function renderRoleFilters() {
             selectedRoleFilter === id ? "active" : ""
           }"
           data-testid="account-role-filter-${id}"
+          aria-pressed="${
+            selectedRoleFilter === id
+              ? "true"
+              : "false"
+          }"
           onclick="setAccountRoleFilter('${id}')">
 
           ${label}

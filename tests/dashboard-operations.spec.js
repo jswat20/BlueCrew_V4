@@ -327,3 +327,55 @@ test("dashboard exposes account role counts", async ({ page }) => {
   });
 
 });
+
+
+test.describe("Operations Dashboard Account Roles UI", () => {
+  test("renders the account role summary", async ({ app }) => {
+    await app.page.evaluate(() => {
+      localStorage.removeItem("bluecrew_accounts");
+
+      const roles = [
+        "administrator",
+        "administrator",
+        "assigner",
+        "umpire",
+        "umpire",
+        "umpire"
+      ];
+
+      roles.forEach((role, index) => {
+        const account = accountService.createAccount({
+          firstName: `Role${index}`,
+          lastName: "Dashboard",
+          email: `dashboard-role-ui-${index}@test.com`
+        }).data;
+
+        accountService.updateRole(account.id, role);
+      });
+
+      renderPage("dashboard");
+    });
+
+    await expect(
+      app.page.getByTestId("account-role-summary")
+    ).toBeVisible();
+
+    await expect(
+      app.page.getByTestId(
+        "dashboard-role-administrator-value"
+      )
+    ).toHaveText("2");
+
+    await expect(
+      app.page.getByTestId(
+        "dashboard-role-assigner-value"
+      )
+    ).toHaveText("1");
+
+    await expect(
+      app.page.getByTestId(
+        "dashboard-role-umpire-value"
+      )
+    ).toHaveText("3");
+  });
+});

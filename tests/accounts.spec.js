@@ -374,3 +374,118 @@ test("filters accounts by role", async ({ app }) => {
     )
   ).not.toBeVisible();
 });
+
+
+test.describe("Account Roles UI", () => {
+  test("displays the current role for an approved account", async ({ app }) => {
+    const account = await app.page.evaluate(() => {
+      const created = accountService.createAccount({
+        firstName: "Display",
+        lastName: "Assigner",
+        email: `display-role-${Date.now()}@test.com`
+      }).data;
+
+      accountService.updateRole(created.id, "assigner");
+      accountService.approveAccount(created.id);
+
+      uiStateService.setAccountFilter("approved");
+      renderPage("accounts");
+
+      return created;
+    });
+
+    await expect(
+      app.page.getByTestId(
+        `account-role-display-${account.id}`
+      )
+    ).toHaveText("Role: Assigner");
+  });
+
+  test("changes the role of a pending account", async ({ app }) => {
+    const account = await app.page.evaluate(() => {
+      const created = accountService.createAccount({
+        firstName: "Change",
+        lastName: "Role",
+        email: `change-role-${Date.now()}@test.com`
+      }).data;
+
+      renderPage("accounts");
+      return created;
+    });
+
+    const roleSelect = app.page.getByTestId(
+      `account-role-${account.id}`
+    );
+
+    await expect(roleSelect).toHaveValue("umpire");
+
+    await roleSelect.selectOption("administrator");
+
+    const role = await app.page.evaluate(accountId => {
+      return accountService.getAll().find(
+        account => String(account.id) === String(accountId)
+      )?.role;
+    }, account.id);
+
+    expect(role).toBe("administrator");
+  });
+
+  test("filters accounts by role and composes with status", async ({ app }) => {
+    const accounts = await app.page.evaluate(() => {
+      localStorage.removeItem("bluecrew_accounts");
+
+      const administrator =
+        accountService.createAccount({
+          firstName: "Role",
+          lastName: "Administrator",
+          email: `role-admin-${Date.now()}@test.com`
+        }).data;
+
+      const umpire =
+        accountService.createAccount({
+          firstName: "Role",
+          lastName: "Umpire",
+          email: `role-umpire-${Date.now()}@test.com`
+        }).data;
+
+      accountService.updateRole(
+        administrator.id,
+        "administrator"
+      );
+
+      uiStateService.setAccountFilter("pending");
+      renderPage("accounts");
+
+      return {
+        administrator,
+        umpire
+      };
+    });
+
+    await app.page
+      .getByTestId("account-role-filter-administrator")
+      .click();
+
+    await expect(
+      app.page.getByTestId(
+        `pending-account-${accounts.administrator.id}`
+      )
+    ).toBeVisible();
+
+    await expect(
+      app.page.getByTestId(
+        `pending-account-${accounts.umpire.id}`
+      )
+    ).not.toBeVisible();
+
+    await expect(
+      app.page.getByTestId("accounts-page")
+    ).toHaveAttribute("data-account-filter", "pending");
+
+    await expect(
+      app.page.getByTestId(
+        "account-role-filter-administrator"
+      )
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+});

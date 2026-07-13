@@ -198,13 +198,33 @@ function rejectAccounts(accountIds = []) {
   );
 }
 
-  function getPendingAccounts() {
-    return getAll().filter(account => account.status === "pending");
+  function filterAccountsByRole(accounts, role = "all") {
+  if (!role || role === "all") {
+    return accounts;
   }
 
-  function getApprovedAccounts() {
-    return getAll().filter(account => account.status === "approved");
+  if (!isValidRole(role)) {
+    return [];
   }
+
+  return accounts.filter(account => account.role === role);
+}
+
+function getPendingAccounts(options = {}) {
+  const accounts = getAll().filter(
+    account => account.status === "pending"
+  );
+
+  return filterAccountsByRole(accounts, options.role);
+}
+
+  function getApprovedAccounts(options = {}) {
+  const accounts = getAll().filter(
+    account => account.status === "approved"
+  );
+
+  return filterAccountsByRole(accounts, options.role);
+}
 
   function getById(accountId) {
     return getAll().find(account => account.id === accountId) || null;
@@ -299,12 +319,14 @@ function unlinkCrew(accountId) {
   return mutationResult(true, "Crew unlinked successfully.", account);
 }
 
-function getUnlinkedApprovedAccounts() {
-  return getAll().filter(
+function getUnlinkedApprovedAccounts(options = {}) {
+  const accounts = getAll().filter(
     account =>
       account.status === "approved" &&
       account.crewId === null
   );
+
+  return filterAccountsByRole(accounts, options.role);
 }
 function getRoles() {
   return [...VALID_ACCOUNT_ROLES];
