@@ -773,3 +773,559 @@ test.describe(
     );
   }
 );
+
+async function setupMyScheduleContacts(
+  app,
+  {
+    primaryContact = null,
+    partnerContact = null
+  } = {}
+) {
+  return app.page.evaluate(
+    ({
+      configuredPrimaryContact,
+      configuredPartnerContact
+    }) => {
+      const accountResult =
+        accountService.createAccount({
+          firstName: "Contact",
+          lastName: "Junior",
+          email:
+            `contact.junior.${Date.now()}@example.com`,
+          password: "password123"
+        });
+
+      const crewMembers =
+        crewService.getAll();
+
+      const junior = crewMembers[0];
+
+      const partner =
+        crewMembers.find(
+          member =>
+            String(member.id) !==
+            String(junior.id)
+        );
+
+      if (!partner) {
+        throw new Error(
+          "Contact tests require two crew members."
+        );
+      }
+
+      accountService.approveAccount(
+        accountResult.data.id
+      );
+
+      accountService.updateAccount(
+        accountResult.data.id,
+        {
+          crewId: junior.id
+        }
+      );
+
+      loginService.login(
+        accountResult.data.email,
+        "password123"
+      );
+
+      authService.loginAsUmpire();
+
+      if (configuredPartnerContact) {
+        partner.phone =
+          configuredPartnerContact.phone || "";
+
+        partner.email =
+          configuredPartnerContact.email || "";
+      } else {
+        partner.phone = "";
+        partner.email = "";
+      }
+
+      const gameResult =
+        gameService.create({
+          date: "2099-04-10",
+          time: "6:30 PM",
+          field: "Contact Field",
+          level: "12U",
+          homeTeam: "Contact Home",
+          awayTeam: "Contact Away",
+          gameType: "single"
+        });
+
+      const game = gameService
+        .getAll()
+        .find(
+          item =>
+            String(item.id) ===
+            String(gameResult.data.id)
+        );
+
+      const assignments =
+        assignmentService.getAssignments(
+          game
+        );
+
+      assignments[0].crewId =
+        junior.id;
+
+      assignments[0].position =
+        "Plate";
+
+      assignments[0].status =
+        "assigned";
+
+      let partnerAssignment =
+        assignments[1];
+
+      if (!partnerAssignment) {
+        partnerAssignment = {
+          id: `${game.id}-base`,
+          gameId: game.id,
+          position: "Base",
+          crewId: partner.id,
+          status: "assigned",
+          locked: false,
+          claimedBy: ""
+        };
+
+        game.assignments.push(
+          partnerAssignment
+        );
+      } else {
+        partnerAssignment.crewId =
+          partner.id;
+
+        partnerAssignment.position =
+          "Base";
+
+        partnerAssignment.status =
+          "assigned";
+      }
+
+      game.crewId = junior.id;
+      game.assignmentStatus =
+        "assigned";
+
+      if (configuredPrimaryContact) {
+        game.contact = {
+          name:
+            configuredPrimaryContact.name,
+          role:
+            configuredPrimaryContact.role,
+          phone:
+            configuredPrimaryContact.phone,
+          email:
+            configuredPrimaryContact.email
+        };
+      }
+
+      if (
+        typeof gameService.save ===
+        "function"
+      ) {
+        gameService.save();
+      }
+
+      renderPage("my-schedule");
+
+      return {
+        gameId: game.id,
+        partnerId: partner.id,
+        partnerName:
+          crewService.getDisplayName(
+            partner.id
+          )
+      };
+    },
+    {
+      configuredPrimaryContact:
+        primaryContact,
+      configuredPartnerContact:
+        partnerContact
+    }
+  );
+}
+
+test.describe(
+  "My Schedule game day contacts",
+  () => {
+    test(
+      "renders the configured game contact",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleContacts(
+            app,
+            {
+              primaryContact: {
+                name: "Alex Assignor",
+                role: "Assignor",
+                phone: "555-0100",
+                email:
+                  "alex.assignor@example.com"
+              }
+            }
+          );
+
+        const contact =
+          app.page.getByTestId(
+            `my-schedule-contact-${result.gameId}-primary`
+          );
+
+        await expect(contact).toContainText(
+          "Alex Assignor"
+        );
+
+        await expect(contact).toContainText(
+          "Assignor"
+        );
+
+        await expect(contact).toContainText(
+          "555-0100"
+        );
+
+        await expect(contact).toContainText(
+          "alex.assignor@example.com"
+        );
+      }
+    );
+
+    test(
+      "renders partner contact details",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleContacts(
+            app,
+            {
+              partnerContact: {
+                phone: "555-0111",
+                email:
+                  "partner@example.com"
+              }
+            }
+          );
+
+        const contact =
+          app.page.getByTestId(
+            `my-schedule-contact-${result.gameId}-partner-${result.partnerId}`
+          );
+
+        await expect(contact).toContainText(
+          result.partnerName
+        );
+
+        await expect(contact).toContainText(
+          "Base"
+        );
+
+        await expect(contact).toContainText(
+          "555-0111"
+        );
+
+        await expect(contact).toContainText(
+          "partner@example.com"
+        );
+      }
+    );
+
+    test(
+      "renders clickable phone and email links",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleContacts(
+            app,
+            {
+              primaryContact: {
+                name: "Game Contact",
+                phone: "555-0122",
+                email:
+                  "contact@example.com"
+              }
+            }
+          );
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-contact-phone-${result.gameId}-primary`
+          )
+        ).toHaveAttribute(
+          "href",
+          "tel:555-0122"
+        );
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-contact-email-${result.gameId}-primary`
+          )
+        ).toHaveAttribute(
+          "href",
+          "mailto:contact@example.com"
+        );
+      }
+    );
+
+    test(
+      "omits contacts when no contact details are available",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleContacts(
+            app
+          );
+
+        const contacts =
+          app.page.getByTestId(
+            `my-schedule-contacts-${result.gameId}`
+          );
+
+        await expect(contacts).toBeAttached();
+
+        await expect(
+          contacts.locator(
+            ".my-schedule-contact"
+          )
+        ).toHaveCount(0);
+
+        await expect(contacts).not.toContainText(
+          "Unavailable"
+        );
+
+        await expect(contacts).not.toContainText(
+          "N/A"
+        );
+      }
+    );
+  }
+);
+
+async function setupMyScheduleConditions(
+  app,
+  conditions = {}
+) {
+  return app.page.evaluate(
+    configuredConditions => {
+      const accountResult =
+        accountService.createAccount({
+          firstName: "Conditions",
+          lastName: "Junior",
+          email:
+            `conditions.junior.${Date.now()}@example.com`,
+          password: "password123"
+        });
+
+      const crew = crewService.getAll()[0];
+
+      accountService.approveAccount(
+        accountResult.data.id
+      );
+
+      accountService.updateAccount(
+        accountResult.data.id,
+        {
+          crewId: crew.id
+        }
+      );
+
+      loginService.login(
+        accountResult.data.email,
+        "password123"
+      );
+
+      authService.loginAsUmpire();
+
+      const gameResult =
+        gameService.create({
+          date: "2099-05-20",
+          time: "6:00 PM",
+          field: "Conditions Field",
+          level: "12U",
+          homeTeam: "Conditions Home",
+          awayTeam: "Conditions Away",
+          gameType: "single"
+        });
+
+      const game = gameService
+        .getAll()
+        .find(
+          item =>
+            String(item.id) ===
+            String(gameResult.data.id)
+        );
+
+      game.crewId = crew.id;
+      game.assignmentStatus =
+        "assigned";
+
+      game.conditions = {
+        ...configuredConditions
+      };
+
+      if (
+        typeof gameService.save ===
+        "function"
+      ) {
+        gameService.save();
+      }
+
+      renderPage("my-schedule");
+
+      return {
+        gameId: game.id
+      };
+    },
+    conditions
+  );
+}
+
+test.describe(
+  "My Schedule game conditions",
+  () => {
+    test(
+      "renders structured weather and field conditions",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleConditions(
+            app,
+            {
+              summary: "Cloudy",
+              temperature: "72°F",
+              weatherAdvisory:
+                "Light rain possible before game time.",
+              fieldStatus: "Open",
+              advisory:
+                "Bring a light jacket."
+            }
+          );
+
+        const conditions =
+          app.page.getByTestId(
+            `my-schedule-conditions-${result.gameId}`
+          );
+
+        await expect(conditions).toContainText(
+          "Cloudy"
+        );
+
+        await expect(conditions).toContainText(
+          "72°F"
+        );
+
+        await expect(conditions).toContainText(
+          "Light rain possible before game time."
+        );
+
+        await expect(conditions).toContainText(
+          "Open"
+        );
+
+        await expect(conditions).toContainText(
+          "Bring a light jacket."
+        );
+      }
+    );
+
+    test(
+      "renders a cancellation notice",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleConditions(
+            app,
+            {
+              cancellationNotice:
+                "Game canceled due to field conditions."
+            }
+          );
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-cancellation-notice-${result.gameId}`
+          )
+        ).toContainText(
+          "Game canceled due to field conditions."
+        );
+      }
+    );
+
+    test(
+      "renders field status independently",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleConditions(
+            app,
+            {
+              fieldStatus:
+                "Delayed pending field inspection."
+            }
+          );
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-field-status-${result.gameId}`
+          )
+        ).toContainText(
+          "Delayed pending field inspection."
+        );
+      }
+    );
+
+    test(
+      "omits unavailable condition details",
+      async ({ app }) => {
+        const result =
+          await setupMyScheduleConditions(
+            app
+          );
+
+        const conditions =
+          app.page.getByTestId(
+            `my-schedule-conditions-${result.gameId}`
+          );
+
+        await expect(conditions).toBeAttached();
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-weather-summary-${result.gameId}`
+          )
+        ).toHaveCount(0);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-temperature-${result.gameId}`
+          )
+        ).toHaveCount(0);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-weather-advisory-${result.gameId}`
+          )
+        ).toHaveCount(0);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-field-status-${result.gameId}`
+          )
+        ).toHaveCount(0);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-cancellation-notice-${result.gameId}`
+          )
+        ).toHaveCount(0);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-game-day-advisory-${result.gameId}`
+          )
+        ).toHaveCount(0);
+
+        await expect(conditions).not.toContainText(
+          "Unavailable"
+        );
+
+        await expect(conditions).not.toContainText(
+          "N/A"
+        );
+      }
+    );
+  }
+);

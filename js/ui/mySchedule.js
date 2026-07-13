@@ -44,6 +44,8 @@ function renderMySchedule() {
               <th>Arrival</th>
               <th>Game Day</th>
               <th>Checklist</th>
+              <th>Conditions</th>
+              <th>Contacts</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -170,6 +172,178 @@ function renderMyScheduleGameInformation(game) {
   `;
 }
 
+function renderMyScheduleConditions(game) {
+  const conditions =
+    game.gameConditions || {};
+
+  const details = [
+    conditions.summary
+      ? `
+          <div
+            data-testid="my-schedule-weather-summary-${game.id}"
+          >
+            <strong>${conditions.summary}</strong>
+          </div>
+        `
+      : "",
+    conditions.temperature
+      ? `
+          <div
+            class="muted"
+            data-testid="my-schedule-temperature-${game.id}"
+          >
+            ${conditions.temperature}
+          </div>
+        `
+      : "",
+    conditions.weatherAdvisory
+      ? `
+          <div
+            data-testid="my-schedule-weather-advisory-${game.id}"
+          >
+            <strong>Weather:</strong>
+            ${conditions.weatherAdvisory}
+          </div>
+        `
+      : "",
+    conditions.fieldStatus
+      ? `
+          <div
+            data-testid="my-schedule-field-status-${game.id}"
+          >
+            <strong>Field:</strong>
+            ${conditions.fieldStatus}
+          </div>
+        `
+      : "",
+    conditions.cancellationNotice
+      ? `
+          <div
+            data-testid="my-schedule-cancellation-notice-${game.id}"
+          >
+            <strong>Notice:</strong>
+            ${conditions.cancellationNotice}
+          </div>
+        `
+      : "",
+    conditions.advisory
+      ? `
+          <div
+            data-testid="my-schedule-game-day-advisory-${game.id}"
+          >
+            ${conditions.advisory}
+          </div>
+        `
+      : ""
+  ]
+    .filter(Boolean)
+    .join("");
+
+  return `
+    <div
+      class="my-schedule-conditions"
+      data-testid="my-schedule-conditions-${game.id}"
+    >
+      ${details}
+    </div>
+  `;
+}
+
+function renderMyScheduleContact(
+  game,
+  contact,
+  key
+) {
+  const phone = contact.phone
+    ? `
+        <div>
+          <a
+            href="tel:${contact.phone}"
+            data-testid="my-schedule-contact-phone-${game.id}-${key}"
+          >
+            ${contact.phone}
+          </a>
+        </div>
+      `
+    : "";
+
+  const email = contact.email
+    ? `
+        <div>
+          <a
+            href="mailto:${contact.email}"
+            data-testid="my-schedule-contact-email-${game.id}-${key}"
+          >
+            ${contact.email}
+          </a>
+        </div>
+      `
+    : "";
+
+  return `
+    <div
+      class="my-schedule-contact"
+      data-testid="my-schedule-contact-${game.id}-${key}"
+    >
+      <strong>${contact.name}</strong>
+
+      ${
+        contact.role
+          ? `
+              <div class="muted">
+                ${contact.role}
+              </div>
+            `
+          : ""
+      }
+
+      ${phone}
+      ${email}
+    </div>
+  `;
+}
+
+function renderMyScheduleContacts(game) {
+  const contacts =
+    game.gameDayContacts || {
+      primaryContact: null,
+      partners: []
+    };
+
+  const items = [];
+
+  if (contacts.primaryContact) {
+    items.push(
+      renderMyScheduleContact(
+        game,
+        contacts.primaryContact,
+        "primary"
+      )
+    );
+  }
+
+  contacts.partners.forEach(
+    partner => {
+      items.push(
+        renderMyScheduleContact(
+          game,
+          partner,
+          `partner-${partner.id}`
+        )
+      );
+    }
+  );
+
+  return `
+    <div
+      class="my-schedule-contacts"
+      data-testid="my-schedule-contacts-${game.id}"
+    >
+      ${items.join("")}
+    </div>
+  `;
+}
+
 function renderMyScheduleRow(game) {
   return `
     <tr data-testid="my-schedule-row-${game.id}">
@@ -255,6 +429,18 @@ function renderMyScheduleRow(game) {
             )
             .join("")}
         </div>
+      </td>
+
+      <td
+        data-testid="my-schedule-conditions-cell-${game.id}"
+      >
+        ${renderMyScheduleConditions(game)}
+      </td>
+
+      <td
+        data-testid="my-schedule-contacts-cell-${game.id}"
+      >
+        ${renderMyScheduleContacts(game)}
       </td>
 
       <td

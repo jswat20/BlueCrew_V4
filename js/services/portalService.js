@@ -410,6 +410,153 @@ const portalService = (() => {
     };
   }
 
+  function getCrewMember(crewId) {
+    if (
+      typeof crewService === "undefined" ||
+      typeof crewService.getAll !== "function"
+    ) {
+      return null;
+    }
+
+    return crewService
+      .getAll()
+      .find(
+        member =>
+          String(member.id) === String(crewId)
+      ) || null;
+  }
+
+  function getContactDetails(source = {}) {
+    return {
+      phone: normalizeOptionalValue(
+        source.phone ||
+        source.phoneNumber ||
+        source.mobile
+      ),
+      email: normalizeOptionalValue(
+        source.email ||
+        source.emailAddress
+      )
+    };
+  }
+
+  function hasContactDetails(contact) {
+    return Boolean(
+      contact.phone ||
+      contact.email
+    );
+  }
+
+  function getGameDayContacts(game, crewId) {
+    const configuredContact =
+      game.contact &&
+      typeof game.contact === "object"
+        ? game.contact
+        : {};
+
+    const primaryDetails =
+      getContactDetails({
+        phone:
+          configuredContact.phone ||
+          game.contactPhone ||
+          game.assignerPhone,
+        email:
+          configuredContact.email ||
+          game.contactEmail ||
+          game.assignerEmail
+      });
+
+    const primaryName =
+      normalizeOptionalValue(
+        configuredContact.name ||
+        game.contactName ||
+        game.assignerName
+      );
+
+    const primaryContact =
+      hasContactDetails(primaryDetails)
+        ? {
+            name:
+              primaryName ||
+              "Game Contact",
+            role: normalizeOptionalValue(
+              configuredContact.role ||
+              game.contactRole ||
+              "Game Contact"
+            ),
+            ...primaryDetails
+          }
+        : null;
+
+    const partners = getPartners(
+      game,
+      crewId
+    )
+      .map(partner => {
+        const member =
+          getCrewMember(partner.id);
+
+        const contact =
+          getContactDetails(
+            member || {}
+          );
+
+        if (!hasContactDetails(contact)) {
+          return null;
+        }
+
+        return {
+          id: partner.id,
+          name: partner.name,
+          role: partner.position,
+          ...contact
+        };
+      })
+      .filter(Boolean);
+
+    return {
+      primaryContact,
+      partners
+    };
+  }
+
+  function getGameConditions(game) {
+    const conditions =
+      game.conditions &&
+      typeof game.conditions === "object"
+        ? game.conditions
+        : {};
+
+    return {
+      summary: normalizeOptionalValue(
+        conditions.summary ||
+        game.weatherSummary
+      ),
+      temperature: normalizeOptionalValue(
+        conditions.temperature ||
+        game.temperature
+      ),
+      weatherAdvisory: normalizeOptionalValue(
+        conditions.weatherAdvisory ||
+        conditions.rainAdvisory ||
+        game.weatherAdvisory ||
+        game.rainAdvisory
+      ),
+      fieldStatus: normalizeOptionalValue(
+        conditions.fieldStatus ||
+        game.fieldStatus
+      ),
+      cancellationNotice: normalizeOptionalValue(
+        conditions.cancellationNotice ||
+        game.cancellationNotice
+      ),
+      advisory: normalizeOptionalValue(
+        conditions.advisory ||
+        game.gameDayAdvisory
+      )
+    };
+  }
+
   function mapGame(game, crewId) {
     const crewAssignments =
       getCrewAssignments(game, crewId);
@@ -426,6 +573,12 @@ const portalService = (() => {
     const gameInformation =
       getGameInformation(game);
 
+    const gameDayContacts =
+      getGameDayContacts(game, crewId);
+
+    const gameConditions =
+      getGameConditions(game);
+
     return {
       id: game.id,
       date: game.date,
@@ -437,6 +590,8 @@ const portalService = (() => {
       matchup:
         `${game.awayTeam} @ ${game.homeTeam}`,
       gameInformation,
+      gameDayContacts,
+      gameConditions,
       position: positions.join(", "),
       positions,
       partners: getPartners(game, crewId),
