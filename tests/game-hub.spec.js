@@ -191,7 +191,6 @@ test.describe("Game Hub", () => {
         "crew",
         "arrival",
         "game-day",
-        "checklist",
         "timeline",
         "conditions",
         "contacts",
@@ -274,6 +273,73 @@ test.describe("Game Hub", () => {
       ).toHaveValue(
         "Confirm the plate meeting at 6:10."
       );
+    }
+  );
+
+  test(
+    "persists checklist progress for the selected game",
+    async ({ app }) => {
+      const { gameId } =
+        await setupGameHub(app);
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-checklist"
+        )
+      ).toBeVisible();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-checklist-progress"
+        )
+      ).toContainText("0 of 4 complete");
+
+      const uniformToggle =
+        app.page.getByTestId(
+          "game-hub-checklist-toggle-uniform"
+        );
+
+      await uniformToggle.check();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-checklist-progress"
+        )
+      ).toContainText("1 of 4 complete");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-checklist-toggle-uniform"
+        )
+      ).toBeChecked();
+
+      await app.page
+        .getByTestId("game-hub-back")
+        .click();
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-checklist-toggle-uniform"
+        )
+      ).toBeChecked();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-checklist-progress"
+        )
+      ).toContainText("1 of 4 complete");
     }
   );
 });

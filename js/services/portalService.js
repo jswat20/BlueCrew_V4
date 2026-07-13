@@ -726,6 +726,131 @@ const portalService = (() => {
     };
   }
 
+  function getChecklistState(game, crewId) {
+    const stateByCrew =
+      game.gameDayChecklistByCrewId &&
+      typeof game.gameDayChecklistByCrewId === "object"
+        ? game.gameDayChecklistByCrewId
+        : {};
+
+    const crewState =
+      stateByCrew[String(crewId)];
+
+    return (
+      crewState &&
+      typeof crewState === "object"
+        ? crewState
+        : {}
+    );
+  }
+
+  function toggleChecklistItem(
+    gameId,
+    itemKey
+  ) {
+    const account = getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return {
+        success: false,
+        message: "No logged in umpire."
+      };
+    }
+
+    const game = gameService.getById(gameId);
+
+    if (
+      !game ||
+      !isGameAssignedToCrew(
+        game,
+        account.crewId
+      )
+    ) {
+      return {
+        success: false,
+        message: "Game is not available."
+      };
+    }
+
+    const crewAssignments =
+      getCrewAssignments(
+        game,
+        account.crewId
+      );
+
+    const status =
+      getStatus(
+        game,
+        crewAssignments
+      );
+
+    const positions =
+      getPositions(crewAssignments);
+
+    const arrivalRecommendation =
+      getArrivalRecommendation(game);
+
+    const checklist =
+      getGameDayChecklist({
+        status,
+        position: positions.join(", "),
+        arrivalRecommendation
+      });
+
+    const item = checklist.find(
+      candidate =>
+        candidate.key === itemKey
+    );
+
+    if (!item) {
+      return {
+        success: false,
+        message: "Checklist item not found."
+      };
+    }
+
+    const existingState =
+      getChecklistState(
+        game,
+        account.crewId
+      );
+
+    const updatedCrewState = {
+      ...existingState,
+      [itemKey]:
+        existingState[itemKey] !== true
+    };
+
+    const gameDayChecklistByCrewId = {
+      ...(
+        game.gameDayChecklistByCrewId &&
+        typeof game.gameDayChecklistByCrewId ===
+          "object"
+          ? game.gameDayChecklistByCrewId
+          : {}
+      ),
+      [String(account.crewId)]:
+        updatedCrewState
+    };
+
+    const result = gameService.update(
+      game.id,
+      {
+        gameDayChecklistByCrewId
+      }
+    );
+
+    return {
+      success: result.success,
+      message: result.success
+        ? "Checklist updated."
+        : result.message,
+      itemKey,
+      completed:
+        updatedCrewState[itemKey] === true
+    };
+  }
+
   function mapGame(game, crewId) {
     const crewAssignments =
       getCrewAssignments(game, crewId);
@@ -763,6 +888,20 @@ const portalService = (() => {
         gameInformation
       });
 
+    const checklistState =
+      getChecklistState(game, crewId);
+
+    const gameDayChecklist =
+      getGameDayChecklist({
+        status,
+        position,
+        arrivalRecommendation
+      }).map(item => ({
+        ...item,
+        completed:
+          checklistState[item.key] === true
+      }));
+
     return {
       id: game.id,
       date: game.date,
@@ -790,12 +929,7 @@ const portalService = (() => {
         getGameDayStatus(status),
       crewNotes:
         getCrewNotes(game, crewId),
-      gameDayChecklist:
-        getGameDayChecklist({
-          status,
-          position: positions.join(", "),
-          arrivalRecommendation
-        })
+      gameDayChecklist
     };
   }
 
@@ -835,6 +969,7 @@ const portalService = (() => {
     getMySchedule,
     getGameHub,
     saveCrewNotes,
+    toggleChecklistItem,
     getClaimableGames,
     claimGame,
     getMyPendingClaims,

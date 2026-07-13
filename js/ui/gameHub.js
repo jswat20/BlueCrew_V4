@@ -72,6 +72,99 @@ function saveGameHubCrewNotes(gameId) {
   return result;
 }
 
+function renderGameHubChecklist(game) {
+  const items =
+    Array.isArray(game.gameDayChecklist)
+      ? game.gameDayChecklist
+      : [];
+
+  const completedCount =
+    items.filter(
+      item => item.completed === true
+    ).length;
+
+  return `
+    <section
+      class="card game-hub-section game-hub-checklist"
+      data-testid="game-hub-checklist"
+    >
+      <div class="game-hub-checklist-header">
+        <h3>Pregame Checklist</h3>
+
+        <span
+          class="muted"
+          data-testid="game-hub-checklist-progress"
+        >
+          ${completedCount} of ${items.length} complete
+        </span>
+      </div>
+
+      <div class="game-hub-checklist-items">
+        ${items
+          .map(
+            item => `
+              <label
+                class="game-hub-checklist-item"
+                data-testid="game-hub-checklist-item-${item.key}"
+              >
+                <input
+                  type="checkbox"
+                  data-testid="game-hub-checklist-toggle-${item.key}"
+                  ${item.completed ? "checked" : ""}
+                  onchange="toggleGameHubChecklistItem('${game.id}', '${item.key}')"
+                />
+
+                <span>
+                  <strong>${item.label}</strong>
+
+                  <span class="muted">
+                    ${item.detail}
+                  </span>
+                </span>
+              </label>
+            `
+          )
+          .join("")}
+      </div>
+
+      <div
+        class="muted"
+        data-testid="game-hub-checklist-status"
+        aria-live="polite"
+      ></div>
+    </section>
+  `;
+}
+
+function toggleGameHubChecklistItem(
+  gameId,
+  itemKey
+) {
+  const result =
+    portalService.toggleChecklistItem(
+      gameId,
+      itemKey
+    );
+
+  if (result.success) {
+    renderPage("game-hub", {
+      gameId
+    });
+
+    return result;
+  }
+
+  const status = document.querySelector(
+    '[data-testid="game-hub-checklist-status"]'
+  );
+
+  if (status) {
+    status.textContent = result.message;
+  }
+
+  return result;
+}
+
 function renderGameHubSection(
   game,
   key,
@@ -175,11 +268,6 @@ function renderGameHub(context = {}) {
       gameDayRenderers.renderGameDay
     ],
     [
-      "checklist",
-      "Checklist",
-      gameDayRenderers.renderChecklist
-    ],
-    [
       "timeline",
       "Timeline",
       gameDayRenderers.renderTimeline
@@ -258,6 +346,8 @@ function renderGameHub(context = {}) {
       </div>
 
       ${renderGameHubCrewNotes(game)}
+
+      ${renderGameHubChecklist(game)}
 
       <div
         class="game-hub-sections"
