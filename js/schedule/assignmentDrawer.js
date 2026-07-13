@@ -235,7 +235,7 @@ function renderAssignmentDrawer() {
             .map(assignment =>
               renderCrewBuilderSlot(
                 assignment,
-                game.date
+                game
               )
             )
             .join("")}
@@ -278,8 +278,9 @@ function renderAssignmentDrawer() {
 
 function renderCrewBuilderSlot(
   assignment,
-  gameDate
+  game
 ) {
+  const gameDate = game.date;
   const crewMembers = crewService
     .getAll()
     .filter(member => member.active !== false);
@@ -381,10 +382,108 @@ function renderCrewBuilderSlot(
           ${assignment.locked ? "Unlock" : "Lock"}
         </button>
       </div>
+${renderAssignmentRecommendation(
+    assignment,
+    crewBuilderService.getDraft().game
+)}
+      </div>
+  `;
+}
+function renderAssignmentRecommendation(
+  assignment,
+  game
+) {
+  const recommendation =
+    recommendationService
+      .getRecommendedCrewForGame(
+        game,
+        {
+          position: assignment.position
+        }
+      )[0];
+
+  if (!recommendation) {
+    return "";
+  }
+
+  return `
+    <div
+      class="assignment-recommendation"
+      data-testid="assignment-recommendation-${assignment.position}"
+      data-crew-id="${escapeAssignmentHtml(recommendation.crewId)}"
+    >
+
+      <div class="recommendation-title">
+        ⭐ Recommended
+      </div>
+
+      <div
+        class="recommendation-name"
+        data-testid="recommendation-name-${assignment.position}"
+      >
+        ${recommendation.name}
+      </div>
+
+      <div
+        data-testid="recommendation-score-${assignment.position}"
+      >
+        Score: ${recommendation.score}
+      </div>
+
+      <div
+        data-testid="recommendation-availability-${assignment.position}"
+      >
+        Availability:
+        ${
+          recommendation.dateAvailability ||
+          recommendation.availability
+        }
+      </div>
+
+      <div
+        data-testid="recommendation-conflict-${assignment.position}"
+      >
+        Conflict:
+        ${recommendation.conflict ? "Yes" : "No"}
+      </div>
+
+      <div
+        data-testid="recommendation-workload-${assignment.position}"
+      >
+        Workload:
+        ${recommendation.workload}
+      </div>
+
+      ${
+        recommendation.reasons.length
+          ? `
+            <ul
+              data-testid="recommendation-reasons-${assignment.position}"
+            >
+              ${recommendation.reasons
+                .map(reason => `<li>${reason}</li>`)
+                .join("")}
+            </ul>
+          `
+          : ""
+      }
+
+      <button
+        type="button"
+        class="secondary-btn small-btn"
+        data-testid="use-recommendation-${assignment.position}"
+        onclick="useAssignmentRecommendation(
+          '${escapeAssignmentJs(assignment.id)}',
+          '${escapeAssignmentJs(recommendation.crewId)}'
+        )"
+        ${assignment.locked ? "disabled" : ""}
+      >
+        Use Recommendation
+      </button>
+
     </div>
   `;
 }
-
 function renderCrewBuilderValidation(issues) {
   if (!issues.length) {
     return `
@@ -426,6 +525,16 @@ function renderCrewBuilderValidation(issues) {
         .join("")}
     </div>
   `;
+}
+
+function useAssignmentRecommendation(
+  assignmentId,
+  crewId
+) {
+  updateDraftAssignment(
+    assignmentId,
+    crewId
+  );
 }
 
 function updateDraftAssignment(
