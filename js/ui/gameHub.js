@@ -27,6 +27,7 @@ function renderGameHubCrewNotes(game) {
         id="game-hub-crew-notes-input"
         class="game-hub-notes-input"
         data-testid="game-hub-crew-notes-input"
+          ${game.completion?.review?.submittedForReview ? "readonly" : ""}
         rows="5"
         placeholder="Add reminders, questions, or pregame notes..."
       >${escapeGameHubText(game.crewNotes)}</textarea>
@@ -37,6 +38,7 @@ function renderGameHubCrewNotes(game) {
           type="button"
           onclick="saveGameHubCrewNotes('${game.id}')"
           data-testid="game-hub-save-crew-notes"
+          ${game.completion?.review?.submittedForReview ? "disabled" : ""}
         >
           Save Notes
         </button>
@@ -110,6 +112,7 @@ function renderGameHubChecklist(game) {
                 <input
                   type="checkbox"
                   data-testid="game-hub-checklist-toggle-${item.key}"
+          ${game.completion?.review?.submittedForReview ? "disabled" : ""}
                   ${item.completed ? "checked" : ""}
                   onchange="toggleGameHubChecklistItem('${game.id}', '${item.key}')"
                 />
@@ -241,6 +244,7 @@ function renderGameHubReports(
         <input
           type="checkbox"
           data-testid="game-hub-report-incidents"
+          ${completion.review?.submittedForReview ? "disabled" : ""}
           ${
             reports.incidents
               ? "checked"
@@ -256,6 +260,7 @@ function renderGameHubReports(
         <input
           type="checkbox"
           data-testid="game-hub-report-ejections"
+          ${completion.review?.submittedForReview ? "disabled" : ""}
           ${
             reports.ejections
               ? "checked"
@@ -271,6 +276,7 @@ function renderGameHubReports(
         <input
           type="checkbox"
           data-testid="game-hub-report-protests"
+          ${completion.review?.submittedForReview ? "disabled" : ""}
           ${
             reports.protests
               ? "checked"
@@ -286,6 +292,7 @@ function renderGameHubReports(
         <input
           type="checkbox"
           data-testid="game-hub-report-rainout"
+          ${completion.review?.submittedForReview ? "disabled" : ""}
           ${
             reports.rainout
               ? "checked"
@@ -305,6 +312,7 @@ function renderGameHubReports(
         <textarea
           id="game-hub-report-notes"
           data-testid="game-hub-report-notes"
+          ${completion.review?.submittedForReview ? "readonly" : ""}
           rows="4"
         >${escapeGameHubReportValue(
           reports.notes
@@ -315,6 +323,7 @@ function renderGameHubReports(
         type="button"
         class="button button-primary"
         data-testid="game-hub-save-reports"
+          ${completion.review?.submittedForReview ? "disabled" : ""}
         onclick="saveGameReportsFromHub('${game.id}')"
       >
         Save Reports
@@ -325,6 +334,98 @@ function renderGameHubReports(
         data-testid="game-hub-reports-status"
         aria-live="polite"
       ></p>
+    </div>
+  `;
+}
+
+
+function renderGameHubReview(
+  game,
+  completion
+) {
+  const review =
+    completion.review || {
+      reviewStatus: "draft",
+      submittedForReview: false,
+      submittedAt: null,
+      submittedBy: ""
+    };
+
+  if (!review.submittedForReview) {
+    return `
+      <div
+        class="game-hub-review"
+        data-testid="game-hub-review"
+      >
+        <h4>Game Review</h4>
+
+        <dl>
+          <div>
+            <dt>Status</dt>
+            <dd
+              data-testid="game-hub-review-status"
+            >
+              Draft
+            </dd>
+          </div>
+        </dl>
+
+        <button
+          type="button"
+          class="button button-primary"
+          data-testid="game-hub-submit-review"
+          onclick="submitGameForReviewFromHub('${game.id}')"
+        >
+          Submit for Assigner Review
+        </button>
+
+        <p
+          class="form-status"
+          data-testid="game-hub-review-message"
+          aria-live="polite"
+        ></p>
+      </div>
+    `;
+  }
+
+  const submittedAt =
+    formatGameCompletionDate(
+      review.submittedAt
+    );
+
+  return `
+    <div
+      class="game-hub-review"
+      data-testid="game-hub-review"
+    >
+      <h4>Game Review</h4>
+
+      <p
+        data-testid="game-hub-review-submitted"
+      >
+        <strong>✓ Submitted</strong>
+      </p>
+
+      <dl>
+        <div>
+          <dt>Submitted by</dt>
+          <dd
+            data-testid="game-hub-review-submitted-by"
+          >
+            ${review.submittedBy}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Submitted</dt>
+          <dd
+            data-testid="game-hub-review-submitted-at"
+          >
+            <div>${submittedAt.date}</div>
+            <div>${submittedAt.time}</div>
+          </dd>
+        </div>
+      </dl>
     </div>
   `;
 }
@@ -343,6 +444,12 @@ function renderGameHubCompletion(game) {
       protests: false,
       rainout: false,
       notes: ""
+    },
+    review: {
+      reviewStatus: "draft",
+      submittedForReview: false,
+      submittedAt: null,
+      submittedBy: ""
     }
   };
 
@@ -436,6 +543,7 @@ function renderGameHubCompletion(game) {
             type="number"
             inputmode="numeric"
             data-testid="game-hub-away-score"
+          ${completion.review?.submittedForReview ? "disabled" : ""}
             value="${
               completion.awayScore === null
                 ? ""
@@ -456,6 +564,7 @@ function renderGameHubCompletion(game) {
             type="number"
             inputmode="numeric"
             data-testid="game-hub-home-score"
+          ${completion.review?.submittedForReview ? "disabled" : ""}
             value="${
               completion.homeScore === null
                 ? ""
@@ -468,6 +577,7 @@ function renderGameHubCompletion(game) {
           type="button"
           class="button button-primary"
           data-testid="game-hub-save-score"
+          ${completion.review?.submittedForReview ? "disabled" : ""}
           onclick="saveGameScoreFromHub('${game.id}')"
         >
           Save Score
@@ -481,6 +591,11 @@ function renderGameHubCompletion(game) {
       </div>
 
       ${renderGameHubReports(
+        game,
+        completion
+      )}
+
+      ${renderGameHubReview(
         game,
         completion
       )}
@@ -595,6 +710,34 @@ function saveGameReportsFromHub(gameId) {
   if (status) {
     status.textContent =
       result.message || "";
+  }
+}
+
+
+function submitGameForReviewFromHub(
+  gameId
+) {
+  const result =
+    portalService.submitGameForReview(
+      gameId
+    );
+
+  if (result.success) {
+    renderPage("game-hub", {
+      gameId
+    });
+
+    return;
+  }
+
+  const status = document.querySelector(
+    '[data-testid="game-hub-review-message"]'
+  );
+
+  if (status) {
+    status.textContent =
+      result.message ||
+      "Unable to submit game for review.";
   }
 }
 

@@ -413,6 +413,114 @@ const portalService = (() => {
 
 
 
+
+  function getGameReview(gameId) {
+    const game = gameService.getById(gameId);
+
+    const review =
+      game &&
+      game.review &&
+      typeof game.review === "object"
+        ? game.review
+        : {};
+
+    const reviewStatus =
+      review.status || "draft";
+
+    return {
+      reviewStatus,
+      submittedForReview:
+        reviewStatus === "submitted" ||
+        review.submittedForReview === true,
+      submittedAt:
+        review.submittedAt || null,
+      submittedBy:
+        review.submittedBy || ""
+    };
+  }
+
+  function submitGameForReview(gameId) {
+    const account = getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return {
+        success: false,
+        message: "No logged in umpire."
+      };
+    }
+
+    const game = gameService.getById(gameId);
+
+    if (!game) {
+      return {
+        success: false,
+        message: "Game not found."
+      };
+    }
+
+    if (
+      !isGameAssignedToCrew(
+        game,
+        account.crewId
+      )
+    ) {
+      return {
+        success: false,
+        message:
+          "You are not assigned to this game."
+      };
+    }
+
+    if (game.completed !== true) {
+      return {
+        success: false,
+        message:
+          "Complete the game before submitting it for review."
+      };
+    }
+
+    const currentReview =
+      getGameReview(gameId);
+
+    if (
+      currentReview.submittedForReview
+    ) {
+      return {
+        success: true,
+        message:
+          "Game already submitted for review.",
+        data: currentReview
+      };
+    }
+
+    const review = {
+      status: "submitted",
+      submittedForReview: true,
+      submittedAt:
+        new Date().toISOString(),
+      submittedBy:
+        getCompletionAccountName(account)
+    };
+
+    const result = gameService.update(
+      gameId,
+      {
+        review
+      }
+    );
+
+    if (!result.success) {
+      return result;
+    }
+
+    return {
+      success: true,
+      message:
+        "Game submitted for assigner review.",
+      data: getGameReview(gameId)
+    };
+  }
+
   function getGameReports(gameId) {
     const game = gameService.getById(gameId);
 
@@ -528,7 +636,8 @@ const portalService = (() => {
         completionStatus: "incomplete",
         homeScore: null,
         awayScore: null,
-        reports: getGameReports(gameId)
+        reports: getGameReports(gameId),
+        review: getGameReview(gameId)
       };
     }
 
@@ -553,7 +662,8 @@ const portalService = (() => {
         game.awayScore === undefined
           ? null
           : Number(game.awayScore),
-      reports: getGameReports(gameId)
+      reports: getGameReports(gameId),
+      review: getGameReview(gameId)
     };
   }
 
@@ -1281,6 +1391,8 @@ const portalService = (() => {
   }
 
   return {
+    getGameReview,
+    submitGameForReview,
     getGameReports,
     saveGameReports,
     saveGameScore,

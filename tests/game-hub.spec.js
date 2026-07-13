@@ -750,4 +750,224 @@ test.describe("Game Hub", () => {
     }
   );
 
+
+  test(
+    "submits a completed game for review and locks editing",
+    async ({ app }) => {
+      const { gameId } =
+        await setupGameHub(app);
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      await app.page
+        .getByTestId(
+          "game-hub-crew-notes-input"
+        )
+        .fill(
+          "Postgame notes ready for review."
+        );
+
+      await app.page
+        .getByTestId(
+          "game-hub-save-crew-notes"
+        )
+        .click();
+
+      await app.page
+        .getByTestId(
+          "game-hub-checklist-toggle-uniform"
+        )
+        .check();
+
+      await app.page
+        .getByTestId(
+          "game-hub-complete-game"
+        )
+        .click();
+
+      await app.page
+        .getByTestId(
+          "game-hub-away-score"
+        )
+        .fill("4");
+
+      await app.page
+        .getByTestId(
+          "game-hub-home-score"
+        )
+        .fill("6");
+
+      await app.page
+        .getByTestId(
+          "game-hub-save-score"
+        )
+        .click();
+
+      await app.page
+        .getByTestId(
+          "game-hub-report-incidents"
+        )
+        .check();
+
+      await app.page
+        .getByTestId(
+          "game-hub-report-notes"
+        )
+        .fill(
+          "Incident documentation submitted."
+        );
+
+      await app.page
+        .getByTestId(
+          "game-hub-save-reports"
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-review-status"
+        )
+      ).toContainText("Draft");
+
+      await app.page
+        .getByTestId(
+          "game-hub-submit-review"
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-review-submitted"
+        )
+      ).toContainText("Submitted");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-review-submitted-by"
+        )
+      ).toContainText("Game Hub");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-review-submitted-at"
+        )
+      ).not.toBeEmpty();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-submit-review"
+        )
+      ).toHaveCount(0);
+
+      await app.page
+        .getByTestId("game-hub-back")
+        .click();
+
+      await app.page
+        .getByTestId(
+          `my-schedule-open-game-${gameId}`
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-review-submitted"
+        )
+      ).toContainText("Submitted");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-away-score"
+        )
+      ).toBeDisabled();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-home-score"
+        )
+      ).toBeDisabled();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-save-score"
+        )
+      ).toBeDisabled();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-report-incidents"
+        )
+      ).toBeDisabled();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-report-notes"
+        )
+      ).toHaveAttribute(
+        "readonly",
+        ""
+      );
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-save-reports"
+        )
+      ).toBeDisabled();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-crew-notes-input"
+        )
+      ).toHaveAttribute(
+        "readonly",
+        ""
+      );
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-save-crew-notes"
+        )
+      ).toBeDisabled();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-checklist-toggle-uniform"
+        )
+      ).toBeDisabled();
+
+      const persistedReview =
+        await app.page.evaluate(
+          selectedGameId => {
+            const game =
+              gameService.getById(
+                selectedGameId
+              );
+
+            return game.review;
+          },
+          gameId
+        );
+
+      expect(
+        persistedReview.status
+      ).toBe("submitted");
+
+      expect(
+        persistedReview.submittedForReview
+      ).toBe(true);
+
+      expect(
+        persistedReview.submittedAt
+      ).toBeTruthy();
+
+      expect(
+        persistedReview.submittedBy
+      ).toBe("Game Hub");
+    }
+  );
+
 });
