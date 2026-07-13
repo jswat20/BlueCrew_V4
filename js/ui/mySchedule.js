@@ -383,121 +383,198 @@ function renderMyScheduleContacts(game) {
   `;
 }
 
+function renderMyScheduleCell(
+  testId,
+  content
+) {
+  return `
+    <td data-testid="${testId}">
+      ${content}
+    </td>
+  `;
+}
+
+function renderMyScheduleCell(
+  testId,
+  content
+) {
+  return `
+    <td data-testid="${testId}">
+      ${content}
+    </td>
+  `;
+}
+
+function renderMyScheduleArrival(game) {
+  return `
+    <strong>
+      ${game.arrivalRecommendation.text}
+    </strong>
+
+    <div class="muted">
+      ${game.arrivalRecommendation.minutesEarly}
+      minutes before game time
+    </div>
+  `;
+}
+
+function renderMyScheduleGameDay(game) {
+  return `
+    <div
+      class="my-schedule-game-day-status"
+      data-game-day-status="${game.gameDayStatus.key}"
+      data-requires-attention="${game.gameDayStatus.requiresAttention}"
+    >
+      <strong
+        data-testid="my-schedule-game-day-title-${game.id}"
+      >
+        ${game.gameDayStatus.title}
+      </strong>
+
+      <div
+        class="muted"
+        data-testid="my-schedule-game-day-detail-${game.id}"
+      >
+        ${game.gameDayStatus.detail}
+      </div>
+    </div>
+  `;
+}
+
+function renderMyScheduleChecklistItem(
+  game,
+  item
+) {
+  return `
+    <div
+      class="my-schedule-checklist-item"
+      data-testid="my-schedule-checklist-item-${game.id}-${item.key}"
+      data-checklist-status="${item.status}"
+    >
+      <strong>
+        ${item.label}
+      </strong>
+
+      <div class="muted">
+        ${item.detail}
+      </div>
+    </div>
+  `;
+}
+
+function renderMyScheduleChecklist(game) {
+  const items = game.gameDayChecklist
+    .map(item =>
+      renderMyScheduleChecklistItem(
+        game,
+        item
+      )
+    )
+    .join("");
+
+  return `
+    <div class="my-schedule-checklist">
+      ${items}
+    </div>
+  `;
+}
+
+function renderMyScheduleStatus(game) {
+  return `
+    <div
+      class="status-badges"
+      data-testid="my-schedule-badges-${game.id}"
+    >
+      ${renderMyScheduleBadges(game)}
+    </div>
+  `;
+}
+
+const gameDayRenderers = Object.freeze({
+  renderGameInformation:
+    renderMyScheduleGameInformation,
+
+  renderPartners:
+    renderMySchedulePartners,
+
+  renderArrival:
+    renderMyScheduleArrival,
+
+  renderGameDay:
+    renderMyScheduleGameDay,
+
+  renderChecklist:
+    renderMyScheduleChecklist,
+
+  renderTimeline:
+    renderMyScheduleTimeline,
+
+  renderConditions:
+    renderMyScheduleConditions,
+
+  renderContacts:
+    renderMyScheduleContacts,
+
+  renderStatus:
+    renderMyScheduleStatus
+});
+
 function renderMyScheduleRow(game) {
   return `
     <tr data-testid="my-schedule-row-${game.id}">
       <td>${game.date}</td>
       <td>${game.time}</td>
-      <td>${game.matchup}</td>
-
+      <td> <button class="button-link" type="button" onclick="renderPage('game-hub', { gameId: '${game.id}' })" data-testid="my-schedule-open-game-${game.id}"> ${game.matchup} </button> </td>
       <td>
-        ${renderMyScheduleGameInformation(game)}
+        ${gameDayRenderers.renderGameInformation(game)}
       </td>
 
       <td>${game.level}</td>
 
-      <td
-        data-testid="my-schedule-position-${game.id}"
-      >
-        ${game.position}
-      </td>
+      ${renderMyScheduleCell(
+        `my-schedule-position-${game.id}`,
+        game.position
+      )}
 
-      <td
-        data-testid="my-schedule-partners-${game.id}"
-      >
-        ${renderMySchedulePartners(game)}
-      </td>
+      ${renderMyScheduleCell(
+        `my-schedule-partners-${game.id}`,
+        gameDayRenderers.renderPartners(game)
+      )}
 
-      <td
-        data-testid="my-schedule-arrival-${game.id}"
-      >
-        <strong>
-          ${game.arrivalRecommendation.text}
-        </strong>
+      ${renderMyScheduleCell(
+        `my-schedule-arrival-${game.id}`,
+        gameDayRenderers.renderArrival(game)
+      )}
 
-        <div class="muted">
-          ${game.arrivalRecommendation.minutesEarly}
-          minutes before game time
-        </div>
-      </td>
+      ${renderMyScheduleCell(
+        `my-schedule-game-day-${game.id}`,
+        gameDayRenderers.renderGameDay(game)
+      )}
 
-      <td
-        data-testid="my-schedule-game-day-${game.id}"
-      >
-        <div
-          class="my-schedule-game-day-status"
-          data-game-day-status="${game.gameDayStatus.key}"
-          data-requires-attention="${game.gameDayStatus.requiresAttention}"
-        >
-          <strong
-            data-testid="my-schedule-game-day-title-${game.id}"
-          >
-            ${game.gameDayStatus.title}
-          </strong>
+      ${renderMyScheduleCell(
+        `my-schedule-checklist-${game.id}`,
+        gameDayRenderers.renderChecklist(game)
+      )}
 
-          <div
-            class="muted"
-            data-testid="my-schedule-game-day-detail-${game.id}"
-          >
-            ${game.gameDayStatus.detail}
-          </div>
-        </div>
-      </td>
+      ${renderMyScheduleCell(
+        `my-schedule-timeline-cell-${game.id}`,
+        gameDayRenderers.renderTimeline(game)
+      )}
 
-      <td
-        data-testid="my-schedule-checklist-${game.id}"
-      >
-        <div class="my-schedule-checklist">
-          ${game.gameDayChecklist
-            .map(
-              item => `
-                <div
-                  class="my-schedule-checklist-item"
-                  data-testid="my-schedule-checklist-item-${game.id}-${item.key}"
-                  data-checklist-status="${item.status}"
-                >
-                  <strong>
-                    ${item.label}
-                  </strong>
+      ${renderMyScheduleCell(
+        `my-schedule-conditions-cell-${game.id}`,
+        gameDayRenderers.renderConditions(game)
+      )}
 
-                  <div class="muted">
-                    ${item.detail}
-                  </div>
-                </div>
-              `
-            )
-            .join("")}
-        </div>
-      </td>
+      ${renderMyScheduleCell(
+        `my-schedule-contacts-cell-${game.id}`,
+        gameDayRenderers.renderContacts(game)
+      )}
 
-      <td
-        data-testid="my-schedule-timeline-cell-${game.id}"
-      >
-        ${renderMyScheduleTimeline(game)}
-      </td>
-
-      <td
-        data-testid="my-schedule-conditions-cell-${game.id}"
-      >
-        ${renderMyScheduleConditions(game)}
-      </td>
-
-      <td
-        data-testid="my-schedule-contacts-cell-${game.id}"
-      >
-        ${renderMyScheduleContacts(game)}
-      </td>
-
-      <td
-        data-testid="my-schedule-status-${game.id}"
-      >
-        <div
-          class="status-badges"
-          data-testid="my-schedule-badges-${game.id}"
-        >
-          ${renderMyScheduleBadges(game)}
-        </div>
-      </td>
+      ${renderMyScheduleCell(
+        `my-schedule-status-${game.id}`,
+        gameDayRenderers.renderStatus(game)
+      )}
     </tr>
   `;
 }

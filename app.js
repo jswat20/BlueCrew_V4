@@ -29,6 +29,10 @@ const pages = {
     title: "My Schedule",
     subtitle: "Your assigned games."
   },
+  "game-hub": {
+  title: "Game Hub",
+  subtitle: "Game day information."
+},
   schedule: {
     title: "Schedule",
     subtitle: "View and Manage Game Schedules."
@@ -271,11 +275,8 @@ function renderAdminView(page, context = {}) {
     "my-schedule": typeof renderMySchedule === "function" ? renderMySchedule : null,
     "claims-queue": typeof renderClaimsQueue === "function" ? renderClaimsQueue : null,
     "claim-history": typeof renderClaimHistory === "function" ? renderClaimHistory : null,
-    availability:
-      typeof renderAvailability === "function"
-        ? renderAvailability
-        : null,
-
+    "game-hub": typeof renderGameHub === "function" ? renderGameHub : null, 
+    availability: typeof renderAvailability === "function" ? renderAvailability : null,
   };
 
   const renderer = renderers[page];
@@ -302,6 +303,14 @@ function renderUmpireView(page, context = {}) {
         ? renderMySchedule(context)
         : placeholderPage("My Schedule", "My Schedule is unavailable.");
 
+        case "game-hub":
+  return typeof renderGameHub === "function"
+    ? renderGameHub(context)
+    : placeholderPage(
+        "Game Hub",
+        "Game Hub is unavailable."
+      );
+      
     case "claim-games":
       return typeof renderClaimGames === "function"
         ? renderClaimGames(context)
