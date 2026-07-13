@@ -455,3 +455,88 @@ test.describe(
     );
   }
 );
+
+test.describe(
+  "My Schedule game day checklist",
+  () => {
+    test(
+      "renders the game day checklist",
+      async ({ app }) => {
+        const result =
+          await setupEnhancedMySchedule(app);
+
+        const checklist =
+          app.page.getByTestId(
+            `my-schedule-checklist-${result.gameId}`
+          );
+
+        await expect(checklist).toBeVisible();
+
+        await expect(checklist).toContainText(
+          "Uniform ready"
+        );
+
+        await expect(checklist).toContainText(
+          "Equipment packed"
+        );
+
+        await expect(checklist).toContainText(
+          "Arrive by 5:30 PM"
+        );
+
+        await expect(checklist).toContainText(
+          "Assignment confirmed"
+        );
+      }
+    );
+
+    test(
+      "shows plate-specific equipment guidance",
+      async ({ app }) => {
+        const result =
+          await setupEnhancedMySchedule(app);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-checklist-item-${result.gameId}-equipment`
+          )
+        ).toContainText(
+          "plate protective gear"
+        );
+      }
+    );
+
+    test(
+      "includes the assigned position in the checklist",
+      async ({ app }) => {
+        const result =
+          await setupEnhancedMySchedule(app);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-checklist-item-${result.gameId}-assignment`
+          )
+        ).toContainText(
+          "You are working Plate."
+        );
+      }
+    );
+
+    test(
+      "marks confirmed assignments as complete",
+      async ({ app }) => {
+        const result =
+          await setupEnhancedMySchedule(app);
+
+        await expect(
+          app.page.getByTestId(
+            `my-schedule-checklist-item-${result.gameId}-assignment`
+          )
+        ).toHaveAttribute(
+          "data-checklist-status",
+          "complete"
+        );
+      }
+    );
+  }
+);

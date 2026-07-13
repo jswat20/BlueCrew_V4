@@ -293,6 +293,54 @@ const portalService = (() => {
     ];
   }
 
+  function getGameDayChecklist({
+    status,
+    position,
+    arrivalRecommendation
+  }) {
+    const assignmentConfirmed =
+      status === "assigned" ||
+      status === "locked";
+
+    return [
+      {
+        key: "uniform",
+        label: "Uniform ready",
+        detail:
+          "Bring your umpire shirt, hat, belt, and game shoes.",
+        status: "reminder"
+      },
+      {
+        key: "equipment",
+        label: "Equipment packed",
+        detail:
+          position.includes("Plate")
+            ? "Bring your indicator and plate protective gear."
+            : "Bring your indicator and field equipment.",
+        status: "reminder"
+      },
+      {
+        key: "arrival",
+        label: arrivalRecommendation.text,
+        detail:
+          `Plan to arrive ${arrivalRecommendation.minutesEarly} minutes before game time.`,
+        status: "scheduled"
+      },
+      {
+        key: "assignment",
+        label: assignmentConfirmed
+          ? "Assignment confirmed"
+          : "Review assignment",
+        detail: assignmentConfirmed
+          ? `You are working ${position}.`
+          : "Check your assignment status before leaving.",
+        status: assignmentConfirmed
+          ? "complete"
+          : "attention"
+      }
+    ];
+  }
+
   function getGameDayStatus(status) {
     const statuses = {
       assigned: {
@@ -349,6 +397,9 @@ const portalService = (() => {
     const positions =
       getPositions(crewAssignments);
 
+    const arrivalRecommendation =
+      getArrivalRecommendation(game);
+
     return {
       id: game.id,
       date: game.date,
@@ -365,12 +416,17 @@ const portalService = (() => {
       assignmentStatus: status,
       assignmentStatusLabel:
         getStatusLabel(status),
-      arrivalRecommendation:
-        getArrivalRecommendation(game),
+      arrivalRecommendation,
       statusBadges:
         getStatusBadges(status),
       gameDayStatus:
-        getGameDayStatus(status)
+        getGameDayStatus(status),
+      gameDayChecklist:
+        getGameDayChecklist({
+          status,
+          position: positions.join(", "),
+          arrivalRecommendation
+        })
     };
   }
 

@@ -43,6 +43,7 @@ function renderMySchedule() {
               <th>Crew</th>
               <th>Arrival</th>
               <th>Game Day</th>
+              <th>Checklist</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -154,6 +155,32 @@ function renderMyScheduleRow(game) {
           >
             ${game.gameDayStatus.detail}
           </div>
+        </div>
+      </td>
+
+      <td
+        data-testid="my-schedule-checklist-${game.id}"
+      >
+        <div class="my-schedule-checklist">
+          ${game.gameDayChecklist
+            .map(
+              item => `
+                <div
+                  class="my-schedule-checklist-item"
+                  data-testid="my-schedule-checklist-item-${game.id}-${item.key}"
+                  data-checklist-status="${item.status}"
+                >
+                  <strong>
+                    ${item.label}
+                  </strong>
+
+                  <div class="muted">
+                    ${item.detail}
+                  </div>
+                </div>
+              `
+            )
+            .join("")}
         </div>
       </td>
 
