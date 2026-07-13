@@ -20,6 +20,42 @@ function renderGameHubSection(
   `;
 }
 
+function renderGameHubQuickActions() {
+  return `
+    <div
+      class="game-hub-actions"
+      data-testid="game-hub-actions"
+    >
+      <button
+        class="button button-secondary"
+        type="button"
+        onclick="renderPage('my-schedule')"
+        data-testid="game-hub-back"
+      >
+        ← Back to My Schedule
+      </button>
+
+      <button
+        class="button button-secondary"
+        type="button"
+        onclick="renderPage('availability')"
+        data-testid="game-hub-availability"
+      >
+        View Availability
+      </button>
+
+      <button
+        class="button button-secondary"
+        type="button"
+        onclick="renderPage('claim-games')"
+        data-testid="game-hub-claim-games"
+      >
+        Claim Games
+      </button>
+    </div>
+  `;
+}
+
 function renderGameHub(context = {}) {
   const game = portalService.getGameHub(
     context.gameId
@@ -31,18 +67,10 @@ function renderGameHub(context = {}) {
         class="page-section"
         data-testid="game-hub"
       >
-        <div class="page-actions">
-          <button
-            class="button button-secondary"
-            type="button"
-            onclick="renderPage('my-schedule')"
-            data-testid="game-hub-back"
-          >
-            ← Back to My Schedule
-          </button>
-        </div>
+        ${renderGameHubQuickActions()}
 
         <h2>Game Hub</h2>
+
         <div
           class="empty-state"
           data-testid="game-hub-empty"
@@ -103,20 +131,11 @@ function renderGameHub(context = {}) {
 
   return `
     <section
-      class="page-section"
+      class="page-section game-hub"
       data-testid="game-hub"
       data-game-id="${game.id}"
     >
-      <div class="page-actions">
-        <button
-          class="button button-secondary"
-          type="button"
-          onclick="renderPage('my-schedule')"
-          data-testid="game-hub-back"
-        >
-          ← Back to My Schedule
-        </button>
-      </div>
+      ${renderGameHubQuickActions()}
 
       <h2>Game Hub</h2>
 
@@ -124,16 +143,45 @@ function renderGameHub(context = {}) {
         class="card game-hub-summary"
         data-testid="game-hub-summary"
       >
-        <h3 data-testid="game-hub-matchup">
-          ${game.matchup}
-        </h3>
+        <div class="game-hub-summary-header">
+          <div>
+            <h3 data-testid="game-hub-matchup">
+              ${game.matchup}
+            </h3>
 
-        <div class="muted">
-          ${game.date} • ${game.time}
+            <div
+              class="game-hub-summary-date"
+              data-testid="game-hub-date-time"
+            >
+              ${game.date} • ${game.time}
+            </div>
+          </div>
+
+          <div
+            class="game-hub-summary-status"
+            data-testid="game-hub-summary-status"
+          >
+            ${gameDayRenderers.renderStatus(game)}
+          </div>
         </div>
 
-        <div class="muted">
-          ${game.level}
+        <div class="game-hub-summary-details">
+          <div data-testid="game-hub-summary-field">
+            <span class="muted">Field</span>
+            <strong>
+              ${game.gameInformation?.field || ""}
+            </strong>
+          </div>
+
+          <div data-testid="game-hub-summary-level">
+            <span class="muted">Level</span>
+            <strong>${game.level}</strong>
+          </div>
+
+          <div data-testid="game-hub-summary-position">
+            <span class="muted">Position</span>
+            <strong>${game.position}</strong>
+          </div>
         </div>
       </div>
 

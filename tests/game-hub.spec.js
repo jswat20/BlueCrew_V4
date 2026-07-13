@@ -90,23 +90,6 @@ test.describe("Game Hub", () => {
         )
         .click();
 
-      const diagnostics =
-        await app.page.evaluate(() => ({
-          currentPage:
-            window.BlueCrew?.test?.currentPage,
-          errors:
-            window.BlueCrew?.test?.errors || [],
-          bodyText:
-            document.body.innerText,
-          bodyHtml:
-            document.body.innerHTML
-        }));
-
-      console.log(
-        "GAME HUB DIAGNOSTICS",
-        JSON.stringify(diagnostics, null, 2)
-      );
-
       const hub =
         app.page.getByTestId("game-hub");
 
@@ -124,6 +107,54 @@ test.describe("Game Hub", () => {
       await expect(hub).toContainText(
         "Game Hub Away @ Game Hub Home"
       );
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-summary"
+        )
+      ).toBeVisible();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-summary-field"
+        )
+      ).toContainText("Game Hub Field");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-summary-level"
+        )
+      ).toContainText("12U");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-summary-position"
+        )
+      ).toContainText("Plate");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-summary-status"
+        )
+      ).toContainText("Assigned");
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-actions"
+        )
+      ).toBeVisible();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-availability"
+        )
+      ).toBeVisible();
+
+      await expect(
+        app.page.getByTestId(
+          "game-hub-claim-games"
+        )
+      ).toBeVisible();
 
       const sectionKeys = [
         "game-information",
