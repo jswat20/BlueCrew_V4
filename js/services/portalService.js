@@ -31,6 +31,30 @@ const portalService = (() => {
       .map(game => mapGame(game, account.crewId));
   }
 
+  function getGameHub(gameId) {
+    const account = getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return null;
+    }
+
+    const game = gameService
+      .getAll()
+      .find(
+        candidate =>
+          String(candidate.id) === String(gameId)
+      );
+
+    if (
+      !game ||
+      !isGameAssignedToCrew(game, account.crewId)
+    ) {
+      return null;
+    }
+
+    return mapGame(game, account.crewId);
+  }
+
   function getClaimableGames() {
     const account = getCurrentAccount();
 
@@ -743,6 +767,7 @@ const portalService = (() => {
   return {
     getCurrentAccount,
     getMySchedule,
+    getGameHub,
     getClaimableGames,
     claimGame,
     getMyPendingClaims,
