@@ -44,6 +44,7 @@ function renderMySchedule() {
               <th>Arrival</th>
               <th>Game Day</th>
               <th>Checklist</th>
+              <th>Timeline</th>
               <th>Conditions</th>
               <th>Contacts</th>
               <th>Status</th>
@@ -168,6 +169,44 @@ function renderMyScheduleGameInformation(game) {
       data-testid="my-schedule-game-information-${game.id}"
     >
       ${details}
+    </div>
+  `;
+}
+
+function renderMyScheduleTimeline(game) {
+  const timeline =
+    Array.isArray(game.gameDayTimeline)
+      ? game.gameDayTimeline
+      : [];
+
+  return `
+    <div
+      class="my-schedule-timeline"
+      data-testid="my-schedule-timeline-${game.id}"
+    >
+      ${timeline
+        .map(
+          item => `
+            <div
+              class="my-schedule-timeline-item"
+              data-testid="my-schedule-timeline-item-${game.id}-${item.key}"
+              data-timeline-status="${item.status}"
+            >
+              <div class="muted">
+                ${item.phase}
+              </div>
+
+              <strong>
+                ${item.title}
+              </strong>
+
+              <div>
+                ${item.detail}
+              </div>
+            </div>
+          `
+        )
+        .join("")}
     </div>
   `;
 }
@@ -429,6 +468,12 @@ function renderMyScheduleRow(game) {
             )
             .join("")}
         </div>
+      </td>
+
+      <td
+        data-testid="my-schedule-timeline-cell-${game.id}"
+      >
+        ${renderMyScheduleTimeline(game)}
       </td>
 
       <td

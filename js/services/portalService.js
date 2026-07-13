@@ -557,6 +557,87 @@ const portalService = (() => {
     };
   }
 
+  function getGameDayTimeline({
+    game,
+    position,
+    partners,
+    arrivalRecommendation,
+    gameInformation
+  }) {
+    const location =
+      gameInformation.field ||
+      gameInformation.venue;
+
+    const partnerNames =
+      partners
+        .map(partner => partner.name)
+        .filter(Boolean);
+
+    const meetDetail =
+      partnerNames.length
+        ? `Meet ${partnerNames.join(", ")} at ${
+            location || "the field"
+          }.`
+        : `Check in at ${
+            location || "the field"
+          }.`;
+
+    const pregameDetail =
+      position.includes("Plate")
+        ? "Meet with the coaches, review ground rules, and confirm game balls."
+        : "Meet with your crew and review coverage responsibilities.";
+
+    return [
+      {
+        key: "prepare",
+        phase: "Before leaving",
+        title: "Complete your equipment check",
+        detail:
+          "Confirm your uniform, indicator, water, and game equipment are packed.",
+        status: "upcoming"
+      },
+      {
+        key: "arrival",
+        phase: "Arrival",
+        title: arrivalRecommendation.text,
+        detail: location
+          ? `Plan to be ready at ${location} ${arrivalRecommendation.minutesEarly} minutes before game time.`
+          : `Plan to be ready ${arrivalRecommendation.minutesEarly} minutes before game time.`,
+        status: "scheduled"
+      },
+      {
+        key: "meet",
+        phase: "At the field",
+        title: "Meet your crew",
+        detail: meetDetail,
+        status: "upcoming"
+      },
+      {
+        key: "pregame",
+        phase: "Before first pitch",
+        title: "Complete the pregame meeting",
+        detail: pregameDetail,
+        status: "upcoming"
+      },
+      {
+        key: "game",
+        phase: "During the game",
+        title: `Work your ${position} assignment`,
+        detail:
+          "Stay focused, communicate clearly, and support your crew.",
+        status: "upcoming"
+      },
+      {
+        key: "postgame",
+        phase: "After the game",
+        title: "Finish game-day responsibilities",
+        detail:
+          "Confirm the final score, complete any required report, and check out with your crew.",
+        status: "upcoming"
+      }
+    ];
+  }
+
   function mapGame(game, crewId) {
     const crewAssignments =
       getCrewAssignments(game, crewId);
@@ -579,6 +660,21 @@ const portalService = (() => {
     const gameConditions =
       getGameConditions(game);
 
+    const partners =
+      getPartners(game, crewId);
+
+    const position =
+      positions.join(", ");
+
+    const gameDayTimeline =
+      getGameDayTimeline({
+        game,
+        position,
+        partners,
+        arrivalRecommendation,
+        gameInformation
+      });
+
     return {
       id: game.id,
       date: game.date,
@@ -592,9 +688,10 @@ const portalService = (() => {
       gameInformation,
       gameDayContacts,
       gameConditions,
-      position: positions.join(", "),
+      gameDayTimeline,
+      position,
       positions,
-      partners: getPartners(game, crewId),
+      partners,
       assignmentStatus: status,
       assignmentStatusLabel:
         getStatusLabel(status),

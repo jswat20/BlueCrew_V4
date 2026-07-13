@@ -1329,3 +1329,118 @@ test.describe(
     );
   }
 );
+
+test.describe(
+  "My Schedule game day timeline",
+  () => {
+    test(
+      "renders the complete game day timeline",
+      async ({ app }) => {
+        const result =
+          await setupEnhancedMySchedule(app);
+
+        const timeline =
+          app.page.getByTestId(
+            `my-schedule-timeline-${result.gameId}`
+          );
+
+        await expect(timeline).toBeVisible();
+
+        await expect(timeline).toContainText(
+          "Before leaving"
+        );
+
+        await expect(timeline).toContainText(
+          "Arrival"
+        );
+
+        await expect(timeline).toContainText(
+          "At the field"
+        );
+
+        await expect(timeline).toContainText(
+          "Before first pitch"
+        );
+
+        await expect(timeline).toContainText(
+          "During the game"
+        );
+
+        await expect(timeline).toContainText(
+          "After the game"
+        );
+      }
+    );
+
+    test(
+      "uses the arrival recommendation in the timeline",
+      async ({ app }) => {
+        const result =
+          await setupEnhancedMySchedule(app);
+
+        const arrival =
+          app.page.getByTestId(
+            `my-schedule-timeline-item-${result.gameId}-arrival`
+          );
+
+        await expect(arrival).toContainText(
+          "Arrive by 5:30 PM"
+        );
+
+        await expect(arrival).toContainText(
+          "Junior Field"
+        );
+
+        await expect(arrival).toContainText(
+          "30 minutes before game time"
+        );
+      }
+    );
+
+    test(
+      "includes partner guidance in the timeline",
+      async ({ app }) => {
+        const result =
+          await setupEnhancedMySchedule(app);
+
+        const meet =
+          app.page.getByTestId(
+            `my-schedule-timeline-item-${result.gameId}-meet`
+          );
+
+        await expect(meet).toContainText(
+          result.partnerName
+        );
+
+        await expect(meet).toContainText(
+          "Junior Field"
+        );
+      }
+    );
+
+    test(
+      "includes plate-specific pregame guidance",
+      async ({ app }) => {
+        const result =
+          await setupEnhancedMySchedule(app);
+
+        const pregame =
+          app.page.getByTestId(
+            `my-schedule-timeline-item-${result.gameId}-pregame`
+          );
+
+        await expect(pregame).toContainText(
+          "Meet with the coaches"
+        );
+
+        await expect(pregame).toContainText(
+          "review ground rules"
+        );
+
+        await expect(pregame).toContainText(
+          "confirm game balls"
+        );
+      }
+    );
+  }
+);
