@@ -933,10 +933,45 @@ function useAssignmentRecommendation(
   );
 }
 
+function getDraftAssignmentEvaluation(
+  assignmentId,
+  crewId
+) {
+  if (!crewId) {
+    return null;
+  }
+
+  const draft = crewBuilderService.getDraft();
+
+  if (!draft?.game) {
+    return null;
+  }
+
+  const assignment = draft.assignments.find(
+    item => String(item.id) === String(assignmentId)
+  );
+
+  if (!assignment) {
+    return null;
+  }
+
+  return availabilityService.canAssign(
+    crewId,
+    draft.game,
+    assignment.position
+  );
+}
+
 function updateDraftAssignment(
   assignmentId,
   crewId
 ) {
+  const evaluation =
+    getDraftAssignmentEvaluation(
+      assignmentId,
+      crewId
+    );
+
   const result =
     crewBuilderService.updateAssignment(
       assignmentId,
@@ -953,6 +988,26 @@ function updateDraftAssignment(
   if (!result.success) {
     toastService.show(result.message);
     return;
+  }
+
+  const draft = crewBuilderService.getDraft();
+  const gameDate = draft?.game?.date || null;
+  const dateAvailability =
+    crewId && gameDate
+      ? availabilityService.getAvailability(
+          crewId,
+          gameDate
+        )
+      : null;
+
+  if (dateAvailability === "unavailable") {
+    toastService.show(
+      "Assignment warning: Crew member is marked unavailable for this date."
+    );
+  } else if (dateAvailability === "maybe") {
+    toastService.show(
+      "Assignment note: Crew member is marked maybe for this date."
+    );
   }
 
   renderAssignmentDrawer();
