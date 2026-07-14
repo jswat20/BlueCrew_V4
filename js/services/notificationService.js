@@ -15,7 +15,95 @@ const notificationService = (() => {
   }
 
   function saveAll(notifications) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(notifications)
+    );
+  }
+
+  function getCurrentNotificationAccount() {
+    if (
+      typeof loginService === "undefined" ||
+      typeof loginService
+        .getCurrentAccount !== "function"
+    ) {
+      return null;
+    }
+
+    return loginService.getCurrentAccount();
+  }
+
+  function isCurrentNotificationAdmin() {
+    return (
+      typeof authService !== "undefined" &&
+      typeof authService.isAdmin ===
+        "function" &&
+      authService.isAdmin()
+    );
+  }
+
+  function isVisibleToCurrentUser(
+    notification
+  ) {
+    const audience =
+      notification.audience || "admin";
+
+    const account =
+      getCurrentNotificationAccount();
+
+    if (audience === "admin") {
+      return isCurrentNotificationAdmin();
+    }
+
+    if (audience !== "umpire") {
+      return true;
+    }
+
+    const recipientAccountId =
+      notification.recipientAccountId ||
+      "";
+
+    // Preserve existing assignment, claim, review,
+    // and lifecycle notifications that predate
+    // account-specific targeting.
+    if (!recipientAccountId) {
+      return true;
+    }
+
+    if (isCurrentNotificationAdmin()) {
+      return false;
+    }
+
+    return (
+      account &&
+      String(account.id) ===
+        String(recipientAccountId)
+    );
+  }
+
+  function filterForCurrentUser(
+    notifications
+  ) {
+    return notifications.filter(
+      isVisibleToCurrentUser
+    );
+  }
+
+  function sortNewestFirst(notifications) {
+    return [...notifications].sort((a, b) => {
+      const timestampDifference =
+        String(b.createdAt || "").localeCompare(
+          String(a.createdAt || "")
+        );
+
+      if (timestampDifference !== 0) {
+        return timestampDifference;
+      }
+
+      return String(b.id || "").localeCompare(
+        String(a.id || "")
+      );
+    });
   }
 
   function create({
@@ -23,7 +111,10 @@ const notificationService = (() => {
     title,
     message,
     relatedId = "",
-    audience = "admin"
+    audience = "admin",
+    recipientAccountId = "",
+    destination = null,
+    createdAt = ""
   } = {}) {
     if (!title || !message) {
       return {
@@ -41,11 +132,30 @@ const notificationService = (() => {
       message,
       relatedId,
       audience,
+      recipientAccountId:
+        String(
+          recipientAccountId || ""
+        ),
+      destination:
+        destination &&
+        typeof destination === "object"
+          ? {
+              page: destination.page || "",
+              context:
+                destination.context &&
+                typeof destination.context ===
+                  "object"
+                  ? destination.context
+                  : {}
+            }
+          : null,
       read: false,
-      createdAt: new Date().toISOString()
+      createdAt:
+        createdAt ||
+        new Date().toISOString()
     };
 
-    notifications.unshift(notification);
+    notifications.push(notification);
     saveAll(notifications);
 
     return {
@@ -56,11 +166,25 @@ const notificationService = (() => {
   }
 
   function getUnread() {
-    return getAll().filter(notification => !notification.read);
+    return sortNewestFirst(
+      filterForCurrentUser(
+        getAll().filter(
+          notification =>
+            !notification.read
+        )
+      )
+    );
   }
 
   function getRead() {
-    return getAll().filter(notification => notification.read);
+    return sortNewestFirst(
+      filterForCurrentUser(
+        getAll().filter(
+          notification =>
+            notification.read
+        )
+      )
+    );
   }
 
   function getUnreadCount() {
@@ -103,6 +227,28 @@ const notificationService = (() => {
     };
   }
 
+  function clearRead() {
+    const notifications = getAll();
+
+    const unread = notifications.filter(
+      notification =>
+        notification.read !== true
+    );
+
+    const clearedCount =
+      notifications.length -
+      unread.length;
+
+    saveAll(unread);
+
+    return {
+      success: true,
+      message:
+        "Read notifications cleared.",
+      clearedCount
+    };
+  }
+
   function clearAll() {
     saveAll([]);
 
@@ -112,10 +258,32 @@ const notificationService = (() => {
     };
   }
 
+  function getNotificationCenter() {
+    const unread = getUnread();
+    const read = getRead();
+
+    return {
+      unread,
+      read,
+      unreadCount: unread.length,
+      readCount: read.length,
+      totalCount:
+        unread.length + read.length,
+      isEmpty:
+        unread.length === 0 &&
+        read.length === 0
+    };
+  }
+
   function getNotifications(options = {}) {
     const status = options.status || "all";
 
-    const notifications = getAll();
+    const notifications =
+      sortNewestFirst(
+        filterForCurrentUser(
+          getAll()
+        )
+      );
 
     if (status === "unread") {
       return notifications.filter(notification => !notification.read);
@@ -136,7 +304,9 @@ const notificationService = (() => {
     getUnreadCount,
     markAsRead,
     markAllAsRead,
+    clearRead,
     clearAll,
+    getNotificationCenter,
     getNotifications
   };
 })();

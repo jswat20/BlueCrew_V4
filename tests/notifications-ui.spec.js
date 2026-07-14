@@ -334,6 +334,8 @@ test.describe(
         loginService.login(account.email);
         authService.loginAsCrew(crew.id);
 
+        notificationService.clearAll();
+
         document.body.dataset.role =
           "umpire";
 

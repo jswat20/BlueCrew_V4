@@ -330,14 +330,74 @@ function renderWorkbenchEmptyState() {
   `;
 }
 
+function renderWorkbenchNotificationCard() {
+  const summary =
+    dashboardService
+      .getNotificationsSummary();
+
+  return `
+    <section
+      class="
+        dashboard-card
+        season-dashboard-card
+      "
+      data-testid="workbench-notifications"
+    >
+      <div class="dashboard-card-header">
+        <div>
+          <h3>Notifications</h3>
+
+          <span class="muted">
+            Communication queue
+          </span>
+        </div>
+
+        <span
+          class="status-badge"
+          data-testid="workbench-notifications-count"
+        >
+          ${summary.unreadCount}
+        </span>
+      </div>
+
+      <p class="muted">
+        ${
+          summary.unreadCount === 1
+            ? "1 unread notification."
+            : `${summary.unreadCount} unread notifications.`
+        }
+      </p>
+
+      <button
+        type="button"
+        class="secondary-button"
+        data-testid="workbench-open-notifications"
+        onclick="navigateTo(
+          'notifications',
+          {}
+        )"
+      >
+        View Notifications
+      </button>
+    </section>
+  `;
+}
+
 function renderWorkbench() {
   const workbench =
     dashboardService.getWorkbench();
 
+  const notificationSummary =
+    dashboardService
+      .getNotificationsSummary();
+
   const nextSectionKey =
     workbench.nextSection?.key || "";
 
-  if (workbench.isEmpty) {
+  if (
+    workbench.isEmpty &&
+    !notificationSummary.hasUnread
+  ) {
     return `
       <section
         class="page-section"
@@ -365,6 +425,8 @@ function renderWorkbench() {
       </div>
 
       <div class="dashboard-grid workbench-grid">
+        ${renderWorkbenchNotificationCard()}
+
         ${renderWorkbenchCard({
           title: "Needs Assignment",
           items:

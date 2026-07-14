@@ -851,6 +851,27 @@ function getOperationsCenter() {
     return actions[key] || "";
   }
 
+  function getNotificationsSummary() {
+    const unreadCount =
+      typeof notificationService !==
+        "undefined" &&
+      typeof notificationService
+        .getUnreadCount === "function"
+        ? notificationService
+            .getUnreadCount()
+        : 0;
+
+    return {
+      unreadCount,
+      hasUnread:
+        unreadCount > 0,
+      destination: {
+        page: "notifications",
+        context: {}
+      }
+    };
+  }
+
   // Backward-compatible alias for existing callers.
   function getTodaysSchedule() {
     const today = getToday();
@@ -877,6 +898,7 @@ function getOperationsCenter() {
   getPendingClaims,
   getPendingAccounts,
   getRoleSummary,
+  getNotificationsSummary,
   getTodaysSchedule,
   getOperationsCenter,
 };

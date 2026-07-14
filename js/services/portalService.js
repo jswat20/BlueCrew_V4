@@ -414,6 +414,40 @@ const portalService = (() => {
 
 
 
+  function createReviewNotification(
+    game,
+    {
+      type,
+      title,
+      message,
+      audience
+    }
+  ) {
+    if (
+      typeof notificationService ===
+        "undefined" ||
+      typeof notificationService.create !==
+        "function" ||
+      !game
+    ) {
+      return;
+    }
+
+    notificationService.create({
+      type,
+      title,
+      message,
+      relatedId: game.id,
+      audience,
+      destination: {
+        page: "game-hub",
+        context: {
+          gameId: game.id
+        }
+      }
+    });
+  }
+
   function getGameReview(gameId) {
     const game = gameService.getById(gameId);
 
@@ -530,6 +564,19 @@ const portalService = (() => {
       return result;
     }
 
+    createReviewNotification(
+      game,
+      {
+        type: "review-submitted",
+        title: "Game Submitted for Review",
+        message:
+          `${game.awayTeam || "Away"} @ ` +
+          `${game.homeTeam || "Home"} ` +
+          "is ready for assigner review.",
+        audience: "admin"
+      }
+    );
+
     return {
       success: true,
       message:
@@ -621,6 +668,19 @@ const portalService = (() => {
     if (!result.success) {
       return result;
     }
+
+    createReviewNotification(
+      validation.game,
+      {
+        type: "review-approved",
+        title: "Game Review Approved",
+        message:
+          `${validation.game.awayTeam || "Away"} @ ` +
+          `${validation.game.homeTeam || "Home"} ` +
+          "has been approved.",
+        audience: "umpire"
+      }
+    );
 
     return {
       success: true,

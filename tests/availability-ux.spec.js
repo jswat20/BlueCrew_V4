@@ -325,12 +325,13 @@ test.describe(
         );
 
         expect(
-          notifications[0].type
-        ).toBe("availability-range");
-
-        expect(
-          notifications[0].audience
-        ).toBe("umpire");
+  notifications[0]
+).toEqual(
+  expect.objectContaining({
+    type: "availability-saved",
+    audience: "admin"
+  })
+);
       }
     );
   }

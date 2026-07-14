@@ -468,6 +468,12 @@ async function handleSaveAvailability() {
     return;
   }
 
+  const previousStatus =
+    getStoredAvailabilityStatus(
+      crewId,
+      date
+    );
+
   const assigned =
     availabilityService.hasAssignmentOnDate(
       crewId,
@@ -495,13 +501,6 @@ async function handleSaveAvailability() {
       return;
     }
 
-    createAvailabilityNotification({
-      type: "availability-conflict",
-      title: "Availability Conflict",
-      message:
-        `Availability was changed for ${date}, but an existing assignment remains.`,
-      crewId
-    });
   }
 
   const result =
@@ -523,15 +522,31 @@ async function handleSaveAvailability() {
     "available";
   availabilityPageState.editingDate = "";
 
-  createAvailabilityNotification({
-    type: "availability-saved",
-    title: "Availability Saved",
-    message:
-      `Availability for ${date} was set to ${formatAvailabilityStatus(
-        status
-      )}.`,
-    crewId
-  });
+  if (
+    previousStatus !== status
+  ) {
+    createAvailabilityNotification({
+      type:
+        assigned &&
+        status === "unavailable"
+          ? "availability-conflict"
+          : "availability-saved",
+      title:
+        assigned &&
+        status === "unavailable"
+          ? "Availability Conflict"
+          : "Availability Updated",
+      message:
+        assigned &&
+        status === "unavailable"
+          ? `Availability for ${date} was changed to Unavailable, but an existing assignment remains.`
+          : `Availability for ${date} was set to ${formatAvailabilityStatus(
+              status
+            )}.`,
+      crewId,
+      date
+    });
+  }
 
   showAvailabilitySuccess(
     "Availability saved."
@@ -598,7 +613,8 @@ function createAvailabilityNotification({
   type,
   title,
   message,
-  crewId
+  crewId,
+  date = ""
 }) {
   if (
     typeof notificationService ===
@@ -614,8 +630,28 @@ function createAvailabilityNotification({
     title,
     message,
     relatedId: String(crewId || ""),
-    audience: "umpire"
+    audience: "admin",
+    destination: {
+      page: "availability",
+      context: {
+        crewId: String(crewId || ""),
+        date: String(date || "")
+      }
+    }
   });
+}
+
+function getStoredAvailabilityStatus(
+  crewId,
+  date
+) {
+  return availabilityService
+    .getCrewAvailability(crewId)
+    .find(
+      entry =>
+        String(entry.date) ===
+        String(date)
+    )?.status || null;
 }
 
 function finishAvailabilityQuickAction(

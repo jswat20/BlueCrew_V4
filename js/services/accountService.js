@@ -68,6 +68,39 @@ role: normalizeRole(account.role),
     };
   }
 
+
+  function createAccountNotification(
+    account,
+    {
+      type,
+      title,
+      message
+    }
+  ) {
+    if (
+      typeof notificationService ===
+        "undefined" ||
+      typeof notificationService.create !==
+        "function" ||
+      !account
+    ) {
+      return;
+    }
+
+    notificationService.create({
+      type,
+      title,
+      message,
+      relatedId: account.id,
+      audience: "umpire",
+      recipientAccountId: account.id,
+      destination: {
+        page: "profile",
+        context: {}
+      }
+    });
+  }
+
   function createAccount(accountData = {}) {
     const accounts = getAll();
 
@@ -112,6 +145,16 @@ role: normalizeRole(account.role),
   account.rejectedAt = null;
 
   saveAll(accounts);
+
+  createAccountNotification(
+    account,
+    {
+      type: "account-approved",
+      title: "Account Approved",
+      message:
+        "Your BlueCrew account has been approved."
+    }
+  );
 
   return mutationResult(true, "Account approved.", account);
 }
@@ -166,6 +209,16 @@ function rejectAccount(accountId) {
   account.rejectedAt = new Date().toISOString();
 
   saveAll(accounts);
+
+  createAccountNotification(
+    account,
+    {
+      type: "account-rejected",
+      title: "Account Rejected",
+      message:
+        "Your BlueCrew account was not approved."
+    }
+  );
 
   return mutationResult(true, "Account rejected.", account);
 }

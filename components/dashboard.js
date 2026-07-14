@@ -25,6 +25,13 @@ function renderDashboard() {
       }
 
       ${
+        typeof renderNotificationSummary ===
+          "function"
+          ? renderNotificationSummary()
+          : ""
+      }
+
+      ${
         typeof renderAvailabilityReminder === "function"
           ? renderAvailabilityReminder()
           : ""
