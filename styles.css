@@ -2543,3 +2543,41 @@ button[aria-busy="true"]::after,
     min-width: 640px;
   }
 }
+
+/* The Slate brand attribution */
+
+/* SwatWorks company attribution */
+
+/* The Slate — SwatWorks attribution */
+#sidebar .brand .brand-company,
+.brand .brand-company,
+p.brand-company {
+  margin: 0.1rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+
+  text-transform: none !important;
+  font-variant: normal !important;
+  font-variant-caps: normal !important;
+  text-decoration: none;
+}
+
+.brand-company,
+.brand-company-name {
+  text-transform: none !important;
+  font-variant: normal !important;
+  font-variant-caps: normal !important;
+  font-family: Arial, sans-serif !important;
+}
+
+.brand-company-name {
+  display: inline;
+}
+
+/* Preserve SwatWorks mixed-case branding */
+.sidebar .brand .brand-company {
+  text-transform: none !important;
+  font-variant: normal !important;
+  font-variant-caps: normal !important;
+}

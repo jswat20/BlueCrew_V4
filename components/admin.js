@@ -143,7 +143,7 @@ function handleRebuildDataIds() {
 
 function handleResetAllLocalData() {
   const confirmed = window.confirm(
-    "Reset all locally stored BlueCrew data? This cannot be undone."
+    "Reset all locally stored The Slate data? This cannot be undone."
   );
 
   if (!confirmed) return;

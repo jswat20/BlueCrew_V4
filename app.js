@@ -429,7 +429,7 @@ function updateActiveNav(page) {
 
 function updateHeader(page) {
   const pageConfig = pages[page] || {
-    title: "BlueCrew",
+    title: "The Slate",
     subtitle: ""
   };
 

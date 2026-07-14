@@ -182,7 +182,7 @@ role: normalizeRole(account.role),
       type: "account-approved",
       title: "Account Approved",
       message:
-        "Your BlueCrew account has been approved."
+        "Your account for The Slate has been approved."
     }
   );
 
@@ -246,7 +246,7 @@ function rejectAccount(accountId) {
       type: "account-rejected",
       title: "Account Rejected",
       message:
-        "Your BlueCrew account was not approved."
+        "Your account for The Slate was not approved."
     }
   );
 
