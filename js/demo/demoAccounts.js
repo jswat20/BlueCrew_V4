@@ -1,73 +1,153 @@
-// js/demo/demoAccounts.js
 
 const demoAccountData = (() => {
-  const accounts = [
-    {
-      id: "demo-account-001",
-      firstName: "Ethan",
-      lastName: "Parker",
-      email: "ethan@demo.test",
-      phone: "555-0101",
-      status: "approved",
-      crewId: "demo-crew-1",
-      role: "administrator",
-      createdAt: "2026-01-10T14:00:00.000Z"
-    },
-    {
-      id: "demo-account-002",
-      firstName: "Noah",
-      lastName: "Brooks",
-      email: "noah@demo.test",
-      phone: "555-0102",
-      status: "approved",
-      crewId: "demo-crew-2",
-      role: "assigner",
-      createdAt: "2026-01-12T15:30:00.000Z"
-    },
-    {
-      id: "demo-account-003",
-      firstName: "Maya",
-      lastName: "Chen",
-      email: "maya.chen@demo.test",
-      phone: "555-0103",
-      status: "pending",
-      crewId: null,
-      role: "umpire",
-      createdAt: "2026-02-03T18:15:00.000Z"
-    },
-    {
-      id: "demo-account-004",
-      firstName: "Olivia",
+  function account({
+    id,
+    firstName,
+    lastName,
+    email,
+    role = "umpire",
+    status = "approved",
+    crewId = null,
+    createdOffset = -60,
+    approvedOffset = -55,
+    rejectedOffset = null
+  }) {
+    return {
+      id,
+      firstName,
+      lastName,
+      email,
+      phone: "555-010-1000",
+      role,
+      status,
+      crewId,
+      createdOffset,
+      approvedOffset,
+      rejectedOffset,
+      communicationPreferences: {
+        assignments: true,
+        claims: true,
+        reviews: true,
+        availability: true,
+        accounts: true,
+        activityDigest: true,
+        soundEnabled: true,
+        desktopNotifications: false
+      },
+      demoData: true,
+      showcaseData: true
+    };
+  }
+
+  const leadership = [
+    account({
+      id: "showcase-account-admin-001",
+      firstName: "Morgan",
+      lastName: "Ellis",
+      email: "admin@showcase.theslate.test",
+      role: "administrator"
+    }),
+    account({
+      id: "showcase-account-admin-002",
+      firstName: "Taylor",
       lastName: "Grant",
-      email: "olivia.grant@demo.test",
-      phone: "555-0104",
+      email: "operations@showcase.theslate.test",
+      role: "administrator"
+    }),
+    account({
+      id: "showcase-account-assigner-001",
+      firstName: "Jamie",
+      lastName: "Carter",
+      email: "assigner1@showcase.theslate.test",
+      role: "assigner"
+    }),
+    account({
+      id: "showcase-account-assigner-002",
+      firstName: "Casey",
+      lastName: "Monroe",
+      email: "assigner2@showcase.theslate.test",
+      role: "assigner"
+    }),
+    account({
+      id: "showcase-account-assigner-003",
+      firstName: "Riley",
+      lastName: "Douglas",
+      email: "assigner3@showcase.theslate.test",
+      role: "assigner"
+    })
+  ];
+
+  const umpireAccounts = demoCrewData
+    .getAll()
+    .map((member, index) =>
+      account({
+        id:
+          `showcase-account-umpire-${String(
+            index + 1
+          ).padStart(3, "0")}`,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        email: member.email,
+        role: "umpire",
+        status: "approved",
+        crewId: member.id,
+        createdOffset: -120 + index,
+        approvedOffset: -115 + index
+      })
+    );
+
+  const pendingAccounts = [
+    ["Avery", "Stone"],
+    ["Quinn", "Marshall"],
+    ["Dylan", "Porter"],
+    ["Reese", "Franklin"]
+  ].map(([firstName, lastName], index) =>
+    account({
+      id:
+        `showcase-account-pending-${String(
+          index + 1
+        ).padStart(3, "0")}`,
+      firstName,
+      lastName,
+      email:
+        `${firstName}.${lastName}`
+          .toLowerCase() +
+        "@showcase.theslate.test",
       status: "pending",
       crewId: null,
-      role: "assigner",
-      createdAt: "2026-02-05T19:20:00.000Z"
-    },
-    {
-      id: "demo-account-005",
-      firstName: "Daniel",
-      lastName: "Ruiz",
-      email: "daniel.ruiz@demo.test",
-      phone: "555-0105",
+      createdOffset: -(index + 1),
+      approvedOffset: null
+    })
+  );
+
+  const rejectedAccounts = [
+    account({
+      id: "showcase-account-rejected-001",
+      firstName: "Harper",
+      lastName: "Lane",
+      email: "harper.lane@showcase.theslate.test",
       status: "rejected",
-      crewId: null,
-      role: "umpire",
-      createdAt: "2026-01-22T16:45:00.000Z"
-    },
-    {
-      id: "demo-account-006",
-      firstName: "Priya",
-      lastName: "Shah",
-      email: "priya.shah@demo.test",
-      phone: "555-0106",
-      status: "inactive",
-      crewId: null,
-      role: "administrator",
-      createdAt: "2025-12-18T13:10:00.000Z"
-    }
+      createdOffset: -18,
+      approvedOffset: null,
+      rejectedOffset: -16
+    }),
+    account({
+      id: "showcase-account-rejected-002",
+      firstName: "Peyton",
+      lastName: "Cross",
+      email: "peyton.cross@showcase.theslate.test",
+      status: "rejected",
+      createdOffset: -9,
+      approvedOffset: null,
+      rejectedOffset: -7
+    })
+  ];
+
+  const accounts = [
+    ...leadership,
+    ...umpireAccounts,
+    ...pendingAccounts,
+    ...rejectedAccounts
   ];
 
   function getAll() {
@@ -78,3 +158,7 @@ const demoAccountData = (() => {
     getAll
   };
 })();
+
+if (typeof window !== "undefined") {
+  window.demoAccounts = demoAccountData.getAll();
+}

@@ -20,8 +20,8 @@ function renderAdmin() {
         <h3>Developer Tools</h3>
 
         <p class="placeholder">
-          Load realistic development data or restore the
-          data that existed before the demo league was loaded.
+          Load a realistic showcase organization or restore the
+          data that existed before the showcase league was loaded.
         </p>
 
         <div
@@ -31,15 +31,20 @@ function renderAdmin() {
           ${
             demoSummary.loaded
               ? `
-                <strong>Demo league loaded</strong>
+                <strong>Showcase league loaded</strong>
                 <p>
                   ${demoSummary.games} games,
                   ${demoSummary.crew} umpires,
                   ${demoSummary.accounts} accounts
                 </p>
+                <p>
+                  ${demoSummary.administrators || 0} administrators,
+                  ${demoSummary.assigners || 0} assigners,
+                  ${demoSummary.pendingAccounts || 0} pending registrations
+                </p>
               `
               : `
-                <strong>Demo league not loaded</strong>
+                <strong>Showcase league not loaded</strong>
                 <p>Your current data is unchanged.</p>
               `
           }
@@ -52,7 +57,7 @@ function renderAdmin() {
             data-testid="load-demo-league"
             ${demoSummary.loaded ? "disabled" : ""}
             onclick="handleLoadDemoLeague()">
-            Load Demo League
+            Load Showcase League
           </button>
 
           <button
@@ -92,7 +97,7 @@ function renderAdmin() {
 
 function handleLoadDemoLeague() {
   const confirmed = window.confirm(
-    "Load the demo league? Your current data will be saved and can be restored."
+    "Load the showcase league? Your current data will be saved and can be restored."
   );
 
   if (!confirmed) return;
@@ -110,7 +115,7 @@ function handleLoadDemoLeague() {
 
 function handleRestoreDemoLeague() {
   const confirmed = window.confirm(
-    "Restore the data that existed before the demo league was loaded?"
+    "Restore the data that existed before the showcase league was loaded?"
   );
 
   if (!confirmed) return;
