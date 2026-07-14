@@ -9,7 +9,7 @@ function renderSeasonDashboard() {
       class="season-dashboard"
       data-testid="season-dashboard"
     >
-      <div class="season-dashboard-grid">
+      <div class="season-dashboard-grid responsive-grid">
         ${renderSeasonMetricCard(
           "operations",
           "Operations",

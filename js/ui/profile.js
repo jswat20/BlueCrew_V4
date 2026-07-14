@@ -316,7 +316,7 @@ function renderProfileForm(profile) {
           </div>
         </section>
 
-        <div class="form-actions">
+        <div class="form-actions responsive-actions">
           <button
             type="submit"
             data-testid="profile-save"

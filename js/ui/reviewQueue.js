@@ -72,7 +72,7 @@ function renderReviewQueue(context = {}) {
     >
       <h2>Review Queue</h2>
 
-      <div class="table-wrapper">
+      <div class="table-wrapper responsive-table">
         <table
           class="table"
           data-testid="review-queue-table"

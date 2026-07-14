@@ -379,7 +379,7 @@ function renderOperationsCenterQuickActions(
   if (task.key === "needsAssignment") {
     return `
       <div
-        class="operations-quick-actions"
+        class="operations-quick-actions responsive-actions"
         data-testid="operations-quick-actions"
       >
         <button
@@ -398,7 +398,7 @@ function renderOperationsCenterQuickActions(
   if (task.key === "pendingClaims") {
     return `
       <div
-        class="operations-quick-actions"
+        class="operations-quick-actions responsive-actions"
         data-testid="operations-quick-actions"
       >
         <button
@@ -530,7 +530,7 @@ function renderOperationsCenterCurrentTask(task) {
             : ""
         }
 
-        <div class="operations-task-actions">
+        <div class="operations-task-actions responsive-actions">
           ${renderOperationsCenterQuickActions(
             task,
             firstItem

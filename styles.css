@@ -1858,3 +1858,688 @@ body {
   }
 }
 
+/* ======================================================
+   BLUECREW 2028.13C
+   Responsive Layout & Final UX Hardening
+====================================================== */
+
+/*
+  Shared containment
+*/
+
+.page-wrapper,
+.page-section,
+.dashboard-card,
+.card,
+.workbench-card,
+.operations-card,
+.notification-card,
+.profile-card,
+.game-hub-card,
+.season-dashboard-card {
+  min-width: 0;
+}
+
+.page-wrapper,
+.page-section {
+  width: 100%;
+  max-width: 100%;
+}
+
+.page-wrapper *,
+.page-section * {
+  box-sizing: border-box;
+}
+
+.page-wrapper img,
+.page-section img,
+.page-wrapper svg,
+.page-section svg {
+  max-width: 100%;
+}
+
+.page-wrapper h1,
+.page-wrapper h2,
+.page-wrapper h3,
+.page-wrapper h4,
+.page-wrapper p,
+.page-wrapper li,
+.page-wrapper dt,
+.page-wrapper dd,
+.page-section h1,
+.page-section h2,
+.page-section h3,
+.page-section h4,
+.page-section p,
+.page-section li,
+.page-section dt,
+.page-section dd {
+  overflow-wrap: anywhere;
+}
+
+/*
+  Shared responsive grids
+*/
+
+.dashboard-grid,
+.workbench-grid,
+.season-dashboard-grid,
+.operations-grid,
+.game-hub-grid,
+.profile-grid,
+.summary-grid {
+  min-width: 0;
+}
+
+.workbench-grid,
+.season-dashboard-grid,
+.operations-grid,
+.game-hub-grid {
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(
+        min(100%, 280px),
+        1fr
+      )
+    );
+}
+
+.summary-grid {
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(
+        min(100%, 170px),
+        1fr
+      )
+    );
+}
+
+.dashboard-card,
+.workbench-card,
+.operations-card,
+.game-hub-card,
+.season-dashboard-card,
+.summary-tile {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/*
+  Shared headers, toolbars, action rows, and chip groups
+*/
+
+.page-header,
+.page-section-header,
+.dashboard-card-header,
+.card-header,
+.workbench-card-header,
+.operations-card-header,
+.notification-center-header,
+.notification-section-header,
+.profile-header,
+.game-hub-header,
+.season-dashboard-header,
+.table-header {
+  min-width: 0;
+}
+
+.page-header,
+.page-section-header,
+.dashboard-card-header,
+.card-header,
+.workbench-card-header,
+.operations-card-header,
+.notification-center-header,
+.notification-section-header,
+.profile-header,
+.game-hub-header,
+.season-dashboard-header,
+.table-header,
+.card-actions,
+.form-actions,
+.action-row,
+.button-row,
+.toolbar,
+.filter-row,
+.filter-chip-group,
+.notification-filter-chips,
+.notification-center-actions,
+.notification-card-actions,
+.operations-quick-actions,
+.operations-task-actions,
+.workbench-launch,
+.workbench-card-actions,
+.profile-form-actions,
+.availability-form-actions,
+.availability-entry-actions,
+.reports-filter-actions,
+.reports-preset-actions,
+.report-card-actions,
+.crew-availability-buttons,
+.game-hub-actions,
+.season-dashboard-actions {
+  gap: 12px;
+}
+
+.card-actions,
+.form-actions,
+.action-row,
+.button-row,
+.filter-row,
+.filter-chip-group,
+.notification-filter-chips,
+.notification-center-actions,
+.notification-card-actions,
+.operations-quick-actions,
+.operations-task-actions,
+.workbench-launch,
+.workbench-card-actions,
+.profile-form-actions,
+.availability-form-actions,
+.availability-entry-actions,
+.reports-filter-actions,
+.reports-preset-actions,
+.report-card-actions,
+.crew-availability-buttons,
+.game-hub-actions,
+.season-dashboard-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.page-header > *,
+.page-section-header > *,
+.dashboard-card-header > *,
+.card-header > *,
+.notification-center-header > *,
+.notification-section-header > *,
+.operations-card-header > *,
+.profile-header > *,
+.game-hub-header > *,
+.season-dashboard-header > * {
+  min-width: 0;
+}
+
+/*
+  Filter chips
+*/
+
+.filter-chip-group,
+.notification-filter-chips,
+.claim-history-filters,
+.claim-history-date-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.filter-chip,
+.claim-history-filters button,
+.claim-history-date-filters button {
+  flex: 0 1 auto;
+  max-width: 100%;
+  white-space: normal;
+}
+
+/*
+  Forms
+*/
+
+.form-grid,
+.profile-form-grid,
+.availability-form-grid,
+.reports-filter-grid,
+.game-hub-form-grid {
+  min-width: 0;
+}
+
+.form-grid > *,
+.profile-form-grid > *,
+.availability-form-grid > *,
+.reports-filter-grid > *,
+.game-hub-form-grid > * {
+  min-width: 0;
+}
+
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+textarea {
+  resize: vertical;
+}
+
+/*
+  Tables
+*/
+
+.table-wrapper,
+.table-container,
+.responsive-table,
+.schedule-table-wrapper,
+.my-schedule-table-wrapper,
+.claims-queue-table-wrapper,
+.review-queue-table-wrapper,
+.report-detail-table-wrapper {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrapper table,
+.table-container table,
+.responsive-table table,
+.schedule-table-wrapper table,
+.my-schedule-table-wrapper table,
+.claims-queue-table-wrapper table,
+.review-queue-table-wrapper table,
+.report-detail-table-wrapper table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+
+.table-wrapper th,
+.table-wrapper td,
+.table-container th,
+.table-container td,
+.responsive-table th,
+.responsive-table td,
+.schedule-table-wrapper th,
+.schedule-table-wrapper td,
+.my-schedule-table-wrapper th,
+.my-schedule-table-wrapper td,
+.claims-queue-table-wrapper th,
+.claims-queue-table-wrapper td,
+.review-queue-table-wrapper th,
+.review-queue-table-wrapper td {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.table-wrapper th,
+.table-container th,
+.responsive-table th {
+  white-space: nowrap;
+}
+
+/*
+  Badges and metadata
+*/
+
+.badge-row,
+.status-row,
+.status-badge-row,
+.notification-meta,
+.workbench-item-meta,
+.operations-task-meta,
+.game-hub-status-row,
+.season-dashboard-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.badge,
+.status-badge,
+.availability-status-badge,
+.notification-status,
+.workbench-status,
+.game-hub-status {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/*
+  Shared control sizing and states
+*/
+
+button,
+.button,
+.primary,
+.secondary,
+.primary-btn,
+.secondary-btn,
+.small-btn,
+.primary-button,
+.secondary-button,
+.danger-button,
+.button-primary,
+.button-secondary,
+.button-danger,
+.filter-chip,
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  max-width: 100%;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+.button,
+.primary,
+.secondary,
+.primary-btn,
+.secondary-btn,
+.small-btn,
+.primary-button,
+.secondary-button,
+.danger-button,
+.button-primary,
+.button-secondary,
+.button-danger,
+.filter-chip {
+  line-height: 1.2;
+  white-space: normal;
+}
+
+button:not(:disabled),
+.button:not([aria-disabled="true"]),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+button[aria-disabled="true"],
+.button[aria-disabled="true"],
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.58;
+  box-shadow: none;
+  transform: none;
+  pointer-events: none;
+}
+
+button:disabled:hover,
+button[aria-disabled="true"]:hover,
+.button[aria-disabled="true"]:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+button:focus-visible,
+.button:focus-visible,
+.primary:focus-visible,
+.secondary:focus-visible,
+.primary-btn:focus-visible,
+.secondary-btn:focus-visible,
+.small-btn:focus-visible,
+.primary-button:focus-visible,
+.secondary-button:focus-visible,
+.danger-button:focus-visible,
+.button-primary:focus-visible,
+.button-secondary:focus-visible,
+.button-danger:focus-visible,
+.filter-chip:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid
+    rgba(30, 136, 229, 0.38);
+  outline-offset: 2px;
+}
+
+/*
+  Destructive actions
+*/
+
+.danger-button,
+.button-danger,
+.destructive-button,
+[data-action*="delete"],
+[data-action*="remove"],
+[data-action*="reject"] {
+  border-color: #b42318;
+  color: #b42318;
+}
+
+.danger-button:hover:not(:disabled),
+.button-danger:hover:not(:disabled),
+.destructive-button:hover:not(:disabled) {
+  background: #fff1f0;
+}
+
+.danger-button:focus-visible,
+.button-danger:focus-visible,
+.destructive-button:focus-visible {
+  outline-color:
+    rgba(180, 35, 24, 0.35);
+}
+
+/*
+  Synchronous busy affordance.
+
+  Mutation handlers may set aria-busy="true" while
+  executing without introducing asynchronous behavior.
+*/
+
+button[aria-busy="true"],
+.button[aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.72;
+  pointer-events: none;
+  position: relative;
+}
+
+button[aria-busy="true"]::after,
+.button[aria-busy="true"]::after {
+  content: "";
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-left: 0.55em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -0.1em;
+  animation:
+    bluecrew-control-spin 700ms linear infinite;
+}
+
+@keyframes bluecrew-control-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .button,
+  .summary-tile {
+    scroll-behavior: auto;
+    transition: none;
+  }
+
+  button[aria-busy="true"]::after,
+  .button[aria-busy="true"]::after {
+    animation-duration: 1400ms;
+  }
+}
+
+/*
+  Tablet and narrow-screen hierarchy
+*/
+
+@media (max-width: 900px) {
+  .dashboard-grid,
+  .workbench-grid,
+  .season-dashboard-grid,
+  .operations-grid,
+  .game-hub-grid,
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-full {
+    grid-column: auto;
+  }
+
+  .page-header,
+  .page-section-header,
+  .dashboard-card-header,
+  .card-header,
+  .notification-center-header,
+  .notification-section-header,
+  .operations-card-header,
+  .profile-header,
+  .game-hub-header,
+  .season-dashboard-header,
+  .table-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .form-grid,
+  .profile-form-grid,
+  .availability-form-grid,
+  .reports-filter-grid,
+  .game-hub-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/*
+  Phone layouts
+*/
+
+@media (max-width: 640px) {
+  .page-wrapper,
+  .page-section {
+    padding-inline:
+      max(12px, env(safe-area-inset-left));
+  }
+
+  .dashboard-card,
+  .card,
+  .workbench-card,
+  .operations-card,
+  .notification-card,
+  .profile-card,
+  .game-hub-card,
+  .season-dashboard-card {
+    padding: 16px;
+  }
+
+  .page-header,
+  .page-section-header,
+  .dashboard-card-header,
+  .card-header,
+  .notification-center-header,
+  .notification-section-header,
+  .operations-card-header,
+  .profile-header,
+  .game-hub-header,
+  .season-dashboard-header,
+  .table-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .notification-center-actions,
+  .notification-card-actions,
+  .operations-quick-actions,
+  .operations-task-actions,
+  .profile-form-actions,
+  .availability-form-actions,
+  .reports-filter-actions,
+  .reports-preset-actions,
+  .report-card-actions,
+  .crew-availability-buttons,
+  .game-hub-actions,
+  .season-dashboard-actions {
+    align-items: stretch;
+  }
+
+  .notification-center-actions > button,
+  .notification-card-actions > button,
+  .operations-quick-actions > button,
+  .operations-task-actions > button,
+  .profile-form-actions > button,
+  .availability-form-actions > button,
+  .reports-filter-actions > button,
+  .reports-preset-actions > button,
+  .report-card-actions > button,
+  .crew-availability-buttons > button,
+  .game-hub-actions > button,
+  .season-dashboard-actions > button {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .workbench-launch > button {
+    width: 100%;
+  }
+
+  .notification-center-actions .muted,
+  .notification-selection-count {
+    flex: 1 1 100%;
+  }
+
+  .filter-chip-group,
+  .notification-filter-chips,
+  .claim-history-filters,
+  .claim-history-date-filters {
+    align-items: stretch;
+  }
+
+  .filter-chip,
+  .claim-history-filters button,
+  .claim-history-date-filters button {
+    flex: 1 1 auto;
+  }
+
+  .summary-grid {
+    grid-template-columns:
+      repeat(
+        auto-fit,
+        minmax(
+          min(100%, 145px),
+          1fr
+        )
+      );
+  }
+
+  .summary-tile {
+    padding: 16px 12px;
+  }
+
+  .table-wrapper,
+  .table-container,
+  .responsive-table,
+  .schedule-table-wrapper,
+  .my-schedule-table-wrapper,
+  .claims-queue-table-wrapper,
+  .review-queue-table-wrapper,
+  .report-detail-table-wrapper {
+    margin-inline: 0;
+    padding-bottom: 4px;
+  }
+
+  .table-wrapper table,
+  .table-container table,
+  .responsive-table table,
+  .schedule-table-wrapper table,
+  .my-schedule-table-wrapper table,
+  .claims-queue-table-wrapper table,
+  .review-queue-table-wrapper table,
+  .report-detail-table-wrapper table {
+    min-width: 640px;
+  }
+}

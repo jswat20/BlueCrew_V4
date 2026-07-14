@@ -528,7 +528,7 @@ function renderWorkbench() {
       class="page-section"
       data-testid="assigner-workbench"
     >
-      <div class="workbench-launch">
+      <div class="workbench-launch responsive-actions">
         <button
           type="button"
           class="primary-button"

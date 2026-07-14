@@ -456,8 +456,8 @@ function renderNotificationFilterChip(
       type="button"
       class="${
         active
-          ? "filter-chip active"
-          : "filter-chip"
+          ? "filter-chip responsive-chip active"
+          : "filter-chip responsive-chip"
       }"
       data-testid="notification-filter-${value}"
       data-filter="${value}"
@@ -648,7 +648,7 @@ function renderNotifications() {
               </div>
 
               <div
-                class="notification-center-actions"
+                class="notification-center-actions responsive-actions"
                 data-testid="notification-bulk-actions"
               >
                 ${
