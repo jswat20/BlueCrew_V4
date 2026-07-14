@@ -37,6 +37,12 @@ function renderDashboard() {
       }
 
       ${
+        typeof renderRecentAssignmentActivity === "function"
+          ? renderRecentAssignmentActivity()
+          : ""
+      }
+
+      ${
         typeof renderUpcomingSchedule === "function"
           ? renderUpcomingSchedule()
           : (

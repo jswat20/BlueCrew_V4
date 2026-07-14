@@ -218,6 +218,57 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
     return { success, message, data };
   }
 
+  function createAssignmentActivity(
+    game,
+    action,
+    message
+  ) {
+    if (
+      typeof activityService === "undefined" ||
+      typeof activityService.log !== "function"
+    ) {
+      return;
+    }
+
+    activityService.log({
+      type: "assignment",
+      action,
+      gameId: game?.id || "",
+      matchup:
+        `${game?.awayTeam || "Away"} @ ` +
+        `${game?.homeTeam || "Home"}`,
+      message
+    });
+  }
+
+  function createAssignmentNotification(
+    game,
+    assignment,
+    action
+  ) {
+    if (
+      typeof notificationService === "undefined" ||
+      typeof notificationService.create !== "function" ||
+      !assignment?.crewId
+    ) {
+      return;
+    }
+
+    notificationService.create({
+      type: "assignment",
+      title:
+        action === "assigned"
+          ? "New Assignment"
+          : "Assignment Updated",
+      message:
+        `${assignment.position}: ` +
+        `${game.awayTeam} @ ${game.homeTeam} • ` +
+        `${game.date} ${game.time}`,
+      relatedId: game.id,
+      audience: "umpire"
+    });
+  }
+
   function requireAssignGames() {
     if (
       typeof authorizationService !== "undefined" &&
@@ -262,10 +313,21 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
     syncLegacyFields(game);
     saveGames(games);
 
-    activityService?.log?.(
-      crewId ? `${position} assigned.` : `${position} cleared.`,
-      game
+    createAssignmentActivity(
+      game,
+      crewId ? "assigned" : "cleared",
+      crewId
+        ? `${position} assigned.`
+        : `${position} cleared.`
     );
+
+    if (crewId) {
+      createAssignmentNotification(
+        game,
+        assignment,
+        "assigned"
+      );
+    }
 
     return mutationResult(
       true,
@@ -307,10 +369,21 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
     syncLegacyFields(game);
     saveGames(games);
 
-    activityService?.log?.(
-      crewId ? `${assignment.position} assigned.` : `${assignment.position} cleared.`,
-      game
+    createAssignmentActivity(
+      game,
+      crewId ? "assigned" : "cleared",
+      crewId
+        ? `${assignment.position} assigned.`
+        : `${assignment.position} cleared.`
     );
+
+    if (crewId) {
+      createAssignmentNotification(
+        game,
+        assignment,
+        "assigned"
+      );
+    }
 
     return mutationResult(
       true,
@@ -360,7 +433,11 @@ function openAssignmentForClaims(gameId, assignmentId) {
   syncLegacyFields(game);
   saveGames(games);
 
-  activityService?.log?.(`${assignment.position} opened for claims.`, game);
+  createAssignmentActivity(
+    game,
+    "opened_for_claim",
+    `${assignment.position} opened for claims.`
+  );
 
   return mutationResult(true, `${assignment.position} opened for claims.`, assignment);
 }
@@ -394,7 +471,11 @@ function clearAssignmentSlot(gameId, assignmentId) {
   syncLegacyFields(game);
   saveGames(games);
 
-  activityService?.log?.(`${assignment.position} cleared.`, game);
+  createAssignmentActivity(
+    game,
+    "cleared",
+    `${assignment.position} cleared.`
+  );
 
   return mutationResult(true, `${assignment.position} cleared.`, assignment);
 }
@@ -424,7 +505,17 @@ function approveAssignmentClaim(gameId, assignmentId) {
   syncLegacyFields(game);
   saveGames(games);
 
-  activityService?.log?.(`${assignment.position} claim approved.`, game);
+  createAssignmentActivity(
+    game,
+    "claim_approved",
+    `${assignment.position} claim approved.`
+  );
+
+  createAssignmentNotification(
+    game,
+    assignment,
+    "approved"
+  );
 
   return mutationResult(true, `${assignment.position} claim approved.`, assignment);
 }
@@ -450,7 +541,11 @@ function rejectAssignmentClaim(gameId, assignmentId) {
   syncLegacyFields(game);
   saveGames(games);
 
-activityService?.log?.(`${assignment.position} claim rejected.`, game);
+  createAssignmentActivity(
+    game,
+    "claim_rejected",
+    `${assignment.position} claim rejected.`
+  );
 
   return mutationResult(true, `${assignment.position} claim rejected.`, assignment);
 }
@@ -482,7 +577,11 @@ function lockAssignmentSlot(gameId, assignmentId) {
   syncLegacyFields(game);
   saveGames(games);
 
-  activityService?.log?.(`${assignment.position} locked.`, game);
+  createAssignmentActivity(
+    game,
+    "locked",
+    `${assignment.position} locked.`
+  );
 
   return mutationResult(true, `${assignment.position} locked.`, assignment);
 }
@@ -559,7 +658,11 @@ function lockAssignmentSlot(gameId, assignmentId) {
     syncLegacyFields(game);
     saveGames(games);
 
-    activityService?.log?.("Assignment cleared.", game);
+    createAssignmentActivity(
+      game,
+      "cleared",
+      "Assignment cleared."
+    );
 
     return mutationResult(true, "Assignment cleared.", game);
   }
@@ -591,7 +694,11 @@ function lockAssignmentSlot(gameId, assignmentId) {
     syncLegacyFields(game);
     saveGames(games);
 
-    activityService?.log?.("Game opened for claims.", game);
+    createAssignmentActivity(
+      game,
+      "opened_for_claim",
+      "Game opened for claims."
+    );
 
     return mutationResult(true, "Game opened for claims.", game);
   }
@@ -617,7 +724,11 @@ function lockAssignmentSlot(gameId, assignmentId) {
     syncLegacyFields(game);
     saveGames(games);
 
-    activityService?.log?.("Game claimed and awaiting approval.", game);
+    createAssignmentActivity(
+      game,
+      "claim_submitted",
+      "Game claimed and awaiting approval."
+    );
 
 notificationService?.create?.({
   type: "claim-submitted",
@@ -662,7 +773,11 @@ assignment.status = STATUS.ASSIGNED;
     syncLegacyFields(game);
     saveGames(games);
 
-    activityService?.log?.("Claim approved.", game);
+    createAssignmentActivity(
+      game,
+      "claim_approved",
+      "Claim approved."
+    );
 
 notificationService?.create?.({
   type: "claim-approved",
@@ -704,7 +819,11 @@ assignment.status = STATUS.OPEN_FOR_CLAIM;
     syncLegacyFields(game);
     saveGames(games);
 
-    activityService?.log?.("Claim rejected.", game);
+    createAssignmentActivity(
+      game,
+      "claim_rejected",
+      "Claim rejected."
+    );
 
 notificationService?.create?.({
   type: "claim-rejected",
@@ -738,7 +857,11 @@ notificationService?.create?.({
     syncLegacyFields(game);
     saveGames(games);
 
-    activityService?.log?.("Assignment locked.", game);
+    createAssignmentActivity(
+      game,
+      "locked",
+      "Assignment locked."
+    );
 
     return mutationResult(true, "Assignment locked.", game);
   }

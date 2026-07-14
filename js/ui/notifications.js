@@ -35,6 +35,14 @@ const notificationActionConfig = {
     context: relatedId => ({
       gameId: relatedId
     })
+  },
+
+  assignment: {
+    label: "View Assignment",
+    page: "game-hub",
+    context: relatedId => ({
+      gameId: relatedId
+    })
   }
 };
 function getReturnedReviewNotifications() {

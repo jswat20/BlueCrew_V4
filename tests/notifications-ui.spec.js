@@ -157,6 +157,41 @@ test.describe("Notifications UI", () => {
     await expect(app.page.getByTestId("notification-timestamp")).toBeVisible();
   });
 
+
+  test("assignment notifications open the Game Hub", async ({ app }) => {
+    await app.page.evaluate(() => {
+      notificationService.clearAll();
+
+      const game = gameService.create({
+        date: "2099-08-01",
+        time: "6:00 PM",
+        field: "Assignment Field",
+        level: "12U",
+        homeTeam: "Assignment Home",
+        awayTeam: "Assignment Away",
+        gameType: "single"
+      }).data;
+
+      notificationService.create({
+        type: "assignment",
+        title: "New Assignment",
+        message: "You have been assigned.",
+        relatedId: game.id,
+        audience: "umpire"
+      });
+    });
+
+    await app.page.getByTestId("nav-notifications").click();
+
+    await app.page
+      .getByTestId("notification-action")
+      .click();
+
+    await expect(
+      app.page.getByTestId("game-hub")
+    ).toBeVisible();
+  });
+
   test("claim notifications navigate to the Claims Queue", async ({ app }) => {
     await app.page.evaluate(() => {
       notificationService.clearAll();

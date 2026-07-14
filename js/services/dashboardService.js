@@ -260,6 +260,71 @@ function getRoleSummary() {
     };
   }
 
+  function getRecentAssignmentActivity(limit = 5) {
+    if (
+      typeof activityService === "undefined" ||
+      typeof activityService.getRecent !== "function"
+    ) {
+      return [];
+    }
+
+    const normalizedLimit =
+      Number.isInteger(limit) && limit > 0
+        ? limit
+        : 5;
+
+    return activityService
+      .getRecent(50)
+      .filter(
+        activity =>
+          activity?.type === "assignment"
+      )
+      .slice(0, normalizedLimit)
+      .map(activity => ({
+        id: activity.id,
+        action: activity.action || "",
+        actionLabel:
+          formatAssignmentActivityAction(
+            activity.action
+          ),
+        gameId: activity.gameId || "",
+        matchup:
+          activity.matchup ||
+          "Assignment activity",
+        message:
+          activity.message || "",
+        createdAt:
+          activity.createdAt || ""
+      }));
+  }
+
+  function formatAssignmentActivityAction(
+    action
+  ) {
+    const labels = {
+      assigned: "Assigned",
+      cleared: "Cleared",
+      opened_for_claim:
+        "Opened for Claim",
+      claim_submitted:
+        "Claim Submitted",
+      claim_approved:
+        "Claim Approved",
+      claim_rejected:
+        "Claim Rejected",
+      locked: "Locked"
+    };
+
+    return (
+      labels[action] ||
+      String(action || "Updated")
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, letter =>
+          letter.toUpperCase()
+        )
+    );
+  }
+
   function getNeedsAttention() {
     const openAssignments = getOpenAssignments();
     const pendingClaims = getPendingClaims();
@@ -353,6 +418,7 @@ function getRoleSummary() {
   return {
   getOperationsSummary,
   getAvailabilityReminder,
+  getRecentAssignmentActivity,
   getNeedsAttention,
   getUpcomingGames,
   getUpcomingGameCount,

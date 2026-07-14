@@ -11,17 +11,44 @@ const activityService = (() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }
 
-  function log(type, message) {
+  function log(typeOrActivity, message) {
     const items = getAll();
 
-    items.unshift({
-      id: crypto.randomUUID(),
-      type,
-      message,
-      createdAt: new Date().toISOString()
-    });
+    const source =
+      typeOrActivity &&
+      typeof typeOrActivity === "object" &&
+      !Array.isArray(typeOrActivity)
+        ? typeOrActivity
+        : {
+            type: typeOrActivity,
+            message
+          };
+
+    const activity = {
+      id:
+        source.id ||
+        crypto.randomUUID(),
+      type:
+        source.type ||
+        "general",
+      action:
+        source.action || "",
+      gameId:
+        source.gameId || "",
+      matchup:
+        source.matchup || "",
+      message:
+        source.message || "",
+      createdAt:
+        source.createdAt ||
+        new Date().toISOString()
+    };
+
+    items.unshift(activity);
 
     save(items.slice(0, 50));
+
+    return activity;
   }
 
   function getRecent(limit = 10) {
