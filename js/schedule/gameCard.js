@@ -279,6 +279,12 @@ function quickAssignCrew(gameId) {
   setTimeout(() => {
     renderScheduleContent();
   }, 250);
+  if (
+    typeof refreshWorkbenchIfActive === "function"
+  ) {
+    refreshWorkbenchIfActive();
+  }
+
 }
 
 function claimGame(gameId) {

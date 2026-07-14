@@ -67,6 +67,11 @@ const authorizationService = (() => {
       ROLES.ASSIGNER
     ]),
 
+    "assigner-workbench": Object.freeze([
+      ROLES.ADMINISTRATOR,
+      ROLES.ASSIGNER
+    ]),
+
     settings: Object.freeze([
       ROLES.ADMINISTRATOR
     ]),

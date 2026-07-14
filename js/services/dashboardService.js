@@ -634,6 +634,98 @@ function getRoleSummary() {
     };
   }
 
+  function getWorkbench() {
+    const needsAssignment =
+      assignmentService.getNeedsAssignmentGames();
+
+    const pendingClaims =
+      claimsQueueService.getPendingClaims();
+
+    const awaitingReview =
+      reviewService.getSubmittedGames();
+
+    const returnedReviews =
+      reviewService.getReturnedGames();
+
+    const todaysPriorities =
+      getTodaysSchedule()
+        .filter(game => !game.assigned);
+
+    const recentActivity =
+      getRecentAssignmentActivity();
+
+    const sections = {
+      needsAssignment,
+      pendingClaims,
+      awaitingReview,
+      returnedReviews,
+      todaysPriorities,
+      recentActivity
+    };
+
+    const counts = {
+      needsAssignment: needsAssignment.length,
+      pendingClaims: pendingClaims.length,
+      awaitingReview: awaitingReview.length,
+      returnedReviews: returnedReviews.length,
+      todaysPriorities: todaysPriorities.length,
+      recentActivity: recentActivity.length
+    };
+
+    const priorityOrder = [
+      {
+        key: "todaysPriorities",
+        title: "Today's Priorities"
+      },
+      {
+        key: "pendingClaims",
+        title: "Pending Claims"
+      },
+      {
+        key: "awaitingReview",
+        title: "Awaiting Review"
+      },
+      {
+        key: "returnedReviews",
+        title: "Returned Reviews"
+      },
+      {
+        key: "needsAssignment",
+        title: "Needs Assignment"
+      }
+    ];
+
+    const nextSection =
+      priorityOrder.find(
+        section => counts[section.key] > 0
+      ) || null;
+
+    return {
+      sections,
+      counts,
+      priorityOrder,
+      nextSection,
+
+      totalActionItems:
+        counts.needsAssignment +
+        counts.pendingClaims +
+        counts.awaitingReview +
+        counts.returnedReviews +
+        counts.todaysPriorities,
+
+      requiresAttention:
+        counts.needsAssignment > 0 ||
+        counts.pendingClaims > 0 ||
+        counts.awaitingReview > 0 ||
+        counts.returnedReviews > 0 ||
+        counts.todaysPriorities > 0,
+
+      isEmpty:
+        Object.values(counts)
+          .every(count => count === 0)
+    };
+  }
+
   // Backward-compatible alias for existing callers.
   function getTodaysSchedule() {
     const today = getToday();
@@ -650,6 +742,7 @@ function getRoleSummary() {
   return {
   getOperationsSummary,
   getSeasonDashboard,
+  getWorkbench,
   getAvailabilityReminder,
   getRecentAssignmentActivity,
   getNeedsAttention,

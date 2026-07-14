@@ -57,6 +57,10 @@ const pages = {
     title: "Season Dashboard",
     subtitle: "Season operations, staffing, availability, and activity."
   },
+  "assigner-workbench": {
+    title: "Assigner Workbench",
+    subtitle: "Operational queues and priorities."
+  },
   settings: {
     title: "Settings",
     subtitle: "Manage Fields, Levels, Teams, and Time Slots."
@@ -283,6 +287,11 @@ function renderAdminView(page, context = {}) {
     "season-dashboard":
       typeof renderSeasonDashboard === "function"
         ? renderSeasonDashboard
+        : null,
+
+    "assigner-workbench":
+      typeof renderWorkbench === "function"
+        ? renderWorkbench
         : null,
     settings: typeof renderSettings === "function" ? renderSettings : null,
     admin: typeof renderAdmin === "function" ? renderAdmin : null,

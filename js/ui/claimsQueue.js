@@ -133,39 +133,121 @@ function handleClearSelectedClaims() {
 }
 
 function handleApproveClaim(gameId, assignmentId) {
-  claimsQueueService.approveClaim(gameId, assignmentId);
+  const result =
+    claimsQueueService.approveClaim(
+      gameId,
+      assignmentId
+    );
+
+  if (result?.success === false) {
+    return result;
+  }
+
   selectedClaimIds.delete(assignmentId);
+
+  if (
+    typeof refreshWorkbenchIfActive === "function"
+  ) {
+    refreshWorkbenchIfActive();
+  }
+
   renderPage("claims-queue");
+
+  return result;
 }
 
 function handleRejectClaim(gameId, assignmentId) {
-  claimsQueueService.rejectClaim(gameId, assignmentId);
+  const result =
+    claimsQueueService.rejectClaim(
+      gameId,
+      assignmentId
+    );
+
+  if (result?.success === false) {
+    return result;
+  }
+
   selectedClaimIds.delete(assignmentId);
+
+  if (
+    typeof refreshWorkbenchIfActive === "function"
+  ) {
+    refreshWorkbenchIfActive();
+  }
+
   renderPage("claims-queue");
+
+  return result;
 }
 
 function handleBulkApproveClaims() {
-  const claims = claimsQueueService.getPendingClaims();
+  const claims =
+    claimsQueueService.getPendingClaims();
+
+  let changed = false;
 
   claims
-    .filter(claim => selectedClaimIds.has(claim.assignmentId))
+    .filter(claim =>
+      selectedClaimIds.has(
+        claim.assignmentId
+      )
+    )
     .forEach(claim => {
-      claimsQueueService.approveClaim(claim.gameId, claim.assignmentId);
+      const result =
+        claimsQueueService.approveClaim(
+          claim.gameId,
+          claim.assignmentId
+        );
+
+      if (result?.success !== false) {
+        changed = true;
+      }
     });
 
   selectedClaimIds.clear();
+
+  if (
+    changed &&
+    typeof refreshWorkbenchIfActive === "function"
+  ) {
+    refreshWorkbenchIfActive();
+  }
+
   renderPage("claims-queue");
 }
 
 function handleBulkRejectClaims() {
-  const claims = claimsQueueService.getPendingClaims();
+  const claims =
+    claimsQueueService.getPendingClaims();
+
+  let changed = false;
 
   claims
-    .filter(claim => selectedClaimIds.has(claim.assignmentId))
+    .filter(claim =>
+      selectedClaimIds.has(
+        claim.assignmentId
+      )
+    )
     .forEach(claim => {
-      claimsQueueService.rejectClaim(claim.gameId, claim.assignmentId);
+      const result =
+        claimsQueueService.rejectClaim(
+          claim.gameId,
+          claim.assignmentId
+        );
+
+      if (result?.success !== false) {
+        changed = true;
+      }
     });
 
   selectedClaimIds.clear();
+
+  if (
+    changed &&
+    typeof refreshWorkbenchIfActive === "function"
+  ) {
+    refreshWorkbenchIfActive();
+  }
+
   renderPage("claims-queue");
 }

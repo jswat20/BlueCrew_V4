@@ -1120,7 +1120,13 @@ function approveReviewFromHub(gameId) {
     portalService.approveReview(gameId);
 
   if (result.success) {
-    renderPage("review-queue");
+      if (
+    typeof refreshWorkbenchIfActive === "function"
+  ) {
+    refreshWorkbenchIfActive();
+  }
+
+renderPage("review-queue");
     return;
   }
 
@@ -1143,7 +1149,13 @@ function returnReviewFromHub(gameId) {
     );
 
   if (result.success) {
-    renderPage("review-queue");
+      if (
+    typeof refreshWorkbenchIfActive === "function"
+  ) {
+    refreshWorkbenchIfActive();
+  }
+
+renderPage("review-queue");
     return;
   }
 

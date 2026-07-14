@@ -1092,6 +1092,12 @@ function saveCrewDraft() {
   } else if (
     typeof renderPage === "function"
   ) {
-    renderPage("schedule");
+      if (
+    typeof refreshWorkbenchIfActive === "function"
+  ) {
+    refreshWorkbenchIfActive();
+  }
+
+renderPage("schedule");
   }
 }

@@ -49,6 +49,12 @@ function assignBestCrew(gameId) {
   }
 
   renderScheduleContent();
+  if (
+    typeof refreshWorkbenchIfActive === "function"
+  ) {
+    refreshWorkbenchIfActive();
+  }
+
 }
 
 function renderOpenGamesQueue(date) {
