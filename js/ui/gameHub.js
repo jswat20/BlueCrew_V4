@@ -8,6 +8,95 @@ function escapeGameHubText(value) {
     .replaceAll('"', "&quot;");
 }
 
+function isGameHubReadOnly(game) {
+  return Boolean(
+    game?.isReadOnly === true ||
+    game?.lifecycleStatus === "approved" ||
+    game?.lifecycleStatus === "cancelled" ||
+    game?.completion?.review
+      ?.submittedForReview === true
+  );
+}
+
+function getGameHubLifecycleLabel(game) {
+  if (game?.lifecycleStatusLabel) {
+    return game.lifecycleStatusLabel;
+  }
+
+  return {
+    scheduled: "Scheduled",
+    completed: "Completed",
+    submitted: "Submitted",
+    returned: "Returned",
+    approved: "Approved",
+    postponed: "Postponed",
+    cancelled: "Cancelled"
+  }[game?.lifecycleStatus] || "Scheduled";
+}
+
+function renderGameHubLifecycleBadge(game) {
+  const status =
+    game?.lifecycleStatus || "scheduled";
+
+  return `
+    <span
+      class="status-badge game-hub-lifecycle-badge"
+      data-testid="game-hub-lifecycle-badge"
+      data-status="${status}"
+    >
+      ${getGameHubLifecycleLabel(game)}
+    </span>
+  `;
+}
+
+function renderGameHubLifecycleBanner(game) {
+  const banners = {
+    cancelled: {
+      title: "Game Cancelled",
+      message:
+        "This game has been cancelled and is read-only."
+    },
+    postponed: {
+      title: "Game Postponed",
+      message:
+        "This game has been postponed. Existing assignments remain attached."
+    },
+    approved: {
+      title: "Game Finalized",
+      message:
+        "This game has been approved and is now read-only."
+    }
+  };
+
+  const banner =
+    banners[game?.lifecycleStatus];
+
+  if (!banner) {
+    return "";
+  }
+
+  return `
+    <div
+      class="card game-hub-lifecycle-banner"
+      data-testid="game-hub-lifecycle-banner"
+      data-status="${game.lifecycleStatus}"
+      role="status"
+    >
+      <strong
+        data-testid="game-hub-lifecycle-banner-title"
+      >
+        ${banner.title}
+      </strong>
+
+      <span
+        data-testid="game-hub-lifecycle-banner-message"
+      >
+        ${banner.message}
+      </span>
+    </div>
+  `;
+}
+
 function renderGameHubCrewNotes(game) {
   return `
     <section
@@ -27,7 +116,7 @@ function renderGameHubCrewNotes(game) {
         id="game-hub-crew-notes-input"
         class="game-hub-notes-input"
         data-testid="game-hub-crew-notes-input"
-          ${game.completion?.review?.submittedForReview ? "readonly" : ""}
+          ${isGameHubReadOnly(game) ? "readonly" : ""}
         rows="5"
         placeholder="Add reminders, questions, or pregame notes..."
       >${escapeGameHubText(game.crewNotes)}</textarea>
@@ -38,7 +127,7 @@ function renderGameHubCrewNotes(game) {
           type="button"
           onclick="saveGameHubCrewNotes('${game.id}')"
           data-testid="game-hub-save-crew-notes"
-          ${game.completion?.review?.submittedForReview ? "disabled" : ""}
+          ${isGameHubReadOnly(game) ? "disabled" : ""}
         >
           Save Notes
         </button>
@@ -112,7 +201,7 @@ function renderGameHubChecklist(game) {
                 <input
                   type="checkbox"
                   data-testid="game-hub-checklist-toggle-${item.key}"
-          ${game.completion?.review?.submittedForReview ? "disabled" : ""}
+          ${isGameHubReadOnly(game) ? "disabled" : ""}
                   ${item.completed ? "checked" : ""}
                   onchange="toggleGameHubChecklistItem('${game.id}', '${item.key}')"
                 />
@@ -1219,10 +1308,14 @@ function renderGameHub(context = {}) {
       data-testid="game-hub"
       data-game-id="${game.id}"
       data-review-mode="${reviewMode}"
+      data-lifecycle-status="${game.lifecycleStatus}"
+      data-read-only="${isGameHubReadOnly(game)}"
     >
       ${renderGameHubQuickActions(reviewMode)}
 
       <h2>Game Hub</h2>
+
+      ${renderGameHubLifecycleBanner(game)}
 
       <div
         class="card game-hub-summary"
@@ -1246,6 +1339,7 @@ function renderGameHub(context = {}) {
             class="game-hub-summary-status"
             data-testid="game-hub-summary-status"
           >
+            ${renderGameHubLifecycleBadge(game)}
             ${gameDayRenderers.renderStatus(game)}
           </div>
         </div>
@@ -1276,7 +1370,8 @@ function renderGameHub(context = {}) {
 
       ${renderGameHubCompletion(
         game,
-        reviewMode
+        reviewMode ||
+          isGameHubReadOnly(game)
       )}
 
       <div

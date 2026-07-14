@@ -517,12 +517,14 @@ const portalService = (() => {
       returnReason: ""
     };
 
-    const result = gameService.update(
-      gameId,
-      {
-        review
-      }
-    );
+    const result =
+      gameService.transitionStatus(
+        gameId,
+        "submitted",
+        {
+          review
+        }
+      );
 
     if (!result.success) {
       return result;
@@ -607,12 +609,14 @@ const portalService = (() => {
       returnReason: ""
     };
 
-    const result = gameService.update(
-      gameId,
-      {
-        review
-      }
-    );
+    const result =
+      gameService.transitionStatus(
+        gameId,
+        "approved",
+        {
+          review
+        }
+      );
 
     if (!result.success) {
       return result;
@@ -661,12 +665,14 @@ const portalService = (() => {
       returnReason
     };
 
-    const result = gameService.update(
-      gameId,
-      {
-        review
-      }
-    );
+    const result =
+      gameService.transitionStatus(
+        gameId,
+        "returned",
+        {
+          review
+        }
+      );
 
     if (!result.success) {
       return result;
@@ -894,15 +900,17 @@ const portalService = (() => {
     const completedBy =
       getCompletionAccountName(account);
 
-    const result = gameService.update(
-      gameId,
-      {
-        completed: true,
-        completionTime,
-        completedBy,
-        completionStatus: "completed"
-      }
-    );
+    const result =
+      gameService.transitionStatus(
+        gameId,
+        "completed",
+        {
+          completed: true,
+          completionTime,
+          completedBy,
+          completionStatus: "completed"
+        }
+      );
 
     if (!result.success) {
       return result;
@@ -1476,6 +1484,188 @@ const portalService = (() => {
     };
   }
 
+  function validateScheduleLifecycleAction(
+    gameId
+  ) {
+    if (
+      typeof authService !== "undefined" &&
+      typeof authService.isAdmin === "function" &&
+      !authService.isAdmin()
+    ) {
+      return {
+        success: false,
+        message:
+          "Only an assigner can change the game schedule."
+      };
+    }
+
+    const game =
+      gameService.getById(gameId);
+
+    if (!game) {
+      return {
+        success: false,
+        message: "Game not found."
+      };
+    }
+
+    return {
+      success: true,
+      game
+    };
+  }
+
+  function getLifecycleNotificationMatchup(
+    game
+  ) {
+    return `${
+      game.awayTeam || "Away"
+    } @ ${
+      game.homeTeam || "Home"
+    }`;
+  }
+
+  function createLifecycleNotification(
+    game,
+    type,
+    title,
+    message
+  ) {
+    if (
+      typeof notificationService === "undefined" ||
+      typeof notificationService.create !==
+        "function"
+    ) {
+      return;
+    }
+
+    notificationService.create({
+      type,
+      title,
+      message,
+      relatedId: game.id,
+      audience: "umpire"
+    });
+  }
+
+  function cancelGame(gameId) {
+    const validation =
+      validateScheduleLifecycleAction(
+        gameId
+      );
+
+    if (!validation.success) {
+      return validation;
+    }
+
+    const currentStatus =
+      gameService.getStatus(
+        validation.game
+      );
+
+    if (currentStatus === "cancelled") {
+      return {
+        success: true,
+        message: "Game already cancelled.",
+        data: validation.game
+      };
+    }
+
+    const cancelledAt =
+      new Date().toISOString();
+
+    const result =
+      gameService.transitionStatus(
+        gameId,
+        "cancelled",
+        {
+          cancelledAt
+        }
+      );
+
+    if (!result.success) {
+      return result;
+    }
+
+    createLifecycleNotification(
+      result.game,
+      "game-cancelled",
+      "Game Cancelled",
+      `${
+        getLifecycleNotificationMatchup(
+          result.game
+        )
+      } on ${
+        result.game.date || "the scheduled date"
+      } has been cancelled.`
+    );
+
+    return {
+      success: true,
+      message: "Game cancelled.",
+      data: result.game
+    };
+  }
+
+  function postponeGame(gameId) {
+    const validation =
+      validateScheduleLifecycleAction(
+        gameId
+      );
+
+    if (!validation.success) {
+      return validation;
+    }
+
+    const currentStatus =
+      gameService.getStatus(
+        validation.game
+      );
+
+    if (currentStatus === "postponed") {
+      return {
+        success: true,
+        message: "Game already postponed.",
+        data: validation.game
+      };
+    }
+
+    const postponedAt =
+      new Date().toISOString();
+
+    const result =
+      gameService.transitionStatus(
+        gameId,
+        "postponed",
+        {
+          postponedAt
+        }
+      );
+
+    if (!result.success) {
+      return result;
+    }
+
+    createLifecycleNotification(
+      result.game,
+      "game-postponed",
+      "Game Postponed",
+      `${
+        getLifecycleNotificationMatchup(
+          result.game
+        )
+      } on ${
+        result.game.date || "the scheduled date"
+      } has been postponed.`
+    );
+
+    return {
+      success: true,
+      message: "Game postponed.",
+      data: result.game
+    };
+  }
+
   function mapGame(game, crewId) {
     const crewAssignments =
       getCrewAssignments(game, crewId);
@@ -1527,8 +1717,29 @@ const portalService = (() => {
           checklistState[item.key] === true
       }));
 
+    const lifecycleStatus =
+      gameService.getStatus(game) ||
+      "scheduled";
+
+    const lifecycleStatusLabel = {
+      scheduled: "Scheduled",
+      completed: "Completed",
+      submitted: "Submitted",
+      returned: "Returned",
+      approved: "Approved",
+      postponed: "Postponed",
+      cancelled: "Cancelled"
+    }[lifecycleStatus] || "Scheduled";
+
+    const isReadOnly =
+      lifecycleStatus === "approved" ||
+      lifecycleStatus === "cancelled";
+
     return {
       completion: getGameCompletion(game.id),
+      lifecycleStatus,
+      lifecycleStatusLabel,
+      isReadOnly,
       id: game.id,
       date: game.date,
       time: game.time,
@@ -1603,6 +1814,8 @@ const portalService = (() => {
 
   return {
     getGameReview,
+    cancelGame,
+    postponeGame,
     submitGameForReview,
     approveReview,
     returnReview,

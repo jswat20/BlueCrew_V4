@@ -23,7 +23,12 @@ const dashboardService = (() => {
 
     return gameService
       .getAll()
-      .filter(game => game.date && game.date >= today)
+      .filter(game =>
+        game.date &&
+        game.date >= today &&
+        gameService.getStatus(game) !==
+          "cancelled"
+      )
       .sort(compareGames);
   }
 

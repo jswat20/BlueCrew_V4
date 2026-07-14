@@ -1,5 +1,91 @@
 // js/services/gameService.js
 
+const GAME_LIFECYCLE_STATUSES = Object.freeze({
+  SCHEDULED: "scheduled",
+  COMPLETED: "completed",
+  SUBMITTED: "submitted",
+  RETURNED: "returned",
+  APPROVED: "approved",
+  POSTPONED: "postponed",
+  CANCELLED: "cancelled"
+});
+
+const GAME_LIFECYCLE_TRANSITIONS = Object.freeze({
+  scheduled: [
+    "completed",
+    "postponed",
+    "cancelled"
+  ],
+  completed: [
+    "submitted"
+  ],
+  submitted: [
+    "returned",
+    "approved"
+  ],
+  returned: [
+    "submitted"
+  ],
+  approved: [],
+  postponed: [
+    "scheduled",
+    "cancelled"
+  ],
+  cancelled: []
+});
+
+function inferGameLifecycleStatus(game) {
+  if (!game || typeof game !== "object") {
+    return GAME_LIFECYCLE_STATUSES.SCHEDULED;
+  }
+
+  if (
+    Object.values(
+      GAME_LIFECYCLE_STATUSES
+    ).includes(game.status)
+  ) {
+    return game.status;
+  }
+
+  const review =
+    game.review &&
+    typeof game.review === "object"
+      ? game.review
+      : {};
+
+  if (review.status === "approved") {
+    return GAME_LIFECYCLE_STATUSES.APPROVED;
+  }
+
+  if (review.status === "returned") {
+    return GAME_LIFECYCLE_STATUSES.RETURNED;
+  }
+
+  if (
+    review.status === "submitted" ||
+    review.submittedForReview === true
+  ) {
+    return GAME_LIFECYCLE_STATUSES.SUBMITTED;
+  }
+
+  if (game.completed === true) {
+    return GAME_LIFECYCLE_STATUSES.COMPLETED;
+  }
+
+  return GAME_LIFECYCLE_STATUSES.SCHEDULED;
+}
+
+function normalizeGameLifecycleStatus(game) {
+  if (!game || typeof game !== "object") {
+    return game;
+  }
+
+  game.status =
+    inferGameLifecycleStatus(game);
+
+  return game;
+}
+
 const gameService = {
   getAll() {
     return Array.isArray(games) ? games : [];
@@ -36,6 +122,107 @@ game.assignments =
   return game;
 },
 
+  getLifecycleStatuses() {
+    return {
+      ...GAME_LIFECYCLE_STATUSES
+    };
+  },
+
+  getStatus(gameOrId) {
+    const game =
+      gameOrId &&
+      typeof gameOrId === "object"
+        ? gameOrId
+        : this.getById(gameOrId);
+
+    if (!game) {
+      return null;
+    }
+
+    return inferGameLifecycleStatus(game);
+  },
+
+  canTransition(gameOrId, nextStatus) {
+    const currentStatus =
+      this.getStatus(gameOrId);
+
+    if (!currentStatus) {
+      return false;
+    }
+
+    if (currentStatus === nextStatus) {
+      return true;
+    }
+
+    const allowedTransitions =
+      GAME_LIFECYCLE_TRANSITIONS[
+        currentStatus
+      ] || [];
+
+    return allowedTransitions.includes(
+      nextStatus
+    );
+  },
+
+  transitionStatus(
+    gameId,
+    nextStatus,
+    updates = {}
+  ) {
+    const game = this.getById(gameId);
+
+    if (!game) {
+      return {
+        success: false,
+        message: "Game not found."
+      };
+    }
+
+    if (
+      !Object.values(
+        GAME_LIFECYCLE_STATUSES
+      ).includes(nextStatus)
+    ) {
+      return {
+        success: false,
+        message:
+          "Invalid game lifecycle status."
+      };
+    }
+
+    const currentStatus =
+      inferGameLifecycleStatus(game);
+
+    if (
+      currentStatus !== nextStatus &&
+      !this.canTransition(
+        game,
+        nextStatus
+      )
+    ) {
+      return {
+        success: false,
+        message:
+          `Game cannot transition from ${currentStatus} to ${nextStatus}.`
+      };
+    }
+
+    Object.assign(
+      game,
+      updates,
+      {
+        status: nextStatus
+      }
+    );
+
+    this.save();
+
+    return {
+      success: true,
+      game
+    };
+  },
+
   getByDate(date) {
     return this.getAll()
       .filter(game => game.date === date)
@@ -65,6 +252,7 @@ game.assignments =
     }
 
     Object.assign(game, updates);
+    normalizeGameLifecycleStatus(game);
     this.save();
 
     return {
@@ -122,6 +310,8 @@ create(game) {
   // Let the assignment service build the proper assignment model.
   game.assignments = [];
 
+  normalizeGameLifecycleStatus(game);
+
   games.push(game);
 
   if (
@@ -150,6 +340,10 @@ create(game) {
         message: "Game not found."
       };
     }
+
+    normalizeGameLifecycleStatus(
+      updatedGame
+    );
 
     games[index] = updatedGame;
     this.save();

@@ -1526,3 +1526,35 @@ body {
   white-space: pre-wrap;
   font-weight: 600;
 }
+
+/* Game Hub lifecycle presentation */
+
+.game-hub-lifecycle-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.game-hub-lifecycle-banner[data-status="cancelled"] {
+  border-left: 4px solid var(--danger-color, #b42318);
+}
+
+.game-hub-lifecycle-banner[data-status="postponed"] {
+  border-left: 4px solid var(--warning-color, #b54708);
+}
+
+.game-hub-lifecycle-banner[data-status="approved"] {
+  border-left: 4px solid var(--success-color, #027a48);
+}
+
+.game-hub-summary-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.game-hub-lifecycle-badge {
+  white-space: nowrap;
+}

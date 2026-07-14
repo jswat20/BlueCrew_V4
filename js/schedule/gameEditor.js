@@ -111,7 +111,41 @@ function renderGameEditorForm(game, isEditing) {
 
       ${
         isEditing
-          ? `<button class="danger-btn" data-testid="delete-game-button" onclick="deleteGame('${game.id}')">Delete</button>`
+          ? `
+              ${
+                gameService.getStatus(game) ===
+                  "scheduled"
+                  ? `
+                      <button
+                        class="button button-secondary"
+                        type="button"
+                        data-testid="postpone-game-button"
+                        onclick="postponeGameFromEditor('${game.id}')"
+                      >
+                        Postpone
+                      </button>
+
+                      <button
+                        class="danger-btn"
+                        type="button"
+                        data-testid="cancel-scheduled-game-button"
+                        onclick="cancelGameFromEditor('${game.id}')"
+                      >
+                        Cancel Game
+                      </button>
+                    `
+                  : ""
+              }
+
+              <button
+                class="danger-btn"
+                type="button"
+                data-testid="delete-game-button"
+                onclick="deleteGame('${game.id}')"
+              >
+                Delete
+              </button>
+            `
           : ""
       }
     </div>
@@ -393,4 +427,66 @@ function getUniqueValues(key, fallback = []) {
     .filter(Boolean);
 
   return [...new Set([...fallback, ...values])].sort();
+}
+
+function refreshScheduleAfterLifecycleAction() {
+  if (
+    typeof closeGameEditor === "function"
+  ) {
+    closeGameEditor();
+  }
+
+  if (
+    typeof renderPage === "function"
+  ) {
+    renderPage("schedule");
+  }
+}
+
+function cancelGameFromEditor(gameId) {
+  const confirmed =
+    window.confirm(
+      "Cancel this game? Assigned umpires will be notified."
+    );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const result =
+    portalService.cancelGame(gameId);
+
+  if (!result.success) {
+    window.alert(
+      result.message ||
+      "Unable to cancel game."
+    );
+    return;
+  }
+
+  refreshScheduleAfterLifecycleAction();
+}
+
+function postponeGameFromEditor(gameId) {
+  const confirmed =
+    window.confirm(
+      "Postpone this game? Existing assignments will remain attached."
+    );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const result =
+    portalService.postponeGame(gameId);
+
+  if (!result.success) {
+    window.alert(
+      result.message ||
+      "Unable to postpone game."
+    );
+    return;
+  }
+
+  refreshScheduleAfterLifecycleAction();
 }
