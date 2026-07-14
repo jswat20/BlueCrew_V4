@@ -328,9 +328,10 @@ test.describe(
   notifications[0]
 ).toEqual(
   expect.objectContaining({
-    type: "availability-saved",
-    audience: "admin"
-  })
+  type: "availability-range",
+  audience: "admin",
+  title: "Availability Updated"
+})
 );
       }
     );
