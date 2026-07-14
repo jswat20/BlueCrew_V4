@@ -280,6 +280,372 @@ const availabilityService = (() => {
     });
   }
 
+  function addDays(date, dayCount) {
+    const normalizedDate = normalizeDate(date);
+
+    if (!normalizedDate) {
+      return null;
+    }
+
+    const value =
+      new Date(`${normalizedDate}T00:00:00Z`);
+
+    value.setUTCDate(
+      value.getUTCDate() + Number(dayCount || 0)
+    );
+
+    return value.toISOString().slice(0, 10);
+  }
+
+  function getDateRange(startDate, endDate) {
+    const normalizedStart =
+      normalizeDate(startDate);
+
+    const normalizedEnd =
+      normalizeDate(endDate);
+
+    if (
+      !normalizedStart ||
+      !normalizedEnd ||
+      normalizedStart > normalizedEnd
+    ) {
+      return [];
+    }
+
+    const dates = [];
+    let currentDate = normalizedStart;
+
+    while (currentDate <= normalizedEnd) {
+      dates.push(currentDate);
+      currentDate = addDays(currentDate, 1);
+    }
+
+    return dates;
+  }
+
+  function setAvailabilityRange({
+    crewId,
+    startDate,
+    endDate,
+    status
+  } = {}) {
+    const member = crewService.getById(crewId);
+    const normalizedStatus =
+      normalizeStatus(status);
+
+    const dates =
+      getDateRange(startDate, endDate);
+
+    if (!member) {
+      return {
+        success: false,
+        message: "Crew member not found.",
+        data: null
+      };
+    }
+
+    if (!normalizedStatus) {
+      return {
+        success: false,
+        message:
+          "Enter a valid availability status.",
+        data: null
+      };
+    }
+
+    if (!dates.length) {
+      return {
+        success: false,
+        message:
+          "Enter a valid availability date range.",
+        data: null
+      };
+    }
+
+    const availability =
+      ensureDateAvailability(member);
+
+    dates.forEach(date => {
+      availability[date] = normalizedStatus;
+    });
+
+    persistCrew();
+
+    return {
+      success: true,
+      message:
+        `Availability updated for ${dates.length} ${
+          dates.length === 1 ? "day" : "days"
+        }.`,
+      data: {
+        crewId: member.id,
+        startDate: dates[0],
+        endDate: dates[dates.length - 1],
+        status: normalizedStatus,
+        dates: dates.map(date => ({
+          date,
+          status: normalizedStatus
+        }))
+      }
+    };
+  }
+
+  function copyAvailabilityWeek({
+    crewId,
+    sourceStartDate,
+    targetStartDate
+  } = {}) {
+    const member = crewService.getById(crewId);
+
+    const normalizedSource =
+      normalizeDate(sourceStartDate);
+
+    const normalizedTarget =
+      normalizeDate(targetStartDate);
+
+    if (!member) {
+      return {
+        success: false,
+        message: "Crew member not found.",
+        data: null
+      };
+    }
+
+    if (
+      !normalizedSource ||
+      !normalizedTarget
+    ) {
+      return {
+        success: false,
+        message:
+          "Enter valid source and target week dates.",
+        data: null
+      };
+    }
+
+    const copiedDates = [];
+
+    for (let index = 0; index < 7; index += 1) {
+      const sourceDate =
+        addDays(normalizedSource, index);
+
+      const targetDate =
+        addDays(normalizedTarget, index);
+
+      const status =
+        getAvailability(
+          member.id,
+          sourceDate
+        );
+
+      copiedDates.push({
+        sourceDate,
+        targetDate,
+        status
+      });
+    }
+
+    const availability =
+      ensureDateAvailability(member);
+
+    copiedDates.forEach(item => {
+      availability[item.targetDate] =
+        item.status;
+    });
+
+    persistCrew();
+
+    return {
+      success: true,
+      message: "Availability week copied.",
+      data: {
+        crewId: member.id,
+        sourceStartDate: normalizedSource,
+        sourceEndDate:
+          addDays(normalizedSource, 6),
+        targetStartDate: normalizedTarget,
+        targetEndDate:
+          addDays(normalizedTarget, 6),
+        dates: copiedDates
+      }
+    };
+  }
+
+  function getGameAssignments(game) {
+    if (
+      typeof assignmentService !== "undefined" &&
+      typeof assignmentService.getAssignments ===
+        "function"
+    ) {
+      return assignmentService.getAssignments(game);
+    }
+
+    return Array.isArray(game?.assignments)
+      ? game.assignments
+      : [];
+  }
+
+  function isCrewAssignedToGame(
+    crewId,
+    game
+  ) {
+    if (!crewId || !game) {
+      return false;
+    }
+
+    if (
+      String(game.crewId || "") ===
+      String(crewId)
+    ) {
+      return true;
+    }
+
+    return getGameAssignments(game).some(
+      assignment =>
+        String(assignment.crewId || "") ===
+        String(crewId)
+    );
+  }
+
+  function getAssignmentsOnDate(
+    crewId,
+    date
+  ) {
+    const member = crewService.getById(crewId);
+    const normalizedDate = normalizeDate(date);
+
+    if (!member || !normalizedDate) {
+      return [];
+    }
+
+    return gameService
+      .getAll()
+      .filter(game => {
+        if (game.date !== normalizedDate) {
+          return false;
+        }
+
+        if (
+          typeof gameService.getStatus ===
+            "function" &&
+          gameService.getStatus(game) ===
+            "cancelled"
+        ) {
+          return false;
+        }
+
+        return isCrewAssignedToGame(
+          member.id,
+          game
+        );
+      });
+  }
+
+  function hasAssignmentOnDate(
+    crewId,
+    date
+  ) {
+    return (
+      getAssignmentsOnDate(
+        crewId,
+        date
+      ).length > 0
+    );
+  }
+
+  function getAvailabilitySummary(
+    crewId,
+    options = {}
+  ) {
+    const member = crewService.getById(crewId);
+
+    if (!member) {
+      return null;
+    }
+
+    const startDate =
+      normalizeDate(options.startDate);
+
+    const endDate =
+      normalizeDate(options.endDate);
+
+    let dates = [];
+
+    if (startDate || endDate) {
+      if (!startDate || !endDate) {
+        return null;
+      }
+
+      dates = getDateRange(
+        startDate,
+        endDate
+      );
+
+      if (!dates.length) {
+        return null;
+      }
+    } else {
+      dates = getCrewAvailability(
+        member.id
+      ).map(item => item.date);
+    }
+
+    const records = dates.map(date => {
+      const status =
+        getAvailability(member.id, date);
+
+      const assignments =
+        getAssignmentsOnDate(
+          member.id,
+          date
+        );
+
+      return {
+        date,
+        status,
+        assigned: assignments.length > 0,
+        assignmentCount:
+          assignments.length
+      };
+    });
+
+    const counts = {
+      available: 0,
+      unavailable: 0,
+      maybe: 0,
+      assigned: 0
+    };
+
+    records.forEach(record => {
+      counts[record.status] += 1;
+
+      if (record.assigned) {
+        counts.assigned += 1;
+      }
+    });
+
+    const nextUnavailable =
+      records.find(
+        record =>
+          record.status ===
+          STATUS.UNAVAILABLE
+      ) || null;
+
+    return {
+      crewId: member.id,
+      startDate:
+        records[0]?.date || null,
+      endDate:
+        records[records.length - 1]?.date ||
+        null,
+      total: records.length,
+      counts,
+      nextUnavailableDate:
+        nextUnavailable?.date || null,
+      records
+    };
+  }
+
   function normalizeStatus(status) {
     const normalizedStatus = String(status || "")
       .trim()
@@ -350,9 +716,14 @@ const availabilityService = (() => {
     getAvailabilityScore,
 
     setAvailability,
+    setAvailabilityRange,
+    copyAvailabilityWeek,
     getAvailability,
     clearAvailability,
     getCrewAvailability,
+    getAvailabilitySummary,
+    getAssignmentsOnDate,
+    hasAssignmentOnDate,
     getAvailableCrew,
     getUnavailableCrew
   };

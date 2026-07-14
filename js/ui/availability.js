@@ -139,6 +139,64 @@ function renderAvailabilityForm(crewMembers) {
         </div>
       </fieldset>
 
+      <div
+        class="availability-quick-actions"
+        data-testid="availability-quick-actions"
+      >
+        <button
+          type="button"
+          data-testid="availability-weekend-unavailable"
+          onclick="handleWeekendUnavailable()"
+        >
+          Unavailable This Weekend
+        </button>
+
+        <button
+          type="button"
+          data-testid="availability-next-seven-available"
+          onclick="handleNextSevenAvailable()"
+        >
+          Available Next 7 Days
+        </button>
+
+        <button
+          type="button"
+          data-testid="availability-copy-previous-week"
+          onclick="handleCopyPreviousWeek()"
+        >
+          Copy Previous Week
+        </button>
+      </div>
+
+      <div
+        class="availability-quick-actions"
+        data-testid="availability-quick-actions"
+      >
+        <button
+          type="button"
+          data-testid="availability-weekend-unavailable"
+          onclick="handleWeekendUnavailable()"
+        >
+          Unavailable This Weekend
+        </button>
+
+        <button
+          type="button"
+          data-testid="availability-next-seven-available"
+          onclick="handleNextSevenAvailable()"
+        >
+          Available Next 7 Days
+        </button>
+
+        <button
+          type="button"
+          data-testid="availability-copy-previous-week"
+          onclick="handleCopyPreviousWeek()"
+        >
+          Copy Previous Week
+        </button>
+      </div>
+
       <div class="availability-form-actions">
         <button
           type="button"
@@ -260,12 +318,30 @@ function renderAvailabilityList(selectedCrew, entries) {
 }
 
 function renderAvailabilityEntry(entry) {
+  const crewId =
+    availabilityPageState.selectedCrewId;
+
+  const assigned =
+    availabilityService.hasAssignmentOnDate(
+      crewId,
+      entry.date
+    );
+
+  const today =
+    entry.date === getAvailabilityToday();
+
   return `
     <article
-      class="availability-entry-card"
+      class="
+        availability-entry-card
+        ${assigned ? "is-assigned" : ""}
+        ${today ? "is-today" : ""}
+      "
       data-testid="availability-entry"
       data-date="${escapeAvailabilityHtml(entry.date)}"
       data-status="${escapeAvailabilityHtml(entry.status)}"
+      data-assigned="${assigned}"
+      data-today="${today}"
     >
       <div class="availability-entry-details">
         <strong data-testid="availability-entry-date">
@@ -281,33 +357,74 @@ function renderAvailabilityEntry(entry) {
         >
           ${formatAvailabilityStatus(entry.status)}
         </span>
+
+        ${
+          today
+            ? `
+              <span
+                class="availability-date-badge"
+                data-testid="availability-today-badge"
+              >
+                Today
+              </span>
+            `
+            : ""
+        }
+
+        ${
+          assigned
+            ? `
+              <span
+                class="availability-date-badge"
+                data-testid="availability-assigned-badge"
+              >
+                Assigned
+              </span>
+            `
+            : ""
+        }
       </div>
 
       <div class="availability-entry-actions">
-        <button
-          type="button"
-          data-testid="availability-edit-${escapeAvailabilityHtml(
-            entry.date
-          )}"
-          onclick="handleEditAvailability('${escapeAvailabilityJs(
-            entry.date
-          )}')"
-        >
-          Edit
-        </button>
+        ${
+          assigned
+            ? `
+              <span
+                class="availability-read-only"
+                data-testid="availability-read-only-${escapeAvailabilityHtml(
+                  entry.date
+                )}"
+              >
+                Assignment protected
+              </span>
+            `
+            : `
+              <button
+                type="button"
+                data-testid="availability-edit-${escapeAvailabilityHtml(
+                  entry.date
+                )}"
+                onclick="handleEditAvailability('${escapeAvailabilityJs(
+                  entry.date
+                )}')"
+              >
+                Edit
+              </button>
 
-        <button
-          type="button"
-          class="danger-button"
-          data-testid="availability-remove-${escapeAvailabilityHtml(
-            entry.date
-          )}"
-          onclick="handleRemoveAvailability('${escapeAvailabilityJs(
-            entry.date
-          )}')"
-        >
-          Remove
-        </button>
+              <button
+                type="button"
+                class="danger-button"
+                data-testid="availability-remove-${escapeAvailabilityHtml(
+                  entry.date
+                )}"
+                onclick="handleRemoveAvailability('${escapeAvailabilityJs(
+                  entry.date
+                )}')"
+              >
+                Remove
+              </button>
+            `
+        }
       </div>
     </article>
   `;
@@ -346,7 +463,7 @@ function handleAvailabilityStatusChange(status) {
     ?.classList.add("is-selected");
 }
 
-function handleSaveAvailability() {
+async function handleSaveAvailability() {
   const crewId =
     availabilityPageState.selectedCrewId;
 
@@ -380,6 +497,42 @@ function handleSaveAvailability() {
     return;
   }
 
+  const assigned =
+    availabilityService.hasAssignmentOnDate(
+      crewId,
+      date
+    );
+
+  if (
+    assigned &&
+    status === "unavailable"
+  ) {
+    const confirmed =
+      typeof modalService !== "undefined" &&
+      typeof modalService.confirm === "function"
+        ? await modalService.confirm({
+            title: "Availability Conflict",
+            message:
+              "You are already assigned to a game on this date. Marking yourself unavailable will not remove the assignment.",
+            confirmText: "Save Anyway",
+            cancelText: "Keep Available",
+            danger: true
+          })
+        : false;
+
+    if (!confirmed) {
+      return;
+    }
+
+    createAvailabilityNotification({
+      type: "availability-conflict",
+      title: "Availability Conflict",
+      message:
+        `Availability was changed for ${date}, but an existing assignment remains.`,
+      crewId
+    });
+  }
+
   const result =
     availabilityService.setAvailability({
       crewId,
@@ -399,11 +552,250 @@ function handleSaveAvailability() {
     "available";
   availabilityPageState.editingDate = "";
 
+  createAvailabilityNotification({
+    type: "availability-saved",
+    title: "Availability Saved",
+    message:
+      `Availability for ${date} was set to ${formatAvailabilityStatus(
+        status
+      )}.`,
+    crewId
+  });
+
   showAvailabilitySuccess(
     "Availability saved."
   );
 
   renderPage("availability");
+}
+
+function getAvailabilityToday() {
+  return new Date()
+    .toISOString()
+    .slice(0, 10);
+}
+
+function addAvailabilityDays(
+  date,
+  dayCount
+) {
+  const normalized =
+    String(date || "").trim();
+
+  const value =
+    new Date(`${normalized}T00:00:00Z`);
+
+  if (Number.isNaN(value.getTime())) {
+    return null;
+  }
+
+  value.setUTCDate(
+    value.getUTCDate() + dayCount
+  );
+
+  return value.toISOString().slice(0, 10);
+}
+
+function getAvailabilityActionDate() {
+  const input = document.querySelector(
+    '[data-testid="availability-date-input"]'
+  );
+
+  return (
+    input?.value ||
+    availabilityPageState.selectedDate ||
+    getAvailabilityToday()
+  );
+}
+
+function getUpcomingSaturday(date) {
+  const value =
+    new Date(`${date}T00:00:00Z`);
+
+  const day = value.getUTCDay();
+
+  const daysUntilSaturday =
+    (6 - day + 7) % 7;
+
+  return addAvailabilityDays(
+    date,
+    daysUntilSaturday
+  );
+}
+
+function createAvailabilityNotification({
+  type,
+  title,
+  message,
+  crewId
+}) {
+  if (
+    typeof notificationService ===
+      "undefined" ||
+    typeof notificationService.create !==
+      "function"
+  ) {
+    return;
+  }
+
+  notificationService.create({
+    type,
+    title,
+    message,
+    relatedId: String(crewId || ""),
+    audience: "umpire"
+  });
+}
+
+function finishAvailabilityQuickAction(
+  message
+) {
+  resetAvailabilityEditor();
+  showAvailabilitySuccess(message);
+  renderPage("availability");
+}
+
+function handleWeekendUnavailable() {
+  const crewId =
+    availabilityPageState.selectedCrewId;
+
+  if (!crewId) {
+    showAvailabilityError(
+      "Choose a crew member."
+    );
+    return;
+  }
+
+  const actionDate =
+    getAvailabilityActionDate();
+
+  const saturday =
+    getUpcomingSaturday(actionDate);
+
+  const sunday =
+    addAvailabilityDays(saturday, 1);
+
+  const result =
+    availabilityService.setAvailabilityRange({
+      crewId,
+      startDate: saturday,
+      endDate: sunday,
+      status: "unavailable"
+    });
+
+  if (!result.success) {
+    showAvailabilityError(
+      result.message ||
+      "Unable to update weekend availability."
+    );
+    return;
+  }
+
+  createAvailabilityNotification({
+    type: "availability-weekend",
+    title: "Weekend Availability Updated",
+    message:
+      `${saturday} through ${sunday} was marked unavailable.`,
+    crewId
+  });
+
+  finishAvailabilityQuickAction(
+    "Weekend marked unavailable."
+  );
+}
+
+function handleNextSevenAvailable() {
+  const crewId =
+    availabilityPageState.selectedCrewId;
+
+  if (!crewId) {
+    showAvailabilityError(
+      "Choose a crew member."
+    );
+    return;
+  }
+
+  const startDate =
+    getAvailabilityActionDate();
+
+  const endDate =
+    addAvailabilityDays(startDate, 6);
+
+  const result =
+    availabilityService.setAvailabilityRange({
+      crewId,
+      startDate,
+      endDate,
+      status: "available"
+    });
+
+  if (!result.success) {
+    showAvailabilityError(
+      result.message ||
+      "Unable to update availability."
+    );
+    return;
+  }
+
+  createAvailabilityNotification({
+    type: "availability-range",
+    title: "Availability Updated",
+    message:
+      `${startDate} through ${endDate} was marked available.`,
+    crewId
+  });
+
+  finishAvailabilityQuickAction(
+    "Next 7 days marked available."
+  );
+}
+
+function handleCopyPreviousWeek() {
+  const crewId =
+    availabilityPageState.selectedCrewId;
+
+  if (!crewId) {
+    showAvailabilityError(
+      "Choose a crew member."
+    );
+    return;
+  }
+
+  const targetStartDate =
+    getAvailabilityActionDate();
+
+  const sourceStartDate =
+    addAvailabilityDays(
+      targetStartDate,
+      -7
+    );
+
+  const result =
+    availabilityService.copyAvailabilityWeek({
+      crewId,
+      sourceStartDate,
+      targetStartDate
+    });
+
+  if (!result.success) {
+    showAvailabilityError(
+      result.message ||
+      "Unable to copy availability."
+    );
+    return;
+  }
+
+  createAvailabilityNotification({
+    type: "availability-copy",
+    title: "Availability Week Copied",
+    message:
+      `Availability from ${sourceStartDate} was copied to the week beginning ${targetStartDate}.`,
+    crewId
+  });
+
+  finishAvailabilityQuickAction(
+    "Previous week copied."
+  );
 }
 
 function handleEditAvailability(date) {

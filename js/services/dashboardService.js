@@ -179,6 +179,87 @@ function getRoleSummary() {
     ];
   }
 
+  function getAvailabilityReminder() {
+    const account =
+      typeof loginService !== "undefined" &&
+      typeof loginService.getCurrentAccount === "function"
+        ? loginService.getCurrentAccount()
+        : null;
+
+    const crewId = account?.crewId || null;
+
+    if (
+      !crewId ||
+      typeof availabilityService === "undefined" ||
+      typeof availabilityService.getAvailabilitySummary !== "function"
+    ) {
+      return {
+        id: "availability",
+        severity: "info",
+        title: "No availability entered",
+        message:
+          "Add your availability so assigners know when you can work.",
+        action: "availability"
+      };
+    }
+
+    const summary =
+      availabilityService.getAvailabilitySummary(crewId);
+
+    if (!summary || summary.total === 0) {
+      return {
+        id: "availability",
+        severity: "info",
+        title: "No availability entered",
+        message:
+          "Add your availability so assigners know when you can work.",
+        action: "availability"
+      };
+    }
+
+    const unavailableAssignment =
+      summary.records.find(record =>
+        record.status === "unavailable" &&
+        availabilityService.hasAssignmentOnDate(
+          crewId,
+          record.date
+        )
+      );
+
+    if (unavailableAssignment) {
+      return {
+        id: "availability",
+        severity: "warning",
+        title: "Assignment conflicts with availability",
+        message:
+          `You have an assigned game on ${unavailableAssignment.date}, ` +
+          "when you are marked unavailable.",
+        action: "availability"
+      };
+    }
+
+    if (summary.nextUnavailableDate) {
+      return {
+        id: "availability",
+        severity: "info",
+        title: "Upcoming unavailable period",
+        message:
+          `You are marked unavailable beginning ` +
+          `${summary.nextUnavailableDate}.`,
+        action: "availability"
+      };
+    }
+
+    return {
+      id: "availability",
+      severity: "success",
+      title: "Availability looks good",
+      message:
+        "Your entered availability has no assignment conflicts.",
+      action: "availability"
+    };
+  }
+
   function getNeedsAttention() {
     const openAssignments = getOpenAssignments();
     const pendingClaims = getPendingClaims();
@@ -271,6 +352,7 @@ function getRoleSummary() {
 
   return {
   getOperationsSummary,
+  getAvailabilityReminder,
   getNeedsAttention,
   getUpcomingGames,
   getUpcomingGameCount,
