@@ -1809,3 +1809,52 @@ body {
   border-color: currentColor;
   transform: translateY(-1px);
 }
+
+/* Operations Center quick actions */
+.operations-task-actions,
+.operations-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.operations-action-message {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+}
+
+.operations-action-message[data-state="error"] {
+  font-weight: 600;
+}
+
+/* Operations Center workflow advancement */
+.operations-current-task-advanced {
+  animation:
+    operations-task-advance 600ms ease-out;
+}
+
+.operations-action-message[data-state="success"] {
+  font-weight: 600;
+}
+
+@keyframes operations-task-advance {
+  0% {
+    opacity: 0.55;
+    transform: translateY(0.35rem);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .operations-current-task-advanced {
+    animation: none;
+  }
+}
+

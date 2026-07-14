@@ -20,18 +20,250 @@ function handleOperationsCenterTask(
     return;
   }
 
-  window.handleWorkbenchAction(action, {
-    id: item.id || "",
-    gameId:
-      item.gameId ||
-      item.game?.id ||
-      item.id ||
-      "",
-    assignmentId:
-      item.assignmentId ||
-      item.assignment?.id ||
-      ""
-  });
+  window.handleWorkbenchAction(
+    action,
+    {
+      id: item.id || "",
+      gameId:
+        item.gameId ||
+        item.game?.id ||
+        item.id ||
+        "",
+      assignmentId:
+        item.assignmentId ||
+        item.assignment?.id ||
+        ""
+    },
+    "operations-center"
+  );
+}
+
+function setOperationsCenterActionMessage(
+  message,
+  isError = false
+) {
+  const element = document.querySelector(
+    '[data-testid="operations-action-message"]'
+  );
+
+  if (!element) {
+    return;
+  }
+
+  element.textContent = message || "";
+  element.hidden = !message;
+  element.dataset.state =
+    isError ? "error" : "success";
+}
+
+function finishOperationsCenterQuickAction(
+  result
+) {
+  if (!result || result.success === false) {
+    setOperationsCenterActionMessage(
+      result?.message ||
+        "Unable to complete this action.",
+      true
+    );
+
+    return result;
+  }
+
+  const existingContext =
+    typeof currentPageContext !==
+      "undefined" &&
+    currentPageContext &&
+    typeof currentPageContext === "object"
+      ? currentPageContext
+      : {};
+
+  renderPage(
+    "operations-center",
+    {
+      ...existingContext,
+      operationsFlash: {
+        success: true,
+        message:
+          result.message ||
+          "Action completed."
+      }
+    }
+  );
+
+  return result;
+}
+
+function assignRecommendedFromOperations(
+  item = {}
+) {
+  const gameId =
+    item.gameId ||
+    item.game?.id ||
+    item.id ||
+    "";
+
+  if (!gameId) {
+    return finishOperationsCenterQuickAction({
+      success: false,
+      message: "Game not found."
+    });
+  }
+
+  const game =
+    typeof gameService !== "undefined"
+      ? gameService.getById(gameId)
+      : null;
+
+  if (!game) {
+    return finishOperationsCenterQuickAction({
+      success: false,
+      message: "Game not found."
+    });
+  }
+
+  if (
+    typeof recommendationService ===
+      "undefined" ||
+    typeof recommendationService
+      .getBestCrewForGame !== "function"
+  ) {
+    return finishOperationsCenterQuickAction({
+      success: false,
+      message:
+        "Crew recommendation is unavailable."
+    });
+  }
+
+  const recommendation =
+    recommendationService
+      .getBestCrewForGame(game);
+
+  if (!recommendation?.crewId) {
+    return finishOperationsCenterQuickAction({
+      success: false,
+      message:
+        "No eligible crew recommendation is available."
+    });
+  }
+
+  if (
+    typeof assignmentService ===
+      "undefined" ||
+    typeof assignmentService.assignCrew !==
+      "function"
+  ) {
+    return finishOperationsCenterQuickAction({
+      success: false,
+      message:
+        "Assignment service is unavailable."
+    });
+  }
+
+  return finishOperationsCenterQuickAction(
+    assignmentService.assignCrew(
+      gameId,
+      recommendation.crewId
+    )
+  );
+}
+
+function approveClaimFromOperations(
+  item = {}
+) {
+  const gameId =
+    item.gameId ||
+    item.game?.id ||
+    item.id ||
+    "";
+
+  const assignmentId =
+    item.assignmentId ||
+    item.assignment?.id ||
+    "";
+
+  if (
+    typeof claimsQueueService ===
+      "undefined" ||
+    typeof claimsQueueService.approveClaim !==
+      "function"
+  ) {
+    return finishOperationsCenterQuickAction({
+      success: false,
+      message:
+        "Claims service is unavailable."
+    });
+  }
+
+  return finishOperationsCenterQuickAction(
+    claimsQueueService.approveClaim(
+      gameId,
+      assignmentId
+    )
+  );
+}
+
+function rejectClaimFromOperations(
+  item = {}
+) {
+  const gameId =
+    item.gameId ||
+    item.game?.id ||
+    item.id ||
+    "";
+
+  const assignmentId =
+    item.assignmentId ||
+    item.assignment?.id ||
+    "";
+
+  if (
+    typeof claimsQueueService ===
+      "undefined" ||
+    typeof claimsQueueService.rejectClaim !==
+      "function"
+  ) {
+    return finishOperationsCenterQuickAction({
+      success: false,
+      message:
+        "Claims service is unavailable."
+    });
+  }
+
+  return finishOperationsCenterQuickAction(
+    claimsQueueService.rejectClaim(
+      gameId,
+      assignmentId
+    )
+  );
+}
+
+function handleOperationsCenterQuickAction(
+  action,
+  item = {}
+) {
+  switch (action) {
+    case "assign-recommended":
+      return assignRecommendedFromOperations(
+        item
+      );
+
+    case "approve-claim":
+      return approveClaimFromOperations(
+        item
+      );
+
+    case "reject-claim":
+      return rejectClaimFromOperations(
+        item
+      );
+
+    default:
+      return {
+        success: false,
+        message:
+          "This quick action is unavailable."
+      };
+  }
 }
 
 function renderOperationsCenterTaskLabel(item) {
@@ -67,6 +299,132 @@ function renderOperationsCenterTaskDetail(item) {
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+function renderOperationsCenterWorkflowHeader(
+  operations
+) {
+  const currentQueue =
+    operations.currentTask?.title ||
+    "Complete";
+
+  return `
+    <section
+      class="
+        dashboard-card
+        operations-workflow-header
+      "
+      data-testid="operations-workflow-header"
+    >
+      <div class="operations-workflow-metrics">
+        <div
+          class="operations-workflow-metric"
+          data-testid="operations-workflow-outstanding"
+        >
+          <span class="card-subtitle">
+            Outstanding
+          </span>
+
+          <strong>
+            ${operations.outstandingCount}
+          </strong>
+        </div>
+
+        <div
+          class="operations-workflow-metric"
+          data-testid="operations-workflow-current-queue"
+        >
+          <span class="card-subtitle">
+            Current Queue
+          </span>
+
+          <strong>
+            ${escapeOperationsCenterHtml(
+              currentQueue
+            )}
+          </strong>
+        </div>
+
+        <div
+          class="operations-workflow-metric"
+          data-testid="operations-workflow-progress"
+        >
+          <span class="card-subtitle">
+            Progress
+          </span>
+
+          <strong>
+            ${operations.operationalProgress.percent}%
+          </strong>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+
+function renderOperationsCenterQuickActions(
+  task,
+  item
+) {
+  if (!task) {
+    return "";
+  }
+
+  const payload =
+    escapeOperationsCenterHtml(
+      JSON.stringify(item || {})
+    );
+
+  if (task.key === "needsAssignment") {
+    return `
+      <div
+        class="operations-quick-actions"
+        data-testid="operations-quick-actions"
+      >
+        <button
+          type="button"
+          class="button button-primary"
+          data-testid="operations-assign-recommended"
+          data-operations-quick-action="assign-recommended"
+          data-operations-payload="${payload}"
+        >
+          Assign Recommended
+        </button>
+      </div>
+    `;
+  }
+
+  if (task.key === "pendingClaims") {
+    return `
+      <div
+        class="operations-quick-actions"
+        data-testid="operations-quick-actions"
+      >
+        <button
+          type="button"
+          class="button button-primary"
+          data-testid="operations-approve-claim"
+          data-operations-quick-action="approve-claim"
+          data-operations-payload="${payload}"
+        >
+          Approve
+        </button>
+
+        <button
+          type="button"
+          class="button button-secondary"
+          data-testid="operations-reject-claim"
+          data-operations-quick-action="reject-claim"
+          data-operations-payload="${payload}"
+        >
+          Reject
+        </button>
+      </div>
+    `;
+  }
+
+  return "";
 }
 
 function renderOperationsCenterCurrentTask(task) {
@@ -172,19 +530,26 @@ function renderOperationsCenterCurrentTask(task) {
             : ""
         }
 
-        <button
-          type="button"
-          class="primary-button"
-          data-testid="operations-current-task-action"
-          data-operations-action="${escapeOperationsCenterHtml(
-            task.action
-          )}"
-          data-operations-payload="${escapeOperationsCenterHtml(
-            JSON.stringify(firstItem)
-          )}"
-        >
-          Continue
-        </button>
+        <div class="operations-task-actions">
+          ${renderOperationsCenterQuickActions(
+            task,
+            firstItem
+          )}
+
+          <button
+            type="button"
+            class="primary-button"
+            data-testid="operations-current-task-action"
+            data-operations-action="${escapeOperationsCenterHtml(
+              task.action
+            )}"
+            data-operations-payload="${escapeOperationsCenterHtml(
+              JSON.stringify(firstItem)
+            )}"
+          >
+            Continue
+          </button>
+        </div>
       </div>
     </section>
   `;
@@ -458,15 +823,47 @@ function renderOperationsCenterActivity(
   `;
 }
 
-function renderOperationsCenter() {
+function renderOperationsCenter(context = {}) {
   const operations =
     dashboardService.getOperationsCenter();
+
+  const operationsFlash =
+    context.operationsFlash &&
+    typeof context.operationsFlash ===
+      "object"
+      ? context.operationsFlash
+      : null;
+
+  const successMessage =
+    operationsFlash?.success === true
+      ? String(
+          operationsFlash.message ||
+          "Action completed."
+        )
+      : "";
 
   return `
     <section
       class="page-section"
       data-testid="operations-center"
     >
+      <div
+        class="operations-action-message"
+        data-testid="operations-action-message"
+        role="status"
+        aria-live="polite"
+        data-state="${
+          successMessage
+            ? "success"
+            : ""
+        }"
+        ${successMessage ? "" : "hidden"}
+      >
+        ${escapeOperationsCenterHtml(
+          successMessage
+        )}
+      </div>
+
       ${
         operations.isEmpty
           ? `
@@ -485,15 +882,33 @@ function renderOperationsCenter() {
           : ""
       }
 
+      ${renderOperationsCenterWorkflowHeader(
+        operations
+      )}
+
       <div
         class="
           dashboard-grid
           operations-center-grid
         "
       >
-        ${renderOperationsCenterCurrentTask(
-          operations.currentTask
-        )}
+        <div
+          class="${
+            successMessage
+              ? "operations-current-task-advanced"
+              : ""
+          }"
+          data-testid="operations-current-task-stage"
+          data-advanced="${
+            successMessage
+              ? "true"
+              : "false"
+          }"
+        >
+          ${renderOperationsCenterCurrentTask(
+            operations.currentTask
+          )}
+        </div>
 
         ${renderOperationsCenterRemainingTasks(
           operations.remainingTasks
@@ -516,6 +931,61 @@ function renderOperationsCenter() {
 }
 
 function setupOperationsCenterActions() {
+  if (
+    typeof currentPageContext !==
+      "undefined" &&
+    currentPageContext &&
+    typeof currentPageContext === "object" &&
+    currentPageContext.operationsFlash
+  ) {
+    const {
+      operationsFlash,
+      ...remainingContext
+    } = currentPageContext;
+
+    currentPageContext =
+      remainingContext;
+
+    if (
+      window.BlueCrew &&
+      window.BlueCrew.test
+    ) {
+      window.BlueCrew.test.currentPage =
+        "operations-center";
+    }
+  }
+
+  document
+    .querySelectorAll(
+      "[data-operations-quick-action]"
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        () => {
+          const action =
+            button.dataset
+              .operationsQuickAction || "";
+
+          let payload = {};
+
+          try {
+            payload = JSON.parse(
+              button.dataset
+                .operationsPayload || "{}"
+            );
+          } catch {
+            payload = {};
+          }
+
+          handleOperationsCenterQuickAction(
+            action,
+            payload
+          );
+        }
+      );
+    });
+
   document
     .querySelectorAll(
       "[data-operations-action]"
@@ -568,6 +1038,9 @@ window.refreshOperationsCenterIfActive =
 
 window.handleOperationsCenterTask =
   handleOperationsCenterTask;
+
+window.handleOperationsCenterQuickAction =
+  handleOperationsCenterQuickAction;
 
 window.setupOperationsCenterActions =
   setupOperationsCenterActions;

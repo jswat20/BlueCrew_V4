@@ -51,11 +51,23 @@ function getWorkbenchItemDetail(item) {
     .join(" · ");
 }
 
-function handleWorkbenchAction(type, payload = {}) {
+function handleWorkbenchAction(
+  type,
+  payload = {},
+  origin = ""
+) {
   const gameId =
     payload.gameId ||
     payload.id ||
     "";
+
+  const originContext =
+    origin === "operations-center"
+      ? {
+          origin: "operations-center",
+          returnPage: "operations-center"
+        }
+      : {};
 
   switch (type) {
     case "needs-assignment":
@@ -75,7 +87,12 @@ function handleWorkbenchAction(type, payload = {}) {
 
       window.navigateTo("schedule", {
         filter: "open",
-        gameId
+        gameId,
+        assignmentId:
+          payload.assignmentId ||
+          payload.assignment?.id ||
+          "",
+        ...originContext
       });
       return;
 
@@ -86,7 +103,8 @@ function handleWorkbenchAction(type, payload = {}) {
           payload.assignmentId ||
           payload.assignment?.id ||
           "",
-        gameId
+        gameId,
+        ...originContext
       });
       return;
 
@@ -94,7 +112,8 @@ function handleWorkbenchAction(type, payload = {}) {
       window.navigateTo("review-queue", {
         filter: "submitted",
         status: "submitted",
-        gameId
+        gameId,
+        ...originContext
       });
       return;
 
@@ -102,32 +121,39 @@ function handleWorkbenchAction(type, payload = {}) {
       window.navigateTo("review-queue", {
         filter: "returned",
         status: "returned",
-        gameId
+        gameId,
+        ...originContext
       });
       return;
 
     case "today-priority":
       if (gameId) {
         window.navigateTo("game-hub", {
-          gameId
+          gameId,
+          ...originContext
         });
         return;
       }
 
       window.navigateTo("season-dashboard", {
-        focus: "today"
+        focus: "today",
+        ...originContext
       });
       return;
 
     case "activity":
       if (gameId) {
         window.navigateTo("game-hub", {
-          gameId
+          gameId,
+          ...originContext
         });
         return;
       }
 
-      window.navigateTo("notifications");
+      window.navigateTo(
+        "notifications",
+        originContext
+      );
       return;
 
     default:
