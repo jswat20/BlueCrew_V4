@@ -178,11 +178,10 @@ function renderSeasonMetricCard(
       class="dashboard-card season-dashboard-card"
       data-testid="season-dashboard-${id}"
     >
-      <div class="card-header">
-        <div>
-          <h2>${escapeSeasonDashboardHtml(title)}</h2>
-        </div>
-      </div>
+      ${renderCardHeader({
+        title,
+        className: "card-header"
+      })}
 
       <div class="summary-grid">
         ${metrics
@@ -276,12 +275,13 @@ function renderSeasonAttentionCard(items) {
               </div>
             `
           : `
-              <div
-                class="empty-state"
-                data-testid="season-dashboard-attention-empty"
-              >
-                No operational items require attention.
-              </div>
+              ${renderEmptyState({
+                message:
+                  "No operational items require attention.",
+                testId:
+                  "season-dashboard-attention-empty",
+                compact: true
+              })}
             `
       }
     </section>
@@ -386,12 +386,13 @@ function renderSeasonUpcomingCard(items) {
               </div>
             `
           : `
-              <div
-                class="empty-state"
-                data-testid="season-dashboard-upcoming-empty"
-              >
-                No upcoming staffing issues.
-              </div>
+              ${renderEmptyState({
+                message:
+                  "No upcoming staffing issues.",
+                testId:
+                  "season-dashboard-upcoming-empty",
+                compact: true
+              })}
             `
       }
     </section>

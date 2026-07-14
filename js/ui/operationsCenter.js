@@ -867,16 +867,15 @@ function renderOperationsCenter(context = {}) {
       ${
         operations.isEmpty
           ? `
-              <section
-                class="empty-state"
-                data-testid="operations-center-empty"
-              >
-                <h2>Today's work is complete</h2>
-
-                <p>
-                  No operational queues currently
-                  require attention.
-                </p>
+              <section>
+                ${renderEmptyState({
+                  title:
+                    "Today's work is complete",
+                  message:
+                    "No operational queues currently require attention.",
+                  testId:
+                    "operations-center-empty"
+                })}
               </section>
             `
           : ""

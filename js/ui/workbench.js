@@ -318,14 +318,16 @@ function renderWorkbenchCard({
 function renderWorkbenchEmptyState() {
   return `
     <section
-      class="empty-state"
       data-testid="assigner-workbench-empty"
     >
-      <h2>Assigner Workbench</h2>
-
-      <p>
-        No operational work requires attention.
-      </p>
+      ${renderEmptyState({
+        title:
+          "Assigner Workbench",
+        message:
+          "No operational work requires attention.",
+        testId:
+          "assigner-workbench-empty-content"
+      })}
     </section>
   `;
 }
@@ -358,22 +360,16 @@ function renderWorkbenchNotificationCard() {
       "
       data-testid="workbench-notifications"
     >
-      <div class="dashboard-card-header">
-        <div>
-          <h3>Notifications</h3>
-
-          <span class="muted">
-            Communication queue
-          </span>
-        </div>
-
-        <span
-          class="status-badge"
-          data-testid="workbench-notifications-count"
-        >
-          ${summary.unreadCount}
-        </span>
-      </div>
+      ${renderCardHeader({
+        title: "Notifications",
+        subtitle:
+          "Communication queue",
+        badge:
+          summary.unreadCount,
+        badgeTestId:
+          "workbench-notifications-count",
+        headingLevel: 3
+      })}
 
       <p class="muted">
         ${

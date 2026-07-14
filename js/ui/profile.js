@@ -149,6 +149,9 @@ function renderProfileForm(profile) {
             <div
               class="success-message"
               data-testid="profile-success"
+              role="status"
+              aria-live="polite"
+              tabindex="-1"
             >
               ${escapeProfileHtml(
                 profileFormMessage
@@ -417,6 +420,14 @@ function handleCommunicationPreferenceChange(
   renderPage("profile", {
     section: "communication"
   });
+
+  announceToScreenReader(
+    profileFormMessage
+  );
+
+  focusElementWhenReady(
+    '[data-testid="profile-success"]'
+  );
 }
 
 function handleSaveProfile(event) {
@@ -445,6 +456,14 @@ function handleSaveProfile(event) {
     portalService.getProfile();
 
   renderPage("profile");
+
+  announceToScreenReader(
+    profileFormMessage
+  );
+
+  focusElementWhenReady(
+    '[data-testid="profile-success"]'
+  );
 }
 
 function handleCancelProfileEdit() {

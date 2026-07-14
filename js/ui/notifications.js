@@ -529,38 +529,27 @@ function renderNotifications() {
       class="page-section"
       data-testid="notifications"
     >
-      <div class="section-header">
-        <div>
-          <h2>Notification Center</h2>
-
-          <p class="muted">
-            Assignments, claims, reviews,
-            and operational updates.
-          </p>
-        </div>
-
-        <span
-          class="status-pill"
-          data-testid="notifications-unread-count"
-        >
-          ${unreadCount} unread
-        </span>
-      </div>
+      ${renderPageHeader({
+        title: "Notification Center",
+        subtitle:
+          "Assignments, claims, reviews, and operational updates.",
+        badge:
+          `${unreadCount} unread`,
+        badgeTestId:
+          "notifications-unread-count"
+      })}
 
       ${
         !hasNotifications
           ? `
-              <div
-                class="empty-state"
-                data-testid="notifications-empty"
-              >
-                <h3>You're all caught up</h3>
-
-                <p>
-                  New notifications will
-                  appear here.
-                </p>
-              </div>
+              ${renderEmptyState({
+                title:
+                  "You're all caught up",
+                message:
+                  "New notifications will appear here.",
+                testId:
+                  "notifications-empty"
+              })}
             `
           : `
               <div
@@ -755,19 +744,14 @@ function renderNotifications() {
                       </div>
                     `
                   : `
-                      <div
-                        class="empty-state"
-                        data-testid="notifications-filtered-empty"
-                      >
-                        <h3>
-                          No matching notifications
-                        </h3>
-
-                        <p>
-                          Adjust the filters or
-                          search terms.
-                        </p>
-                      </div>
+                      ${renderEmptyState({
+                        title:
+                          "No matching notifications",
+                        message:
+                          "Adjust the filters or search terms.",
+                        testId:
+                          "notifications-filtered-empty"
+                      })}
                     `
               }
             `
@@ -889,6 +873,15 @@ function handleMarkSelectedNotificationsRead() {
     .clearNotificationSelection();
 
   refreshNotificationCenter();
+
+  announceToScreenReader(
+    result.message ||
+      "Selected notifications marked as read."
+  );
+
+  focusElementWhenReady(
+    '[data-testid="notifications-select-visible"]'
+  );
 }
 
 function handleDeleteSelectedNotifications() {
@@ -906,6 +899,15 @@ function handleDeleteSelectedNotifications() {
     .clearNotificationSelection();
 
   refreshNotificationCenter();
+
+  announceToScreenReader(
+    result.message ||
+      "Selected notifications deleted."
+  );
+
+  focusElementWhenReady(
+    '[data-testid="notifications-select-visible"]'
+  );
 }
 
 function handleMarkNotificationRead(
@@ -929,6 +931,15 @@ function handleMarkAllNotificationsRead() {
   if (!result.success) return;
 
   refreshNotificationCenter();
+
+  announceToScreenReader(
+    result.message ||
+      "All notifications marked as read."
+  );
+
+  focusElementWhenReady(
+    '[data-testid="notifications-select-visible"]'
+  );
 }
 
 function handleClearReadNotifications() {

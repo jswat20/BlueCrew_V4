@@ -47,14 +47,34 @@ test.describe(
               .getNotificationsSummary();
           });
 
-        expect(summary).toEqual({
-          unreadCount: 2,
-          hasUnread: true,
-          destination: {
-            page: "notifications",
-            context: {}
-          }
+        expect(summary).toEqual(
+          expect.objectContaining({
+            unreadCount: 2,
+            hasUnread: true,
+            destination: {
+              page: "notifications",
+              context: {}
+            }
+          })
+        );
+
+        expect(
+          summary.visibleNotificationCount
+        ).toBe(2);
+
+        expect(
+          summary.unreadByCategory
+        ).toEqual({
+          other: 2
         });
+
+        expect(
+          summary.newestNotification.title
+        ).toBe("Second");
+
+        expect(
+          summary.oldestUnread.title
+        ).toBe("First");
       }
     );
 
@@ -98,7 +118,9 @@ test.describe(
 
         expect(state).toEqual({
           page: "notifications",
-          context: {}
+          context: {
+            filter: "all"
+          }
         });
       }
     );

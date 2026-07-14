@@ -203,12 +203,22 @@ test.describe(
               .getCommunicationPreferencesReport();
           });
 
-        expect(report).toEqual({
-          notificationsEnabled: 4,
-          notificationsDisabled: 2,
-          enabledCount: 4,
-          disabledCount: 2
-        });
+        expect(report).toEqual(
+          expect.objectContaining({
+            notificationsEnabled: 4,
+            notificationsDisabled: 2,
+            enabledCount: 4,
+            disabledCount: 2
+          })
+        );
+
+        expect(
+          report.mutedCategoryCount
+        ).toBe(2);
+
+        expect(
+          report.visibleNotificationCount
+        ).toBe(0);
       }
     );
   }

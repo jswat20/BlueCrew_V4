@@ -523,3 +523,66 @@ window.addEventListener("unhandledrejection", event => {
 });
 
 initializeApp();
+
+// BlueCrew navigation accessibility
+(function installBlueCrewNavigationFocus() {
+  if (
+    window.bluecrewNavigationFocusInstalled
+  ) {
+    return;
+  }
+
+  window.bluecrewNavigationFocusInstalled =
+    true;
+
+  if (
+    typeof window.navigateTo !==
+      "function" &&
+    typeof navigateTo !== "function"
+  ) {
+    return;
+  }
+
+  const originalNavigateTo =
+    typeof window.navigateTo === "function"
+      ? window.navigateTo
+      : navigateTo;
+
+  const accessibleNavigateTo =
+    function (
+      page,
+      context = {}
+    ) {
+      const result =
+        originalNavigateTo(
+          page,
+          context
+        );
+
+      if (
+        typeof focusPageHeading ===
+          "function"
+      ) {
+        focusPageHeading();
+      }
+
+      return result;
+    };
+
+  window.navigateTo =
+    accessibleNavigateTo;
+
+  try {
+    navigateTo =
+      accessibleNavigateTo;
+  } catch {
+    // The window reference remains available.
+  }
+
+  if (
+    typeof ensureAccessibilityLiveRegion ===
+      "function"
+  ) {
+    ensureAccessibilityLiveRegion();
+  }
+})();
