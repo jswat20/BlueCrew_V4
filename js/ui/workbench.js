@@ -73,14 +73,14 @@ function handleWorkbenchAction(type, payload = {}) {
         currentScheduleView = "all";
       }
 
-      navigateTo("schedule", {
+      window.navigateTo("schedule", {
         filter: "open",
         gameId
       });
       return;
 
     case "pending-claim":
-      navigateTo("claims-queue", {
+      window.navigateTo("claims-queue", {
         status: "pending",
         assignmentId:
           payload.assignmentId ||
@@ -91,7 +91,7 @@ function handleWorkbenchAction(type, payload = {}) {
       return;
 
     case "awaiting-review":
-      navigateTo("review-queue", {
+      window.navigateTo("review-queue", {
         filter: "submitted",
         status: "submitted",
         gameId
@@ -99,7 +99,7 @@ function handleWorkbenchAction(type, payload = {}) {
       return;
 
     case "returned-review":
-      navigateTo("review-queue", {
+      window.navigateTo("review-queue", {
         filter: "returned",
         status: "returned",
         gameId
@@ -108,26 +108,26 @@ function handleWorkbenchAction(type, payload = {}) {
 
     case "today-priority":
       if (gameId) {
-        navigateTo("game-hub", {
+        window.navigateTo("game-hub", {
           gameId
         });
         return;
       }
 
-      navigateTo("season-dashboard", {
+      window.navigateTo("season-dashboard", {
         focus: "today"
       });
       return;
 
     case "activity":
       if (gameId) {
-        navigateTo("game-hub", {
+        window.navigateTo("game-hub", {
           gameId
         });
         return;
       }
 
-      navigateTo("notifications");
+      window.navigateTo("notifications");
       return;
 
     default:
@@ -327,6 +327,17 @@ function renderWorkbench() {
       class="page-section"
       data-testid="assigner-workbench"
     >
+      <div class="workbench-launch">
+        <button
+          type="button"
+          class="primary-button"
+          data-testid="workbench-launch-operations-center"
+          onclick="launchOperationsCenter()"
+        >
+          Open Operations Center
+        </button>
+      </div>
+
       <div class="dashboard-grid workbench-grid">
         ${renderWorkbenchCard({
           title: "Needs Assignment",
@@ -426,3 +437,11 @@ function refreshWorkbenchIfActive() {
     );
   }
 }
+
+
+function launchOperationsCenter() {
+  window.navigateTo("operations-center");
+}
+
+window.handleWorkbenchAction =
+  handleWorkbenchAction;

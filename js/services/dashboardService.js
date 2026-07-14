@@ -725,6 +725,131 @@ function getRoleSummary() {
           .every(count => count === 0)
     };
   }
+function getOperationsCenter() {
+  const workbench = getWorkbench();
+
+  const priority =
+    workbench.nextSection || null;
+
+  const currentTask = priority
+    ? {
+        key: priority.key,
+        title: priority.title,
+        count:
+          workbench.counts[priority.key],
+        action:
+          getOperationsTaskAction(
+            priority.key
+          ),
+        items:
+          workbench.sections[
+            priority.key
+          ] || []
+      }
+    : null;
+
+  const remainingTasks =
+    workbench.priorityOrder
+      .filter(
+        section =>
+          section.key !==
+            currentTask?.key &&
+          workbench.counts[
+            section.key
+          ] > 0
+      )
+      .map(section => ({
+        key: section.key,
+        title: section.title,
+        count:
+          workbench.counts[
+            section.key
+          ],
+        action:
+          getOperationsTaskAction(
+            section.key
+          ),
+        items:
+          workbench.sections[
+            section.key
+          ] || []
+      }));
+
+  const queueCounts = {
+    needsAssignment:
+      workbench.counts.needsAssignment,
+
+    pendingClaims:
+      workbench.counts.pendingClaims,
+
+    awaitingReview:
+      workbench.counts.awaitingReview,
+
+    returnedReviews:
+      workbench.counts.returnedReviews,
+
+    todaysPriorities:
+      workbench.counts.todaysPriorities
+  };
+
+  const operationalProgress = {
+    completed:
+      workbench.priorityOrder.filter(
+        section =>
+          workbench.counts[
+            section.key
+          ] === 0
+      ).length,
+
+    total:
+      workbench.priorityOrder.length,
+
+    percent:
+      Math.round(
+        (
+          workbench.priorityOrder.filter(
+            section =>
+              workbench.counts[
+                section.key
+              ] === 0
+          ).length /
+          workbench.priorityOrder.length
+        ) * 100
+      )
+  };
+
+  return {
+    currentTask,
+    remainingTasks,
+    queueCounts,
+    recentActivity:
+      workbench.sections.recentActivity,
+    operationalProgress,
+    outstandingCount:
+      workbench.totalActionItems,
+    isEmpty: workbench.isEmpty
+  };
+}
+  function getOperationsTaskAction(key) {
+    const actions = {
+      needsAssignment:
+        "needs-assignment",
+
+      pendingClaims:
+        "pending-claim",
+
+      awaitingReview:
+        "awaiting-review",
+
+      returnedReviews:
+        "returned-review",
+
+      todaysPriorities:
+        "today-priority"
+    };
+
+    return actions[key] || "";
+  }
 
   // Backward-compatible alias for existing callers.
   function getTodaysSchedule() {
@@ -752,6 +877,7 @@ function getRoleSummary() {
   getPendingClaims,
   getPendingAccounts,
   getRoleSummary,
-  getTodaysSchedule
+  getTodaysSchedule,
+  getOperationsCenter,
 };
 })();

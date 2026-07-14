@@ -92,7 +92,12 @@ const pages = {
   "my-claims": {
     title: "My Claims",
     subtitle: "View and Manage Your Claimed Games."
-  }
+  },
+  "operations-center": {
+  title: "Operations Center",
+  subtitle:
+    "Complete today's operational work."
+}
 };
 
 function initializeApp() {
@@ -266,12 +271,25 @@ function navigateTo(page, context = {}) {
   renderPage(page, context);
 }
 
+window.navigateTo = navigateTo;
+
 function runPageSetup(page, context = {}) {
+  if (
+    page === "operations-center" &&
+    typeof window
+      .setupOperationsCenterActions ===
+      "function"
+  ) {
+    window
+      .setupOperationsCenterActions();
+  }
+
   if (page !== "schedule") return;
 
   if (authService.isAdmin()) {
     currentScheduleDate =
-      currentScheduleDate || gameService.getFirstDateOrToday();
+      currentScheduleDate ||
+      gameService.getFirstDateOrToday();
 
     renderScheduleContent(context);
   }
@@ -293,6 +311,7 @@ function renderAdminView(page, context = {}) {
       typeof renderWorkbench === "function"
         ? renderWorkbench
         : null,
+    "operations-center": typeof renderOperationsCenter === "function" ? renderOperationsCenter : null,
     settings: typeof renderSettings === "function" ? renderSettings : null,
     admin: typeof renderAdmin === "function" ? renderAdmin : null,
     notifications: typeof renderNotifications === "function" ? renderNotifications : null,
@@ -468,8 +487,8 @@ function placeholderPage(title, message) {
   `;
 }
 
-window.updateNotificationBadge = updateNotificationBadge;
-window.navigateTo = navigateTo;
+window.updateNotificationBadge =
+  updateNotificationBadge;
 
 // ----------------------------------------------------
 // QA Error Tracking

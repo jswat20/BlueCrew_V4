@@ -72,6 +72,11 @@ const authorizationService = (() => {
       ROLES.ASSIGNER
     ]),
 
+  "operations-center": Object.freeze([
+      ROLES.ADMINISTRATOR,
+      ROLES.ASSIGNER
+    ]),
+
     settings: Object.freeze([
       ROLES.ADMINISTRATOR
     ]),
