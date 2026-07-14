@@ -106,6 +106,87 @@ const notificationService = (() => {
     });
   }
 
+  function getNotificationCategory(type) {
+    const value = String(type || "");
+
+    if (
+      value === "returned-review"
+    ) {
+      return "returnedReview";
+    }
+
+    if (
+      value.includes("assignment")
+    ) {
+      return "assignments";
+    }
+
+    if (value.includes("claim")) {
+      return "claims";
+    }
+
+    if (value.includes("review")) {
+      return "reviews";
+    }
+
+    if (
+      value.includes("availability")
+    ) {
+      return "availability";
+    }
+
+    if (value.includes("account")) {
+      return "accounts";
+    }
+
+    if (
+      value.includes("activity") ||
+      value.includes("digest")
+    ) {
+      return "activityDigest";
+    }
+
+    return "";
+  }
+
+  function getCommunicationPreferences() {
+    if (
+      typeof loginService === "undefined" ||
+      typeof loginService.getCurrentAccount !==
+        "function"
+    ) {
+      return {};
+    }
+
+    const account =
+      loginService.getCurrentAccount();
+
+    return (
+      account?.communicationPreferences ||
+      {}
+    );
+  }
+
+  function isCategoryEnabled(type) {
+    const category =
+      getNotificationCategory(type);
+
+    // Preserve the existing returned-review
+    // workflow regardless of review preference.
+    if (category === "returnedReview") {
+      return true;
+    }
+
+    if (!category) {
+      return true;
+    }
+
+    const preferences =
+      getCommunicationPreferences();
+
+    return preferences[category] !== false;
+  }
+
   function create({
     type = "general",
     title,
@@ -120,6 +201,16 @@ const notificationService = (() => {
       return {
         success: false,
         message: "Notification requires a title and message."
+      };
+    }
+
+    if (!isCategoryEnabled(type)) {
+      return {
+        success: true,
+        message:
+          "Notification muted by user preference.",
+        data: null,
+        suppressed: true
       };
     }
 
@@ -307,6 +398,8 @@ const notificationService = (() => {
     clearRead,
     clearAll,
     getNotificationCenter,
-    getNotifications
+    getNotifications,
+    getNotificationCategory,
+    isCategoryEnabled
   };
 })();

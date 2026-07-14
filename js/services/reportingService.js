@@ -86,6 +86,23 @@ const reportingService = (() => {
     );
   }
 
+  function getCommunicationPreferencesReport() {
+    const summary =
+      dashboardService
+        .getCommunicationPreferencesSummary();
+
+    return {
+      notificationsEnabled:
+        summary.enabledCount,
+      notificationsDisabled:
+        summary.disabledCount,
+      enabledCount:
+        summary.enabledCount,
+      disabledCount:
+        summary.disabledCount
+    };
+  }
+
   function getAssignmentReport(filters = {}) {
     const rows =
       getAssignmentDetails(filters);
@@ -441,6 +458,7 @@ const reportingService = (() => {
 
   return {
     getAssignmentReport,
+    getCommunicationPreferencesReport,
     getAvailabilityReport,
     getReviewReport,
     getAssignmentDetails,

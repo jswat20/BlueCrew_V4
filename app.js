@@ -298,6 +298,10 @@ function runPageSetup(page, context = {}) {
 function renderAdminView(page, context = {}) {
   const renderers = {
     dashboard: typeof renderDashboard === "function" ? renderDashboard : null,
+    profile:
+      typeof renderProfile === "function"
+        ? renderProfile
+        : null,
     login: typeof renderLogin === "function" ? renderLogin : null,
     schedule: typeof renderSchedule === "function" ? renderSchedule : null,
     crew: typeof renderCrew === "function" ? renderCrew : null,

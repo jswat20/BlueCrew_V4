@@ -47,6 +47,32 @@ function isValidRole(role) {
   return `account-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+  const DEFAULT_COMMUNICATION_PREFERENCES = {
+    assignments: true,
+    claims: true,
+    reviews: true,
+    availability: true,
+    accounts: true,
+    activityDigest: true,
+    soundEnabled: true,
+    desktopNotifications: false
+  };
+
+  function normalizeCommunicationPreferences(
+    preferences = {}
+  ) {
+    return Object.fromEntries(
+      Object.entries(
+        DEFAULT_COMMUNICATION_PREFERENCES
+      ).map(([key, defaultValue]) => [
+        key,
+        typeof preferences[key] === "boolean"
+          ? preferences[key]
+          : defaultValue
+      ])
+    );
+  }
+
   function normalizeAccount(account) {
     return {
       id: account.id || generateId(),
@@ -65,6 +91,10 @@ function isValidRole(role) {
       rejectedAt: account.rejectedAt || null,
 role: normalizeRole(account.role),
       lastLogin: account.lastLogin || null,
+      communicationPreferences:
+        normalizeCommunicationPreferences(
+          account.communicationPreferences
+        ),
     };
   }
 
@@ -491,6 +521,10 @@ function getRoleSummary() {
         account.emergencyContact || "",
       emergencyContactPhone:
         account.emergencyContactPhone || "",
+      communicationPreferences:
+        normalizeCommunicationPreferences(
+          account.communicationPreferences
+        ),
       role: normalizeRole(account.role),
       crewId: account.crewId || null
     };
@@ -555,6 +589,23 @@ function getRoleSummary() {
         updates.emergencyContactPhone
       );
 
+    if (
+      updates.communicationPreferences &&
+      typeof updates.communicationPreferences ===
+        "object"
+    ) {
+      account.communicationPreferences =
+        normalizeCommunicationPreferences({
+          ...account.communicationPreferences,
+          ...updates.communicationPreferences
+        });
+    } else {
+      account.communicationPreferences =
+        normalizeCommunicationPreferences(
+          account.communicationPreferences
+        );
+    }
+
     saveAll(accounts);
 
     return mutationResult(
@@ -603,6 +654,11 @@ function getRoleSummary() {
     getRoles,
     updateRole,
     getByRole,
-    getRoleSummary
+    getRoleSummary,
+    getDefaultCommunicationPreferences:
+      () => ({
+        ...DEFAULT_COMMUNICATION_PREFERENCES
+      }),
+    normalizeCommunicationPreferences
   };
 })();

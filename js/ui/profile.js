@@ -41,6 +41,92 @@ function renderProfile() {
   return renderProfileForm(profile);
 }
 
+const COMMUNICATION_PROFILE_OPTIONS = [
+  {
+    key: "assignments",
+    label: "Assignment notifications"
+  },
+  {
+    key: "claims",
+    label: "Claim notifications"
+  },
+  {
+    key: "reviews",
+    label: "Review notifications"
+  },
+  {
+    key: "availability",
+    label: "Availability notifications"
+  },
+  {
+    key: "accounts",
+    label: "Account notifications"
+  },
+  {
+    key: "activityDigest",
+    label: "Activity digest"
+  },
+  {
+    key: "soundEnabled",
+    label: "Sound enabled"
+  },
+  {
+    key: "desktopNotifications",
+    label: "Desktop notifications",
+    description:
+      "Future-ready browser notification preference."
+  }
+];
+
+function renderCommunicationProfileOption(
+  option,
+  preferences
+) {
+  return `
+    <label
+      class="settings-option"
+      data-testid="communication-option-${
+        escapeProfileHtml(option.key)
+      }"
+    >
+      <span>
+        <strong>
+          ${escapeProfileHtml(option.label)}
+        </strong>
+
+        ${
+          option.description
+            ? `
+                <small class="muted">
+                  ${escapeProfileHtml(
+                    option.description
+                  )}
+                </small>
+              `
+            : ""
+        }
+      </span>
+
+      <input
+        type="checkbox"
+        role="switch"
+        data-testid="communication-${
+          escapeProfileHtml(option.key)
+        }"
+        ${
+          preferences[option.key] === true
+            ? "checked"
+            : ""
+        }
+        onchange="handleCommunicationPreferenceChange(
+          '${escapeProfileHtml(option.key)}',
+          this.checked
+        )"
+      >
+    </label>
+  `;
+}
+
 function renderProfileForm(profile) {
   return `
     <section
@@ -193,6 +279,40 @@ function renderProfileForm(profile) {
           </label>
         </div>
 
+        <section
+          class="settings-section"
+          id="profile-communication"
+          data-testid="profile-communication"
+        >
+          <div class="section-header">
+            <div>
+              <h3>Communication</h3>
+
+              <p class="muted">
+                Choose which in-app updates
+                appear in your Notification Center.
+              </p>
+            </div>
+          </div>
+
+          <div
+            class="settings-options"
+            data-testid="communication-options"
+          >
+            ${COMMUNICATION_PROFILE_OPTIONS
+              .map(option =>
+                renderCommunicationProfileOption(
+                  option,
+                  profile
+                    .communicationPreferences ||
+                    accountService
+                      .getDefaultCommunicationPreferences()
+                )
+              )
+              .join("")}
+          </div>
+        </section>
+
         <div class="form-actions">
           <button
             type="submit"
@@ -236,8 +356,67 @@ function getProfileFormValues() {
     emergencyContactPhone:
       document.getElementById(
         "profile-emergency-phone"
-      )?.value || ""
+      )?.value || "",
+    communicationPreferences:
+      portalService.getProfile()
+        ?.communicationPreferences ||
+      accountService
+        .getDefaultCommunicationPreferences()
   };
+}
+
+function handleCommunicationPreferenceChange(
+  key,
+  enabled
+) {
+  profileFormMessage = "";
+  profileFormError = "";
+
+  const current =
+    portalService.getProfile();
+
+  if (!current) {
+    profileFormError =
+      "Unable to save communication preference.";
+
+    renderPage("profile", {
+      section: "communication"
+    });
+
+    return;
+  }
+
+  const result =
+    portalService.saveProfile({
+      ...getProfileFormValues(),
+      communicationPreferences: {
+        ...current.communicationPreferences,
+        [key]: enabled === true
+      }
+    });
+
+  if (!result.success) {
+    profileFormError =
+      result.message ||
+      "Unable to save communication preference.";
+
+    renderPage("profile", {
+      section: "communication"
+    });
+
+    return;
+  }
+
+  profileFormMessage =
+    "Communication preference saved.";
+
+  profileFormSnapshot = {
+    ...portalService.getProfile()
+  };
+
+  renderPage("profile", {
+    section: "communication"
+  });
 }
 
 function handleSaveProfile(event) {

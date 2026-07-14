@@ -851,6 +851,78 @@ function getOperationsCenter() {
     return actions[key] || "";
   }
 
+  const COMMUNICATION_CATEGORY_LABELS = {
+    assignments: "Assignments",
+    claims: "Claims",
+    reviews: "Reviews",
+    availability: "Availability",
+    accounts: "Accounts",
+    activityDigest: "Activity digest"
+  };
+
+  function getCommunicationPreferencesSummary() {
+    const account =
+      typeof loginService !== "undefined" &&
+      typeof loginService.getCurrentAccount ===
+        "function"
+        ? loginService.getCurrentAccount()
+        : null;
+
+    const defaults =
+      typeof accountService !== "undefined" &&
+      typeof accountService
+        .getDefaultCommunicationPreferences ===
+        "function"
+        ? accountService
+            .getDefaultCommunicationPreferences()
+        : {};
+
+    const preferences = {
+      ...defaults,
+      ...(account?.communicationPreferences || {})
+    };
+
+    const categories =
+      Object.entries(
+        COMMUNICATION_CATEGORY_LABELS
+      ).map(([key, label]) => ({
+        key,
+        label,
+        enabled:
+          preferences[key] !== false
+      }));
+
+    const muted = categories
+      .filter(category => !category.enabled)
+      .map(category => ({
+        key: category.key,
+        label: category.label,
+        text: `${category.label} muted`
+      }));
+
+    return {
+      categories,
+      enabledCount:
+        categories.filter(
+          category => category.enabled
+        ).length,
+      disabledCount: muted.length,
+      muted,
+      hasMuted: muted.length > 0,
+      soundEnabled:
+        preferences.soundEnabled !== false,
+      desktopNotifications:
+        preferences.desktopNotifications ===
+        true,
+      destination: {
+        page: "profile",
+        context: {
+          section: "communication"
+        }
+      }
+    };
+  }
+
   function getNotificationsSummary() {
     const unreadCount =
       typeof notificationService !==
@@ -899,6 +971,7 @@ function getOperationsCenter() {
   getPendingAccounts,
   getRoleSummary,
   getNotificationsSummary,
+  getCommunicationPreferencesSummary,
   getTodaysSchedule,
   getOperationsCenter,
 };

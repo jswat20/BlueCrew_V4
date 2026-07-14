@@ -13,6 +13,13 @@ function renderDashboard() {
       }
 
       ${
+        typeof renderCommunicationPreferencesCard ===
+          "function"
+          ? renderCommunicationPreferencesCard()
+          : ""
+      }
+
+      ${
         typeof renderAccountRoleSummary === "function"
           ? renderAccountRoleSummary()
           : ""

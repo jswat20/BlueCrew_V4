@@ -335,6 +335,10 @@ function renderWorkbenchNotificationCard() {
     dashboardService
       .getNotificationsSummary();
 
+  const communicationSummary =
+    dashboardService
+      .getCommunicationPreferencesSummary();
+
   return `
     <section
       class="
@@ -367,6 +371,36 @@ function renderWorkbenchNotificationCard() {
             : `${summary.unreadCount} unread notifications.`
         }
       </p>
+
+      ${
+        communicationSummary.hasMuted
+          ? `
+              <ul
+                class="workbench-muted-categories"
+                data-testid="workbench-muted-categories"
+              >
+                ${communicationSummary.muted
+                  .map(
+                    category => `
+                      <li
+                        class="muted"
+                        data-testid="workbench-muted-${
+                          escapeWorkbenchHtml(
+                            category.key
+                          )
+                        }"
+                      >
+                        ${escapeWorkbenchHtml(
+                          category.text
+                        )}
+                      </li>
+                    `
+                  )
+                  .join("")}
+              </ul>
+            `
+          : ""
+      }
 
       <button
         type="button"
