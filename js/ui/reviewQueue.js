@@ -38,7 +38,7 @@ function openGameReview(gameId) {
   });
 }
 
-function renderReviewQueue() {
+function renderReviewQueue(context = {}) {
   const summaries =
     reviewService
       .getSubmittedGames()

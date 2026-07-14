@@ -53,6 +53,10 @@ const pages = {
     title: "Reports",
     subtitle: "Track Coverage, Assignments, and Season Activity."
   },
+  "season-dashboard": {
+    title: "Season Dashboard",
+    subtitle: "Season operations, staffing, availability, and activity."
+  },
   settings: {
     title: "Settings",
     subtitle: "Manage Fields, Levels, Teams, and Time Slots."
@@ -276,6 +280,10 @@ function renderAdminView(page, context = {}) {
     schedule: typeof renderSchedule === "function" ? renderSchedule : null,
     crew: typeof renderCrew === "function" ? renderCrew : null,
     reports: typeof renderReports === "function" ? renderReports : null,
+    "season-dashboard":
+      typeof renderSeasonDashboard === "function"
+        ? renderSeasonDashboard
+        : null,
     settings: typeof renderSettings === "function" ? renderSettings : null,
     admin: typeof renderAdmin === "function" ? renderAdmin : null,
     notifications: typeof renderNotifications === "function" ? renderNotifications : null,

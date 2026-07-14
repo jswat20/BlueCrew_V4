@@ -24,7 +24,58 @@ window.reportsPresetPageState =
 const reportsPresetPageState =
   window.reportsPresetPageState;
 
-function renderReports() {
+function applyReportsNavigationContext(
+  context = {}
+) {
+  const requestedReport =
+    context.report || context.type || "";
+
+  if (!requestedReport) {
+    return;
+  }
+
+  const normalizedReport = {
+    assignment: "assignments",
+    assignments: "assignments",
+    availability: "availability",
+    review: "reviews",
+    reviews: "reviews"
+  }[requestedReport];
+
+  if (!normalizedReport) {
+    return;
+  }
+
+  if (
+    typeof reportPageState !== "undefined" &&
+    reportPageState
+  ) {
+    if ("activeReport" in reportPageState) {
+      reportPageState.activeReport =
+        normalizedReport;
+    }
+
+    if ("selectedReport" in reportPageState) {
+      reportPageState.selectedReport =
+        normalizedReport;
+    }
+
+    if ("report" in reportPageState) {
+      reportPageState.report =
+        normalizedReport;
+    }
+  }
+
+  if (
+    typeof activeReport !== "undefined"
+  ) {
+    activeReport = normalizedReport;
+  }
+}
+
+function renderReports(context = {}) {
+  applyReportsNavigationContext(context);
+
   const filters = {
     ...reportsPageState
   };

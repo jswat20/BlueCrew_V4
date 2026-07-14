@@ -4,7 +4,14 @@ const selectedPendingAccountIds = new Set();
 
 let selectedRoleFilter = "all";
 
-function renderAccounts() {
+function renderAccounts(context = {}) {
+  if (
+    context.filter === "pending" ||
+    context.status === "pending"
+  ) {
+    accountFilter = "pending";
+  }
+
   const selectedFilter =
     typeof uiStateService?.getAccountFilter === "function"
       ? uiStateService.getAccountFilter()

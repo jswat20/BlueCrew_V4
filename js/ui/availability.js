@@ -168,35 +168,6 @@ function renderAvailabilityForm(crewMembers) {
         </button>
       </div>
 
-      <div
-        class="availability-quick-actions"
-        data-testid="availability-quick-actions"
-      >
-        <button
-          type="button"
-          data-testid="availability-weekend-unavailable"
-          onclick="handleWeekendUnavailable()"
-        >
-          Unavailable This Weekend
-        </button>
-
-        <button
-          type="button"
-          data-testid="availability-next-seven-available"
-          onclick="handleNextSevenAvailable()"
-        >
-          Available Next 7 Days
-        </button>
-
-        <button
-          type="button"
-          data-testid="availability-copy-previous-week"
-          onclick="handleCopyPreviousWeek()"
-        >
-          Copy Previous Week
-        </button>
-      </div>
-
       <div class="availability-form-actions">
         <button
           type="button"

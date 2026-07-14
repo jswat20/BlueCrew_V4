@@ -62,6 +62,11 @@ const authorizationService = (() => {
       ROLES.ASSIGNER
     ]),
 
+    "season-dashboard": Object.freeze([
+      ROLES.ADMINISTRATOR,
+      ROLES.ASSIGNER
+    ]),
+
     settings: Object.freeze([
       ROLES.ADMINISTRATOR
     ]),

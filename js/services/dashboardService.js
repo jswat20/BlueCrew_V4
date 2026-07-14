@@ -402,6 +402,238 @@ function getRoleSummary() {
     };
   }
 
+  function getSeasonDashboard() {
+    const assignmentReport =
+      reportingService.getAssignmentReport();
+
+    const availabilityReport =
+      reportingService.getAvailabilityReport();
+
+    const reviewReport =
+      reportingService.getReviewReport();
+
+    const assignmentDetails =
+      reportingService.getAssignmentDetails();
+
+    const approvedAccounts =
+      accountService.getApprovedAccounts();
+
+    const activeOfficials =
+      approvedAccounts.filter(account =>
+        account.role === "umpire" ||
+        (
+          Array.isArray(account.roles) &&
+          account.roles.includes("umpire")
+        )
+      ).length;
+
+    const operations = {
+      scheduledGames:
+        assignmentReport.totalGames || 0,
+      completedGames:
+        reviewReport.completed || 0,
+      awaitingReview:
+        reviewReport.submitted || 0,
+      returnedReviews:
+        reviewReport.returned || 0,
+      approvedReviews:
+        reviewReport.approved || 0
+    };
+
+    const staffing = {
+      assignmentCoveragePercentage:
+        assignmentReport.coveragePercentage || 0,
+      fullyStaffedGames:
+        assignmentReport.fullyStaffedGames || 0,
+      openAssignments:
+        assignmentReport.openAssignments || 0,
+      pendingClaims:
+        assignmentReport.pendingClaims || 0
+    };
+
+    const availability = {
+      available:
+        availabilityReport.available || 0,
+      unavailable:
+        availabilityReport.unavailable || 0,
+      maybe:
+        availabilityReport.maybe || 0,
+      noResponse:
+        availabilityReport.noResponse || 0,
+      responsePercentage:
+        availabilityReport.responsePercentage || 0
+    };
+
+    const officials = {
+      activeOfficials,
+      pendingApprovals:
+        accountService.getPendingAccounts().length
+    };
+
+    const highPriorityItems = [
+      {
+        key: "returned-reviews",
+        title: "Returned Reviews",
+        count: operations.returnedReviews,
+        detail:
+          "Returned game reports need correction and resubmission.",
+        destination: "review-queue",
+        priority: "high"
+      },
+      {
+        key: "pending-claims",
+        title: "Pending Claims",
+        count: staffing.pendingClaims,
+        detail:
+          "Assignment claims are waiting for an assigner decision.",
+        destination: "claims-queue",
+        priority: "high"
+      },
+      {
+        key: "open-assignments",
+        title: "Open Assignments",
+        count: staffing.openAssignments,
+        detail:
+          "Open assignment slots still need officials.",
+        destination: "schedule",
+        priority: "medium"
+      },
+      {
+        key: "pending-approvals",
+        title: "Pending Official Approvals",
+        count: officials.pendingApprovals,
+        detail:
+          "New official accounts are waiting for approval.",
+        destination: "accounts",
+        priority: "medium"
+      }
+    ]
+      .filter(item => item.count > 0)
+      .sort((a, b) => {
+        const priorityOrder = {
+          high: 0,
+          medium: 1,
+          low: 2
+        };
+
+        const priorityDifference =
+          priorityOrder[a.priority] -
+          priorityOrder[b.priority];
+
+        if (priorityDifference !== 0) {
+          return priorityDifference;
+        }
+
+        return b.count - a.count;
+      });
+
+    const upcomingDeadlines =
+      assignmentDetails
+        .filter(row =>
+          row.openAssignments > 0 ||
+          row.pendingClaims > 0
+        )
+        .slice(0, 5)
+        .map(row => ({
+          key: `staffing-${row.gameId}`,
+          gameId: row.gameId,
+          title: row.matchup,
+          detail: [
+            row.date,
+            row.time,
+            row.field
+          ]
+            .filter(Boolean)
+            .join(" • "),
+          status: row.status,
+          openAssignments:
+            row.openAssignments,
+          pendingClaims:
+            row.pendingClaims,
+          destination: "schedule"
+        }));
+
+    const operationalHealth = [
+      {
+        key: "assignment-coverage",
+        title: "Assignment Coverage",
+        value:
+          staffing.assignmentCoveragePercentage,
+        valueLabel:
+          `${staffing.assignmentCoveragePercentage}%`,
+        status:
+          staffing.assignmentCoveragePercentage >= 90
+            ? "healthy"
+            : staffing.assignmentCoveragePercentage >= 75
+              ? "watch"
+              : "critical",
+        detail:
+          "Percentage of assignment slots currently covered."
+      },
+      {
+        key: "availability-response",
+        title: "Availability Response",
+        value:
+          availability.responsePercentage,
+        valueLabel:
+          `${availability.responsePercentage}%`,
+        status:
+          availability.responsePercentage >= 80
+            ? "healthy"
+            : availability.responsePercentage >= 60
+              ? "watch"
+              : "critical",
+        detail:
+          "Percentage of availability requests with a response."
+      },
+      {
+        key: "review-throughput",
+        title: "Review Throughput",
+        value:
+          operations.approvedReviews,
+        valueLabel:
+          String(operations.approvedReviews),
+        status:
+          operations.returnedReviews > 0
+            ? "watch"
+            : operations.awaitingReview > 0
+              ? "watch"
+              : "healthy",
+        detail:
+          operations.returnedReviews > 0
+            ? `${operations.returnedReviews} returned review${
+                operations.returnedReviews === 1
+                  ? ""
+                  : "s"
+              } need attention.`
+            : operations.awaitingReview > 0
+              ? `${operations.awaitingReview} review${
+                  operations.awaitingReview === 1
+                    ? ""
+                    : "s"
+                } awaiting decision.`
+              : "No review backlog requires attention."
+      }
+    ];
+
+    return {
+      operations,
+      staffing,
+      availability,
+      officials,
+
+      requiresAttention:
+        highPriorityItems.length > 0,
+
+      highPriorityItems,
+      upcomingDeadlines,
+      operationalHealth,
+
+      activity:
+        getRecentAssignmentActivity()
+    };
+  }
+
   // Backward-compatible alias for existing callers.
   function getTodaysSchedule() {
     const today = getToday();
@@ -417,6 +649,7 @@ function getRoleSummary() {
 
   return {
   getOperationsSummary,
+  getSeasonDashboard,
   getAvailabilityReminder,
   getRecentAssignmentActivity,
   getNeedsAttention,
