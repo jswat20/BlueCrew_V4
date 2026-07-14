@@ -924,19 +924,109 @@ function getOperationsCenter() {
   }
 
   function getNotificationsSummary() {
-    const unreadCount =
+    const hasNotificationService =
       typeof notificationService !==
-        "undefined" &&
+        "undefined";
+
+    const notifications =
+      hasNotificationService &&
       typeof notificationService
-        .getUnreadCount === "function"
+        .getNotifications === "function"
         ? notificationService
-            .getUnreadCount()
+            .getNotifications()
+        : [];
+
+    const unread =
+      notifications.filter(
+        notification =>
+          !notification.read
+      );
+
+    const unreadByCategory =
+      hasNotificationService &&
+      typeof notificationService
+        .getUnreadByCategory ===
+          "function"
+        ? notificationService
+            .getUnreadByCategory()
+        : {};
+
+    const newestNotification =
+      notifications[0] || null;
+
+    const oldestUnread =
+      hasNotificationService &&
+      typeof notificationService
+        .getOldestUnread === "function"
+        ? notificationService
+            .getOldestUnread()
+        : null;
+
+    const communicationSummary =
+      getCommunicationPreferencesSummary();
+
+    const oldestUnreadAgeMilliseconds =
+      oldestUnread?.createdAt
+        ? Math.max(
+            Date.now() -
+              new Date(
+                oldestUnread.createdAt
+              ).getTime(),
+            0
+          )
         : 0;
 
+    const oldestUnreadAgeDays =
+      oldestUnread
+        ? Math.floor(
+            oldestUnreadAgeMilliseconds /
+              86400000
+          )
+        : 0;
+
+    const oldestUnreadAgeHours =
+      oldestUnread
+        ? Math.floor(
+            oldestUnreadAgeMilliseconds /
+              3600000
+          )
+        : 0;
+
+    const oldestUnreadAgeLabel =
+      !oldestUnread
+        ? ""
+        : oldestUnreadAgeDays > 0
+          ? `${oldestUnreadAgeDays}d`
+          : oldestUnreadAgeHours > 0
+            ? `${oldestUnreadAgeHours}h`
+            : "Less than 1h";
+
     return {
-      unreadCount,
+      unreadCount: unread.length,
       hasUnread:
-        unreadCount > 0,
+        unread.length > 0,
+      unreadByCategory,
+      unreadCategories:
+        Object.entries(
+          unreadByCategory
+        ).map(([key, count]) => ({
+          key,
+          count
+        })),
+      newestNotification,
+      oldestUnread,
+      oldestUnreadAgeMilliseconds,
+      oldestUnreadAgeDays,
+      oldestUnreadAgeHours,
+      oldestUnreadAgeLabel,
+      visibleNotificationCount:
+        notifications.length,
+      mutedCategories:
+        communicationSummary.muted,
+      mutedCategoryCount:
+        communicationSummary.disabledCount,
+      hasMutedCategories:
+        communicationSummary.hasMuted,
       destination: {
         page: "notifications",
         context: {}

@@ -87,19 +87,31 @@ const reportingService = (() => {
   }
 
   function getCommunicationPreferencesReport() {
-    const summary =
+    const communicationSummary =
       dashboardService
         .getCommunicationPreferencesSummary();
 
+    const notificationSummary =
+      dashboardService
+        .getNotificationsSummary();
+
     return {
       notificationsEnabled:
-        summary.enabledCount,
+        communicationSummary.enabledCount,
       notificationsDisabled:
-        summary.disabledCount,
+        communicationSummary.disabledCount,
       enabledCount:
-        summary.enabledCount,
+        communicationSummary.enabledCount,
       disabledCount:
-        summary.disabledCount
+        communicationSummary.disabledCount,
+      unreadByCategory:
+        notificationSummary.unreadByCategory,
+      mutedCategoryCount:
+        notificationSummary
+          .mutedCategoryCount,
+      visibleNotificationCount:
+        notificationSummary
+          .visibleNotificationCount
     };
   }
 

@@ -339,6 +339,17 @@ function renderWorkbenchNotificationCard() {
     dashboardService
       .getCommunicationPreferencesSummary();
 
+  const categoryLabels = {
+    assignments: "Assignments",
+    claims: "Claims",
+    reviews: "Reviews",
+    availability: "Availability",
+    accounts: "Accounts",
+    returnedReview:
+      "Returned Reviews",
+    activityDigest: "Activity"
+  };
+
   return `
     <section
       class="
@@ -371,6 +382,80 @@ function renderWorkbenchNotificationCard() {
             : `${summary.unreadCount} unread notifications.`
         }
       </p>
+
+      ${
+        summary.newestNotification
+          ? `
+              <p
+                data-testid="workbench-newest-notification"
+              >
+                <strong>Newest:</strong>
+                ${escapeWorkbenchHtml(
+                  summary
+                    .newestNotification
+                    .title || ""
+                )}
+              </p>
+            `
+          : `
+              <p
+                class="muted"
+                data-testid="workbench-newest-notification-empty"
+              >
+                No notifications.
+              </p>
+            `
+      }
+
+      ${
+        summary.oldestUnread
+          ? `
+              <p
+                class="muted"
+                data-testid="workbench-oldest-unread-age"
+              >
+                Oldest unread:
+                ${escapeWorkbenchHtml(
+                  summary
+                    .oldestUnreadAgeLabel
+                )}
+              </p>
+            `
+          : ""
+      }
+
+      ${
+        summary.unreadCategories.length
+          ? `
+              <ul
+                class="workbench-muted-categories"
+                data-testid="workbench-unread-by-category"
+              >
+                ${summary.unreadCategories
+                  .map(
+                    category => `
+                      <li
+                        data-testid="workbench-unread-${
+                          escapeWorkbenchHtml(
+                            category.key
+                          )
+                        }"
+                      >
+                        ${escapeWorkbenchHtml(
+                          categoryLabels[
+                            category.key
+                          ] ||
+                          category.key
+                        )}:
+                        ${category.count}
+                      </li>
+                    `
+                  )
+                  .join("")}
+              </ul>
+            `
+          : ""
+      }
 
       ${
         communicationSummary.hasMuted

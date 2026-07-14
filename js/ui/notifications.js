@@ -269,6 +269,40 @@ function renderNotificationCard(
           : "unread"
       }"
     >
+      ${
+        notification.virtual
+          ? ""
+          : `
+              <label
+                class="notification-selection"
+              >
+                <input
+                  type="checkbox"
+                  data-testid="notification-select"
+                  data-notification-id="${escapeNotificationHtml(
+                    notification.id
+                  )}"
+                  ${
+                    uiStateService
+                      .getSelectedNotificationIds()
+                      .includes(
+                        String(
+                          notification.id
+                        )
+                      )
+                      ? "checked"
+                      : ""
+                  }
+                  onchange="handleNotificationSelection(
+                    this.dataset.notificationId,
+                    this.checked
+                  )"
+                >
+                <span>Select</span>
+              </label>
+            `
+      }
+
       <div class="section-header">
         <span
           class="status-pill"
@@ -377,29 +411,118 @@ function renderNotificationSection(
   `;
 }
 
+function getNotificationCenterQuery() {
+  const filter =
+    uiStateService
+      .getNotificationFilter();
+
+  const status =
+    filter === "unread"
+      ? "unread"
+      : "all";
+
+  const category = [
+    "assignments",
+    "claims",
+    "reviews",
+    "availability",
+    "accounts"
+  ].includes(filter)
+    ? filter
+    : "all";
+
+  return {
+    status,
+    category,
+    search:
+      uiStateService
+        .getNotificationSearch(),
+    sort:
+      uiStateService
+        .getNotificationSort()
+  };
+}
+
+function renderNotificationFilterChip(
+  value,
+  label
+) {
+  const active =
+    uiStateService
+      .getNotificationFilter() === value;
+
+  return `
+    <button
+      type="button"
+      class="${
+        active
+          ? "filter-chip active"
+          : "filter-chip"
+      }"
+      data-testid="notification-filter-${value}"
+      data-filter="${value}"
+      aria-pressed="${
+        active ? "true" : "false"
+      }"
+      onclick="handleNotificationFilter(
+        this.dataset.filter
+      )"
+    >
+      ${label}
+    </button>
+  `;
+}
+
 function renderNotifications() {
+  const query =
+    getNotificationCenterQuery();
+
   const stored =
     notificationService
-      .getNotificationCenter();
+      .getNotifications();
 
   const returned =
     getReturnedReviewNotifications();
 
-  const unread = [
-    ...returned,
-    ...stored.unread
-  ].sort((a, b) =>
-    String(b.createdAt || "").localeCompare(
-      String(a.createdAt || "")
-    )
-  );
+  const notifications =
+    notificationService
+      .queryNotifications(
+        [
+          ...returned,
+          ...stored
+        ],
+        query
+      );
 
-  const read = stored.read;
+  const unreadCount =
+    notificationService
+      .getUnreadCount();
 
-  const unreadCount = unread.length;
-  const isEmpty =
-    unreadCount === 0 &&
-    read.length === 0;
+  const selectedIds =
+    uiStateService
+      .getSelectedNotificationIds();
+
+  const visibleStoredIds =
+    notifications
+      .filter(
+        notification =>
+          !notification.virtual
+      )
+      .map(
+        notification =>
+          String(notification.id)
+      );
+
+  const selectedVisibleCount =
+    visibleStoredIds.filter(id =>
+      selectedIds.includes(id)
+    ).length;
+
+  const hasNotifications =
+    [
+      ...returned,
+      ...stored
+    ].length > 0;
 
   return `
     <section
@@ -409,6 +532,7 @@ function renderNotifications() {
       <div class="section-header">
         <div>
           <h2>Notification Center</h2>
+
           <p class="muted">
             Assignments, claims, reviews,
             and operational updates.
@@ -424,66 +548,229 @@ function renderNotifications() {
       </div>
 
       ${
-        isEmpty
+        !hasNotifications
           ? `
-            <div
-              class="empty-state"
-              data-testid="notifications-empty"
-            >
-              <h3>You're all caught up</h3>
-              <p>
-                New notifications will
-                appear here.
-              </p>
-            </div>
-          `
-          : `
-            <div
-              class="notification-center-actions"
-            >
-              ${
-                stored.unreadCount
-                  ? `
-                    <button
-                      type="button"
-                      data-testid="notifications-mark-all-read"
-                      onclick="handleMarkAllNotificationsRead()"
-                    >
-                      Mark All Read
-                    </button>
-                  `
-                  : ""
-              }
-
-              <button
-                type="button"
-                class="secondary-button"
-                data-testid="notifications-clear-read"
-                ${
-                  stored.readCount
-                    ? ""
-                    : "disabled"
-                }
-                onclick="handleClearReadNotifications()"
+              <div
+                class="empty-state"
+                data-testid="notifications-empty"
               >
-                Clear Read
-              </button>
-            </div>
+                <h3>You're all caught up</h3>
 
-            ${renderNotificationSection(
-              "Unread",
-              unread,
-              "notifications-unread",
-              "No unread notifications."
-            )}
+                <p>
+                  New notifications will
+                  appear here.
+                </p>
+              </div>
+            `
+          : `
+              <div
+                class="notification-productivity-controls"
+                data-testid="notification-productivity-controls"
+              >
+                <div
+                  class="filter-chip-group"
+                  data-testid="notification-filters"
+                >
+                  ${renderNotificationFilterChip(
+                    "all",
+                    "All"
+                  )}
 
-            ${renderNotificationSection(
-              "Read",
-              read,
-              "notifications-read",
-              "No read notifications."
-            )}
-          `
+                  ${renderNotificationFilterChip(
+                    "unread",
+                    "Unread"
+                  )}
+
+                  ${renderNotificationFilterChip(
+                    "assignments",
+                    "Assignments"
+                  )}
+
+                  ${renderNotificationFilterChip(
+                    "claims",
+                    "Claims"
+                  )}
+
+                  ${renderNotificationFilterChip(
+                    "reviews",
+                    "Reviews"
+                  )}
+
+                  ${renderNotificationFilterChip(
+                    "availability",
+                    "Availability"
+                  )}
+
+                  ${renderNotificationFilterChip(
+                    "accounts",
+                    "Accounts"
+                  )}
+                </div>
+
+                <label>
+                  Search notifications
+
+                  <input
+                    type="search"
+                    data-testid="notification-search"
+                    value="${escapeNotificationHtml(
+                      uiStateService
+                        .getNotificationSearch()
+                    )}"
+                    placeholder="Search title, message, actor, or game"
+                    oninput="handleNotificationSearch(
+                      this.value
+                    )"
+                  >
+                </label>
+
+                <label>
+                  Sort
+
+                  <select
+                    data-testid="notification-sort"
+                    onchange="handleNotificationSort(
+                      this.value
+                    )"
+                  >
+                    <option
+                      value="newest"
+                      ${
+                        query.sort === "newest"
+                          ? "selected"
+                          : ""
+                      }
+                    >
+                      Newest
+                    </option>
+
+                    <option
+                      value="oldest"
+                      ${
+                        query.sort === "oldest"
+                          ? "selected"
+                          : ""
+                      }
+                    >
+                      Oldest
+                    </option>
+                  </select>
+                </label>
+              </div>
+
+              <div
+                class="notification-center-actions"
+                data-testid="notification-bulk-actions"
+              >
+                ${
+                  unreadCount
+                    ? `
+                        <button
+                          type="button"
+                          data-testid="notifications-mark-all-read"
+                          onclick="handleMarkAllNotificationsRead()"
+                        >
+                          Mark All Read
+                        </button>
+                      `
+                    : ""
+                }
+
+                <button
+                  type="button"
+                  class="secondary-button"
+                  data-testid="notifications-select-visible"
+                  ${
+                    visibleStoredIds.length
+                      ? ""
+                      : "disabled"
+                  }
+                  onclick="handleSelectVisibleNotifications()"
+                >
+                  Select All Visible
+                </button>
+
+                <button
+                  type="button"
+                  class="secondary-button"
+                  data-testid="notifications-clear-selection"
+                  ${
+                    selectedIds.length
+                      ? ""
+                      : "disabled"
+                  }
+                  onclick="handleClearNotificationSelection()"
+                >
+                  Clear Selection
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="notifications-mark-selected-read"
+                  ${
+                    selectedIds.length
+                      ? ""
+                      : "disabled"
+                  }
+                  onclick="handleMarkSelectedNotificationsRead()"
+                >
+                  Mark Selected Read
+                </button>
+
+                <button
+                  type="button"
+                  class="secondary-button"
+                  data-testid="notifications-delete-selected"
+                  ${
+                    selectedIds.length
+                      ? ""
+                      : "disabled"
+                  }
+                  onclick="handleDeleteSelectedNotifications()"
+                >
+                  Delete Selected
+                </button>
+
+                <span
+                  class="muted"
+                  data-testid="notification-selection-count"
+                >
+                  ${selectedVisibleCount}
+                  selected
+                </span>
+              </div>
+
+              ${
+                notifications.length
+                  ? `
+                      <div
+                        class="dashboard-grid"
+                        data-testid="notifications-list"
+                      >
+                        ${notifications
+                          .map(
+                            renderNotificationCard
+                          )
+                          .join("")}
+                      </div>
+                    `
+                  : `
+                      <div
+                        class="empty-state"
+                        data-testid="notifications-filtered-empty"
+                      >
+                        <h3>
+                          No matching notifications
+                        </h3>
+
+                        <p>
+                          Adjust the filters or
+                          search terms.
+                        </p>
+                      </div>
+                    `
+              }
+            `
       }
     </section>
   `;
@@ -501,6 +788,124 @@ function refreshNotificationCenter() {
   ) {
     updateNotificationBadge();
   }
+}
+
+function handleNotificationFilter(
+  filter
+) {
+  uiStateService
+    .setNotificationFilter(filter);
+
+  uiStateService
+    .clearNotificationSelection();
+
+  refreshNotificationCenter();
+}
+
+function handleNotificationSearch(
+  search
+) {
+  uiStateService
+    .setNotificationSearch(search);
+
+  uiStateService
+    .clearNotificationSelection();
+
+  refreshNotificationCenter();
+}
+
+function handleNotificationSort(sort) {
+  uiStateService
+    .setNotificationSort(sort);
+
+  refreshNotificationCenter();
+}
+
+function handleNotificationSelection(
+  notificationId,
+  selected
+) {
+  const ids =
+    uiStateService
+      .getSelectedNotificationIds();
+
+  const next = selected
+    ? [
+        ...ids,
+        String(notificationId)
+      ]
+    : ids.filter(
+        id =>
+          id !==
+          String(notificationId)
+      );
+
+  uiStateService
+    .setSelectedNotificationIds(next);
+
+  refreshNotificationCenter();
+}
+
+function getVisibleStoredNotificationIds() {
+  const query =
+    getNotificationCenterQuery();
+
+  return notificationService
+    .getNotifications(query)
+    .map(
+      notification =>
+        String(notification.id)
+    );
+}
+
+function handleSelectVisibleNotifications() {
+  uiStateService
+    .setSelectedNotificationIds(
+      getVisibleStoredNotificationIds()
+    );
+
+  refreshNotificationCenter();
+}
+
+function handleClearNotificationSelection() {
+  uiStateService
+    .clearNotificationSelection();
+
+  refreshNotificationCenter();
+}
+
+function handleMarkSelectedNotificationsRead() {
+  const ids =
+    uiStateService
+      .getSelectedNotificationIds();
+
+  const result =
+    notificationService
+      .markAsReadBulk(ids);
+
+  if (!result.success) return;
+
+  uiStateService
+    .clearNotificationSelection();
+
+  refreshNotificationCenter();
+}
+
+function handleDeleteSelectedNotifications() {
+  const ids =
+    uiStateService
+      .getSelectedNotificationIds();
+
+  const result =
+    notificationService
+      .deleteBulk(ids);
+
+  if (!result.success) return;
+
+  uiStateService
+    .clearNotificationSelection();
+
+  refreshNotificationCenter();
 }
 
 function handleMarkNotificationRead(

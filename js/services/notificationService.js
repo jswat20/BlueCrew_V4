@@ -366,25 +366,201 @@ const notificationService = (() => {
     };
   }
 
-  function getNotifications(options = {}) {
-    const status = options.status || "all";
+  function getNotificationSearchText(
+    notification
+  ) {
+    return [
+      notification.title,
+      notification.message,
+      notification.actor,
+      notification.actorName,
+      notification.gameText,
+      notification.matchup,
+      notification.homeTeam,
+      notification.awayTeam,
+      notification.relatedId
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+  }
 
-    const notifications =
-      sortNewestFirst(
-        filterForCurrentUser(
-          getAll()
-        )
+  function sortNotifications(
+    notifications,
+    sort
+  ) {
+    if (sort !== "oldest") {
+      return sortNewestFirst(
+        notifications
+      );
+    }
+
+    return sortNewestFirst(
+      notifications
+    ).reverse();
+  }
+
+  function queryNotifications(
+    notifications = [],
+    options = {}
+  ) {
+    const {
+      status = "all",
+      category = "all",
+      search = "",
+      sort = "newest"
+    } = options;
+
+    const query =
+      String(search)
+        .trim()
+        .toLowerCase();
+
+    const filtered =
+      notifications.filter(
+        notification => {
+          if (
+            status === "unread" &&
+            notification.read
+          ) {
+            return false;
+          }
+
+          if (
+            status === "read" &&
+            !notification.read
+          ) {
+            return false;
+          }
+
+          if (
+            category !== "all" &&
+            getNotificationCategory(
+              notification.type
+            ) !== category
+          ) {
+            return false;
+          }
+
+          if (
+            query &&
+            !getNotificationSearchText(
+              notification
+            ).includes(query)
+          ) {
+            return false;
+          }
+
+          return true;
+        }
       );
 
-    if (status === "unread") {
-      return notifications.filter(notification => !notification.read);
-    }
+    return sortNotifications(
+      filtered,
+      sort
+    );
+  }
 
-    if (status === "read") {
-      return notifications.filter(notification => notification.read);
-    }
+  function getNotifications(options = {}) {
+    return queryNotifications(
+      filterForCurrentUser(
+        getAll()
+      ),
+      options
+    );
+  }
 
-    return notifications;
+  function getUnreadByCategory() {
+    return getNotifications({
+      status: "unread"
+    }).reduce(
+      (summary, notification) => {
+        const category =
+          getNotificationCategory(
+            notification.type
+          ) || "other";
+
+        summary[category] =
+          (summary[category] || 0) + 1;
+
+        return summary;
+      },
+      {}
+    );
+  }
+
+  function getOldestUnread() {
+    return getNotifications({
+      status: "unread",
+      sort: "oldest"
+    })[0] || null;
+  }
+
+  function markAsReadBulk(
+    notificationIds = []
+  ) {
+    const ids = new Set(
+      notificationIds.map(String)
+    );
+
+    const notifications = getAll();
+    let updatedCount = 0;
+
+    notifications.forEach(notification => {
+      if (
+        ids.has(
+          String(notification.id)
+        ) &&
+        !notification.read
+      ) {
+        notification.read = true;
+        updatedCount += 1;
+      }
+    });
+
+    saveAll(notifications);
+
+    return {
+      success: true,
+      message:
+        "Selected notifications marked as read.",
+      data: {
+        updatedCount
+      }
+    };
+  }
+
+  function deleteBulk(
+    notificationIds = []
+  ) {
+    const ids = new Set(
+      notificationIds.map(String)
+    );
+
+    const notifications = getAll();
+
+    const remaining =
+      notifications.filter(
+        notification =>
+          !ids.has(
+            String(notification.id)
+          )
+      );
+
+    const deletedCount =
+      notifications.length -
+      remaining.length;
+
+    saveAll(remaining);
+
+    return {
+      success: true,
+      message:
+        "Selected notifications deleted.",
+      data: {
+        deletedCount
+      }
+    };
   }
 
   return {
@@ -394,11 +570,16 @@ const notificationService = (() => {
     getRead,
     getUnreadCount,
     markAsRead,
+    markAsReadBulk,
     markAllAsRead,
+    deleteBulk,
     clearRead,
     clearAll,
     getNotificationCenter,
     getNotifications,
+    queryNotifications,
+    getUnreadByCategory,
+    getOldestUnread,
     getNotificationCategory,
     isCategoryEnabled
   };
