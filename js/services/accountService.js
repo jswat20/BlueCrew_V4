@@ -54,6 +54,10 @@ function isValidRole(role) {
       lastName: account.lastName || "",
       email: account.email || "",
       phone: account.phone || "",
+      address: account.address || "",
+      emergencyContact: account.emergencyContact || "",
+      emergencyContactPhone:
+        account.emergencyContactPhone || "",
       status: account.status || "pending",
       crewId: account.crewId || null,
       createdAt: account.createdAt || new Date().toISOString(),
@@ -385,6 +389,128 @@ function getRoleSummary() {
     }
   );
 }
+  function normalizeProfileValue(value) {
+    return String(value || "").trim();
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  function normalizePhone(value) {
+    const phone = normalizeProfileValue(value);
+
+    if (!phone) {
+      return "";
+    }
+
+    const digits = phone.replace(/\D/g, "");
+
+    if (digits.length === 10) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(
+        3,
+        6
+      )}-${digits.slice(6)}`;
+    }
+
+    return phone;
+  }
+
+  function getProfile(accountId) {
+    const account = getById(accountId);
+
+    if (!account) {
+      return null;
+    }
+
+    return {
+      id: account.id,
+      firstName: account.firstName || "",
+      lastName: account.lastName || "",
+      name:
+        `${account.firstName || ""} ${
+          account.lastName || ""
+        }`.trim(),
+      email: account.email || "",
+      phone: account.phone || "",
+      address: account.address || "",
+      emergencyContact:
+        account.emergencyContact || "",
+      emergencyContactPhone:
+        account.emergencyContactPhone || "",
+      role: normalizeRole(account.role),
+      crewId: account.crewId || null
+    };
+  }
+
+  function updateProfile(accountId, updates = {}) {
+    const accounts = getAll();
+
+    const account = accounts.find(
+      item => String(item.id) === String(accountId)
+    );
+
+    if (!account) {
+      return mutationResult(
+        false,
+        "Account not found."
+      );
+    }
+
+    const email =
+      normalizeProfileValue(updates.email);
+
+    if (!email) {
+      return mutationResult(
+        false,
+        "Email is required."
+      );
+    }
+
+    if (!isValidEmail(email)) {
+      return mutationResult(
+        false,
+        "Enter a valid email address."
+      );
+    }
+
+    const duplicateEmail = accounts.some(
+      item =>
+        String(item.id) !== String(accountId) &&
+        String(item.email || "").toLowerCase() ===
+          email.toLowerCase()
+    );
+
+    if (duplicateEmail) {
+      return mutationResult(
+        false,
+        "An account with this email already exists."
+      );
+    }
+
+    account.email = email;
+    account.phone =
+      normalizePhone(updates.phone);
+    account.address =
+      normalizeProfileValue(updates.address);
+    account.emergencyContact =
+      normalizeProfileValue(
+        updates.emergencyContact
+      );
+    account.emergencyContactPhone =
+      normalizePhone(
+        updates.emergencyContactPhone
+      );
+
+    saveAll(accounts);
+
+    return mutationResult(
+      true,
+      "Profile saved.",
+      getProfile(account.id)
+    );
+  }
+
   function deleteAccount(accountId) {
     const authorization = requireManageAccounts();
 
@@ -415,6 +541,8 @@ function getRoleSummary() {
     getApprovedAccounts,
     getUnlinkedApprovedAccounts,
     getById,
+    getProfile,
+    updateProfile,
     updateAccount,
     deleteAccount,
     linkCrew,

@@ -1812,7 +1812,55 @@ const portalService = (() => {
       );
   }
 
+  function getProfile() {
+    const account = getCurrentAccount();
+
+    if (!account) {
+      return null;
+    }
+
+    const profile =
+      accountService.getProfile(account.id);
+
+    if (!profile) {
+      return null;
+    }
+
+    const crewName =
+      profile.crewId &&
+      typeof crewService !== "undefined" &&
+      typeof crewService.getDisplayName === "function"
+        ? crewService.getDisplayName(
+            profile.crewId
+          )
+        : "Not assigned";
+
+    return {
+      ...profile,
+      crewName
+    };
+  }
+
+  function saveProfile(profile = {}) {
+    const account = getCurrentAccount();
+
+    if (!account) {
+      return {
+        success: false,
+        message: "No logged in umpire."
+      };
+    }
+
+    return accountService.updateProfile(
+      account.id,
+      profile
+    );
+  }
+
+
   return {
+    getProfile,
+    saveProfile,
     getGameReview,
     cancelGame,
     postponeGame,

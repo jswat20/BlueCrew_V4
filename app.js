@@ -29,6 +29,10 @@ const pages = {
     title: "My Schedule",
     subtitle: "Your assigned games."
   },
+  profile: {
+    title: "Profile",
+    subtitle: "Manage your contact information."
+  },
   "game-hub": {
   title: "Game Hub",
   subtitle: "Game day information."
@@ -308,6 +312,14 @@ function renderUmpireView(page, context = {}) {
       return typeof renderMySchedule === "function"
         ? renderMySchedule(context)
         : placeholderPage("My Schedule", "My Schedule is unavailable.");
+
+    case "profile":
+      return typeof renderProfile === "function"
+        ? renderProfile(context)
+        : placeholderPage(
+            "Profile",
+            "Profile is unavailable."
+          );
 
         case "game-hub":
   return typeof renderGameHub === "function"
