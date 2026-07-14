@@ -316,7 +316,13 @@ function renderUmpireView(page, context = {}) {
         "Game Hub",
         "Game Hub is unavailable."
       );
-      
+      case "notifications":
+  return typeof renderNotifications === "function"
+    ? renderNotifications(context)
+    : placeholderPage(
+        "Notifications",
+        "Notifications are unavailable."
+      );
     case "claim-games":
       return typeof renderClaimGames === "function"
         ? renderClaimGames(context)
@@ -340,7 +346,18 @@ function updateNotificationBadge() {
 
   if (!badge || typeof notificationService === "undefined") return;
 
-  const unreadCount = notificationService.getUnreadCount();
+const unreadCount =
+  notificationService.getUnreadCount() +
+  (
+    typeof reviewService !== "undefined" &&
+    typeof reviewService
+      .getReturnedGamesForCurrentUmpire ===
+      "function"
+      ? reviewService
+          .getReturnedGamesForCurrentUmpire()
+          .length
+      : 0
+  );
 
   if (!unreadCount) {
     badge.textContent = "";

@@ -1513,3 +1513,16 @@ body {
     flex-direction: column;
   }
 }
+.game-hub-review-comments {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color, #d0d0d0);
+  border-radius: .5rem;
+  background: var(--surface-subtle, #f8f8f8);
+}
+
+.game-hub-review-comments dd {
+  margin-top: .5rem;
+  white-space: pre-wrap;
+  font-weight: 600;
+}

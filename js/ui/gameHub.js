@@ -229,8 +229,24 @@ function isGameHubReviewLocked(review) {
     status === "approved"
   );
 }
+function getGameHubReportNotesLockAttribute(
+  review
+) {
+  const status =
+    review?.reviewStatus ||
+    review?.status ||
+    "draft";
 
+  if (status === "approved") {
+    return "disabled";
+  }
 
+  if (status === "submitted") {
+    return "readonly";
+  }
+
+  return "";
+}
 function formatGameHubReviewStatus(status) {
   const labels = {
     draft: "Draft",
@@ -337,8 +353,21 @@ function renderGameHubReports(
         <textarea
           id="game-hub-report-notes"
           data-testid="game-hub-report-notes"
-          ${isGameHubReviewLocked(completion.review) ? "disabled" : ""}
-          rows="4"
+${
+  (
+    completion.review?.reviewStatus ||
+    completion.review?.status
+  ) === "approved"
+    ? "disabled"
+    : (
+        (
+          completion.review?.reviewStatus ||
+          completion.review?.status
+        ) === "submitted"
+          ? "readonly"
+          : ""
+      )
+}          rows="4"
         >${escapeGameHubReportValue(
           reports.notes
         )}</textarea>
@@ -439,6 +468,18 @@ function renderGameHubReview(
             data-testid="game-hub-review-status"
           >
             ${formatGameHubReviewStatus(status)}
+
+            ${
+              status === "submitted"
+                ? `
+                    <span
+                      data-testid="game-hub-review-submitted"
+                    >
+                      Submitted
+                    </span>
+                  `
+                : ""
+            }
           </dd>
         </div>
 
@@ -497,22 +538,47 @@ function renderGameHubReview(
         }
 
         ${
-          status === "returned" &&
-          review.returnReason
-            ? `
-                <div>
-                  <dt>Return reason</dt>
-                  <dd
-                    data-testid="game-hub-review-return-reason"
-                  >
-                    ${escapeGameHubReportValue(
-                      review.returnReason
-                    )}
-                  </dd>
-                </div>
-              `
-            : ""
-        }
+  status === "returned"
+    ? `
+        <div>
+          <dt>Returned by</dt>
+          <dd
+            data-testid="game-hub-returned-by"
+          >
+            ${escapeGameHubReportValue(
+              review.reviewer
+            )}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Returned on</dt>
+          <dd
+            data-testid="game-hub-returned-on"
+          >
+            <div>${reviewedAt.date}</div>
+            <div>${reviewedAt.time}</div>
+          </dd>
+        </div>
+
+        <div class="game-hub-review-comments">
+          <dt>Reviewer comments</dt>
+
+          <dd
+            data-testid="game-hub-reviewer-comments"
+          >
+            <span
+              data-testid="game-hub-review-return-reason"
+            >
+              ${escapeGameHubReportValue(
+                review.returnReason
+              )}
+            </span>
+          </dd>
+        </div>
+      `
+    : ""
+}
       </dl>
 
       ${

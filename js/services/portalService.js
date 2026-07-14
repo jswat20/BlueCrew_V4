@@ -1549,8 +1549,19 @@ const portalService = (() => {
       assignmentStatusLabel:
         getStatusLabel(status),
       arrivalRecommendation,
-      statusBadges:
-        getStatusBadges(status),
+      statusBadges: [
+        ...getStatusBadges(status),
+        ...(
+          game.review?.status === "returned"
+            ? [
+                {
+                  key: "returned",
+                  label: "Returned"
+                }
+              ]
+            : []
+        )
+      ],
       gameDayStatus:
         getGameDayStatus(status),
       crewNotes:

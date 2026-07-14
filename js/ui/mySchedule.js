@@ -1,7 +1,16 @@
 // js/ui/mySchedule.js
 
-function renderMySchedule() {
-  const games = portalService.getMySchedule();
+function renderMySchedule(context = {}) {
+  const allGames = portalService.getMySchedule();
+
+  const games =
+    context.filter === "returned"
+      ? allGames.filter(
+          game =>
+            game.completion?.review?.status ===
+            "returned"
+        )
+      : allGames;
 
   if (!games.length) {
     return `
@@ -25,7 +34,30 @@ function renderMySchedule() {
       class="page-section"
       data-testid="my-schedule"
     >
-      <h2>My Schedule</h2>
+      <div class="card-header">
+        <div>
+          <h2>
+            ${
+              context.filter === "returned"
+                ? "Returned Reviews"
+                : "My Schedule"
+            }
+          </h2>
+
+          ${
+            context.filter === "returned"
+              ? `
+                  <span
+                    class="card-subtitle"
+                    data-testid="my-schedule-returned-filter"
+                  >
+                    Games waiting for corrections
+                  </span>
+                `
+              : ""
+          }
+        </div>
+      </div>
 
       <div class="table-wrapper">
         <table

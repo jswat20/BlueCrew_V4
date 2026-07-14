@@ -55,6 +55,39 @@ const reviewService = (() => {
     return getGamesByStatus("returned");
   }
 
+  function getReturnedGamesForCurrentUmpire() {
+    const account =
+      typeof loginService !== "undefined" &&
+      typeof loginService.getCurrentAccount === "function"
+        ? loginService.getCurrentAccount()
+        : null;
+
+    if (!account || !account.crewId) {
+      return [];
+    }
+
+    const crewId = String(account.crewId);
+
+    return getReturnedGames().filter(game => {
+      if (String(game.crewId || "") === crewId) {
+        return true;
+      }
+
+      const assignments =
+        typeof assignmentService !== "undefined" &&
+        typeof assignmentService.getAssignments === "function"
+          ? assignmentService.getAssignments(game)
+          : Array.isArray(game.assignments)
+            ? game.assignments
+            : [];
+
+      return assignments.some(
+        assignment =>
+          String(assignment.crewId || "") === crewId
+      );
+    });
+  }
+
   function getApprovedGames() {
     return getGamesByStatus("approved");
   }
@@ -105,6 +138,7 @@ const reviewService = (() => {
     getReviewStatus,
     getSubmittedGames,
     getReturnedGames,
+    getReturnedGamesForCurrentUmpire,
     getApprovedGames,
     getReviewCounts,
     getReviewSummary

@@ -255,3 +255,261 @@ assignmentService.rejectClaim(game.id);
   ).toHaveCount(1);
 });
 });
+test.describe(
+  "Returned Review Notifications",
+  () => {
+    async function setupReturnedReview(
+      app
+    ) {
+      return app.page.evaluate(() => {
+        notificationService.clearAll();
+
+        gameService.getAll().forEach(
+          game => {
+            if (
+              game.review?.status ===
+              "returned"
+            ) {
+              game.review.status =
+                "approved";
+            }
+          }
+        );
+
+        const crew =
+          crewService.getAll()[0];
+
+        const account =
+          accountService.createAccount({
+            firstName: "Returned",
+            lastName: "Notification",
+            email:
+              `returned-notification-${Date.now()}@test.com`
+          }).data;
+
+        accountService.approveAccount(
+          account.id
+        );
+
+        accountService.linkCrew(
+          account.id,
+          crew.id
+        );
+
+        loginService.login(account.email);
+        authService.loginAsCrew(crew.id);
+
+        document.body.dataset.role =
+          "umpire";
+
+        if (window.BlueCrew?.test) {
+          window.BlueCrew.test.currentRole =
+            "umpire";
+        }
+
+        const result =
+          gameService.create({
+            date: "2099-09-15",
+            time: "6:00 PM",
+            field:
+              "Returned Notification Field",
+            level: "12U",
+            homeTeam:
+              "Returned Notification Home",
+            awayTeam:
+              "Returned Notification Away",
+            gameType: "single"
+          });
+
+        const game =
+          gameService.getById(
+            result.data.id
+          );
+
+        const assignments =
+          assignmentService.getAssignments(
+            game
+          );
+
+        assignments[0].crewId =
+          crew.id;
+        assignments[0].position =
+          "Plate";
+        assignments[0].status =
+          "assigned";
+
+        game.crewId = crew.id;
+        game.assignmentStatus =
+          "assigned";
+        game.completed = true;
+        game.completionStatus =
+          "completed";
+        game.completionTime =
+          "2026-07-13T18:30:00.000Z";
+        game.completedBy =
+          "Returned Notification Umpire";
+        game.homeScore = 6;
+        game.awayScore = 4;
+
+        game.review = {
+          status: "returned",
+          submittedForReview: false,
+          submittedAt:
+            "2026-07-13T19:00:00.000Z",
+          submittedBy:
+            "Returned Notification Umpire",
+          reviewer:
+            "Alex Assigner",
+          reviewedAt:
+            "2026-07-13T20:15:00.000Z",
+          returnReason:
+            "Please add the missing incident details."
+        };
+
+        gameService.save();
+        renderPage("dashboard");
+
+        return {
+          gameId: game.id
+        };
+        test(
+  "returned review notifications are excluded from the Read filter",
+  async ({ app }) => {
+    await setupReturnedReview(app);
+
+    await app.page.evaluate(() => {
+      renderPage("notifications");
+    });
+
+    await app.page
+      .getByTestId("notification-filter-read")
+      .click();
+
+    await expect(
+      app.page.locator(
+        '[data-testid="notification-action"][data-notification-type="returned-review"]'
+      )
+    ).toHaveCount(0);
+  }
+);
+      });
+    }
+
+    test(
+      "shows a returned review notification and updates the badge",
+      async ({ app }) => {
+        await setupReturnedReview(app);
+
+        await expect(
+          app.page.getByTestId(
+            "notifications-badge"
+          )
+        ).toHaveText("1");
+
+        await app.page.evaluate(() => {
+          renderPage("notifications");
+        });
+
+        await expect(
+          app.page.getByTestId(
+            "notification-card"
+          )
+        ).toHaveCount(1);
+
+        await expect(
+          app.page.getByText(
+            "Returned Review",
+            { exact: true }
+          )
+        ).toBeVisible();
+
+        await expect(
+          app.page.getByText(
+            "Please add the missing incident details."
+          )
+        ).toBeVisible();
+
+        await expect(
+          app.page.locator(
+            '[data-testid="notification-action"][data-notification-type="returned-review"]'
+          )
+        ).toHaveText("Resume Review");
+      }
+    );
+
+    test(
+      "Resume Review opens the existing Game Hub",
+      async ({ app }) => {
+        const fixture =
+          await setupReturnedReview(app);
+
+        await app.page.evaluate(() => {
+          renderPage("notifications");
+        });
+
+        await app.page
+          .locator(
+            '[data-testid="notification-action"][data-notification-type="returned-review"]'
+          )
+          .click();
+
+        await expect(
+          app.page.getByTestId("game-hub")
+        ).toBeVisible();
+
+        await expect(
+          app.page.getByTestId("game-hub")
+        ).toHaveAttribute(
+          "data-game-id",
+          String(fixture.gameId)
+        );
+
+        await expect(
+          app.page.getByTestId(
+            "game-hub-reviewer-comments"
+          )
+        ).toContainText(
+          "Please add the missing incident details."
+        );
+      }
+    );
+
+    test(
+      "does not show returned review notifications when none exist",
+      async ({ app }) => {
+        await app.page.evaluate(() => {
+          notificationService.clearAll();
+
+          gameService.getAll().forEach(
+            game => {
+              if (
+                game.review?.status ===
+                "returned"
+              ) {
+                game.review.status =
+                  "approved";
+              }
+            }
+          );
+
+          gameService.save();
+          renderPage("notifications");
+        });
+
+        await expect(
+          app.page.locator(
+            '[data-testid="notification-action"][data-notification-type="returned-review"]'
+          )
+        ).toHaveCount(0);
+
+        await expect(
+          app.page.getByTestId(
+            "notifications-empty"
+          )
+        ).toBeVisible();
+      }
+    );
+  }
+);
+
+

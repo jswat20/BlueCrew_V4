@@ -1,5 +1,72 @@
 // js/ui/crewDashboard.js
 
+function renderReturnedReviewDashboardCard() {
+  const returnedGames =
+    typeof reviewService !== "undefined" &&
+    typeof reviewService
+      .getReturnedGamesForCurrentUmpire ===
+      "function"
+      ? reviewService
+          .getReturnedGamesForCurrentUmpire()
+      : [];
+
+  if (!returnedGames.length) {
+    return "";
+  }
+
+  return `
+    <section
+      class="dashboard-card"
+      data-testid="dashboard-returned-review-card"
+    >
+      <div class="card-header">
+        <div>
+          <h2>Returned Reviews</h2>
+          <span class="card-subtitle">
+            Games waiting for corrections.
+          </span>
+        </div>
+      </div>
+
+      <div
+        class="summary-value"
+        data-testid="dashboard-returned-review-count"
+      >
+        ${returnedGames.length}
+      </div>
+
+      <div class="card-actions">
+        <button
+          type="button"
+          class="button button-primary"
+          data-testid="dashboard-resume-returned-review"
+          onclick="openReturnedReviewFromDashboard()"
+        >
+          Resume Review
+        </button>
+      </div>
+    </section>
+  `;
+}
+
+function openReturnedReviewFromDashboard() {
+  const returnedGames =
+    reviewService
+      .getReturnedGamesForCurrentUmpire();
+
+  if (returnedGames.length === 1) {
+    renderPage("game-hub", {
+      gameId: returnedGames[0].id
+    });
+
+    return;
+  }
+
+  renderPage("my-schedule", {
+    filter: "returned"
+  });
+}
+
 function renderCrewDashboard() {
 
   const crewId = authService.currentCrewId();
@@ -38,6 +105,8 @@ function renderCrewDashboard() {
         <h2>Welcome, ${member?.name || "Crew Member"}</h2>
         <p>Here's what's happening today.</p>
       </div>
+
+      ${renderReturnedReviewDashboardCard()}
 
       ${renderCrewHero(todaysGame)}
 

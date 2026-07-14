@@ -28,13 +28,60 @@ const notificationActionConfig = {
     context: relatedId => ({
       highlightId: relatedId
     })
+  },
+  "returned-review": {
+    label: "Resume Review",
+    page: "game-hub",
+    context: relatedId => ({
+      gameId: relatedId
+    })
   }
 };
+function getReturnedReviewNotifications() {
+  if (selectedNotificationStatus === "read") {
+    return [];
+  }
+
+  if (
+    typeof reviewService === "undefined" ||
+    typeof reviewService
+      .getReturnedGamesForCurrentUmpire !==
+      "function"
+  ) {
+    return [];
+  }
+
+  return reviewService
+    .getReturnedGamesForCurrentUmpire()
+    .map(game => {
+      const review = game.review || {};
+
+      return {
+        id: `returned-${game.id}`,
+        type: "returned-review",
+        title: "Returned Review",
+        message:
+          review.returnReason ||
+          "This game was returned for corrections.",
+        relatedId: game.id,
+        audience: "umpire",
+        read: false,
+        createdAt:
+          review.reviewedAt ||
+          review.submittedAt ||
+          ""
+      };
+    });
+}
 
 function renderNotifications() {
-  const notifications = notificationService.getNotifications({
+  const notifications = [
+  ...getReturnedReviewNotifications(),
+  ...notificationService.getNotifications({
     status: selectedNotificationStatus
-  });
+  })
+].sort(/* newest first */);
+
 
   if (!notifications.length) {
     return `
