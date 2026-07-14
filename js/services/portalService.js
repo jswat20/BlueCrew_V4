@@ -429,13 +429,19 @@ const portalService = (() => {
 
     return {
       reviewStatus,
+      status: reviewStatus,
       submittedForReview:
-        reviewStatus === "submitted" ||
-        review.submittedForReview === true,
+        reviewStatus === "submitted",
       submittedAt:
         review.submittedAt || null,
       submittedBy:
-        review.submittedBy || ""
+        review.submittedBy || "",
+      reviewer:
+        review.reviewer || "",
+      reviewedAt:
+        review.reviewedAt || null,
+      returnReason:
+        review.returnReason || ""
     };
   }
 
@@ -494,12 +500,21 @@ const portalService = (() => {
     }
 
     const review = {
+      ...(
+        game.review &&
+        typeof game.review === "object"
+          ? game.review
+          : {}
+      ),
       status: "submitted",
       submittedForReview: true,
       submittedAt:
         new Date().toISOString(),
       submittedBy:
-        getCompletionAccountName(account)
+        getCompletionAccountName(account),
+      reviewer: "",
+      reviewedAt: null,
+      returnReason: ""
     };
 
     const result = gameService.update(
@@ -520,6 +535,151 @@ const portalService = (() => {
       data: getGameReview(gameId)
     };
   }
+
+  function getReviewDecisionReviewer() {
+    const account = getCurrentAccount();
+
+    return (
+      getCompletionAccountName(account) ||
+      "Assigner"
+    );
+  }
+
+  function validateReviewDecision(gameId) {
+    if (
+      typeof authService !== "undefined" &&
+      typeof authService.isAdmin === "function" &&
+      !authService.isAdmin()
+    ) {
+      return {
+        success: false,
+        message:
+          "Only an assigner can review submitted games."
+      };
+    }
+
+    const game = gameService.getById(gameId);
+
+    if (!game) {
+      return {
+        success: false,
+        message: "Game not found."
+      };
+    }
+
+    const review =
+      game.review &&
+      typeof game.review === "object"
+        ? game.review
+        : {};
+
+    if (review.status !== "submitted") {
+      return {
+        success: false,
+        message:
+          "This game is not awaiting review."
+      };
+    }
+
+    return {
+      success: true,
+      game,
+      review
+    };
+  }
+
+  function approveReview(gameId) {
+    const validation =
+      validateReviewDecision(gameId);
+
+    if (!validation.success) {
+      return validation;
+    }
+
+    const review = {
+      ...validation.review,
+      status: "approved",
+      submittedForReview: false,
+      reviewer:
+        getReviewDecisionReviewer(),
+      reviewedAt:
+        new Date().toISOString(),
+      returnReason: ""
+    };
+
+    const result = gameService.update(
+      gameId,
+      {
+        review
+      }
+    );
+
+    if (!result.success) {
+      return result;
+    }
+
+    return {
+      success: true,
+      message: "Game review approved.",
+      data: getGameReview(gameId)
+    };
+  }
+
+  function returnReview(
+    gameId,
+    reason
+  ) {
+    const validation =
+      validateReviewDecision(gameId);
+
+    if (!validation.success) {
+      return validation;
+    }
+
+    const returnReason =
+      reason === null ||
+      reason === undefined
+        ? ""
+        : String(reason).trim();
+
+    if (!returnReason) {
+      return {
+        success: false,
+        message:
+          "Enter a reason for returning the game."
+      };
+    }
+
+    const review = {
+      ...validation.review,
+      status: "returned",
+      submittedForReview: false,
+      reviewer:
+        getReviewDecisionReviewer(),
+      reviewedAt:
+        new Date().toISOString(),
+      returnReason
+    };
+
+    const result = gameService.update(
+      gameId,
+      {
+        review
+      }
+    );
+
+    if (!result.success) {
+      return result;
+    }
+
+    return {
+      success: true,
+      message:
+        "Game returned to the umpire.",
+      data: getGameReview(gameId)
+    };
+  }
+
 
   function getGameReports(gameId) {
     const game = gameService.getById(gameId);
@@ -1433,6 +1593,8 @@ const portalService = (() => {
   return {
     getGameReview,
     submitGameForReview,
+    approveReview,
+    returnReview,
     getGameReports,
     saveGameReports,
     saveGameScore,

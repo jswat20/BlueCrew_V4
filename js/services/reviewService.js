@@ -10,13 +10,22 @@ const reviewService = (() => {
     );
   }
 
-  function isSubmitted(game) {
-    const review = getReview(game);
+  function getReviewStatus(gameId) {
+    const game = gameService.getById(gameId);
 
-    return (
-      review.submittedForReview === true ||
-      review.status === "submitted"
-    );
+    if (!game) {
+      return "draft";
+    }
+
+    return getReview(game).status || "draft";
+  }
+
+  function hasStatus(game, status) {
+    return getReview(game).status === status;
+  }
+
+  function isSubmitted(game) {
+    return hasStatus(game, "submitted");
   }
 
   function compareGames(a, b) {
@@ -29,11 +38,25 @@ const reviewService = (() => {
       );
   }
 
-  function getSubmittedGames() {
+  function getGamesByStatus(status) {
     return gameService
       .getAll()
-      .filter(isSubmitted)
+      .filter(game =>
+        hasStatus(game, status)
+      )
       .sort(compareGames);
+  }
+
+  function getSubmittedGames() {
+    return getGamesByStatus("submitted");
+  }
+
+  function getReturnedGames() {
+    return getGamesByStatus("returned");
+  }
+
+  function getApprovedGames() {
+    return getGamesByStatus("approved");
   }
 
   function getReviewCounts() {
@@ -79,7 +102,10 @@ const reviewService = (() => {
   }
 
   return {
+    getReviewStatus,
     getSubmittedGames,
+    getReturnedGames,
+    getApprovedGames,
     getReviewCounts,
     getReviewSummary
   };
