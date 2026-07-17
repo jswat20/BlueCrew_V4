@@ -79,7 +79,7 @@ test.describe(
     );
 
     test(
-      "dashboard card shows count and opens Notification Center",
+      "dashboard bell shows count and opens unread notifications",
       async ({ page }) => {
         await page.evaluate(() => {
           notificationService.create({
@@ -93,13 +93,13 @@ test.describe(
 
         await expect(
           page.getByTestId(
-            "dashboard-notifications-count"
+            "dashboard-notification-count"
           )
         ).toHaveText("1");
 
         await page
           .getByTestId(
-            "dashboard-open-notifications"
+            "dashboard-notification-bell"
           )
           .click();
 
@@ -119,7 +119,7 @@ test.describe(
         expect(state).toEqual({
           page: "notifications",
           context: {
-            filter: "all"
+            filter: "unread"
           }
         });
       }
@@ -191,7 +191,7 @@ test.describe(
 
         await expect(
           page.getByTestId(
-            "dashboard-notifications-count"
+            "dashboard-notification-count"
           )
         ).toHaveText("1");
 
@@ -205,9 +205,9 @@ test.describe(
 
         await expect(
           page.getByTestId(
-            "dashboard-notifications-count"
+            "dashboard-notification-count"
           )
-        ).toHaveText("0");
+        ).toHaveCount(0);
       }
     );
   }

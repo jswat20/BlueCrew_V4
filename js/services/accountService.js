@@ -152,6 +152,26 @@ role: normalizeRole(account.role),
     accounts.push(account);
     saveAll(accounts);
 
+    if (
+      typeof activityService !== "undefined" &&
+      typeof activityService.log === "function"
+    ) {
+      activityService.log({
+        type: "account",
+        action: "account_created",
+        subject:
+          `${account.firstName || ""} ${
+            account.lastName || ""
+          }`.trim() ||
+          account.email,
+        accountId: account.id,
+        metadata: {
+          role: account.role || "umpire",
+          email: account.email || ""
+        }
+      });
+    }
+
     return mutationResult(true, "Account created and pending approval.", account);
   }
 
@@ -185,6 +205,30 @@ role: normalizeRole(account.role),
         "Your account for The Slate has been approved."
     }
   );
+
+  if (
+    typeof activityService !== "undefined" &&
+    typeof activityService.log === "function"
+  ) {
+    activityService.log({
+      type: "account",
+      action: "account_approved",
+      actor:
+        typeof activityService.getCurrentActor ===
+          "function"
+          ? activityService.getCurrentActor()
+          : "",
+      subject:
+        `${account.firstName || ""} ${
+          account.lastName || ""
+        }`.trim() ||
+        account.email,
+      accountId: account.id,
+      metadata: {
+        role: account.role || "umpire"
+      }
+    });
+  }
 
   return mutationResult(true, "Account approved.", account);
 }
@@ -249,6 +293,27 @@ function rejectAccount(accountId) {
         "Your account for The Slate was not approved."
     }
   );
+
+  if (
+    typeof activityService !== "undefined" &&
+    typeof activityService.log === "function"
+  ) {
+    activityService.log({
+      type: "account",
+      action: "account_rejected",
+      actor:
+        typeof activityService.getCurrentActor ===
+          "function"
+          ? activityService.getCurrentActor()
+          : "",
+      subject:
+        `${account.firstName || ""} ${
+          account.lastName || ""
+        }`.trim() ||
+        account.email,
+      accountId: account.id
+    });
+  }
 
   return mutationResult(true, "Account rejected.", account);
 }

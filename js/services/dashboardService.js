@@ -298,6 +298,289 @@ function getRoleSummary() {
       }));
   }
 
+  function getRecentOperationalActivity(
+    limit = 8
+  ) {
+    if (
+      typeof activityService === "undefined" ||
+      typeof activityService.getRecent !==
+        "function"
+    ) {
+      return [];
+    }
+
+    const normalizedLimit =
+      Number.isInteger(limit) &&
+      limit > 0
+        ? limit
+        : 8;
+
+    return activityService
+      .getRecent(
+        Math.max(
+          normalizedLimit,
+          50
+        )
+      )
+      .slice(
+        0,
+        normalizedLimit
+      )
+      .map(
+        activity =>
+          normalizeOperationalActivity(
+            activity
+          )
+      );
+  }
+
+  function normalizeOperationalActivity(
+    activity = {}
+  ) {
+    const type =
+      String(
+        activity.type ||
+        "activity"
+      )
+        .trim()
+        .toLowerCase();
+
+    const action =
+      String(
+        activity.action || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    return {
+      id:
+        activity.id || "",
+
+      type,
+
+      category:
+        getOperationalActivityCategory(
+          type
+        ),
+
+      action:
+        activity.action || "",
+
+      actionLabel:
+        getOperationalActivityLabel(
+          type,
+          action,
+          activity
+        ),
+
+      message:
+        getOperationalActivityMessage(
+          type,
+          action,
+          activity
+        ),
+
+      matchup:
+        activity.matchup || "",
+
+      gameId:
+        activity.gameId || "",
+
+      accountId:
+        activity.accountId || "",
+
+      actor:
+        activity.actor || "",
+
+      subject:
+        activity.subject || "",
+
+      object:
+        activity.object || "",
+
+      createdAt:
+        activity.createdAt || ""
+    };
+  }
+
+  function getOperationalActivityCategory(
+    type
+  ) {
+    const categories = {
+      assignment: "Assignments",
+      claim: "Claims",
+      claims: "Claims",
+      review: "Reviews",
+      account: "Accounts",
+      availability: "Availability",
+      import: "Schedule",
+      schedule: "Schedule",
+      game: "Games",
+      conflict: "Conflicts",
+      authentication: "Accounts",
+      login: "Accounts",
+      profile: "Accounts",
+      notification: "Communications",
+      communication: "Communications"
+    };
+
+    return (
+      categories[type] ||
+      "Operations"
+    );
+  }
+
+  function getOperationalActivityLabel(
+    type,
+    action,
+    activity = {}
+  ) {
+    if (activity.actionLabel) {
+      return activity.actionLabel;
+    }
+
+    const labels = {
+      assigned: "Crew Assigned",
+      cleared: "Assignment Cleared",
+      claimed: "Assignment Claimed",
+      claim_submitted: "Claim Submitted",
+      claim_approved: "Claim Approved",
+      claim_rejected: "Claim Rejected",
+      approved: "Approved",
+      rejected: "Rejected",
+      submitted: "Submitted",
+      returned: "Returned",
+      review_approved: "Review Approved",
+      review_submitted: "Review Submitted",
+      review_returned: "Review Returned",
+      account_created: "Account Created",
+      account_approved: "Account Approved",
+      account_rejected: "Account Rejected",
+      availability_updated:
+        "Availability Updated",
+      games_imported: "Games Imported",
+      schedule_updated: "Schedule Updated",
+      game_created: "Game Added",
+      game_updated: "Game Updated",
+      game_cancelled: "Game Cancelled",
+      game_deleted: "Game Deleted",
+      conflict_detected:
+        "Conflict Detected",
+      conflict_resolved:
+        "Conflict Resolved",
+      profile_updated: "Profile Updated",
+      signed_in: "Signed In",
+      logged_in: "Signed In",
+      message_sent: "Message Sent",
+      notification_sent:
+        "Notification Sent"
+    };
+
+    if (labels[action]) {
+      return labels[action];
+    }
+
+    const fallbackByType = {
+      assignment:
+        "Assignment Update",
+      claim:
+        "Claim Update",
+      claims:
+        "Claim Update",
+      review:
+        "Review Update",
+      account:
+        "Account Update",
+      availability:
+        "Availability Update",
+      import:
+        "Schedule Import",
+      schedule:
+        "Schedule Update",
+      game:
+        "Game Update",
+      conflict:
+        "Conflict Update",
+      authentication:
+        "Account Activity",
+      profile:
+        "Profile Update",
+      login:
+        "Account Activity",
+      notification:
+        "Communication Update",
+      communication:
+        "Communication Update"
+    };
+
+    return (
+      fallbackByType[type] ||
+      "Operational Update"
+    );
+  }
+
+  function getOperationalActivityMessage(
+    type,
+    action,
+    activity = {}
+  ) {
+    if (activity.message) {
+      return activity.message;
+    }
+
+    if (activity.story) {
+      return activity.story;
+    }
+
+    const actor =
+      activity.actor || "";
+
+    const subject =
+      activity.subject || "";
+
+    const object =
+      activity.object ||
+      activity.matchup ||
+      "";
+
+    if (
+      actor &&
+      subject &&
+      object
+    ) {
+      return (
+        `${actor}: ${subject} — ` +
+        `${object}`
+      );
+    }
+
+    if (
+      subject &&
+      object
+    ) {
+      return (
+        `${subject} — ${object}`
+      );
+    }
+
+    if (object) {
+      return object;
+    }
+
+    if (activity.matchup) {
+      return activity.matchup;
+    }
+
+    const category =
+      getOperationalActivityCategory(
+        type
+      );
+
+    return (
+      `${category} activity recorded.`
+    );
+  }
+
   function formatAssignmentActivityAction(
     action
   ) {
@@ -725,111 +1008,343 @@ function getRoleSummary() {
           .every(count => count === 0)
     };
   }
-function getOperationsCenter() {
+function getOperationsCenter(
+  requestedQueue = "all"
+) {
+  const validQueues = [
+    "all",
+    "assignments",
+    "claims",
+    "reviews",
+    "accounts",
+    "conflicts"
+  ];
+
+  const normalizedQueue =
+    String(requestedQueue || "all")
+      .trim()
+      .toLowerCase();
+
+  const activeQueue =
+    validQueues.includes(
+      normalizedQueue
+    )
+      ? normalizedQueue
+      : "all";
+
   const workbench = getWorkbench();
 
-  const priority =
-    workbench.nextSection || null;
+  const pendingAccounts =
+    typeof accountService !== "undefined" &&
+    typeof accountService
+      .getPendingAccounts === "function"
+      ? accountService
+          .getPendingAccounts()
+      : [];
 
-  const currentTask = priority
-    ? {
-        key: priority.key,
-        title: priority.title,
-        count:
-          workbench.counts[priority.key],
-        action:
-          getOperationsTaskAction(
-            priority.key
-          ),
-        items:
-          workbench.sections[
-            priority.key
-          ] || []
-      }
-    : null;
+  const today =
+    new Date()
+      .toISOString()
+      .split("T")[0];
 
-  const remainingTasks =
-    workbench.priorityOrder
-      .filter(
-        section =>
-          section.key !==
-            currentTask?.key &&
-          workbench.counts[
-            section.key
-          ] > 0
-      )
-      .map(section => ({
-        key: section.key,
-        title: section.title,
-        count:
-          workbench.counts[
-            section.key
-          ],
-        action:
-          getOperationsTaskAction(
-            section.key
-          ),
-        items:
-          workbench.sections[
-            section.key
-          ] || []
-      }));
+  const conflicts =
+    typeof conflictService !== "undefined" &&
+    typeof conflictService
+      .getDailyIssues === "function"
+      ? (
+          conflictService
+            .getDailyIssues(today) || []
+        )
+      : [];
 
-  const queueCounts = {
-    needsAssignment:
-      workbench.counts.needsAssignment,
+  const tasks = {
+    todaysPriorities: {
+      key: "todaysPriorities",
+      title: "Today's Priorities",
+      count:
+        workbench.counts
+          .todaysPriorities,
+      action:
+        getOperationsTaskAction(
+          "todaysPriorities"
+        ),
+      items:
+        workbench.sections
+          .todaysPriorities || []
+    },
 
-    pendingClaims:
-      workbench.counts.pendingClaims,
+    pendingClaims: {
+      key: "pendingClaims",
+      title: "Pending Claims",
+      count:
+        workbench.counts
+          .pendingClaims,
+      action:
+        getOperationsTaskAction(
+          "pendingClaims"
+        ),
+      items:
+        workbench.sections
+          .pendingClaims || []
+    },
 
-    awaitingReview:
-      workbench.counts.awaitingReview,
+    awaitingReview: {
+      key: "awaitingReview",
+      title: "Awaiting Review",
+      count:
+        workbench.counts
+          .awaitingReview,
+      action:
+        getOperationsTaskAction(
+          "awaitingReview"
+        ),
+      items:
+        workbench.sections
+          .awaitingReview || []
+    },
 
-    returnedReviews:
-      workbench.counts.returnedReviews,
+    returnedReviews: {
+      key: "returnedReviews",
+      title: "Returned Reviews",
+      count:
+        workbench.counts
+          .returnedReviews,
+      action:
+        getOperationsTaskAction(
+          "returnedReviews"
+        ),
+      items:
+        workbench.sections
+          .returnedReviews || []
+    },
 
-    todaysPriorities:
-      workbench.counts.todaysPriorities
+    needsAssignment: {
+      key: "needsAssignment",
+      title: "Needs Assignment",
+      count:
+        workbench.counts
+          .needsAssignment,
+      action:
+        getOperationsTaskAction(
+          "needsAssignment"
+        ),
+      items:
+        workbench.sections
+          .needsAssignment || []
+    },
+
+    pendingAccounts: {
+      key: "pendingAccounts",
+      title: "Pending Accounts",
+      count: pendingAccounts.length,
+      action: "pending-account",
+      items: pendingAccounts
+    },
+
+    conflicts: {
+      key: "conflicts",
+      title: "Schedule Conflicts",
+      count: conflicts.length,
+      action: "schedule-conflict",
+      items: conflicts
+    }
   };
 
+  const allOrder = [
+    "conflicts",
+    "todaysPriorities",
+    "pendingClaims",
+    "awaitingReview",
+    "returnedReviews",
+    "needsAssignment",
+    "pendingAccounts"
+  ];
+
+  const queueTaskKeys = {
+    all: allOrder,
+
+    assignments: [
+      "todaysPriorities",
+      "needsAssignment"
+    ],
+
+    claims: [
+      "pendingClaims"
+    ],
+
+    reviews: [
+      "awaitingReview",
+      "returnedReviews"
+    ],
+
+    accounts: [
+      "pendingAccounts"
+    ],
+
+    conflicts: [
+      "conflicts"
+    ]
+  };
+
+  const activeTasks =
+    queueTaskKeys[activeQueue]
+      .map(key => tasks[key])
+      .filter(
+        task =>
+          task &&
+          task.count > 0
+      );
+
+  const currentTask =
+    activeTasks[0] || null;
+
+  const remainingTasks =
+    activeTasks.slice(1);
+
+  const activeWorkItems =
+    activeTasks.flatMap(
+      task =>
+        (task.items || []).map(
+          (item, index) => ({
+            id:
+              item.id ||
+              item.gameId ||
+              item.accountId ||
+              `${task.key}-${index}`,
+            task,
+            item
+          })
+        )
+    );
+
+  const queueCounts = {
+    assignments:
+      tasks.todaysPriorities.count +
+      tasks.needsAssignment.count,
+
+    claims:
+      tasks.pendingClaims.count,
+
+    reviews:
+      tasks.awaitingReview.count +
+      tasks.returnedReviews.count,
+
+    accounts:
+      tasks.pendingAccounts.count,
+
+    conflicts:
+      tasks.conflicts.count,
+
+    needsAssignment:
+      tasks.needsAssignment.count,
+
+    pendingClaims:
+      tasks.pendingClaims.count,
+
+    awaitingReview:
+      tasks.awaitingReview.count,
+
+    returnedReviews:
+      tasks.returnedReviews.count,
+
+    todaysPriorities:
+      tasks.todaysPriorities.count
+  };
+
+  queueCounts.all =
+    queueCounts.assignments +
+    queueCounts.claims +
+    queueCounts.reviews +
+    queueCounts.accounts +
+    queueCounts.conflicts;
+
+  const legacyKeys = [
+    "todaysPriorities",
+    "pendingClaims",
+    "awaitingReview",
+    "returnedReviews",
+    "needsAssignment"
+  ];
+
+  const completed =
+    legacyKeys.filter(
+      key =>
+        tasks[key].count === 0
+    ).length;
+
   const operationalProgress = {
-    completed:
-      workbench.priorityOrder.filter(
-        section =>
-          workbench.counts[
-            section.key
-          ] === 0
-      ).length,
-
-    total:
-      workbench.priorityOrder.length,
-
+    completed,
+    total: legacyKeys.length,
     percent:
       Math.round(
         (
-          workbench.priorityOrder.filter(
-            section =>
-              workbench.counts[
-                section.key
-              ] === 0
-          ).length /
-          workbench.priorityOrder.length
+          completed /
+          legacyKeys.length
         ) * 100
       )
   };
 
   return {
+    activeQueue,
+
+    queues: [
+      {
+        id: "all",
+        label: "All Work",
+        count: queueCounts.all
+      },
+      {
+        id: "assignments",
+        label: "Assignments",
+        count:
+          queueCounts.assignments
+      },
+      {
+        id: "claims",
+        label: "Claims",
+        count: queueCounts.claims
+      },
+      {
+        id: "reviews",
+        label: "Reviews",
+        count: queueCounts.reviews
+      },
+      {
+        id: "accounts",
+        label: "Accounts",
+        count: queueCounts.accounts
+      },
+      {
+        id: "conflicts",
+        label: "Conflicts",
+        count: queueCounts.conflicts
+      }
+    ],
+
+    activeTasks,
+    activeWorkItems,
     currentTask,
     remainingTasks,
     queueCounts,
+
     recentActivity:
-      workbench.sections.recentActivity,
+      getRecentOperationalActivity(
+        8
+      ),
+
     operationalProgress,
+
     outstandingCount:
-      workbench.totalActionItems,
-    isEmpty: workbench.isEmpty
+      queueCounts[activeQueue],
+
+    totalOutstandingCount:
+      queueCounts.all,
+
+    isEmpty:
+      activeTasks.length === 0
   };
 }
+
   function getOperationsTaskAction(key) {
     const actions = {
       needsAssignment:
@@ -1053,6 +1568,7 @@ function getOperationsCenter() {
   getWorkbench,
   getAvailabilityReminder,
   getRecentAssignmentActivity,
+  getRecentOperationalActivity,
   getNeedsAttention,
   getUpcomingGames,
   getUpcomingGameCount,

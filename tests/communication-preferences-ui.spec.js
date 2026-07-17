@@ -93,21 +93,15 @@ test.describe(
     );
 
     test(
-      "dashboard card opens communication preferences",
+      "profile navigation opens communication preferences",
       async ({ page }) => {
         await page.evaluate(() =>
           navigateTo("dashboard")
         );
 
-        await expect(
-          page.getByTestId(
-            "dashboard-communication-preferences"
-          )
-        ).toBeVisible();
-
         await page
           .getByTestId(
-            "dashboard-open-communication-preferences"
+            "nav-profile"
           )
           .click();
 

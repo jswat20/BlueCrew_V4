@@ -255,6 +255,33 @@ game.assignments =
     normalizeGameLifecycleStatus(game);
     this.save();
 
+    if (
+      typeof activityService !== "undefined" &&
+      typeof activityService.log === "function"
+    ) {
+      activityService.log({
+        type: "game",
+        action: "game_updated",
+        actor:
+          typeof activityService.getCurrentActor ===
+            "function"
+            ? activityService.getCurrentActor()
+            : "",
+        object:
+          typeof activityService.getGameMatchup ===
+            "function"
+            ? activityService.getGameMatchup(game)
+            : `${game.awayTeam || "Away"} @ ${
+                game.homeTeam || "Home"
+              }`,
+        gameId: game.id,
+        metadata: {
+          fields:
+            Object.keys(updates || {})
+        }
+      });
+    }
+
     return {
       success: true,
       game
@@ -276,6 +303,29 @@ game.assignments =
     );
 
     this.save();
+
+    if (
+      typeof activityService !== "undefined" &&
+      typeof activityService.log === "function"
+    ) {
+      activityService.log({
+        type: "game",
+        action: "game_deleted",
+        actor:
+          typeof activityService.getCurrentActor ===
+            "function"
+            ? activityService.getCurrentActor()
+            : "",
+        object:
+          typeof activityService.getGameMatchup ===
+            "function"
+            ? activityService.getGameMatchup(game)
+            : `${game.awayTeam || "Away"} @ ${
+                game.homeTeam || "Home"
+              }`,
+        gameId: game.id
+      });
+    }
 
     return {
       success: true
@@ -322,6 +372,37 @@ create(game) {
   }
 
   this.save();
+
+  if (
+    typeof activityService !== "undefined" &&
+    typeof activityService.log === "function" &&
+    game.suppressActivity !== true
+  ) {
+    activityService.log({
+      type: "game",
+      action: "game_created",
+      actor:
+        typeof activityService.getCurrentActor ===
+          "function"
+          ? activityService.getCurrentActor()
+          : "",
+      object:
+        typeof activityService.getGameMatchup ===
+          "function"
+          ? activityService.getGameMatchup(game)
+          : `${game.awayTeam || "Away"} @ ${
+              game.homeTeam || "Home"
+            }`,
+      gameId: game.id,
+      metadata: {
+        date: game.date || "",
+        time: game.time || "",
+        field: game.field || ""
+      }
+    });
+  }
+
+  delete game.suppressActivity;
 
   return {
     success: true,

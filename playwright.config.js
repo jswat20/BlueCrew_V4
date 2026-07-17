@@ -19,7 +19,7 @@ module.exports = defineConfig({
   webServer: {
     command: "npx http-server . -p 5500",
     url: "http://127.0.0.1:5500",
-    reuseExistingServer: false,
+    reuseExistingServer: true,
     timeout: 120000
   },
 

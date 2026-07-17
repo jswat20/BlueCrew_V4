@@ -577,6 +577,23 @@ const portalService = (() => {
       }
     );
 
+    if (
+      typeof activityService !== "undefined" &&
+      typeof activityService.log === "function"
+    ) {
+      activityService.log({
+        type: "review",
+        action: "review_submitted",
+        actor:
+          getCompletionAccountName(account),
+        object:
+          `${game.awayTeam || "Away"} @ ${
+            game.homeTeam || "Home"
+          }`,
+        gameId: game.id
+      });
+    }
+
     return {
       success: true,
       message:
@@ -682,6 +699,23 @@ const portalService = (() => {
       }
     );
 
+    if (
+      typeof activityService !== "undefined" &&
+      typeof activityService.log === "function"
+    ) {
+      activityService.log({
+        type: "review",
+        action: "review_approved",
+        actor:
+          review.reviewer || "",
+        object:
+          `${validation.game.awayTeam || "Away"} @ ${
+            validation.game.homeTeam || "Home"
+          }`,
+        gameId: validation.game.id
+      });
+    }
+
     return {
       success: true,
       message: "Game review approved.",
@@ -736,6 +770,26 @@ const portalService = (() => {
 
     if (!result.success) {
       return result;
+    }
+
+    if (
+      typeof activityService !== "undefined" &&
+      typeof activityService.log === "function"
+    ) {
+      activityService.log({
+        type: "review",
+        action: "review_returned",
+        actor:
+          review.reviewer || "",
+        object:
+          `${validation.game.awayTeam || "Away"} @ ${
+            validation.game.homeTeam || "Home"
+          }`,
+        gameId: validation.game.id,
+        metadata: {
+          reason: returnReason
+        }
+      });
     }
 
     return {

@@ -86,7 +86,7 @@ test.describe("Page Authorization", () => {
 
     await expect(
       page.getByTestId("access-denied-message")
-    ).toContainText("claim-games");
+    ).toContainText("Claim Games");
   });
 
   test("allows umpires to render Claim Games", async ({

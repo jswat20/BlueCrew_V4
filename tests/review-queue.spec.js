@@ -67,16 +67,14 @@ game.crewNotesByCrewId = {
     page
   }) => {
     await expect(
-      page.getByTestId("dashboard-review-count")
+      page.getByTestId(
+        "dashboard-summary-pending-reviews-value"
+      )
     ).toHaveText("1");
 
-    await expect(
-      page.getByTestId("dashboard-review-label")
-    ).toHaveText("Submitted");
-
-    await page
-      .getByTestId("dashboard-open-review-queue")
-      .click();
+    await page.evaluate(() =>
+      navigateTo("review-queue")
+    );
 
     await expect(
       page.getByTestId("review-queue")
@@ -102,9 +100,9 @@ game.crewNotesByCrewId = {
   test("review opens shared Game Hub in read-only mode and returns to queue", async ({
     page
   }) => {
-    await page
-      .getByTestId("dashboard-open-review-queue")
-      .click();
+    await page.evaluate(() =>
+      navigateTo("review-queue")
+    );
 
     const gameId = await page.evaluate(
       () => gameService.getAll()[0].id

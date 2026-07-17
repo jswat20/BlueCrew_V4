@@ -103,11 +103,9 @@ test.describe(
             window.__reviewDecisionFixture
         );
 
-      await page
-        .getByTestId(
-          "dashboard-open-review-queue"
-        )
-        .click();
+      await page.evaluate(() =>
+        navigateTo("review-queue")
+      );
 
       await page
         .getByTestId(
@@ -198,7 +196,7 @@ test.describe(
 
         await expect(
           page.getByTestId(
-            "dashboard-review-count"
+            "dashboard-summary-pending-reviews-value"
           )
         ).toHaveText("0");
       }
@@ -271,7 +269,7 @@ test.describe(
 
         await expect(
           page.getByTestId(
-            "dashboard-review-count"
+            "dashboard-summary-pending-reviews-value"
           )
         ).toHaveText("0");
       }

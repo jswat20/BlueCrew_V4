@@ -29,6 +29,10 @@ const pages = {
     title: "My Schedule",
     subtitle: "Your assigned games."
   },
+  "claim-games": {
+    title: "Claim Games",
+    subtitle: "Review and claim available assignments."
+  },
   profile: {
     title: "Profile",
     subtitle: "Manage your contact information."

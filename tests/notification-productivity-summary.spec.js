@@ -76,7 +76,7 @@ test.describe(
     );
 
     test(
-      "dashboard card renders category quick filters",
+      "dashboard bell exposes the unread total",
       async ({ page }) => {
         await page.evaluate(() => {
           navigateTo("dashboard");
@@ -84,13 +84,13 @@ test.describe(
 
         await expect(
           page.getByTestId(
-            "dashboard-notification-assignments"
+            "dashboard-notification-count"
           )
-        ).toContainText("1");
+        ).toHaveText("2");
 
         await page
           .getByTestId(
-            "dashboard-notification-reviews"
+            "dashboard-notification-bell"
           )
           .click();
 
@@ -104,7 +104,7 @@ test.describe(
 
         expect(state).toEqual({
           page: "notifications",
-          filter: "reviews"
+          filter: "all"
         });
       }
     );

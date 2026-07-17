@@ -33,7 +33,7 @@ test.describe(
           "dashboard-assignment-activity-empty"
         )
       ).toHaveText(
-        "No recent assignment activity."
+        "No recent activity."
       );
     });
 
@@ -66,7 +66,7 @@ test.describe(
         app.page.getByTestId(
           "dashboard-assignment-activity-action"
         ).first()
-      ).toHaveText("Assigned");
+      ).toContainText("Assignment updated for");
 
       await expect(
         app.page.getByTestId(
@@ -117,7 +117,7 @@ test.describe(
         app.page.getByTestId(
           "dashboard-assignment-activity-action"
         ).first()
-      ).toHaveText("Claim Approved");
+      ).toContainText("Claim approved for");
     });
 
     test("activity is newest first", async ({ app }) => {
@@ -178,7 +178,53 @@ test.describe(
         app.page.getByTestId(
           "dashboard-assignment-activity-item"
         )
-      ).toHaveCount(5);
+      ).toHaveCount(7);
+    });
+
+    test("renders a structured activity story", async ({
+      app
+    }) => {
+      await app.page.evaluate(() => {
+        activityService.log({
+          type: "assignment",
+          action: "assigned",
+          actor: "Marcus Reed",
+          subject: "Plate",
+          object: "Orioles @ Yankees"
+        });
+
+        renderPage("dashboard");
+      });
+
+      await expect(
+        app.page.getByTestId(
+          "dashboard-assignment-activity-action"
+        ).first()
+      ).toHaveText(
+        "Marcus Reed was assigned to Plate for Orioles @ Yankees."
+      );
+    });
+
+    test("renders a bulk import story", async ({
+      app
+    }) => {
+      await app.page.evaluate(() => {
+        activityService.log({
+          type: "import",
+          action: "games_imported",
+          count: 10
+        });
+
+        renderPage("dashboard");
+      });
+
+      await expect(
+        app.page.getByTestId(
+          "dashboard-assignment-activity-action"
+        ).first()
+      ).toHaveText(
+        "10 games were imported into the schedule."
+      );
     });
   }
 );

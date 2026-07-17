@@ -80,7 +80,7 @@ test("Admin can link an approved account to a crew member", async ({ app }) => {
 
   await consoleMonitor.expectClean();
 });
-test("dashboard pending accounts opens the pending filter", async ({ app }) => {
+test("dashboard pending accounts opens Operations Center", async ({ app }) => {
   await app.page.evaluate(() => {
     accountService.createAccount({
       firstName: "Dashboard",
@@ -97,20 +97,12 @@ test("dashboard pending accounts opens the pending filter", async ({ app }) => {
 
   await expect(app.page.locator("body")).toHaveAttribute(
     "data-page",
-    "accounts"
+    "operations-center"
   );
 
   await expect(
-    app.page.getByTestId("accounts-page")
-  ).toHaveAttribute("data-account-filter", "pending");
-
-  await expect(
-    app.page.getByTestId("pending-accounts-section")
+    app.page.getByTestId("operations-center")
   ).toBeVisible();
-
-  await expect(
-    app.page.getByTestId("unlinked-accounts-section")
-  ).not.toBeVisible();
 });
 
 test("account filters switch between pending and unlinked views", async ({ app }) => {

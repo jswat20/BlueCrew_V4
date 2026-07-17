@@ -44,4 +44,29 @@ test.describe("The Slate Branding", () => {
       page.getByTestId("brand")
     ).not.toContainText("BlueCrew");
   });
+
+  test("navigation exposes one named button per destination", async ({
+    page
+  }) => {
+    const navigation =
+      page.getByTestId("navigation");
+
+    const links =
+      navigation.locator(
+        ":scope > button.nav-link"
+      );
+
+    await expect(links).toHaveCount(18);
+
+    const names =
+      await links.evaluateAll(buttons =>
+        buttons.map(button =>
+          button.textContent.trim()
+        )
+      );
+
+    expect(
+      names.every(Boolean)
+    ).toBe(true);
+  });
 });

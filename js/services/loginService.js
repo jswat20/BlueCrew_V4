@@ -27,7 +27,13 @@ const loginService = (() => {
       );
     }
 
-    account.lastLogin = new Date().toISOString();
+    const loginAt =
+      new Date().toISOString();
+
+    const previousLoginAt =
+      account.lastLogin || null;
+
+    account.lastLogin = loginAt;
 
     accountService.updateAccount(account.id, {
       lastLogin: account.lastLogin
@@ -38,7 +44,8 @@ const loginService = (() => {
       JSON.stringify({
         accountId: account.id,
         role: account.role || "umpire",
-        loginAt: new Date().toISOString()
+        loginAt,
+        previousLoginAt
       })
     );
 

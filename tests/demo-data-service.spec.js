@@ -16,9 +16,9 @@ test.describe("Demo Data Service", () => {
     });
 
     expect(summary.loaded).toBe(true);
-    expect(summary.crew).toBe(4);
-    expect(summary.games).toBe(8);
-    expect(summary.accounts).toBe(6);
+    expect(summary.crew).toBe(40);
+    expect(summary.games).toBe(120);
+    expect(summary.accounts).toBe(51);
   });
 
   test("loads realistic sample account states", async ({ app }) => {
@@ -33,49 +33,42 @@ test.describe("Demo Data Service", () => {
       }));
     });
 
-    expect(accounts).toHaveLength(6);
+    expect(accounts).toHaveLength(51);
 
     expect(
       accounts.filter(account => account.status === "approved")
-    ).toHaveLength(2);
+    ).toHaveLength(45);
 
     expect(
       accounts.filter(account => account.status === "pending")
-    ).toHaveLength(2);
+    ).toHaveLength(4);
 
     expect(
       accounts.filter(account => account.status === "rejected")
-    ).toHaveLength(1);
+    ).toHaveLength(2);
 
     expect(
       accounts.filter(account => account.status === "inactive")
-    ).toHaveLength(1);
+    ).toHaveLength(0);
 
     expect(
       accounts.find(account =>
-        account.email === "ethan@demo.test"
+        account.email ===
+          "ethan.parker@showcase.theslate.test"
       )
     ).toMatchObject({
       status: "approved",
-      crewId: "demo-crew-1"
+      crewId: "showcase-crew-001"
     });
 
     expect(
       accounts.find(account =>
-        account.email === "noah@demo.test"
+        account.email ===
+          "noah.brooks@showcase.theslate.test"
       )
     ).toMatchObject({
       status: "approved",
-      crewId: "demo-crew-2"
-    });
-
-    expect(
-      accounts.find(account =>
-        account.email === "priya.shah@demo.test"
-      )
-    ).toMatchObject({
-      status: "inactive",
-      crewId: null
+      crewId: "showcase-crew-002"
     });
   });
 
@@ -91,15 +84,15 @@ test.describe("Demo Data Service", () => {
       }));
     });
 
-    expect(result).toHaveLength(8);
+    expect(result).toHaveLength(120);
 
     expect(
-      result.find(game => game.id === "demo-game-001")
+      result.find(game => game.id === "showcase-game-001")
         .assignments
     ).toBe(1);
 
     expect(
-      result.find(game => game.id === "demo-game-002")
+      result.find(game => game.id === "showcase-game-002")
         .assignments
     ).toBe(2);
   });
@@ -118,9 +111,9 @@ test.describe("Demo Data Service", () => {
       };
     });
 
-    expect(result.summary.crew).toBe(4);
-    expect(result.summary.games).toBe(8);
-    expect(result.summary.accounts).toBe(6);
+    expect(result.summary.crew).toBe(40);
+    expect(result.summary.games).toBe(120);
+    expect(result.summary.accounts).toBe(51);
 
     expect(new Set(result.accountEmails).size)
       .toBe(result.accountEmails.length);
@@ -197,13 +190,13 @@ test.describe("Demo Data Service", () => {
     });
 
     const upcomingCount = await app.page
-      .getByTestId("dashboard-summary-upcoming-games-value")
+      .getByTestId("dashboard-summary-today-games-value")
       .textContent();
 
     expect(Number(upcomingCount)).toBeGreaterThan(0);
 
     await expect(
-      app.page.getByTestId("dashboard-upcoming-games")
+      app.page.getByTestId("dashboard-today-games")
     ).toBeVisible();
   });
 
@@ -219,12 +212,6 @@ test.describe("Demo Data Service", () => {
       app.page.getByTestId(
         "dashboard-summary-pending-accounts-value"
       )
-    ).toHaveText("2");
-
-    await expect(
-      app.page.getByTestId(
-        "dashboard-attention-pending-accounts-count"
-      )
-    ).toHaveText("2");
+    ).toHaveText("4");
   });
 });

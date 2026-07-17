@@ -29,6 +29,16 @@ await app.page.evaluate(() => {
     await expect(
       app.page.getByTestId("claim-games-empty")
     ).toBeVisible();
+
+    await expect(
+      app.page.getByTestId("page-title")
+    ).toHaveText("Claim Games");
+
+    await expect(
+      app.page.getByTestId("page-subtitle")
+    ).toHaveText(
+      "Review and claim available assignments."
+    );
   });
 
   test("shows claimable games", async ({ app }) => {

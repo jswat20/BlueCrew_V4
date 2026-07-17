@@ -1,5 +1,57 @@
 // js/ui/operationsCenter.js
 
+let operationsCenterActiveQueue = "all";
+
+const OPERATIONS_CENTER_QUEUE_IDS =
+  Object.freeze([
+    "all",
+    "assignments",
+    "claims",
+    "reviews",
+    "accounts",
+    "conflicts"
+  ]);
+
+function normalizeOperationsCenterQueue(
+  queueId
+) {
+  const normalized =
+    String(queueId || "all")
+      .trim()
+      .toLowerCase();
+
+  return OPERATIONS_CENTER_QUEUE_IDS
+    .includes(normalized)
+      ? normalized
+      : "all";
+}
+
+function setOperationsCenterQueue(
+  queueId
+) {
+  operationsCenterActiveQueue =
+    normalizeOperationsCenterQueue(
+      queueId
+    );
+
+  const existingContext =
+    typeof currentPageContext !==
+      "undefined" &&
+    currentPageContext &&
+    typeof currentPageContext === "object"
+      ? currentPageContext
+      : {};
+
+  renderPage(
+    "operations-center",
+    {
+      ...existingContext,
+      operationsQueue:
+        operationsCenterActiveQueue
+    }
+  );
+}
+
 function escapeOperationsCenterHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -641,181 +693,1071 @@ function renderOperationsCenterRemainingTasks(
   `;
 }
 
-function renderOperationsCenterQueueSummary(
-  counts
+
+function getOperationsCenterWorkItems(
+  operations
 ) {
-  const queues = [
-    {
-      key: "needsAssignment",
-      label: "Needs Assignment"
-    },
-    {
-      key: "pendingClaims",
-      label: "Pending Claims"
-    },
-    {
-      key: "awaitingReview",
-      label: "Awaiting Review"
-    },
-    {
-      key: "returnedReviews",
-      label: "Returned Reviews"
-    },
-    {
-      key: "todaysPriorities",
-      label: "Today's Priorities"
-    }
-  ];
+  if (
+    Array.isArray(
+      operations.activeWorkItems
+    )
+  ) {
+    return operations.activeWorkItems;
+  }
 
-  return `
-    <section
-      class="
-        dashboard-card
-        operations-queue-summary
-      "
-      data-testid="operations-queue-summary"
-    >
-      <div class="dashboard-card-header">
-        <div>
-          <h2>Queue Counts</h2>
+  const legacyTasks = [
+    operations.currentTask,
+    ...(
+      Array.isArray(
+        operations.remainingTasks
+      )
+        ? operations.remainingTasks
+        : []
+    )
+  ].filter(Boolean);
 
-          <span class="card-subtitle">
-            Today's operational workload
-          </span>
-        </div>
-      </div>
-
-      <div class="operations-queue-grid">
-        ${queues
-          .map(
-            queue => `
-              <div
-                class="operations-queue-item"
-                data-testid="operations-queue-${escapeOperationsCenterHtml(
-                  queue.key
-                )}"
-              >
-                <span>
-                  ${escapeOperationsCenterHtml(
-                    queue.label
-                  )}
-                </span>
-
-                <span class="status-badge">
-                  ${counts[queue.key] || 0}
-                </span>
-              </div>
-            `
-          )
-          .join("")}
-      </div>
-    </section>
-  `;
+  return legacyTasks.flatMap(
+    task =>
+      (task.items || []).map(
+        (item, index) => ({
+          id:
+            item.id ||
+            item.gameId ||
+            item.accountId ||
+            `${task.key}-${index}`,
+          task,
+          item
+        })
+      )
+  );
 }
 
-function renderOperationsCenterProgress(
-  progress
+function getOperationsCenterWorkActionLabel(
+  task
 ) {
+  const labels = {
+    conflicts: "Resolve",
+    todaysPriorities: "Assign Crew",
+    needsAssignment: "Assign Crew",
+    pendingClaims: "Review Claim",
+    awaitingReview: "Open Review",
+    returnedReviews: "Open Review",
+    pendingAccounts: "Review Account"
+  };
+
+  return labels[task?.key] || "Open";
+}
+
+function renderOperationsCenterWorkQueue(
+  operations
+) {
+  const workItems =
+    getOperationsCenterWorkItems(
+      operations
+    );
+
+  const activeQueue =
+    operations.queues?.find(
+      queue =>
+        queue.id ===
+        operations.activeQueue
+    );
+
+  const queueLabel =
+    activeQueue?.label ||
+    "All Work";
+
   return `
     <section
-      class="
-        dashboard-card
-        operations-progress
-      "
-      data-testid="operations-progress"
+      class="operations-work-queue"
+      data-testid="operations-work-queue"
+      data-active-queue="${escapeOperationsCenterHtml(
+        operations.activeQueue || "all"
+      )}"
     >
-      <div class="dashboard-card-header">
+      <div class="operations-work-queue-header">
         <div>
-          <h2>Operational Progress</h2>
-
-          <span class="card-subtitle">
-            Queue completion for today
+          <span class="operations-console-eyebrow">
+            Active Queue
           </span>
+
+          <h3
+            data-testid="operations-work-queue-title"
+          >
+            ${escapeOperationsCenterHtml(
+              queueLabel
+            )}
+          </h3>
         </div>
 
-        <span
-          class="status-badge"
-          data-testid="operations-progress-percent"
-        >
-          ${progress.percent}%
-        </span>
-      </div>
-
-      <div class="operations-progress-content">
         <strong
-          data-testid="operations-progress-summary"
+          data-testid="operations-work-queue-count"
         >
-          ${progress.completed} of
-          ${progress.total} queues complete
+          ${workItems.length}
         </strong>
-
-        <progress
-          value="${progress.completed}"
-          max="${progress.total || 1}"
-          data-testid="operations-progress-bar"
-        >
-          ${progress.percent}%
-        </progress>
-      </div>
-    </section>
-  `;
-}
-
-function renderOperationsCenterActivity(
-  activities
-) {
-  return `
-    <section
-      class="
-        dashboard-card
-        recent-assignment-activity
-        operations-recent-activity
-      "
-      data-testid="operations-recent-activity"
-    >
-      <div class="card-header">
-        <div>
-          <h2>Recent Activity</h2>
-
-          <span class="card-subtitle">
-            Latest operational updates
-          </span>
-        </div>
       </div>
 
       ${
-        activities.length
+        workItems.length
           ? `
-              <div class="assignment-activity-list">
-                ${activities
-                  .map(activity =>
-                    typeof renderRecentAssignmentActivityItem ===
-                    "function"
-                      ? renderRecentAssignmentActivityItem(
-                          activity
-                        )
-                      : `
-                          <article
-                            class="assignment-activity-item"
-                            data-testid="operations-activity-item"
+              <div
+                class="operations-work-list"
+                data-testid="operations-work-list"
+              >
+                ${workItems
+                  .map(
+                    (
+                      workItem,
+                      index
+                    ) => {
+                      const task =
+                        workItem.task || {};
+
+                      const item =
+                        workItem.item || {};
+
+                      const label =
+                        renderOperationsCenterTaskLabel(
+                          item
+                        ) ||
+                        task.title ||
+                        "Operational work";
+
+                      const detail =
+                        renderOperationsCenterTaskDetail(
+                          item
+                        );
+
+                      const payload =
+                        escapeOperationsCenterHtml(
+                          JSON.stringify(item)
+                        );
+
+                      return `
+                        <article
+                          class="
+                            operations-work-item
+                            ${
+                              index === 0
+                                ? "operations-work-item-primary"
+                                : ""
+                            }
+                          "
+                          data-testid="operations-work-item"
+                          data-task-key="${escapeOperationsCenterHtml(
+                            task.key || ""
+                          )}"
+                          ${
+                            index === 0
+                              ? 'data-priority="true"'
+                              : ""
+                          }
+                        >
+                          <div class="operations-work-item-signal">
+                            ${String(
+                              index + 1
+                            ).padStart(2, "0")}
+                          </div>
+
+                          <div
+                            class="operations-work-item-content"
+                            ${
+                              index === 0
+                                ? 'data-testid="operations-current-task"'
+                                : index === 1
+                                  ? 'data-testid="operations-remaining-tasks"'
+                                  : ""
+                            }
                           >
-                            ${escapeOperationsCenterHtml(
-                              activity.message ||
-                              activity.matchup ||
-                              activity.actionLabel
+                            <span class="operations-work-item-type">
+                              ${escapeOperationsCenterHtml(
+                                task.title ||
+                                "Operational Work"
+                              )}
+                            </span>
+
+                            <strong
+                              data-testid="operations-work-item-title"
+                            >
+                              ${escapeOperationsCenterHtml(
+                                label
+                              )}
+                            </strong>
+
+                            ${
+                              detail
+                                ? `
+                                    <span class="muted">
+                                      ${escapeOperationsCenterHtml(
+                                        detail
+                                      )}
+                                    </span>
+                                  `
+                                : ""
+                            }
+                          </div>
+
+                          <div class="operations-work-item-actions">
+                            ${renderOperationsCenterQuickActions(
+                              task,
+                              item
                             )}
-                          </article>
-                        `
+
+                            <button
+                              type="button"
+                              class="operations-work-item-action"
+                              data-testid="${
+                                index === 0
+                                  ? "operations-current-task-action"
+                                  : "operations-work-item-action"
+                              }"
+                              data-operations-action="${escapeOperationsCenterHtml(
+                                task.action || ""
+                              )}"
+                              data-operations-payload="${payload}"
+                            >
+                              ${escapeOperationsCenterHtml(
+                                getOperationsCenterWorkActionLabel(
+                                  task
+                                )
+                              )}
+                              →
+                            </button>
+                          </div>
+                        </article>
+                      `;
+                    }
                   )
                   .join("")}
               </div>
             `
           : `
               <div
-                class="empty-state"
+                class="operations-work-queue-empty"
+                data-testid="operations-work-queue-empty"
+              >
+                <strong>Queue clear</strong>
+
+                <span>
+                  No work currently requires attention.
+                </span>
+              </div>
+            `
+      }
+
+    </section>
+  `;
+}
+
+function renderOperationsCenterQueueSummary(
+  counts,
+  activeQueue = "all"
+) {
+  const normalizedActiveQueue =
+    normalizeOperationsCenterQueue(
+      activeQueue
+    );
+
+  const queueControls = [
+    {
+      id: "all",
+      label: "All Work",
+      count: counts.all || 0
+    },
+    {
+      id: "assignments",
+      label: "Assignments",
+      count: counts.assignments || 0
+    },
+    {
+      id: "claims",
+      label: "Claims",
+      count: counts.claims || 0
+    },
+    {
+      id: "reviews",
+      label: "Reviews",
+      count: counts.reviews || 0
+    },
+    {
+      id: "accounts",
+      label: "Accounts",
+      count: counts.accounts || 0
+    },
+    {
+      id: "conflicts",
+      label: "Conflicts",
+      count: counts.conflicts || 0
+    }
+  ];
+
+  const activeControl =
+    queueControls.find(
+      queue =>
+        queue.id === normalizedActiveQueue
+    ) || queueControls[0];
+
+  return `
+    <aside
+      class="
+        operations-console-panel
+        operations-queue-rail
+      "
+      data-testid="operations-queue-summary"
+      aria-label="Operations queues"
+    >
+      <div class="operations-console-panel-header">
+        <div>
+          <span class="operations-console-eyebrow">
+            Queue Control
+          </span>
+
+          <h2>Work Channels</h2>
+        </div>
+
+        <span
+          class="operations-console-indicator"
+          aria-hidden="true"
+        ></span>
+      </div>
+
+      <div
+        class="operations-queue-controls"
+        role="group"
+        aria-label="Select an operations queue"
+      >
+        ${queueControls
+          .map(queue => {
+            const isActive =
+              queue.id ===
+              normalizedActiveQueue;
+
+            return `
+              <button
+                type="button"
+                class="
+                  operations-queue-control
+                  ${
+                    isActive
+                      ? "operations-queue-control-active"
+                      : ""
+                  }
+                "
+                data-testid="operations-queue-${escapeOperationsCenterHtml(
+                  queue.id
+                )}"
+                data-operations-queue="${escapeOperationsCenterHtml(
+                  queue.id
+                )}"
+                aria-pressed="${
+                  isActive
+                    ? "true"
+                    : "false"
+                }"
+              >
+                <span class="operations-queue-control-status">
+                  <span
+                    class="operations-queue-control-light"
+                    aria-hidden="true"
+                  ></span>
+
+                  <span>
+                    ${escapeOperationsCenterHtml(
+                      queue.label
+                    )}
+                  </span>
+                </span>
+
+                <strong>
+                  ${queue.count}
+                </strong>
+              </button>
+            `;
+          })
+          .join("")}
+      </div>
+
+      <div class="operations-queue-rail-footer">
+        <span class="operations-console-label">
+          Active Channel
+        </span>
+
+        <strong data-testid="operations-active-queue-label">
+          ${escapeOperationsCenterHtml(
+            activeControl.label
+          )}
+        </strong>
+      </div>
+    </aside>
+  `;
+}
+
+function getOperationsCenterTelemetryProfile(
+  operations = {}
+) {
+  const activeQueue =
+    normalizeOperationsCenterQueue(
+      operations.activeQueue ||
+      "all"
+    );
+
+  const profiles = {
+    all: {
+      eyebrow: "System Health",
+      title: "Operational State",
+      detail:
+        "System-wide operational posture.",
+      feedEyebrow: "Event Stream",
+      feedTitle: "Live Feed"
+    },
+
+    assignments: {
+      eyebrow: "Staffing Health",
+      title: "Assignment Channel",
+      detail:
+        "Assignment coverage and open staffing work.",
+      feedEyebrow: "Assignment Stream",
+      feedTitle: "Staffing Feed"
+    },
+
+    claims: {
+      eyebrow: "Decision Health",
+      title: "Claims Channel",
+      detail:
+        "Pending claim decisions and claim activity.",
+      feedEyebrow: "Claim Stream",
+      feedTitle: "Claims Feed"
+    },
+
+    reviews: {
+      eyebrow: "Review Health",
+      title: "Review Channel",
+      detail:
+        "Review backlog and decision throughput.",
+      feedEyebrow: "Review Stream",
+      feedTitle: "Review Feed"
+    },
+
+    accounts: {
+      eyebrow: "Account Health",
+      title: "Accounts Channel",
+      detail:
+        "Pending registrations and account decisions.",
+      feedEyebrow: "Account Stream",
+      feedTitle: "Account Feed"
+    },
+
+    conflicts: {
+      eyebrow: "Conflict Health",
+      title: "Conflict Channel",
+      detail:
+        "Schedule issues requiring operational review.",
+      feedEyebrow: "Conflict Stream",
+      feedTitle: "Conflict Feed"
+    }
+  };
+
+  return {
+    activeQueue,
+    ...(
+      profiles[activeQueue] ||
+      profiles.all
+    )
+  };
+}
+
+function getOperationsCenterHealthStatus(
+  operations = {}
+) {
+  const activeQueue =
+    normalizeOperationsCenterQueue(
+      operations.activeQueue ||
+      "all"
+    );
+
+  const counts =
+    operations.queueCounts || {};
+
+  const conflicts =
+    Number(
+      counts.conflicts || 0
+    );
+
+  const activeOutstanding =
+    Number(
+      counts[activeQueue] ??
+      operations.outstandingCount ??
+      0
+    );
+
+  const totalOutstanding =
+    Number(
+      operations.totalOutstandingCount ??
+      counts.all ??
+      operations.outstandingCount ??
+      0
+    );
+
+  if (
+    activeQueue === "conflicts" &&
+    conflicts > 0
+  ) {
+    return {
+      status: "critical",
+      label: "Immediate Attention",
+      detail:
+        "Active schedule conflicts require resolution."
+    };
+  }
+
+  if (
+    activeQueue === "all" &&
+    conflicts > 0
+  ) {
+    return {
+      status: "critical",
+      label: "Attention Required",
+      detail:
+        "Schedule conflicts are affecting overall system health."
+    };
+  }
+
+  if (
+    activeQueue !== "all" &&
+    activeOutstanding > 0
+  ) {
+    return {
+      status: "watch",
+      label: "Channel Active",
+      detail:
+        "This queue still contains operational work."
+    };
+  }
+
+  if (
+    activeQueue !== "all" &&
+    activeOutstanding === 0
+  ) {
+    return {
+      status: "healthy",
+      label: "Channel Clear",
+      detail:
+        "No work currently requires attention in this queue."
+    };
+  }
+
+  if (totalOutstanding > 0) {
+    return {
+      status: "watch",
+      label: "Work In Progress",
+      detail:
+        "Operational queues remain active."
+    };
+  }
+
+  return {
+    status: "healthy",
+    label: "Operations Ready",
+    detail:
+      "No operational work currently requires attention."
+  };
+}
+
+function getOperationsCenterQueueHealth(
+  operations = {}
+) {
+  const counts =
+    operations.queueCounts || {};
+
+  const activeQueue =
+    normalizeOperationsCenterQueue(
+      operations.activeQueue ||
+      "all"
+    );
+
+  const definitions = [
+    {
+      id: "assignments",
+      label: "Assignments"
+    },
+    {
+      id: "claims",
+      label: "Claims"
+    },
+    {
+      id: "reviews",
+      label: "Reviews"
+    },
+    {
+      id: "accounts",
+      label: "Accounts"
+    },
+    {
+      id: "conflicts",
+      label: "Conflicts"
+    }
+  ];
+
+  return definitions.map(
+    queue => {
+      const count =
+        Number(
+          counts[queue.id] || 0
+        );
+
+      const isFocused =
+        activeQueue === queue.id;
+
+      if (
+        queue.id === "conflicts" &&
+        count > 0
+      ) {
+        return {
+          ...queue,
+          isFocused,
+          status: "critical",
+          statusLabel: "Action"
+        };
+      }
+
+      if (count > 0) {
+        return {
+          ...queue,
+          isFocused,
+          status: "watch",
+          statusLabel: "Active"
+        };
+      }
+
+      return {
+        ...queue,
+        isFocused,
+        status: "healthy",
+        statusLabel: "Clear"
+      };
+    }
+  );
+}
+
+function renderOperationsCenterProgress(
+  progress,
+  operations = {}
+) {
+  const normalizedProgress =
+    progress || {
+      completed: 0,
+      total: 0,
+      percent: 0
+    };
+
+  const profile =
+    getOperationsCenterTelemetryProfile(
+      operations
+    );
+
+  const health =
+    getOperationsCenterHealthStatus(
+      operations
+    );
+
+  const queueHealth =
+    getOperationsCenterQueueHealth(
+      operations
+    );
+
+  return `
+    <section
+      class="
+        operations-telemetry-module
+        operations-health-module
+      "
+      data-testid="operations-progress"
+      data-active-queue="${escapeOperationsCenterHtml(
+        profile.activeQueue
+      )}"
+    >
+      <div class="operations-telemetry-heading">
+        <div>
+          <span
+            class="operations-console-label"
+            data-testid="operations-telemetry-eyebrow"
+          >
+            ${escapeOperationsCenterHtml(
+              profile.eyebrow
+            )}
+          </span>
+
+          <h3
+            data-testid="operations-telemetry-title"
+          >
+            ${escapeOperationsCenterHtml(
+              profile.title
+            )}
+          </h3>
+        </div>
+
+        <span
+          class="
+            operations-status-light
+            operations-status-light-${escapeOperationsCenterHtml(
+              health.status
+            )}
+          "
+          data-testid="operations-health-light"
+          data-status="${escapeOperationsCenterHtml(
+            health.status
+          )}"
+          aria-hidden="true"
+        ></span>
+      </div>
+
+      <div
+        class="operations-telemetry-context"
+        data-testid="operations-telemetry-context"
+      >
+        ${escapeOperationsCenterHtml(
+          profile.detail
+        )}
+      </div>
+
+      <div
+        class="operations-health-state"
+        data-testid="operations-health-state"
+        data-status="${escapeOperationsCenterHtml(
+          health.status
+        )}"
+      >
+        <strong>
+          ${escapeOperationsCenterHtml(
+            health.label
+          )}
+        </strong>
+
+        <span>
+          ${escapeOperationsCenterHtml(
+            health.detail
+          )}
+        </span>
+      </div>
+
+      <div
+        class="operations-queue-health"
+        data-testid="operations-queue-health"
+      >
+        ${queueHealth
+          .map(
+            queue => `
+              <div
+                class="
+                  operations-queue-health-row
+                  ${
+                    queue.isFocused
+                      ? "operations-queue-health-row-focused"
+                      : ""
+                  }
+                "
+                data-testid="operations-queue-health-item"
+                data-queue="${escapeOperationsCenterHtml(
+                  queue.id
+                )}"
+                data-status="${escapeOperationsCenterHtml(
+                  queue.status
+                )}"
+                data-focused="${
+                  queue.isFocused
+                    ? "true"
+                    : "false"
+                }"
+              >
+                <span
+                  class="
+                    operations-status-light
+                    operations-status-light-${escapeOperationsCenterHtml(
+                      queue.status
+                    )}
+                  "
+                  aria-hidden="true"
+                ></span>
+
+                <span>
+                  ${escapeOperationsCenterHtml(
+                    queue.label
+                  )}
+                </span>
+
+                <strong>
+                  ${escapeOperationsCenterHtml(
+                    queue.isFocused
+                      ? `Focused ? ${queue.statusLabel}`
+                      : queue.statusLabel
+                  )}
+                </strong>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+
+      <div class="operations-progress-instrument">
+        <div class="operations-progress-readout">
+          <div>
+            <span class="operations-console-label">
+              Completion
+            </span>
+
+            <strong
+              data-testid="operations-progress-percent"
+            >
+              ${normalizedProgress.percent}%
+            </strong>
+          </div>
+
+          <span
+            data-testid="operations-progress-summary"
+          >
+            ${normalizedProgress.completed} of
+            ${normalizedProgress.total} queues complete
+          </span>
+        </div>
+
+        <progress
+          value="${normalizedProgress.completed}"
+          max="${normalizedProgress.total || 1}"
+          data-testid="operations-progress-bar"
+          aria-label="Operational progress"
+        >
+          ${normalizedProgress.percent}%
+        </progress>
+      </div>
+    </section>
+  `;
+}
+
+function formatOperationsActivityTimestamp(
+  createdAt
+) {
+  if (!createdAt) {
+    return "";
+  }
+
+  const date =
+    new Date(createdAt);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  const elapsed =
+    Date.now() -
+    date.getTime();
+
+  const minutes =
+    Math.max(
+      0,
+      Math.floor(
+        elapsed / 60000
+      )
+    );
+
+  if (minutes < 1) {
+    return "Now";
+  }
+
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+
+  const hours =
+    Math.floor(
+      minutes / 60
+    );
+
+  if (hours < 24) {
+    return `${hours}h`;
+  }
+
+  const days =
+    Math.floor(
+      hours / 24
+    );
+
+  return `${days}d`;
+}
+
+function getOperationsActivityLabel(
+  activity = {}
+) {
+  return (
+    activity.actionLabel ||
+    activity.action ||
+    activity.type ||
+    "Operational Update"
+  );
+}
+
+function getOperationsActivityMessage(
+  activity = {}
+) {
+  return (
+    activity.message ||
+    activity.matchup ||
+    activity.story ||
+    "Activity recorded."
+  );
+}
+
+function renderOperationsCenterActivityItem(
+  activity,
+  index
+) {
+  const label =
+    getOperationsActivityLabel(
+      activity
+    );
+
+  const message =
+    getOperationsActivityMessage(
+      activity
+    );
+
+  const timestamp =
+    formatOperationsActivityTimestamp(
+      activity.createdAt
+    );
+
+  return `
+    <article
+      class="operations-feed-item"
+      data-testid="operations-activity-item"
+      data-activity-id="${escapeOperationsCenterHtml(
+        activity.id ||
+        `operations-activity-${index}`
+      )}"
+      data-activity-type="${escapeOperationsCenterHtml(
+        activity.type || ""
+      )}"
+    >
+      <span
+        class="operations-feed-signal"
+        aria-hidden="true"
+      ></span>
+
+      <div class="operations-feed-content">
+        <strong>
+          ${escapeOperationsCenterHtml(
+            label
+          )}
+        </strong>
+
+        <span>
+          ${escapeOperationsCenterHtml(
+            message
+          )}
+        </span>
+      </div>
+
+      <time
+        class="operations-feed-time"
+        datetime="${escapeOperationsCenterHtml(
+          activity.createdAt || ""
+        )}"
+      >
+        ${escapeOperationsCenterHtml(
+          timestamp
+        )}
+      </time>
+    </article>
+  `;
+}
+
+function renderOperationsCenterActivity(
+  activities,
+  operations = {}
+) {
+  const normalizedActivities =
+    Array.isArray(activities)
+      ? activities
+      : [];
+
+  const profile =
+    getOperationsCenterTelemetryProfile(
+      operations
+    );
+
+  return `
+    <section
+      class="
+        operations-telemetry-module
+        operations-live-feed
+      "
+      data-testid="operations-recent-activity"
+      data-active-queue="${escapeOperationsCenterHtml(
+        profile.activeQueue
+      )}"
+    >
+      <div class="operations-telemetry-heading">
+        <div>
+          <span
+            class="operations-console-label"
+            data-testid="operations-feed-eyebrow"
+          >
+            ${escapeOperationsCenterHtml(
+              profile.feedEyebrow
+            )}
+          </span>
+
+          <h3
+            data-testid="operations-feed-title"
+          >
+            ${escapeOperationsCenterHtml(
+              profile.feedTitle
+            )}
+          </h3>
+        </div>
+
+        <span
+          class="operations-live-indicator"
+          aria-label="Live activity feed"
+        >
+          <span aria-hidden="true"></span>
+          Live
+        </span>
+      </div>
+
+      ${
+        normalizedActivities.length
+          ? `
+              <div
+                class="operations-feed-list"
+                data-testid="operations-activity-list"
+              >
+                ${normalizedActivities
+                  .map(
+                    renderOperationsCenterActivityItem
+                  )
+                  .join("")}
+              </div>
+            `
+          : `
+              <div
+                class="operations-feed-empty"
                 data-testid="operations-recent-activity-empty"
               >
-                No recent operational activity.
+                <span
+                  class="
+                    operations-status-light
+                    operations-status-light-healthy
+                  "
+                  aria-hidden="true"
+                ></span>
+
+                <span>
+                  No recent operational activity.
+                </span>
               </div>
             `
       }
@@ -824,8 +1766,16 @@ function renderOperationsCenterActivity(
 }
 
 function renderOperationsCenter(context = {}) {
+  operationsCenterActiveQueue =
+    normalizeOperationsCenterQueue(
+      context.operationsQueue ||
+      operationsCenterActiveQueue
+    );
+
   const operations =
-    dashboardService.getOperationsCenter();
+    dashboardService.getOperationsCenter(
+      operationsCenterActiveQueue
+    );
 
   const operationsFlash =
     context.operationsFlash &&
@@ -844,9 +1794,43 @@ function renderOperationsCenter(context = {}) {
 
   return `
     <section
-      class="page-section"
+      class="
+        page-section
+        operations-center-console
+      "
       data-testid="operations-center"
     >
+      <header
+        class="operations-console-titlebar"
+        data-testid="operations-console-titlebar"
+      >
+        <div>
+          <span class="operations-console-eyebrow">
+            The Slate
+          </span>
+
+          <h1>Operations Center</h1>
+
+          <p>
+            Live command surface for today's operational work.
+          </p>
+        </div>
+
+        <div
+          class="operations-system-state"
+          data-testid="operations-system-state"
+        >
+          <span
+            class="operations-system-state-light"
+            aria-hidden="true"
+          ></span>
+
+          <span>
+            System Ready
+          </span>
+        </div>
+      </header>
+
       <div
         class="operations-action-message"
         data-testid="operations-action-message"
@@ -864,10 +1848,21 @@ function renderOperationsCenter(context = {}) {
         )}
       </div>
 
+      <div
+        class="operations-command-strip"
+        data-testid="operations-command-strip"
+      >
+        ${renderOperationsCenterWorkflowHeader(
+          operations
+        )}
+      </div>
+
       ${
         operations.isEmpty
           ? `
-              <section>
+              <section
+                class="operations-console-complete"
+              >
                 ${renderEmptyState({
                   title:
                     "Today's work is complete",
@@ -881,49 +1876,87 @@ function renderOperationsCenter(context = {}) {
           : ""
       }
 
-      ${renderOperationsCenterWorkflowHeader(
-        operations
-      )}
-
       <div
-        class="
-          dashboard-grid
-          operations-center-grid
-        "
+        class="operations-center-shell"
+        data-testid="operations-center-shell"
       >
-        <div
-          class="${
-            successMessage
-              ? "operations-current-task-advanced"
-              : ""
-          }"
-          data-testid="operations-current-task-stage"
-          data-advanced="${
-            successMessage
-              ? "true"
-              : "false"
-          }"
-        >
-          ${renderOperationsCenterCurrentTask(
-            operations.currentTask
-          )}
-        </div>
-
-        ${renderOperationsCenterRemainingTasks(
-          operations.remainingTasks
-        )}
-
         ${renderOperationsCenterQueueSummary(
-          operations.queueCounts
+          operations.queueCounts,
+          operations.activeQueue
         )}
 
-        ${renderOperationsCenterProgress(
-          operations.operationalProgress
-        )}
+        <main
+          class="
+            operations-console-panel
+            operations-work-deck
+          "
+          data-testid="operations-work-deck"
+        >
+          <div class="operations-console-panel-header">
+            <div>
+              <span class="operations-console-eyebrow">
+                Active Work
+              </span>
 
-        ${renderOperationsCenterActivity(
-          operations.recentActivity
-        )}
+              <h2>Command Deck</h2>
+            </div>
+
+            <span class="operations-console-label">
+              Priority ordered
+            </span>
+          </div>
+
+          <div
+            class="${
+              successMessage
+                ? "operations-current-task-advanced"
+                : ""
+            }"
+            data-testid="operations-current-task-stage"
+            data-advanced="${
+              successMessage
+                ? "true"
+                : "false"
+            }"
+          >
+            ${renderOperationsCenterWorkQueue(
+              operations
+            )}
+          </div>
+        </main>
+
+        <aside
+          class="
+            operations-console-panel
+            operations-status-rail
+          "
+          data-testid="operations-status-rail"
+        >
+          <div class="operations-console-panel-header">
+            <div>
+              <span class="operations-console-eyebrow">
+                Telemetry
+              </span>
+
+              <h2>System Status</h2>
+            </div>
+
+            <span
+              class="operations-console-indicator"
+              aria-hidden="true"
+            ></span>
+          </div>
+
+          ${renderOperationsCenterProgress(
+            operations.operationalProgress,
+            operations
+          )}
+
+          ${renderOperationsCenterActivity(
+            operations.recentActivity,
+            operations
+          )}
+        </aside>
       </div>
     </section>
   `;
@@ -953,6 +1986,22 @@ function setupOperationsCenterActions() {
         "operations-center";
     }
   }
+
+  document
+    .querySelectorAll(
+      "[data-operations-queue]"
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        () => {
+          setOperationsCenterQueue(
+            button.dataset
+              .operationsQueue || "all"
+          );
+        }
+      );
+    });
 
   document
     .querySelectorAll(
@@ -1031,6 +2080,9 @@ function refreshOperationsCenterIfActive() {
     );
   }
 }
+
+window.setOperationsCenterQueue =
+  setOperationsCenterQueue;
 
 window.refreshOperationsCenterIfActive =
   refreshOperationsCenterIfActive;
