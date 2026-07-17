@@ -13,8 +13,8 @@ const myCrewId = authService.currentCrewId();
   const workload = getGameCrewWorkload(game);
 
   return `
-    <<article
-    class="schedule-game-card ${assigned ? "assigned" : "open"}"
+    <article
+    class="schedule-game-card presentation-card ${assigned ? "assigned" : "open"}"
     data-testid="game-card-${game.id}">
       <div class="game-card-left">
         <div
@@ -22,7 +22,7 @@ const myCrewId = authService.currentCrewId();
     data-testid="game-time-${game.id}">${game.time || "Time TBD"}</div>
 
         <div
-    class="game-status"
+    class="game-status status-badge ${assigned ? "status-badge-approved" : "status-badge-open"}"
     data-testid="game-status-${game.id}">
   ${
     typeof renderAssignmentStatusBadge === "function"
@@ -84,12 +84,13 @@ const myCrewId = authService.currentCrewId();
     class="game-card-actions"
     data-testid="game-actions-${game.id}">
 <button
+    class="button button-secondary"
     data-testid="game-details-${game.id}"
     onclick="openAssignmentDrawer('${game.id}')">          Details
         </button>
 
         <button
-    class="secondary"
+    class="button button-secondary secondary"
     data-testid="game-edit-${game.id}"
           onclick="editGame('${game.id}')">
           Edit
@@ -134,7 +135,7 @@ function renderGameAssignmentControl(game) {
       <div class="quick-assign-panel">
 
         <button
-    class="primary"
+    class="button button-primary primary"
     data-testid="claim-game-${game.id}"
     onclick="claimGame('${game.id}')">
 
@@ -165,7 +166,7 @@ function renderAdminAssignmentControl(game) {
         </span>
 
         <button
-          class="secondary small-btn"
+          class="button button-secondary button-compact secondary small-btn"
           onclick="showQuickAssignDropdown('${game.id}')">
           Change Crew
         </button>

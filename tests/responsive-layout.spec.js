@@ -55,7 +55,30 @@ test.describe(
     test.beforeEach(async ({ page }) => {
       await useMobileViewport(page);
       await page.goto("/");
-    });
+});
+
+test("tablet Operations Center preserves essential operational content", async ({ page }) => {
+  await page.setViewportSize({ width: 834, height: 1112 });
+  await page.goto("/");
+  await page.evaluate(() => {
+    authService.loginAsAdmin();
+    renderPage("operations-center");
+  });
+
+  await expect(page.getByTestId("operations-status-strip")).toBeVisible();
+  await expect(page.getByTestId("operations-work-deck")).toHaveCount(0);
+  await expect(page.getByTestId("operations-upcoming-work")).toBeVisible();
+  await expect(page.getByTestId("operations-recent-activity")).toBeVisible();
+
+  const dimensions = await page.evaluate(() => ({
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth,
+    columns: getComputedStyle(document.querySelector(".operations-center-shell")).gridTemplateColumns
+  }));
+
+  expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth + 1);
+  expect(dimensions.columns.split(" ")).toHaveLength(1);
+});
 
     test(
       "mobile Notification Center keeps filters and actions usable",

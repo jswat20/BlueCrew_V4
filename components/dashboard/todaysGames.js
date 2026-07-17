@@ -29,6 +29,7 @@ function renderDashboardTodayGames() {
     <section
       class="
         dashboard-card
+        presentation-card
         dashboard-today-games
       "
       data-testid="dashboard-today-games"
@@ -44,7 +45,7 @@ function renderDashboardTodayGames() {
 
         <button
           type="button"
-          class="dashboard-text-action"
+          class="button button-link dashboard-text-action"
           data-testid="dashboard-view-schedule"
           onclick='openDashboardSchedule(
             "all"
@@ -83,12 +84,13 @@ function renderDashboardTodayGames() {
               </div>
             `
           : `
-              <div
-                class="empty-state"
-                data-testid="dashboard-today-empty"
-              >
-                No games are scheduled today.
-              </div>
+              ${renderEmptyState({
+                message:
+                  "No games are scheduled today.",
+                testId:
+                  "dashboard-today-empty",
+                compact: true
+              })}
             `
       }
     </section>
@@ -126,6 +128,8 @@ function renderDashboardTodayGame(game) {
       <span
         class="
           dashboard-game-status
+          status-badge
+          status-badge-${status.tone}
           dashboard-game-status-${status.tone}
         "
         data-testid="dashboard-game-status-${game.id}"

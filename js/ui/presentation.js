@@ -11,6 +11,37 @@ function escapePresentationHtml(
     .replaceAll("'", "&#039;");
 }
 
+const PRESENTATION_BUTTON_VARIANTS =
+  Object.freeze({
+    primary: "button-primary",
+    secondary: "button-secondary",
+    destructive: "button-danger",
+    link: "button-link"
+  });
+
+function getPresentationButtonClass({
+  variant = "secondary",
+  compact = false,
+  className = ""
+} = {}) {
+  const variantClass =
+    PRESENTATION_BUTTON_VARIANTS[
+      variant
+    ] ||
+    PRESENTATION_BUTTON_VARIANTS.secondary;
+
+  return [
+    "button",
+    variantClass,
+    compact
+      ? "button-compact"
+      : "",
+    className
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 function renderPageHeader({
   title,
   subtitle = "",
@@ -181,6 +212,40 @@ function renderEmptyState({
             `
           : ""
       }
+
+      <p>
+        ${escapePresentationHtml(
+          message || ""
+        )}
+      </p>
+
+      ${action}
+    </div>
+  `;
+}
+
+function renderErrorState({
+  title = "Something went wrong",
+  message,
+  action = "",
+  testId = ""
+} = {}) {
+  return `
+    <div
+      class="presentation-error-state"
+      ${
+        testId
+          ? `data-testid="${escapePresentationHtml(
+              testId
+            )}"`
+          : ""
+      }
+      role="alert"
+      aria-live="assertive"
+    >
+      <h3>
+        ${escapePresentationHtml(title)}
+      </h3>
 
       <p>
         ${escapePresentationHtml(

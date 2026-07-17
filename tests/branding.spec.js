@@ -53,7 +53,7 @@ test.describe("The Slate Branding", () => {
 
     const links =
       navigation.locator(
-        ":scope > button.nav-link"
+        "button.nav-link"
       );
 
     await expect(links).toHaveCount(18);

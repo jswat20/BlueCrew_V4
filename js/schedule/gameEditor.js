@@ -17,7 +17,11 @@ function openGameEditor(gameId = null) {
 <aside class="assign-drawer" data-testid="game-editor">
       <div class="assign-drawer-header">
         <h2>${isEditing ? "Edit Game" : "Add Game"}</h2>
-        <button onclick="closeGameEditor()">×</button>
+        <button
+          class="button button-link button-compact"
+          aria-label="Close game editor"
+          onclick="closeGameEditor()"
+        >×</button>
       </div>
 
       ${renderGameEditorForm(game, isEditing)}
@@ -100,12 +104,13 @@ function renderGameEditorForm(game, isEditing) {
 
     <div class="assign-drawer-actions">
       <button
+        class="button button-primary"
         data-testid="save-game-button"
         onclick="saveGameEditor('${game.id || ""}', ${isEditing})">
         ${isEditing ? "Save Changes" : "Create Game"}
       </button>
 
-      <button class="secondary" data-testid="cancel-game-button" onclick="closeGameEditor()">
+      <button class="button button-secondary secondary" data-testid="cancel-game-button" onclick="closeGameEditor()">
         Cancel
       </button>
 
@@ -126,7 +131,7 @@ function renderGameEditorForm(game, isEditing) {
                       </button>
 
                       <button
-                        class="danger-btn"
+                        class="button button-danger danger-btn"
                         type="button"
                         data-testid="cancel-scheduled-game-button"
                         onclick="cancelGameFromEditor('${game.id}')"
@@ -138,7 +143,7 @@ function renderGameEditorForm(game, isEditing) {
               }
 
               <button
-                class="danger-btn"
+                class="button button-danger danger-btn"
                 type="button"
                 data-testid="delete-game-button"
                 onclick="deleteGame('${game.id}')"

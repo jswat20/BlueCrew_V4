@@ -35,12 +35,16 @@ test.describe(
           await page.evaluate(() => {
             notificationService.create({
               title: "First",
-              message: "First update."
+              message: "First update.",
+              createdAt:
+                "2026-07-17T12:00:00.000Z"
             });
 
             notificationService.create({
               title: "Second",
-              message: "Second update."
+              message: "Second update.",
+              createdAt:
+                "2026-07-17T12:00:00.000Z"
             });
 
             return dashboardService

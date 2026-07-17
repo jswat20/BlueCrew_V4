@@ -2,6 +2,7 @@ import {
   expect,
   test
 } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 test.describe(
   "Shared UX Presentation",
@@ -59,6 +60,77 @@ test.describe(
           .toContain(
             "status-badge-approved"
           );
+      }
+    );
+
+    test(
+      "shared button and error helpers expose the canonical contract",
+      async ({ page }) => {
+        const result = await page.evaluate(() => ({
+          destructive: getPresentationButtonClass({
+            variant: "destructive",
+            compact: true,
+            className: "legacy-action"
+          }),
+          fallback: getPresentationButtonClass({
+            variant: "unknown"
+          }),
+          error: renderErrorState({
+            title: "Import failed",
+            message: "<Invalid row>",
+            testId: "import-error"
+          })
+        }));
+
+        expect(result.destructive).toBe(
+          "button button-danger button-compact legacy-action"
+        );
+        expect(result.fallback).toBe(
+          "button button-secondary"
+        );
+        expect(result.error).toContain('role="alert"');
+        expect(result.error).toContain("&lt;Invalid row&gt;");
+      }
+    );
+
+    test(
+      "migrated schedule controls honor the final cascade boundary",
+      async ({ page }) => {
+        await page.evaluate(() => {
+          navigateTo("schedule");
+        });
+
+        const primary = page.getByTestId("add-game");
+        const secondary = page.getByTestId("previous-date");
+
+        await expect(primary).toHaveCSS(
+          "background-color",
+          "rgb(21, 94, 239)"
+        );
+        await expect(primary).toHaveCSS(
+          "color",
+          "rgb(255, 255, 255)"
+        );
+        await expect(secondary).toHaveCSS(
+          "background-color",
+          "rgb(255, 255, 255)"
+        );
+        await expect(secondary).toHaveCSS(
+          "min-height",
+          "44px"
+        );
+      }
+    );
+
+    test(
+      "primary navigation has no automated WCAG A or AA violations",
+      async ({ page }) => {
+        const results = await new AxeBuilder({ page })
+          .include('[data-testid="navigation"]')
+          .withTags(["wcag2a", "wcag2aa"])
+          .analyze();
+
+        expect(results.violations).toEqual([]);
       }
     );
 

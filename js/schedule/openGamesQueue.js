@@ -64,7 +64,7 @@ function renderOpenGamesQueue(date) {
 
   if (!openGames.length) {
     return `
-      <section class="open-games-panel">
+      <section class="open-games-panel presentation-panel">
 
         <div class="panel-header">
           <h3>✅ All Games Assigned</h3>
@@ -76,7 +76,7 @@ function renderOpenGamesQueue(date) {
   }
 
   return `
-    <section class="open-games-panel">
+    <section class="open-games-panel presentation-panel">
 
       <div class="panel-header">
 
@@ -141,7 +141,7 @@ function renderOpenGamesQueue(date) {
               </div>
 
               <button
-                class="primary"
+                class="button button-primary primary"
                 onclick="assignBestCrew('${game.id}')">
 
                 Assign Best Match

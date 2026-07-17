@@ -1,6 +1,8 @@
 // js/ui/operationsCenter.js
 
 let operationsCenterActiveQueue = "all";
+let operationsCenterActivityVisibleCount = 4;
+const OPERATIONS_CENTER_ACTIVITY_BATCH = 10;
 
 const OPERATIONS_CENTER_QUEUE_IDS =
   Object.freeze([
@@ -65,6 +67,70 @@ function handleOperationsCenterTask(
   action,
   item = {}
 ) {
+  if (action === "create-event") {
+    window.navigateTo("schedule", {
+      origin: "operations-center",
+      returnPage: "operations-center"
+    });
+
+    if (typeof openGameEditor === "function") {
+      openGameEditor();
+    }
+    return;
+  }
+
+  if (action === "schedule-today") {
+    currentScheduleView = "daily";
+    currentScheduleDate =
+      new Date().toISOString().split("T")[0];
+    uiStateService?.setScheduleFilter?.("all");
+
+    window.navigateTo("schedule", {
+      view: "daily",
+      date: currentScheduleDate,
+      filter: "all",
+      origin: "operations-center",
+      returnPage: "operations-center"
+    });
+    return;
+  }
+
+  if (action === "assigner-workbench") {
+    window.navigateTo("assigner-workbench", {
+      staffing: item.staffing || "",
+      origin: "operations-center",
+      returnPage: "operations-center"
+    });
+    return;
+  }
+
+  if (action === "pending-account") {
+    if (
+      typeof uiStateService !== "undefined" &&
+      typeof uiStateService.setAccountFilter === "function"
+    ) {
+      uiStateService.setAccountFilter("pending");
+    }
+
+    window.navigateTo("accounts", {
+      filter: "pending",
+      accountId: item.accountId || item.id || "",
+      origin: "operations-center",
+      returnPage: "operations-center"
+    });
+    return;
+  }
+
+  if (action === "schedule-conflict") {
+    window.navigateTo("schedule", {
+      gameId: item.gameId || item.id || "",
+      conflictId: item.id || "",
+      origin: "operations-center",
+      returnPage: "operations-center"
+    });
+    return;
+  }
+
   if (
     typeof window.handleWorkbenchAction !==
     "function"
@@ -88,6 +154,36 @@ function handleOperationsCenterTask(
     },
     "operations-center"
   );
+}
+
+function handleOperationsCenterActivity(
+  item = {}
+) {
+  if (item.gameId) {
+    handleOperationsCenterTask(
+      "activity",
+      item
+    );
+    return;
+  }
+
+  if (
+    item.accountId &&
+    typeof authorizationService !== "undefined" &&
+    authorizationService.canManageAccounts()
+  ) {
+    window.navigateTo("accounts", {
+      accountId: item.accountId,
+      origin: "operations-center",
+      returnPage: "operations-center"
+    });
+    return;
+  }
+
+  window.navigateTo("notifications", {
+    origin: "operations-center",
+    returnPage: "operations-center"
+  });
 }
 
 function setOperationsCenterActionMessage(
@@ -289,6 +385,40 @@ function rejectClaimFromOperations(
   );
 }
 
+function decideAccountFromOperations(
+  action,
+  item = {}
+) {
+  const accountId =
+    item.accountId || item.id || "";
+
+  if (
+    !accountId ||
+    typeof accountService === "undefined"
+  ) {
+    return finishOperationsCenterQuickAction({
+      success: false,
+      message: "Account service is unavailable."
+    });
+  }
+
+  const mutation =
+    action === "approve-account"
+      ? accountService.approveAccount
+      : accountService.rejectAccount;
+
+  if (typeof mutation !== "function") {
+    return finishOperationsCenterQuickAction({
+      success: false,
+      message: "Account action is unavailable."
+    });
+  }
+
+  return finishOperationsCenterQuickAction(
+    mutation(accountId)
+  );
+}
+
 function handleOperationsCenterQuickAction(
   action,
   item = {}
@@ -306,6 +436,13 @@ function handleOperationsCenterQuickAction(
 
     case "reject-claim":
       return rejectClaimFromOperations(
+        item
+      );
+
+    case "approve-account":
+    case "reject-account":
+      return decideAccountFromOperations(
+        action,
         item
       );
 
@@ -465,7 +602,7 @@ function renderOperationsCenterQuickActions(
 
         <button
           type="button"
-          class="button button-secondary"
+          class="button button-danger"
           data-testid="operations-reject-claim"
           data-operations-quick-action="reject-claim"
           data-operations-payload="${payload}"
@@ -590,7 +727,7 @@ function renderOperationsCenterCurrentTask(task) {
 
           <button
             type="button"
-            class="primary-button"
+            class="button button-primary primary-button"
             data-testid="operations-current-task-action"
             data-operations-action="${escapeOperationsCenterHtml(
               task.action
@@ -833,6 +970,13 @@ function renderOperationsCenterWorkQueue(
                           JSON.stringify(item)
                         );
 
+                      const urgency =
+                        task.key === "conflicts" ||
+                        task.key === "todaysPriorities" ||
+                        task.key === "returnedReviews"
+                          ? "urgent"
+                          : "attention";
+
                       return `
                         <article
                           class="
@@ -847,6 +991,7 @@ function renderOperationsCenterWorkQueue(
                           data-task-key="${escapeOperationsCenterHtml(
                             task.key || ""
                           )}"
+                          data-urgency="${urgency}"
                           ${
                             index === 0
                               ? 'data-priority="true"'
@@ -870,6 +1015,8 @@ function renderOperationsCenterWorkQueue(
                             }
                           >
                             <span class="operations-work-item-type">
+                              <span class="visually-hidden">Urgency: </span>
+                              ${urgency === "urgent" ? "Urgent · " : "Action needed · "}
                               ${escapeOperationsCenterHtml(
                                 task.title ||
                                 "Operational Work"
@@ -951,11 +1098,25 @@ function renderOperationsCenterWorkQueue(
 
 function renderOperationsCenterQueueSummary(
   counts,
-  activeQueue = "all"
+  activeQueue = "all",
+  allowedQueueIds =
+    OPERATIONS_CENTER_QUEUE_IDS
 ) {
   const normalizedActiveQueue =
     normalizeOperationsCenterQueue(
       activeQueue
+    );
+
+  const allowedQueues =
+    new Set(
+      [
+        "all",
+        ...(
+          Array.isArray(allowedQueueIds)
+            ? allowedQueueIds
+            : OPERATIONS_CENTER_QUEUE_IDS
+        )
+      ]
     );
 
   const queueControls = [
@@ -989,7 +1150,9 @@ function renderOperationsCenterQueueSummary(
       label: "Conflicts",
       count: counts.conflicts || 0
     }
-  ];
+  ].filter(queue =>
+    allowedQueues.has(queue.id)
+  );
 
   const activeControl =
     queueControls.find(
@@ -1629,9 +1792,29 @@ function renderOperationsCenterActivityItem(
       activity.createdAt
     );
 
+  const exactDate =
+    new Date(activity.createdAt || "");
+
+  const exactTimestamp =
+    Number.isNaN(exactDate.getTime())
+      ? "Timestamp unavailable"
+      : new Intl.DateTimeFormat(
+          "en-US",
+          {
+            dateStyle: "medium",
+            timeStyle: "short"
+          }
+        ).format(exactDate);
+
+  const payload =
+    escapeOperationsCenterHtml(
+      JSON.stringify(activity)
+    );
+
   return `
-    <article
-      class="operations-feed-item"
+    <button
+      type="button"
+      class="operations-log-row"
       data-testid="operations-activity-item"
       data-activity-id="${escapeOperationsCenterHtml(
         activity.id ||
@@ -1640,37 +1823,53 @@ function renderOperationsCenterActivityItem(
       data-activity-type="${escapeOperationsCenterHtml(
         activity.type || ""
       )}"
+      data-activity-category="${escapeOperationsCenterHtml(
+        activity.category || "Operations"
+      )}"
+      data-operations-activity="${payload}"
     >
-      <span
-        class="operations-feed-signal"
-        aria-hidden="true"
-      ></span>
-
-      <div class="operations-feed-content">
-        <strong>
-          ${escapeOperationsCenterHtml(
-            label
-          )}
-        </strong>
-
-        <span>
-          ${escapeOperationsCenterHtml(
-            message
-          )}
-        </span>
-      </div>
-
       <time
-        class="operations-feed-time"
+        class="operations-log-time"
         datetime="${escapeOperationsCenterHtml(
           activity.createdAt || ""
+        )}"
+        title="${escapeOperationsCenterHtml(
+          exactTimestamp
         )}"
       >
         ${escapeOperationsCenterHtml(
           timestamp
         )}
       </time>
-    </article>
+
+      <span class="operations-log-type">
+        <span class="operations-feed-signal" aria-hidden="true"></span>
+        <span class="visually-hidden">Activity type:</span>
+        ${escapeOperationsCenterHtml(
+          label
+        )}
+      </span>
+
+      <span class="operations-log-location">
+        ${escapeOperationsCenterHtml(
+          activity.location || "—"
+        )}
+      </span>
+
+      <span class="operations-log-actor">
+        ${escapeOperationsCenterHtml(
+          activity.actor ||
+          activity.subject ||
+          "System"
+        )}
+      </span>
+
+      <span class="operations-log-action">
+        ${escapeOperationsCenterHtml(
+          message
+        )}
+      </span>
+    </button>
   `;
 }
 
@@ -1683,6 +1882,25 @@ function renderOperationsCenterActivity(
       ? activities
       : [];
 
+  const visibleActivities =
+    normalizedActivities.slice(
+      0,
+      operationsCenterActivityVisibleCount
+    );
+
+  const remainingCount =
+    Math.max(
+      normalizedActivities.length -
+      visibleActivities.length,
+      0
+    );
+
+  const nextBatchCount =
+    Math.min(
+      remainingCount,
+      OPERATIONS_CENTER_ACTIVITY_BATCH
+    );
+
   const profile =
     getOperationsCenterTelemetryProfile(
       operations
@@ -1691,51 +1909,44 @@ function renderOperationsCenterActivity(
   return `
     <section
       class="
-        operations-telemetry-module
-        operations-live-feed
+        operations-panel
+        operations-log
       "
       data-testid="operations-recent-activity"
-      data-active-queue="${escapeOperationsCenterHtml(
-        profile.activeQueue
-      )}"
+      data-active-queue="${escapeOperationsCenterHtml(profile.activeQueue)}"
+      aria-labelledby="operations-log-title"
     >
-      <div class="operations-telemetry-heading">
+      <div class="operations-section-heading">
         <div>
           <span
             class="operations-console-label"
             data-testid="operations-feed-eyebrow"
           >
-            ${escapeOperationsCenterHtml(
-              profile.feedEyebrow
-            )}
+            ${escapeOperationsCenterHtml(profile.feedEyebrow)}
           </span>
 
-          <h3
+          <h3 id="operations-log-title">
+            Operations Log
+          </h3>
+
+          <span
+            class="visually-hidden"
             data-testid="operations-feed-title"
           >
-            ${escapeOperationsCenterHtml(
-              profile.feedTitle
-            )}
-          </h3>
+            ${escapeOperationsCenterHtml(profile.feedTitle)}
+          </span>
         </div>
-
-        <span
-          class="operations-live-indicator"
-          aria-label="Live activity feed"
-        >
-          <span aria-hidden="true"></span>
-          Live
-        </span>
       </div>
 
       ${
-        normalizedActivities.length
+        visibleActivities.length
           ? `
               <div
-                class="operations-feed-list"
+                id="operations-activity-list"
+                class="operations-log-list"
                 data-testid="operations-activity-list"
               >
-                ${normalizedActivities
+                ${visibleActivities
                   .map(
                     renderOperationsCenterActivityItem
                   )
@@ -1761,6 +1972,325 @@ function renderOperationsCenterActivity(
               </div>
             `
       }
+
+      ${remainingCount > 0 ? `
+        <button
+          type="button"
+          class="button button-link operations-log-more"
+          data-testid="operations-activity-more"
+          data-operations-activity-more
+          aria-controls="operations-activity-list"
+          aria-expanded="${visibleActivities.length > 6 ? "true" : "false"}"
+        >
+          View previous activity (${nextBatchCount})
+        </button>
+      ` : ""}
+    </section>
+  `;
+}
+
+function formatOperationsCenterDate(value) {
+  const date = new Date(`${value}T12:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Current operational period";
+  }
+
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      weekday: "long",
+      month: "long",
+      day: "numeric"
+    }
+  ).format(date);
+}
+
+function renderOperationsCenterStatusStrip(
+  metrics = []
+) {
+  return `
+    <nav
+      class="operations-status-strip"
+      aria-label="Operational status"
+      data-testid="operations-status-strip"
+    >
+      ${metrics.map(metric => {
+        const hasDetailDialog =
+          Array.isArray(metric.detailItems);
+
+        return `
+        <button
+          type="button"
+          class="operations-status-metric ${metric.requiresAction && Number(metric.value) > 0 ? "operations-status-metric-attention" : ""}"
+          data-attention="${metric.requiresAction && Number(metric.value) > 0 ? "true" : "false"}"
+          data-testid="operations-metric-${escapeOperationsCenterHtml(metric.id)}"
+          ${hasDetailDialog
+            ? `data-operations-dialog-target="operations-detail-${escapeOperationsCenterHtml(metric.id)}"`
+            : `data-operations-action="${escapeOperationsCenterHtml(metric.action || "")}"`}
+          data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(metric.item || {}))}"
+          aria-label="${escapeOperationsCenterHtml(metric.label)}: ${metric.value}"
+        >
+          <span>${escapeOperationsCenterHtml(metric.label)}</span>
+          <strong>${Number(metric.value) || 0}</strong>
+        </button>
+      `;
+      }).join("")}
+    </nav>
+  `;
+}
+
+function renderOperationsCenterMetricDialogs(
+  metrics = []
+) {
+  return metrics
+    .filter(metric =>
+      Array.isArray(metric.detailItems)
+    )
+    .map(metric => `
+      <dialog
+        class="operations-detail-dialog"
+        id="operations-detail-${escapeOperationsCenterHtml(metric.id)}"
+        data-testid="operations-detail-${escapeOperationsCenterHtml(metric.id)}"
+        aria-labelledby="operations-detail-${escapeOperationsCenterHtml(metric.id)}-title"
+      >
+        <header class="operations-detail-header">
+          <div>
+            <span class="operations-console-eyebrow">Action queue</span>
+            <h2 id="operations-detail-${escapeOperationsCenterHtml(metric.id)}-title">
+              ${escapeOperationsCenterHtml(metric.label)}
+            </h2>
+          </div>
+          <button
+            type="button"
+            class="button button-link button-compact"
+            data-operations-dialog-close
+            aria-label="Close ${escapeOperationsCenterHtml(metric.label)}"
+          >×</button>
+        </header>
+
+        ${metric.detailItems.length ? `
+          <div class="operations-detail-list">
+            ${metric.detailItems.map(item => `
+              <article class="operations-detail-item">
+                <div>
+                  <strong>${escapeOperationsCenterHtml(renderOperationsCenterTaskLabel(item))}</strong>
+                  ${renderOperationsCenterTaskDetail(item)
+                    ? `<span>${escapeOperationsCenterHtml(renderOperationsCenterTaskDetail(item))}</span>`
+                    : ""}
+                </div>
+                <div class="operations-detail-actions">
+                  ${metric.id === "pending-claims" ? `
+                    <button type="button" class="button button-primary" data-operations-quick-action="approve-claim" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Approve</button>
+                    <button type="button" class="button button-secondary" data-operations-quick-action="reject-claim" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Deny</button>
+                  ` : ""}
+                  ${metric.id === "pending-accounts" ? `
+                    <button type="button" class="button button-primary" data-operations-quick-action="approve-account" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Approve</button>
+                    <button type="button" class="button button-secondary" data-operations-quick-action="reject-account" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Deny</button>
+                  ` : ""}
+                  <button
+                    type="button"
+                    class="button button-secondary"
+                    data-operations-action="${escapeOperationsCenterHtml(metric.detailAction || metric.action || "")}"
+                    data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}"
+                  >${metric.id === "pending-claims" || metric.id === "pending-accounts" ? "Review" : escapeOperationsCenterHtml(metric.detailActionLabel || "Open")}</button>
+                </div>
+              </article>
+            `).join("")}
+          </div>
+        ` : `
+          <div class="operations-work-queue-empty" role="status">
+            <strong>Queue clear</strong>
+            <span>No items currently require action.</span>
+          </div>
+        `}
+      </dialog>
+    `)
+    .join("");
+}
+
+function getOperationsTimelineGroup(
+  event,
+  today
+) {
+  if (event.date === today) {
+    return "Today";
+  }
+
+  const tomorrow =
+    new Date(`${today}T12:00:00`);
+  tomorrow.setDate(
+    tomorrow.getDate() + 1
+  );
+
+  if (
+    event.date ===
+    tomorrow.toISOString().split("T")[0]
+  ) {
+    return "Tomorrow";
+  }
+
+  return "Later";
+}
+
+function renderOperationsCenterUpcoming(
+  events = [],
+  today = ""
+) {
+  const groups =
+    ["Today", "Tomorrow", "Later"]
+      .map(label => ({
+        label,
+        events: events.filter(
+          event =>
+            getOperationsTimelineGroup(
+              event,
+              today
+            ) === label
+        )
+      }))
+      .filter(group => group.events.length);
+
+  return `
+    <section
+      class="operations-panel operations-upcoming"
+      data-testid="operations-upcoming-work"
+      aria-labelledby="operations-upcoming-title"
+    >
+      <div class="operations-section-heading">
+        <div>
+          <span class="operations-console-label">Timeline</span>
+          <h2 id="operations-upcoming-title">Today & Upcoming Work</h2>
+        </div>
+      </div>
+
+      ${groups.length ? groups.map(group => `
+        <section class="operations-timeline-group">
+          <h3>${group.label}</h3>
+          <ol>
+            ${group.events.map(event => `
+              <li>
+                <time datetime="${escapeOperationsCenterHtml(`${event.date} ${event.time || ""}`)}">
+                  ${escapeOperationsCenterHtml(event.time || event.date)}
+                </time>
+                <button
+                  type="button"
+                  class="operations-timeline-event"
+                  data-testid="operations-upcoming-event"
+                  data-operations-action="today-priority"
+                  data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(event))}"
+                >
+                  <strong>${escapeOperationsCenterHtml(event.matchup)}</strong>
+                  <span>${escapeOperationsCenterHtml([event.field, event.level].filter(Boolean).join(" · "))}</span>
+                  <span class="operations-timeline-status" data-status="${event.fullyStaffed ? "healthy" : "watch"}">
+                    ${event.fullyStaffed
+                      ? "Fully staffed"
+                      : `${event.openAssignmentCount || 0} open · ${event.pendingClaimCount || 0} pending`}
+                  </span>
+                </button>
+              </li>
+            `).join("")}
+          </ol>
+        </section>
+      `).join("") : `
+        <div class="operations-console-complete" data-testid="operations-upcoming-empty" role="status">
+          <strong>No upcoming events</strong>
+          <span>The supported schedule has no current or future work.</span>
+        </div>
+      `}
+    </section>
+  `;
+}
+
+function formatOperationsWorkDate(dateValue, today) {
+  if (dateValue === today) return "Today";
+  const tomorrow = new Date(`${today}T12:00:00`);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (dateValue === tomorrow.toISOString().split("T")[0]) return "Tomorrow";
+  const date = new Date(`${dateValue}T12:00:00`);
+  return Number.isNaN(date.getTime())
+    ? dateValue
+    : new Intl.DateTimeFormat("en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long"
+      }).format(date);
+}
+
+function renderOperationsStaffingBoard(events = [], today = "") {
+  const groups = [];
+  events.forEach(event => {
+    const label = formatOperationsWorkDate(event.date, today);
+    let group = groups.find(candidate => candidate.label === label);
+    if (!group) {
+      group = { label, events: [] };
+      groups.push(group);
+    }
+    group.events.push(event);
+  });
+
+  const positions = [...new Set(events.flatMap(event =>
+    (event.assignments || []).map(assignment => assignment.position)
+  ))];
+
+  return `
+    <section class="operations-panel operations-upcoming" data-testid="operations-upcoming-work" aria-labelledby="operations-upcoming-title">
+      <div class="operations-section-heading"><h2 id="operations-upcoming-title">Today & Upcoming Work</h2></div>
+      ${groups.length ? groups.map(group => `
+        <section class="operations-timeline-group">
+          <h3>${escapeOperationsCenterHtml(group.label)}</h3>
+          <div class="operations-staffing-table-wrap">
+            <table class="operations-staffing-table">
+              <thead><tr><th>Time</th><th>Age</th><th>Matchup</th><th>Location</th>${positions.map(position => `<th>${escapeOperationsCenterHtml(position)}</th>`).join("")}</tr></thead>
+              <tbody>${group.events.map(event => `
+                <tr>
+                  <td><time datetime="${escapeOperationsCenterHtml(`${event.date} ${event.time || ""}`)}">${escapeOperationsCenterHtml(event.time || "—")}</time></td>
+                  <td>${escapeOperationsCenterHtml(event.level || "—")}</td>
+                  <td><button type="button" class="operations-timeline-event" data-testid="operations-upcoming-event" data-operations-action="today-priority" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(event))}">${escapeOperationsCenterHtml(event.matchup)}</button></td>
+                  <td>${escapeOperationsCenterHtml(event.field || "—")}</td>
+                  ${positions.map(position => {
+                    const assignment = (event.assignments || []).find(item => item.position === position);
+                    return `<td class="operations-staffing-assignment" data-status="${assignment?.crewId ? "assigned" : "open"}">${escapeOperationsCenterHtml(assignment?.crewName || "—")}</td>`;
+                  }).join("")}
+                </tr>
+              `).join("")}</tbody>
+            </table>
+          </div>
+        </section>
+      `).join("") : `<div class="operations-console-complete" data-testid="operations-upcoming-empty" role="status"><strong>No upcoming events</strong><span>The supported schedule has no current or future work.</span></div>`}
+    </section>
+  `;
+}
+
+function renderOperationsStaffingHealth(periods = []) {
+  return `
+    <section class="operations-staffing-health" data-testid="operations-progress" aria-labelledby="operations-health-title">
+      <div class="operations-section-heading"><h2 id="operations-health-title">Operational State</h2></div>
+      ${periods.map(period => `
+        <article class="operations-period-health" data-testid="operations-period-${escapeOperationsCenterHtml(period.id)}" data-status="${escapeOperationsCenterHtml(period.status)}">
+          <span class="operations-status-light operations-status-light-${escapeOperationsCenterHtml(period.status)}" aria-hidden="true"></span>
+          <div><strong>${escapeOperationsCenterHtml(period.label)}</strong><span>${period.fullyStaffedCount} of ${period.eventCount} events fully staffed · ${period.openPositions} open positions</span></div>
+        </article>
+      `).join("")}
+    </section>
+  `;
+}
+
+function renderOperationsStaffingHealthCompact(periods = []) {
+  return `
+    <section class="operations-staffing-health" data-testid="operations-progress" aria-labelledby="operations-health-title">
+      <div class="operations-section-heading"><h2 id="operations-health-title">Operational State</h2></div>
+      ${periods.map(period => `
+        <article class="operations-period-health" data-testid="operations-period-${escapeOperationsCenterHtml(period.id)}" data-status="${escapeOperationsCenterHtml(period.status)}">
+          <span class="operations-status-light operations-status-light-${escapeOperationsCenterHtml(period.status)}" aria-hidden="true"></span>
+          <div class="operations-period-health-content">
+            <div class="operations-period-health-summary"><strong>${escapeOperationsCenterHtml(period.label)}</strong><span>${period.fullyStaffedCount}/${period.eventCount} staffed</span></div>
+            <dl class="operations-period-signals">
+              ${(period.signals || []).map(signal => `<div><dt>${escapeOperationsCenterHtml(signal.label)}</dt><dd class="${Number(signal.value) > 0 ? "operations-signal-active" : ""}">${Number(signal.value) || 0}</dd></div>`).join("")}
+            </dl>
+          </div>
+        </article>
+      `).join("")}
     </section>
   `;
 }
@@ -1772,10 +2302,36 @@ function renderOperationsCenter(context = {}) {
       operationsCenterActiveQueue
     );
 
-  const operations =
-    dashboardService.getOperationsCenter(
-      operationsCenterActiveQueue
-    );
+  let operations;
+
+  try {
+    operations =
+      dashboardService.getOperationsCenter(
+        operationsCenterActiveQueue
+      );
+  } catch (error) {
+    return `
+      <section class="page-section operations-center-console" data-testid="operations-center">
+        ${typeof renderErrorState === "function"
+          ? renderErrorState({
+              title: "Operations Center unavailable",
+              message: "Operational data could not be displayed. No information was changed.",
+              testId: "operations-center-error"
+            })
+          : '<div role="alert" data-testid="operations-center-error">Operations Center unavailable. No information was changed.</div>'}
+      </section>
+    `;
+  }
+
+  operations.operationalDate =
+    operations.operationalDate ||
+    new Date().toISOString().split("T")[0];
+  operations.statusMetrics =
+    operations.statusMetrics || [];
+  operations.upcomingWork =
+    operations.upcomingWork || [];
+  operations.recentActivity =
+    operations.recentActivity || [];
 
   const operationsFlash =
     context.operationsFlash &&
@@ -1804,30 +2360,46 @@ function renderOperationsCenter(context = {}) {
         class="operations-console-titlebar"
         data-testid="operations-console-titlebar"
       >
-        <div>
+        <div class="operations-title-context">
           <span class="operations-console-eyebrow">
             The Slate
           </span>
 
-          <h1>Operations Center</h1>
+          <h1 data-page-heading tabindex="-1">Operations Center</h1>
 
           <p>
-            Live command surface for today's operational work.
+            ${escapeOperationsCenterHtml(
+              formatOperationsCenterDate(
+                operations.operationalDate
+              )
+            )}
           </p>
         </div>
 
-        <div
-          class="operations-system-state"
-          data-testid="operations-system-state"
-        >
-          <span
-            class="operations-system-state-light"
-            aria-hidden="true"
-          ></span>
+        <div class="operations-header-actions">
+          <div
+            class="operations-system-state"
+            data-testid="operations-system-state"
+          >
+            <span
+              class="operations-system-state-light"
+              aria-hidden="true"
+            ></span>
 
-          <span>
-            System Ready
-          </span>
+            <span>
+              ${operations.totalOutstandingCount > 0 ? "Active work" : "Operations ready"}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="button button-primary"
+            data-testid="operations-primary-action"
+            data-operations-action="create-event"
+            data-operations-payload="{}"
+          >
+            Create Event
+          </button>
         </div>
       </header>
 
@@ -1848,10 +2420,15 @@ function renderOperationsCenter(context = {}) {
         )}
       </div>
 
-      <div
-        class="operations-command-strip"
-        data-testid="operations-command-strip"
-      >
+      ${renderOperationsCenterStatusStrip(
+        operations.statusMetrics
+      )}
+
+      ${renderOperationsCenterMetricDialogs(
+        operations.statusMetrics
+      )}
+
+      <div hidden aria-hidden="true">
         ${renderOperationsCenterWorkflowHeader(
           operations
         )}
@@ -1877,85 +2454,25 @@ function renderOperationsCenter(context = {}) {
       }
 
       <div
-        class="operations-center-shell"
+        class="operations-center-shell operations-center-shell-no-attention"
         data-testid="operations-center-shell"
       >
-        ${renderOperationsCenterQueueSummary(
-          operations.queueCounts,
-          operations.activeQueue
+        ${renderOperationsStaffingBoard(
+          operations.upcomingWork,
+          operations.operationalDate
         )}
 
-        <main
-          class="
-            operations-console-panel
-            operations-work-deck
-          "
-          data-testid="operations-work-deck"
-        >
-          <div class="operations-console-panel-header">
-            <div>
-              <span class="operations-console-eyebrow">
-                Active Work
-              </span>
+        ${renderOperationsCenterActivity(
+          operations.recentActivity,
+          operations
+        )}
 
-              <h2>Command Deck</h2>
-            </div>
-
-            <span class="operations-console-label">
-              Priority ordered
-            </span>
-          </div>
-
-          <div
-            class="${
-              successMessage
-                ? "operations-current-task-advanced"
-                : ""
-            }"
-            data-testid="operations-current-task-stage"
-            data-advanced="${
-              successMessage
-                ? "true"
-                : "false"
-            }"
-          >
-            ${renderOperationsCenterWorkQueue(
-              operations
+        <aside class="operations-secondary" data-testid="operations-secondary">
+          <div class="operations-status-rail" data-testid="operations-status-rail">
+            ${renderOperationsStaffingHealthCompact(
+              operations.staffingPeriods || []
             )}
           </div>
-        </main>
-
-        <aside
-          class="
-            operations-console-panel
-            operations-status-rail
-          "
-          data-testid="operations-status-rail"
-        >
-          <div class="operations-console-panel-header">
-            <div>
-              <span class="operations-console-eyebrow">
-                Telemetry
-              </span>
-
-              <h2>System Status</h2>
-            </div>
-
-            <span
-              class="operations-console-indicator"
-              aria-hidden="true"
-            ></span>
-          </div>
-
-          ${renderOperationsCenterProgress(
-            operations.operationalProgress,
-            operations
-          )}
-
-          ${renderOperationsCenterActivity(
-            operations.recentActivity,
-            operations
-          )}
         </aside>
       </div>
     </section>
@@ -2002,6 +2519,85 @@ function setupOperationsCenterActions() {
         }
       );
     });
+
+  document
+    .querySelectorAll(
+      "[data-operations-activity]"
+    )
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        () => {
+          let payload = {};
+
+          try {
+            payload = JSON.parse(
+              button.dataset
+                .operationsActivity || "{}"
+            );
+          } catch {
+            payload = {};
+          }
+
+          handleOperationsCenterActivity(
+            payload
+          );
+        }
+      );
+    });
+
+  document
+    .querySelectorAll(
+      "[data-operations-dialog-target]"
+    )
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        const dialog =
+          document.getElementById(
+            button.dataset
+              .operationsDialogTarget || ""
+          );
+
+        if (
+          dialog &&
+          typeof dialog.showModal === "function"
+        ) {
+          dialog.showModal();
+        }
+      });
+    });
+
+  document
+    .querySelectorAll(
+      "[data-operations-dialog-close]"
+    )
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        button.closest("dialog")?.close();
+      });
+    });
+
+  const activityMore =
+    document.querySelector(
+      "[data-operations-activity-more]"
+    );
+
+  if (activityMore) {
+    activityMore.addEventListener(
+      "click",
+      () => {
+        operationsCenterActivityVisibleCount +=
+          OPERATIONS_CENTER_ACTIVITY_BATCH;
+
+        renderPage(
+          "operations-center",
+          typeof currentPageContext !== "undefined"
+            ? currentPageContext
+            : {}
+        );
+      }
+    );
+  }
 
   document
     .querySelectorAll(

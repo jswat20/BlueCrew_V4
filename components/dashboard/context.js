@@ -146,10 +146,21 @@ function getDashboardOutstandingCount(
 function openDashboardOperations(
   queue = "all"
 ) {
+  const queueAliases = {
+    needsAssignment: "assignments",
+    pendingClaims: "claims",
+    awaitingReview: "reviews",
+    returnedReviews: "reviews",
+    pendingAccounts: "accounts"
+  };
+
+  const operationsQueue =
+    queueAliases[queue] || queue;
+
   navigateTo(
     "operations-center",
     {
-      queue
+      operationsQueue
     }
   );
 }

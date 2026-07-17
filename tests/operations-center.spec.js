@@ -133,7 +133,7 @@ test.describe("Operations Center", () => {
       page.getByTestId(
         "operations-queue-summary"
       )
-    ).toBeVisible();
+    ).toHaveCount(0);
 
     await expect(
       page.getByTestId(

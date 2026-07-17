@@ -52,7 +52,7 @@ const workflowCount =
     : "";
 
   container.innerHTML = `
-    <section class="daily-hero">
+    <section class="daily-hero presentation-panel">
       <div>
         <div class="daily-kicker">Daily Schedule</div>
         <h2>${formatLongDate(currentScheduleDate)}</h2>
@@ -102,7 +102,10 @@ function renderDailyFilterNotice(selectedCrewId, selectedCrewName) {
       Showing games assigned to
       <strong>${selectedCrewName}</strong>.
 
-      <button onclick="clearWorkloadCrewFilter()">
+      <button
+        class="button button-link"
+        onclick="clearWorkloadCrewFilter()"
+      >
         Show all games
       </button>
     </div>
@@ -111,11 +114,11 @@ function renderDailyFilterNotice(selectedCrewId, selectedCrewName) {
 
 function renderDailyGameCards(dayGames) {
   if (!dayGames.length) {
-    return `
-      <div class="empty-state">
-        No games to show for this view.
-      </div>
-    `;
+    return renderEmptyState({
+      message:
+        "No games to show for this view.",
+      testId: "schedule-empty"
+    });
   }
 
   return dayGames
@@ -133,4 +136,4 @@ function filterWorkloadByCrew(crewId) {
   if (!crewId) return;
 
   setWorkloadCrewFilter(crewId);
-}renderCrewBuilderSlot
+}

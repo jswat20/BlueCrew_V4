@@ -352,6 +352,15 @@ function getRoleSummary() {
         .trim()
         .toLowerCase();
 
+    const relatedGame =
+      activity.gameId &&
+      typeof gameService !== "undefined" &&
+      typeof gameService.getById === "function"
+        ? gameService.getById(
+            activity.gameId
+          )
+        : null;
+
     return {
       id:
         activity.id || "",
@@ -391,6 +400,14 @@ function getRoleSummary() {
 
       actor:
         activity.actor || "",
+
+      location:
+        activity.location ||
+        activity.metadata?.field ||
+        activity.metadata?.venue ||
+        relatedGame?.field ||
+        relatedGame?.venue ||
+        "",
 
       subject:
         activity.subject || "",
@@ -674,6 +691,20 @@ function getRoleSummary() {
       assignmentCount: assignments.length,
       openAssignmentCount,
       pendingClaimCount,
+      assignments: assignments.map(
+        assignment => ({
+          id: assignment.id || "",
+          position:
+            assignment.position || "Position",
+          crewId: assignment.crewId || "",
+          crewName: assignment.crewId
+            ? crewService.getDisplayName(
+                assignment.crewId
+              )
+            : "OPEN",
+          status: assignment.status || ""
+        })
+      ),
       fullyStaffed:
         assignments.length > 0 &&
         openAssignmentCount === 0 &&
@@ -1011,12 +1042,23 @@ function getRoleSummary() {
 function getOperationsCenter(
   requestedQueue = "all"
 ) {
+  const role =
+    typeof authorizationService !== "undefined" &&
+    typeof authorizationService.currentRole === "function"
+      ? authorizationService.currentRole()
+      : "umpire";
+
+  const canManageAccounts =
+    typeof authorizationService !== "undefined" &&
+    typeof authorizationService.canManageAccounts === "function" &&
+    authorizationService.canManageAccounts(role);
+
   const validQueues = [
     "all",
     "assignments",
     "claims",
     "reviews",
-    "accounts",
+    ...(canManageAccounts ? ["accounts"] : []),
     "conflicts"
   ];
 
@@ -1035,6 +1077,7 @@ function getOperationsCenter(
   const workbench = getWorkbench();
 
   const pendingAccounts =
+    canManageAccounts &&
     typeof accountService !== "undefined" &&
     typeof accountService
       .getPendingAccounts === "function"
@@ -1157,7 +1200,7 @@ function getOperationsCenter(
     "awaitingReview",
     "returnedReviews",
     "needsAssignment",
-    "pendingAccounts"
+    ...(canManageAccounts ? ["pendingAccounts"] : [])
   ];
 
   const queueTaskKeys = {
@@ -1284,8 +1327,226 @@ function getOperationsCenter(
       )
   };
 
+  const todaysEvents =
+    getTodaysSchedule();
+
+  const upcomingWork =
+    getUpcomingGames();
+
+  const openPositions =
+    getOpenAssignments();
+
+  const statusMetrics = [
+    {
+      id: "events-today",
+      label: "Events today",
+      value: todaysEvents.length,
+      action: "schedule-today",
+      item: {}
+    },
+    {
+      id: "fully-staffed",
+      label: "Fully staffed",
+      value:
+        todaysEvents.filter(
+          event => event.fullyStaffed
+        ).length,
+      action: "assigner-workbench",
+      item: { staffing: "fully-staffed" }
+    },
+    {
+      id: "open-positions",
+      label: "Open positions",
+      value: openPositions.length,
+      requiresAction: true,
+      action: "assigner-workbench",
+      item: { staffing: "open" }
+    },
+    {
+      id: "pending-claims",
+      label: "Pending claims",
+      value: tasks.pendingClaims.count,
+      requiresAction: true,
+      action: "pending-claim",
+      item:
+        tasks.pendingClaims.items[0] || {},
+      detailItems:
+        tasks.pendingClaims.items,
+      detailAction: "pending-claim",
+      detailActionLabel: "Review claim"
+    },
+    {
+      id: "reviews",
+      label: "Reviews requiring action",
+      value: queueCounts.reviews,
+      requiresAction: true,
+      action:
+        tasks.returnedReviews.count > 0
+          ? "returned-review"
+          : "awaiting-review",
+      item:
+        tasks.returnedReviews.items[0] ||
+        tasks.awaitingReview.items[0] ||
+        {}
+    },
+    ...(canManageAccounts
+      ? [{
+          id: "pending-accounts",
+          label: "Pending accounts",
+          value:
+            tasks.pendingAccounts.count,
+          requiresAction: true,
+          action: "pending-account",
+          item:
+            tasks.pendingAccounts.items[0] || {},
+          detailItems:
+            tasks.pendingAccounts.items,
+          detailAction: "pending-account",
+          detailActionLabel: "Review account"
+        }]
+      : []),
+    {
+      id: "active-alerts",
+      label: "Active alerts",
+      value: tasks.conflicts.count,
+      requiresAction: true,
+      action: "schedule-conflict",
+      item: tasks.conflicts.items[0] || {}
+    }
+  ];
+
+  const monthEnd =
+    new Date(`${today}T12:00:00`);
+  monthEnd.setMonth(monthEnd.getMonth() + 1, 0);
+
+  const weekEnd =
+    new Date(`${today}T12:00:00`);
+  weekEnd.setDate(
+    weekEnd.getDate() +
+      (7 - weekEnd.getDay()) % 7
+  );
+
+  const buildStaffingPeriod = (
+    id,
+    label,
+    startDate,
+    endDate
+  ) => {
+    const games = gameService.getAll()
+      .filter(game =>
+        game.date >= startDate &&
+        game.date <= endDate &&
+        gameService.getStatus(game) !== "cancelled"
+      )
+      .map(toDashboardGame);
+
+    const openPositions = games.reduce(
+      (total, game) =>
+        total + game.openAssignmentCount,
+      0
+    );
+    const hasTodayGap = games.some(
+      game =>
+        game.date === today &&
+        game.openAssignmentCount > 0
+    );
+
+    const gameDates = [...new Set(
+      games.map(game => game.date)
+    )];
+    const reviewCount = games.filter(game => {
+      const source = gameService.getById(game.id);
+      return ["submitted", "returned"].includes(
+        source?.review?.status
+      );
+    }).length;
+    const conflictCount = gameDates.reduce(
+      (total, date) =>
+        total + (
+          conflictService?.getDailyIssues?.(date)
+            ?.length || 0
+        ),
+      0
+    );
+    const accountCount = canManageAccounts
+      ? pendingAccounts.filter(account => {
+          const createdDate = String(
+            account.createdAt || ""
+          ).split("T")[0];
+          return createdDate >= startDate &&
+            createdDate <= endDate;
+        }).length
+      : 0;
+
+    return {
+      id,
+      label,
+      eventCount: games.length,
+      fullyStaffedCount:
+        games.filter(game => game.fullyStaffed).length,
+      openPositions,
+      signals: [
+        {
+          id: "assignments",
+          label: "Assignments",
+          value: openPositions
+        },
+        {
+          id: "claims",
+          label: "Claims",
+          value: games.reduce(
+            (total, game) =>
+              total + game.pendingClaimCount,
+            0
+          )
+        },
+        {
+          id: "reviews",
+          label: "Reviews",
+          value: reviewCount
+        },
+        ...(canManageAccounts
+          ? [{
+              id: "accounts",
+              label: "Accounts",
+              value: accountCount
+            }]
+          : []),
+        {
+          id: "conflicts",
+          label: "Conflicts",
+          value: conflictCount
+        }
+      ],
+      status: hasTodayGap
+        ? "critical"
+        : openPositions > 0
+          ? "watch"
+          : "healthy"
+    };
+  };
+
+  const staffingPeriods = [
+    buildStaffingPeriod("today", "Today", today, today),
+    buildStaffingPeriod(
+      "week",
+      "This week",
+      today,
+      weekEnd.toISOString().split("T")[0]
+    ),
+    buildStaffingPeriod(
+      "month",
+      "This month",
+      today,
+      monthEnd.toISOString().split("T")[0]
+    )
+  ];
+
   return {
     activeQueue,
+    role,
+    canManageAccounts,
+    operationalDate: today,
 
     queues: [
       {
@@ -1309,11 +1570,13 @@ function getOperationsCenter(
         label: "Reviews",
         count: queueCounts.reviews
       },
-      {
-        id: "accounts",
-        label: "Accounts",
-        count: queueCounts.accounts
-      },
+      ...(canManageAccounts
+        ? [{
+            id: "accounts",
+            label: "Accounts",
+            count: queueCounts.accounts
+          }]
+        : []),
       {
         id: "conflicts",
         label: "Conflicts",
@@ -1326,10 +1589,13 @@ function getOperationsCenter(
     currentTask,
     remainingTasks,
     queueCounts,
+    statusMetrics,
+    staffingPeriods,
+    upcomingWork,
 
     recentActivity:
       getRecentOperationalActivity(
-        8
+        50
       ),
 
     operationalProgress,

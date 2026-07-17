@@ -20,6 +20,7 @@ function renderSchedule() {
 
           <button
             id="daily-view-btn"
+            class="button button-secondary"
             data-testid="view-daily"
             onclick="setScheduleView('daily')">
             Daily View
@@ -27,6 +28,7 @@ function renderSchedule() {
 
           <button
             id="all-games-view-btn"
+            class="button button-secondary"
             data-testid="view-all-games"
             onclick="setScheduleView('all')">
             All Games
@@ -39,25 +41,28 @@ function renderSchedule() {
   data-testid="schedule-date-nav">
 
   <button
+    class="button button-secondary"
     data-testid="previous-date"
     onclick="goToPreviousGameDate()">
     ◀ Previous
   </button>
 
   <button
-    class="primary"
+    class="button button-primary primary"
     data-testid="add-game"
     onclick="openGameEditor()">
     + Add Game
   </button>
 
   <button
+    class="button button-secondary"
     data-testid="import-schedule"
     onclick="openScheduleImport()">
     Import CSV
   </button>
 
     <button
+    class="button button-secondary"
     data-testid="export-schedule"
     onclick="exportSchedule()"
     ${
@@ -69,12 +74,14 @@ function renderSchedule() {
   </button>
   
   <button
+    class="button button-secondary"
     data-testid="today"
     onclick="goToToday()">
     Today
   </button>
 
   <button
+    class="button button-secondary"
     data-testid="next-date"
     onclick="goToNextGameDate()">
     Next ▶

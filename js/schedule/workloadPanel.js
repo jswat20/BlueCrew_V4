@@ -25,7 +25,7 @@ function renderCrewWorkloadPanel(date) {
 
   if (!crewList.length) {
     return `
-      <section class="crew-workload-panel">
+      <section class="crew-workload-panel presentation-panel">
         <div class="panel-header">
           <div>
             <h3>Crew Workload</h3>
@@ -39,7 +39,7 @@ function renderCrewWorkloadPanel(date) {
   const selectedId = getSelectedWorkloadCrewId();
 
   return `
-    <section class="crew-workload-panel">
+    <section class="crew-workload-panel presentation-panel">
 
       <div class="panel-header">
 
@@ -54,7 +54,7 @@ function renderCrewWorkloadPanel(date) {
           selectedId
             ? `
               <button
-                class="secondary small-btn"
+                class="button button-secondary button-compact secondary small-btn"
                 onclick="clearWorkloadCrewFilter()">
                 Clear Filter
               </button>

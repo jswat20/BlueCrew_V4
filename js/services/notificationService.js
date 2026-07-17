@@ -90,20 +90,28 @@ const notificationService = (() => {
   }
 
   function sortNewestFirst(notifications) {
-    return [...notifications].sort((a, b) => {
-      const timestampDifference =
-        String(b.createdAt || "").localeCompare(
-          String(a.createdAt || "")
-        );
+    return notifications
+      .map((notification, index) => ({
+        notification,
+        index
+      }))
+      .sort((a, b) => {
+        const timestampDifference =
+          String(
+            b.notification.createdAt || ""
+          ).localeCompare(
+            String(
+              a.notification.createdAt || ""
+            )
+          );
 
-      if (timestampDifference !== 0) {
-        return timestampDifference;
-      }
+        if (timestampDifference !== 0) {
+          return timestampDifference;
+        }
 
-      return String(b.id || "").localeCompare(
-        String(a.id || "")
-      );
-    });
+        return b.index - a.index;
+      })
+      .map(item => item.notification);
   }
 
   function getNotificationCategory(type) {

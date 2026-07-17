@@ -24,6 +24,7 @@ function openScheduleImport() {
         <h2>Import Schedule</h2>
 
         <button
+          class="button button-link button-compact"
           aria-label="Close schedule import"
           onclick="closeScheduleImport()">
           ×
@@ -45,6 +46,7 @@ function openScheduleImport() {
 
       <div class="assign-drawer-actions">
         <button
+          class="button button-primary"
           data-testid="schedule-import-submit"
           onclick="importSchedulePreview()"
           disabled>
@@ -52,7 +54,7 @@ function openScheduleImport() {
         </button>
 
         <button
-          class="secondary"
+          class="button button-secondary secondary"
           data-testid="schedule-import-close"
           onclick="closeScheduleImport()">
           Close
@@ -106,7 +108,11 @@ function renderScheduleImportPreview(preview) {
     ${
       preview.errors.length
         ? preview.errors.map(error => `
-            <div class="import-error">
+            <div
+              class="import-error presentation-error-state"
+              role="alert"
+              aria-live="assertive"
+            >
               <strong>Row ${error.row}</strong><br>
               ${error.message}
             </div>

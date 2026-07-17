@@ -39,12 +39,12 @@ const filter =
   const sortedGames = games.sort(sortGames);
 
   container.innerHTML = `
-    <section class="all-games-header">
+    <section class="all-games-header presentation-page-header presentation-panel">
       <h2>All Games</h2>
       <p>Full schedule table.</p>
     </section>
 
-    <div class="schedule-table-wrap">
+    <div class="schedule-table-wrap presentation-table-wrapper">
       <table class="schedule-table">
         <thead>
           <tr>
@@ -118,7 +118,7 @@ const isHighlighted =
           typeof renderAssignmentStatusBadge === "function"
             ? renderAssignmentStatusBadge(game)
             : `
-              <span class="table-status ${assigned ? "assigned" : "open"}">
+              <span class="table-status status-badge ${assigned ? "assigned status-badge-approved" : "open status-badge-open"}">
                 ${assigned ? "Assigned" : "Open"}
               </span>
             `
@@ -127,6 +127,7 @@ const isHighlighted =
 
       <td>
         <button
+  class="button button-primary"
   data-testid="assign-game-${game.id}"
   onclick="openAssignmentDrawer('${game.id}')"
 >
@@ -134,6 +135,7 @@ const isHighlighted =
 </button>
 
 <button
+  class="button button-secondary"
   data-testid="edit-game-${game.id}"
   onclick="editGame('${game.id}')"
 >
@@ -141,6 +143,7 @@ const isHighlighted =
 </button>
 
 <button
+  class="button button-danger"
   data-testid="delete-game-${game.id}"
   onclick="deleteGame('${game.id}')"
 >

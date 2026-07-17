@@ -21,11 +21,6 @@
 
 .schedule-tabs button,
 .schedule-date-nav button {
-  padding: 10px 15px;
-  border-radius: 9px;
-  border: 1px solid #d0d7de;
-  background: #ffffff;
-  cursor: pointer;
   font-weight: 800;
 }
 
@@ -33,12 +28,6 @@
   background: #0f2d4a;
   color: white;
   border-color: #0f2d4a;
-}
-
-.schedule-date-nav button {
-  background: #2389e8;
-  color: white;
-  border-color: #2389e8;
 }
 
 .daily-hero {
@@ -273,7 +262,7 @@
   background: white;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 14px rgba(16,24,40,0.06);
 }
 
 .all-games-header h2 {

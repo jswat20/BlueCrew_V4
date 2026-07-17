@@ -34,7 +34,12 @@ const portalService = (() => {
   function getGameHub(gameId) {
     const account = getCurrentAccount();
 
-    if (!account || !account.crewId) {
+    const canManageGame =
+      typeof authService !== "undefined" &&
+      (authService.isAdmin?.() ||
+        authService.getCurrentUser?.().role === "assigner");
+
+    if ((!account || !account.crewId) && !canManageGame) {
       return null;
     }
 
@@ -47,12 +52,23 @@ const portalService = (() => {
 
     if (
       !game ||
-      !isGameAssignedToCrew(game, account.crewId)
+      (!canManageGame &&
+        !isGameAssignedToCrew(game, account.crewId))
     ) {
       return null;
     }
 
-    return mapGame(game, account.crewId);
+    const administrativeCrewId =
+      getAssignments(game)
+        .find(assignment => assignment.crewId)
+        ?.crewId || "";
+
+    return mapGame(
+      game,
+      canManageGame
+        ? administrativeCrewId
+        : account?.crewId
+    );
   }
 
   function getClaimableGames() {

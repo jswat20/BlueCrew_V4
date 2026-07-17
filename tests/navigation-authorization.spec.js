@@ -8,6 +8,11 @@ test.describe("Role-Aware Navigation", () => {
   test("shows administrator navigation and hides umpire-only pages", async ({
     page
   }) => {
+    await expect(page.getByTestId("nav-group-command")).toBeVisible();
+    await expect(page.getByTestId("nav-group-scheduling")).toBeVisible();
+    await expect(page.getByTestId("nav-group-organization")).toBeVisible();
+    await expect(page.getByTestId("nav-group-account")).toBeVisible();
+
     await expect(page.getByTestId("nav-dashboard")).toBeVisible();
     await expect(page.getByTestId("nav-schedule")).toBeVisible();
     await expect(page.getByTestId("nav-crew")).toBeVisible();
@@ -28,6 +33,11 @@ test.describe("Role-Aware Navigation", () => {
     page
   }) => {
     await page.getByTestId("role-umpire").click();
+
+    await expect(page.getByTestId("nav-group-command")).toBeVisible();
+    await expect(page.getByTestId("nav-group-scheduling")).toBeVisible();
+    await expect(page.getByTestId("nav-group-organization")).toBeHidden();
+    await expect(page.getByTestId("nav-group-account")).toBeVisible();
 
     await expect(page.getByTestId("nav-dashboard")).toBeVisible();
     await expect(page.getByTestId("nav-claim-games")).toBeVisible();
@@ -80,4 +90,21 @@ test.describe("Role-Aware Navigation", () => {
     await expect(page.getByTestId("nav-accounts")).toBeVisible();
     await expect(page.getByTestId("nav-claim-games")).toBeHidden();
   });
+});
+
+test("navigation groups collapse and expand accessibly", async ({ page }) => {
+  await page.goto("/");
+
+  const toggle = page.getByRole("button", { name: "Scheduling" });
+  const schedule = page.getByTestId("nav-schedule");
+
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await toggle.focus();
+  await page.keyboard.press("Enter");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(schedule).toBeHidden();
+
+  await page.keyboard.press("Enter");
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(schedule).toBeVisible();
 });

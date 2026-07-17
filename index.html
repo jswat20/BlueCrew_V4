@@ -19,53 +19,48 @@
         </div>
       </div>
 
-      <nav class="nav-menu" data-testid="navigation">
-        <button class="nav-link active" data-page="dashboard" data-testid="nav-dashboard">🏠 Dashboard</button>
-        <button class="nav-link" data-page="schedule" data-testid="nav-schedule">📅 Schedule</button>
-        <button class="nav-link" data-page="crew" data-testid="nav-crew">👥 Crew</button>
-        <button class="nav-link" data-page="reports" data-testid="nav-reports">📈 Reports</button>
-        <button
-          class="nav-link"
-          data-page="season-dashboard"
-          data-testid="nav-season-dashboard"
-        >
-          📊 Season Dashboard
-        </button>
+      <nav class="nav-menu" data-testid="navigation" aria-label="Primary navigation">
+        <section class="nav-group" data-testid="nav-group-command" aria-labelledby="nav-group-command-toggle">
+          <button type="button" class="nav-group-toggle" id="nav-group-command-toggle" aria-expanded="true" aria-controls="nav-group-command-items"><span>Command</span><span class="nav-group-chevron" aria-hidden="true">⌄</span></button>
+          <div class="nav-group-items" id="nav-group-command-items">
+          <button type="button" class="nav-link active" data-page="dashboard" data-testid="nav-dashboard">🏠 Dashboard</button>
+          <button type="button" class="nav-link" data-page="operations-center" data-testid="nav-operations-center">Operations Center</button>
+          <button type="button" class="nav-link" data-page="assigner-workbench" data-testid="nav-assigner-workbench">🧰 Assigner Workbench</button>
+          <button type="button" class="nav-link" data-page="season-dashboard" data-testid="nav-season-dashboard">📊 Season Dashboard</button>
+          </div>
+        </section>
 
-        <button
-          class="nav-link"
-          data-page="assigner-workbench"
-          data-testid="nav-assigner-workbench"
-        >
-          🧰 Assigner Workbench
-        </button>
-        <button
-          type="button"
-          class="nav-link"
-          data-page="operations-center"
-          data-testid="nav-operations-center"
-        >
-          Operations Center
-        </button>
-        <button class="nav-link" data-page="settings" data-testid="nav-settings">⚙ Settings</button>
-        <button class="nav-link" data-page="admin" data-testid="nav-admin">🛠 Admin</button>
-        <button class="nav-link" data-page="login" data-testid="nav-login"> Login </button>
-        <button class="nav-link" data-page="accounts" data-testid="nav-accounts"> Accounts </button>
-        <button class="nav-link" data-page="claim-games" data-testid="nav-claim-games"> Claim Games </button> 
-        <button class="nav-link" data-page="my-claims" data-testid="nav-my-claims"> My Claims </button>
-        <button class="nav-link" data-page="claims-queue" data-testid="nav-claims-queue"> Claims Queue </button>
-        <button class="nav-link" data-page="claim-history" data-testid="nav-claim-history"> Claim History </button>
-        <button  type="button" class="nav-link" data-page="availability" data-testid="nav-availability"> Availability </button>
-        <button class="nav-link" data-page="notifications" data-testid="nav-notifications"> Notifications <span data-testid="notifications-badge"></span>
-</button>
-        <button
-          class="nav-link"
-          data-page="profile"
-          data-testid="nav-profile"
-        >
-          👤 Profile
-        </button>
+        <section class="nav-group" data-testid="nav-group-scheduling" aria-labelledby="nav-group-scheduling-toggle">
+          <button type="button" class="nav-group-toggle" id="nav-group-scheduling-toggle" aria-expanded="true" aria-controls="nav-group-scheduling-items"><span>Scheduling</span><span class="nav-group-chevron" aria-hidden="true">⌄</span></button>
+          <div class="nav-group-items" id="nav-group-scheduling-items">
+          <button type="button" class="nav-link" data-page="schedule" data-testid="nav-schedule">📅 Schedule</button>
+          <button type="button" class="nav-link" data-page="claim-games" data-testid="nav-claim-games">Claim Games</button>
+          <button type="button" class="nav-link" data-page="my-claims" data-testid="nav-my-claims">My Claims</button>
+          <button type="button" class="nav-link" data-page="claims-queue" data-testid="nav-claims-queue">Claims Queue</button>
+          <button type="button" class="nav-link" data-page="claim-history" data-testid="nav-claim-history">Claim History</button>
+          <button type="button" class="nav-link" data-page="availability" data-testid="nav-availability">Availability</button>
+          </div>
+        </section>
 
+        <section class="nav-group" data-testid="nav-group-organization" aria-labelledby="nav-group-organization-toggle">
+          <button type="button" class="nav-group-toggle" id="nav-group-organization-toggle" aria-expanded="true" aria-controls="nav-group-organization-items"><span>Organization</span><span class="nav-group-chevron" aria-hidden="true">⌄</span></button>
+          <div class="nav-group-items" id="nav-group-organization-items">
+          <button type="button" class="nav-link" data-page="crew" data-testid="nav-crew">👥 Crew</button>
+          <button type="button" class="nav-link" data-page="accounts" data-testid="nav-accounts">Accounts</button>
+          <button type="button" class="nav-link" data-page="reports" data-testid="nav-reports">📈 Reports</button>
+          <button type="button" class="nav-link" data-page="settings" data-testid="nav-settings">⚙ Settings</button>
+          <button type="button" class="nav-link" data-page="admin" data-testid="nav-admin">🛠 Admin</button>
+          </div>
+        </section>
+
+        <section class="nav-group" data-testid="nav-group-account" aria-labelledby="nav-group-account-toggle">
+          <button type="button" class="nav-group-toggle" id="nav-group-account-toggle" aria-expanded="true" aria-controls="nav-group-account-items"><span>Account</span><span class="nav-group-chevron" aria-hidden="true">⌄</span></button>
+          <div class="nav-group-items" id="nav-group-account-items">
+          <button type="button" class="nav-link" data-page="notifications" data-testid="nav-notifications">Notifications <span data-testid="notifications-badge"></span></button>
+          <button type="button" class="nav-link" data-page="profile" data-testid="nav-profile">👤 Profile</button>
+          <button type="button" class="nav-link" data-page="login" data-testid="nav-login">Login</button>
+          </div>
+        </section>
       </nav>
     </aside>
 
@@ -96,7 +91,6 @@
 <script src="components/dashboard/header.js"></script>
 <script src="components/dashboard/dailyBrief.js"></script>
 <script src="components/dashboard/todaysGames.js"></script>
-<script src="components/dashboard/quickAccess.js"></script>
 <script src="components/dashboard/index.js"></script>
 <script src="components/crew.js"></script>
 <script src="components/reports.js"></script>

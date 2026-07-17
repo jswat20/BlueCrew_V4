@@ -239,6 +239,60 @@ test.describe("Dashboard Entry Experience", () => {
     );
   });
 
+  test("daily brief metrics open the intended Operations queue", async ({
+    app
+  }) => {
+    const drilldowns = [
+      {
+        metric: "open-assignments",
+        queue: "assignments",
+        label: "Assignments"
+      },
+      {
+        metric: "pending-claims",
+        queue: "claims",
+        label: "Claims"
+      },
+      {
+        metric: "pending-reviews",
+        queue: "reviews",
+        label: "Reviews"
+      },
+      {
+        metric: "pending-accounts",
+        queue: "accounts",
+        label: "Accounts"
+      }
+    ];
+
+    for (const drilldown of drilldowns) {
+      await app.page.evaluate(() => {
+        renderPage("dashboard");
+      });
+
+      await app.page
+        .getByTestId(
+          `dashboard-summary-${drilldown.metric}`
+        )
+        .click();
+
+      await expect(
+        app.page.getByTestId(
+          `operations-queue-${drilldown.queue}`
+        )
+      ).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
+
+      await expect(
+        app.page.getByTestId(
+          "operations-active-queue-label"
+        )
+      ).toHaveText(drilldown.label);
+    }
+  });
+
   test("today games opens the Schedule", async ({
     app
   }) => {

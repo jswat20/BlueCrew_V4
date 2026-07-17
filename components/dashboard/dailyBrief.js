@@ -39,6 +39,7 @@ function renderDashboardDailyBrief() {
     <section
       class="
         dashboard-card
+        presentation-card
         dashboard-daily-brief
       "
       data-testid="operations-summary"
@@ -152,7 +153,7 @@ function renderDashboardDailyBrief() {
       <div class="dashboard-brief-actions">
         <button
           type="button"
-          class="primary-btn"
+          class="button button-primary primary-btn"
           data-testid="dashboard-open-operations"
           onclick='navigateTo(
             "operations-center"

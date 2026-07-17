@@ -246,7 +246,7 @@ function renderAssignmentDrawer() {
           data-testid="assignment-footer"
         >
           <button
-            class="secondary-btn"
+            class="button button-secondary secondary-btn"
             data-testid="assignment-autofill"
             onclick="autoFillCrewDraft()"
           >
@@ -254,7 +254,7 @@ function renderAssignmentDrawer() {
           </button>
 
           <button
-            class="secondary-btn"
+            class="button button-secondary secondary-btn"
             data-testid="assignment-cancel"
             onclick="cancelCrewBuilder()"
           >
@@ -262,7 +262,7 @@ function renderAssignmentDrawer() {
           </button>
 
           <button
-            class="primary-btn"
+            class="button button-primary primary-btn"
             data-testid="assignment-save"
             onclick="saveCrewDraft()"
           >
@@ -373,7 +373,7 @@ function renderCrewBuilderSlot(
         )}
 
         <button
-          class="secondary-btn small-btn"
+          class="button button-secondary button-compact secondary-btn small-btn"
           data-testid="assignment-lock-${position}"
           onclick="toggleAssignmentLock(
             '${assignmentId}'
@@ -782,6 +782,9 @@ ${renderAssignmentRecommendationReasons(
 )}
       <button
         class="
+          button
+          button-secondary
+          button-compact
           secondary-btn
           small-btn
           recommendation-use-btn
