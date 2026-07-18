@@ -83,6 +83,22 @@ async function setupGameHub(app) {
 }
 
 test.describe("Game Hub", () => {
+  test("administrators can open crew assignment from Game Hub", async ({ app }) => {
+    const { gameId } = await setupGameHub(app);
+
+    await app.page.evaluate(id => {
+      authService.loginAsAdmin();
+      document.body.dataset.role = "admin";
+      renderPage("game-hub", { gameId: id });
+    }, gameId);
+
+    const manageCrew = app.page.getByTestId("game-hub-manage-crew");
+    await expect(manageCrew).toBeVisible();
+    await manageCrew.click();
+    await expect(app.page.getByTestId("assignment-drawer")).toBeVisible();
+    await expect(app.page.getByTestId("assignment-save")).toBeVisible();
+  });
+
   test(
     "opens the selected game, renders its panels, and returns to My Schedule",
     async ({ app }) => {

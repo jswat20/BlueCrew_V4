@@ -158,3 +158,17 @@ function renderOpenGamesQueue(date) {
     </section>
   `;
 }
+
+function renderScheduleStaffingReadiness(date) {
+  const openGames = getOpenGamesForDate(date);
+  return `
+    <section class="open-games-panel schedule-readiness-panel presentation-panel" data-testid="schedule-staffing-readiness">
+      <div class="panel-header"><div>
+        <span class="daily-kicker">Staffing Readiness</span>
+        <h3>${openGames.length ? "Assignments Need Attention" : "All Games Assigned"}</h3>
+        <p>${openGames.length ? `${openGames.length} game${openGames.length === 1 ? "" : "s"} need crew for this day.` : "No open assignments for this day."}</p>
+      </div></div>
+      <button type="button" class="button button-primary schedule-readiness-action" data-testid="schedule-open-workbench" onclick="window.navigateTo('assigner-workbench', { origin: 'schedule', returnPage: 'schedule', staffing: '${openGames.length ? "open" : "all"}' })">Open Assigner Workbench</button>
+    </section>
+  `;
+}

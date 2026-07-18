@@ -36,6 +36,11 @@ const claimsQueueService = (() => {
             claimedBy: assignment.claimedBy,
             claimedByName:
               assignment.claimedByName ||
+              (assignment.claimedBy &&
+                typeof crewService !== "undefined" &&
+                typeof crewService.getDisplayName === "function"
+                  ? crewService.getDisplayName(assignment.claimedBy)
+                  : "") ||
               assignment.claimedBy ||
               "Unknown Umpire",
             status: assignment.status

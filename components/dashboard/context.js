@@ -144,7 +144,8 @@ function getDashboardOutstandingCount(
 }
 
 function openDashboardOperations(
-  queue = "all"
+  queue = "all",
+  operationsDialog = ""
 ) {
   const queueAliases = {
     needsAssignment: "assignments",
@@ -160,7 +161,18 @@ function openDashboardOperations(
   navigateTo(
     "operations-center",
     {
-      operationsQueue
+      operationsQueue,
+      operationsDialog
     }
   );
+}
+
+function openDashboardWorkbench(
+  focus = "open-positions"
+) {
+  navigateTo("assigner-workbench", {
+    focus,
+    origin: "dashboard",
+    returnPage: "dashboard"
+  });
 }

@@ -34,9 +34,7 @@ function renderCrew() {
 
       <div class="section-spacer"></div>
 
-      <div class="crew-list">
-        ${crew.map(member => renderCrewCard(member)).join("")}
-      </div>
+      ${typeof renderCrewWorkloadOverview === "function" ? renderCrewWorkloadOverview() : ""}
     </div>
   `;
 }
@@ -180,7 +178,9 @@ closeCrewDrawer();
 renderPage("crew");
 }
 function openEditCrewDrawer(memberId) {
-  const member = crew.find(item => item.id === memberId);
+  const member = crew.find(item =>
+    String(item.id) === String(memberId)
+  );
 
   if (!member) return;
 

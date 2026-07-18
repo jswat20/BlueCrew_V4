@@ -8,14 +8,19 @@ function renderDashboardBriefMetric({
   action,
   emphasis = ""
 }) {
+  const isPriority = id !== "today-games";
+  const requiresAttention = emphasis === "dashboard-brief-alert";
+
   return `
     <button
       type="button"
       class="
         dashboard-brief-metric
+        ${isPriority ? "dashboard-brief-metric-priority" : "dashboard-brief-metric-context"}
         ${emphasis}
       "
       data-testid="dashboard-summary-${id}"
+      data-attention="${requiresAttention}"
       onclick='${action}'
     >
       <strong
@@ -25,6 +30,7 @@ function renderDashboardBriefMetric({
       </strong>
 
       <span>${label}</span>
+      <small>${isPriority ? "Open work" : "Operational context"}</small>
     </button>
   `;
 }
@@ -46,11 +52,7 @@ function renderDashboardDailyBrief() {
     >
       <div class="dashboard-brief-heading">
         <div>
-          <span class="dashboard-eyebrow">
-            Daily Brief
-          </span>
-
-          <h2>Today at a glance</h2>
+          <h2>The Daily Brief - Today At A Glance</h2>
         </div>
 
         <p
@@ -74,23 +76,19 @@ function renderDashboardDailyBrief() {
           id: "today-games",
           value: brief.todayGames,
           label:
-            brief.todayGames === 1
-              ? "game today"
-              : "games today",
+            "Games Today",
           action:
-            `openDashboardSchedule("all")`
+            `openDashboardSchedule("today")`
         })}
 
         ${renderDashboardBriefMetric({
           id: "open-assignments",
           value: brief.openAssignments,
           label:
-            brief.openAssignments === 1
-              ? "open position"
-              : "open positions",
+            "Open Positions",
           action:
-            `openDashboardOperations(
-              "needsAssignment"
+            `openDashboardWorkbench(
+              "open-positions"
             )`,
           emphasis:
             brief.openAssignments
@@ -102,12 +100,11 @@ function renderDashboardDailyBrief() {
           id: "pending-claims",
           value: brief.pendingClaims,
           label:
-            brief.pendingClaims === 1
-              ? "pending claim"
-              : "pending claims",
+            "Pending Claims",
           action:
             `openDashboardOperations(
-              "pendingClaims"
+              "pendingClaims",
+              "pending-claims"
             )`,
           emphasis:
             brief.pendingClaims
@@ -119,12 +116,11 @@ function renderDashboardDailyBrief() {
           id: "pending-reviews",
           value: brief.pendingReviews,
           label:
-            brief.pendingReviews === 1
-              ? "review waiting"
-              : "reviews waiting",
+            "Reviews Waiting",
           action:
             `openDashboardOperations(
-              "awaitingReview"
+              "awaitingReview",
+              "reviews"
             )`,
           emphasis:
             brief.pendingReviews
@@ -136,12 +132,11 @@ function renderDashboardDailyBrief() {
           id: "pending-accounts",
           value: brief.pendingAccounts,
           label:
-            brief.pendingAccounts === 1
-              ? "account request"
-              : "account requests",
+            "Account Requests",
           action:
             `openDashboardOperations(
-              "pendingAccounts"
+              "pendingAccounts",
+              "pending-accounts"
             )`,
           emphasis:
             brief.pendingAccounts
@@ -150,18 +145,6 @@ function renderDashboardDailyBrief() {
         })}
       </div>
 
-      <div class="dashboard-brief-actions">
-        <button
-          type="button"
-          class="button button-primary primary-btn"
-          data-testid="dashboard-open-operations"
-          onclick='navigateTo(
-            "operations-center"
-          )'
-        >
-          Open Operations Center
-        </button>
-      </div>
     </section>
   `;
 }

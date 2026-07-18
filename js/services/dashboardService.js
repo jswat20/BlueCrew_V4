@@ -1387,7 +1387,16 @@ function getOperationsCenter(
       item:
         tasks.returnedReviews.items[0] ||
         tasks.awaitingReview.items[0] ||
-        {}
+        {},
+      detailItems: [
+        ...tasks.returnedReviews.items,
+        ...tasks.awaitingReview.items
+      ],
+      detailAction:
+        tasks.returnedReviews.count > 0
+          ? "returned-review"
+          : "awaiting-review",
+      detailActionLabel: "Open review"
     },
     ...(canManageAccounts
       ? [{
@@ -1477,6 +1486,18 @@ function getOperationsCenter(
             createdDate <= endDate;
         }).length
       : 0;
+    const claimCount = games.reduce(
+      (total, game) =>
+        total + game.pendingClaimCount,
+      0
+    );
+    const signalStatus = (signalId, value) => {
+      if (value === 0) return "healthy";
+      if (id === "today" || signalId === "conflicts") {
+        return "critical";
+      }
+      return "watch";
+    };
 
     return {
       id,
@@ -1489,33 +1510,34 @@ function getOperationsCenter(
         {
           id: "assignments",
           label: "Assignments",
-          value: openPositions
+          value: openPositions,
+          status: signalStatus("assignments", openPositions)
         },
         {
           id: "claims",
           label: "Claims",
-          value: games.reduce(
-            (total, game) =>
-              total + game.pendingClaimCount,
-            0
-          )
+          value: claimCount,
+          status: signalStatus("claims", claimCount)
         },
         {
           id: "reviews",
           label: "Reviews",
-          value: reviewCount
+          value: reviewCount,
+          status: signalStatus("reviews", reviewCount)
         },
         ...(canManageAccounts
           ? [{
               id: "accounts",
               label: "Accounts",
-              value: accountCount
+              value: accountCount,
+              status: signalStatus("accounts", accountCount)
             }]
           : []),
         {
           id: "conflicts",
           label: "Conflicts",
-          value: conflictCount
+          value: conflictCount,
+          status: signalStatus("conflicts", conflictCount)
         }
       ],
       status: hasTodayGap

@@ -498,7 +498,43 @@ function renderWorkbenchNotificationCard() {
   `;
 }
 
-function renderWorkbench() {
+function renderWorkbenchOpenPositions(games = []) {
+  return `
+    <section class="workbench-open-positions" data-testid="workbench-open-positions-focus">
+      <div class="presentation-page-header presentation-panel workbench-open-positions-header">
+        <div>
+          <span class="dashboard-eyebrow">Staffing Queue</span>
+          <h2>Games With Open Positions</h2>
+          <p>${games.length} ${games.length === 1 ? "game requires" : "games require"} crew assignment.</p>
+        </div>
+        <button type="button" class="button button-secondary" data-testid="workbench-show-all" onclick="navigateTo('assigner-workbench')">Show All Workbench</button>
+      </div>
+
+      <div class="presentation-table-wrapper workbench-open-table-wrap">
+        <table class="presentation-table workbench-open-table">
+          <thead><tr><th>Date</th><th>Time</th><th>Game</th><th>Location</th><th>Open Positions</th><th>Action</th></tr></thead>
+          <tbody>
+            ${games.length ? games.map(game => {
+              const openAssignments = assignmentService.getAssignments(game).filter(assignment => !assignment.crewId);
+              return `
+                <tr data-testid="workbench-open-game-${escapeWorkbenchHtml(game.id)}">
+                  <td>${escapeWorkbenchHtml(game.date || "—")}</td>
+                  <td>${escapeWorkbenchHtml(game.time || "TBD")}</td>
+                  <td><strong>${escapeWorkbenchHtml(getWorkbenchItemLabel(game))}</strong><br><span class="muted">${escapeWorkbenchHtml(game.level || "")}</span></td>
+                  <td>${escapeWorkbenchHtml(game.field || game.venue || "Location TBD")}</td>
+                  <td><div class="workbench-open-position-list">${openAssignments.map(assignment => `<span class="status-badge status-badge-open">${escapeWorkbenchHtml(assignment.position)}</span>`).join("")}</div></td>
+                  <td><button type="button" class="button button-primary" data-testid="workbench-manage-crew-${escapeWorkbenchHtml(game.id)}" onclick="openAssignmentDrawer('${escapeWorkbenchHtml(game.id)}')">Manage Crew</button></td>
+                </tr>
+              `;
+            }).join("") : `<tr><td colspan="6"><div class="presentation-empty-state" role="status">No games currently have open positions.</div></td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderWorkbench(context = {}) {
   const workbench =
     dashboardService.getWorkbench();
 
@@ -508,6 +544,16 @@ function renderWorkbench() {
 
   const nextSectionKey =
     workbench.nextSection?.key || "";
+
+  if (context.focus === "open-positions") {
+    return `
+      <section class="page-section" data-testid="assigner-workbench">
+        ${renderWorkbenchOpenPositions(
+          workbench.sections.needsAssignment || []
+        )}
+      </section>
+    `;
+  }
 
   if (
     workbench.isEmpty &&
@@ -529,6 +575,22 @@ function renderWorkbench() {
       data-testid="assigner-workbench"
     >
       <div class="workbench-launch responsive-actions">
+        <button
+          type="button"
+          class="primary-button"
+          data-testid="workbench-create-event"
+          onclick="createEventFromWorkbench()"
+        >
+          Create Event
+        </button>
+        <button
+          type="button"
+          class="button button-secondary"
+          data-testid="workbench-import-schedule"
+          onclick="importScheduleFromWorkbench()"
+        >
+          Import Schedule
+        </button>
         <button
           type="button"
           class="primary-button"
@@ -625,6 +687,22 @@ function renderWorkbench() {
       </div>
     </section>
   `;
+}
+
+function createEventFromWorkbench() {
+  window.navigateTo("schedule", {
+    origin: "assigner-workbench",
+    returnPage: "assigner-workbench"
+  });
+  openGameEditor();
+}
+
+function importScheduleFromWorkbench() {
+  window.navigateTo("schedule", {
+    origin: "assigner-workbench",
+    returnPage: "assigner-workbench"
+  });
+  openScheduleImport();
 }
 
 function refreshWorkbenchIfActive() {

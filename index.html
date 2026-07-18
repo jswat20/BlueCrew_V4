@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Slate | SwatWorks</title>
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="css/schedule.css">
+  <link rel="stylesheet" href="styles.css?v=20260718-dashboard-actions" />
+  <link rel="stylesheet" href="css/schedule.css?v=20260718-dashboard-actions">
 </head>
 <body>
   <div class="app-shell" data-testid="app-shell">
@@ -67,14 +67,14 @@
     <main class="main-content" data-testid="main-content">
       <header class="topbar" data-testid="page-header">
         <div>
-          <h2 id="page-title" data-testid="page-title">Dashboard</h2>
+          <h1 id="page-title" data-testid="page-title">Dashboard</h1>
           <p id="page-subtitle" data-testid="page-subtitle">Your officiating command center.</p>
         </div>
 
         <div class="role-switcher" data-testid="role-switcher">
-          <span>View:</span>
-          <button id="admin-role-btn" class="role-btn active" data-testid="role-admin">Admin</button>
-          <button id="umpire-role-btn" class="role-btn" data-testid="role-umpire">Umpire</button>
+          <span class="role-switcher-label"><strong>Preview mode</strong><small>Test role</small></span>
+          <button id="admin-role-btn" class="role-btn active" data-testid="role-admin">Admin view</button>
+          <button id="umpire-role-btn" class="role-btn" data-testid="role-umpire">Umpire view</button>
         </div>
       </header>
 
@@ -87,9 +87,9 @@
 <script src="data/crew.js"></script>
 <script src="data/storage.js"></script>
 
-<script src="components/dashboard/context.js"></script>
-<script src="components/dashboard/header.js"></script>
-<script src="components/dashboard/dailyBrief.js"></script>
+<script src="components/dashboard/context.js?v=20260718-dashboard-actions"></script>
+<script src="components/dashboard/header.js?v=20260718-dashboard-actions"></script>
+<script src="components/dashboard/dailyBrief.js?v=20260718-dashboard-actions"></script>
 <script src="components/dashboard/todaysGames.js"></script>
 <script src="components/dashboard/index.js"></script>
 <script src="components/crew.js"></script>
@@ -116,7 +116,7 @@
 <script src="js/services/crewService.js"></script>
 <script src="js/services/crewConfigurationService.js"></script>
 <script src="js/services/crewBuilderService.js"></script>
-<script src="js/services/dashboardService.js"></script>
+<script src="js/services/dashboardService.js?v=20260718-dashboard-actions"></script>
 <script src="js/services/reportingService.js"></script>
 <script src="js/services/reportExportService.js"></script>
 <script src="js/services/reportPresetService.js"></script>
@@ -148,7 +148,7 @@
 <script src="js/ui/accounts.js"></script>
 <script src="js/ui/mySchedule.js"></script>
 <script src="js/ui/reviewQueue.js"></script>
-<script src="js/ui/gameHub.js"></script>
+<script src="js/ui/gameHub.js?v=20260718-ops4c"></script>
 <script src="js/ui/claimGames.js"></script>
 <script src="js/ui/myClaims.js"></script>
 <script src="js/ui/claimsQueue.js"></script>
@@ -158,13 +158,13 @@
 <script src="js/ui/profile.js"></script>
 
 <script src="js/schedule/assignmentEngine.js"></script>
-<script src="js/schedule/assignmentDrawer.js"></script>
+<script src="js/schedule/assignmentDrawer.js?v=20260718-ops4c"></script>
 <script src="js/schedule/gameCard.js"></script>
-<script src="js/schedule/workloadPanel.js"></script>
+<script src="js/schedule/workloadPanel.js?v=20260718-crew-card"></script>
 <script src="js/schedule/openGamesQueue.js"></script>
 <script src="js/schedule/schedule.js"></script>
-<script src="js/schedule/dailyView.js"></script>
-<script src="js/schedule/allGamesView.js"></script>
+<script src="js/schedule/dailyView.js?v=20260718-site-teal"></script>
+<script src="js/schedule/allGamesView.js?v=20260718-dashboard-actions"></script>
 <script src="js/schedule/gameEditor.js"></script>
 <script src="js/schedule/scheduleImport.js"></script>
 <script src="js/schedule/scheduleExport.js"></script>
@@ -188,8 +188,8 @@
 <script src="js/ui/reports.js"></script>
 <script src="js/ui/seasonDashboard.js"></script>
 <script src="js/ui/navigationAuthorization.js"></script>
-<script src="js/ui/workbench.js"></script>
-<script src="js/ui/operationsCenter.js"></script>
+<script src="js/ui/workbench.js?v=20260718-dashboard-actions"></script>
+<script src="js/ui/operationsCenter.js?v=20260718-dashboard-actions"></script>
   <script src="js/ui/presentation.js"></script>
 <script src="app.js"></script>
 </body>

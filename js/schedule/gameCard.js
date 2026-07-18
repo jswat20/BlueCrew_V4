@@ -76,8 +76,6 @@ const myCrewId = authService.currentCrewId();
             : ""
         }
 
-       ${renderGameAssignmentControl(game)}
-
       </div>
 
 <div
@@ -86,14 +84,7 @@ const myCrewId = authService.currentCrewId();
 <button
     class="button button-secondary"
     data-testid="game-details-${game.id}"
-    onclick="openAssignmentDrawer('${game.id}')">          Details
-        </button>
-
-        <button
-    class="button button-secondary secondary"
-    data-testid="game-edit-${game.id}"
-          onclick="editGame('${game.id}')">
-          Edit
+    onclick="openScheduleGameHub('${game.id}')">          View Game Hub
         </button>
       </div>
     </article>

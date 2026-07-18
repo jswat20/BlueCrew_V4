@@ -1918,23 +1918,9 @@ function renderOperationsCenterActivity(
     >
       <div class="operations-section-heading">
         <div>
-          <span
-            class="operations-console-label"
-            data-testid="operations-feed-eyebrow"
-          >
-            ${escapeOperationsCenterHtml(profile.feedEyebrow)}
-          </span>
-
           <h3 id="operations-log-title">
-            Operations Log
+            Live Feed
           </h3>
-
-          <span
-            class="visually-hidden"
-            data-testid="operations-feed-title"
-          >
-            ${escapeOperationsCenterHtml(profile.feedTitle)}
-          </span>
         </div>
       </div>
 
@@ -2009,6 +1995,13 @@ function formatOperationsCenterDate(value) {
 function renderOperationsCenterStatusStrip(
   metrics = []
 ) {
+  const priorityMetricIds = new Set([
+    "open-positions",
+    "pending-claims",
+    "reviews",
+    "active-alerts"
+  ]);
+
   return `
     <nav
       class="operations-status-strip"
@@ -2018,11 +2011,13 @@ function renderOperationsCenterStatusStrip(
       ${metrics.map(metric => {
         const hasDetailDialog =
           Array.isArray(metric.detailItems);
+        const isPriority =
+          priorityMetricIds.has(metric.id);
 
         return `
         <button
           type="button"
-          class="operations-status-metric ${metric.requiresAction && Number(metric.value) > 0 ? "operations-status-metric-attention" : ""}"
+          class="operations-status-metric ${isPriority ? "operations-status-metric-priority" : "operations-status-metric-context"} ${metric.requiresAction && Number(metric.value) > 0 ? "operations-status-metric-attention" : ""}"
           data-attention="${metric.requiresAction && Number(metric.value) > 0 ? "true" : "false"}"
           data-testid="operations-metric-${escapeOperationsCenterHtml(metric.id)}"
           ${hasDetailDialog
@@ -2033,10 +2028,63 @@ function renderOperationsCenterStatusStrip(
         >
           <span>${escapeOperationsCenterHtml(metric.label)}</span>
           <strong>${Number(metric.value) || 0}</strong>
+          <small>${metric.requiresAction ? "Open work" : "Operational context"}</small>
         </button>
       `;
       }).join("")}
     </nav>
+  `;
+}
+
+function renderOperationsCenterAttention(metrics = []) {
+  const attentionMetrics = metrics.filter(metric =>
+    metric.requiresAction && Number(metric.value) > 0
+  );
+
+  return `
+    <section
+      class="operations-attention-module"
+      data-testid="operations-requires-attention"
+      aria-labelledby="operations-attention-title"
+    >
+      <div class="operations-section-heading">
+        <h2 id="operations-attention-title">Requires Attention</h2>
+        ${attentionMetrics.length
+          ? `<span class="operations-attention-total">${attentionMetrics.reduce((total, metric) => total + (Number(metric.value) || 0), 0)} open</span>`
+          : ""}
+      </div>
+
+      ${attentionMetrics.length ? `
+        <div class="operations-attention-list">
+          ${attentionMetrics.map(metric => {
+            const hasDetailDialog = Array.isArray(metric.detailItems);
+            const isCritical = metric.id === "active-alerts";
+            return `
+              <button
+                type="button"
+                class="operations-attention-row"
+                data-status="${isCritical ? "critical" : "watch"}"
+                ${hasDetailDialog
+                  ? `data-operations-dialog-target="operations-detail-${escapeOperationsCenterHtml(metric.id)}"`
+                  : `data-operations-action="${escapeOperationsCenterHtml(metric.action || "")}"`}
+                data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(metric.item || {}))}"
+                aria-label="Open ${escapeOperationsCenterHtml(metric.label)}: ${Number(metric.value) || 0}"
+              >
+                <span class="operations-status-light operations-status-light-${isCritical ? "critical" : "watch"}" aria-hidden="true"></span>
+                <span>${escapeOperationsCenterHtml(metric.label)}</span>
+                <strong>${Number(metric.value) || 0}</strong>
+                <span aria-hidden="true">&rsaquo;</span>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      ` : `
+        <div class="operations-attention-empty" role="status">
+          <span class="operations-status-light operations-status-light-healthy" aria-hidden="true"></span>
+          <span>No items require action.</span>
+        </div>
+      `}
+    </section>
   `;
 }
 
@@ -2078,6 +2126,7 @@ function renderOperationsCenterMetricDialogs(
                   ${renderOperationsCenterTaskDetail(item)
                     ? `<span>${escapeOperationsCenterHtml(renderOperationsCenterTaskDetail(item))}</span>`
                     : ""}
+                  ${metric.id === "pending-claims" ? `<span class="operations-claim-requester" data-testid="operations-claim-requester">Requested by: <strong>${escapeOperationsCenterHtml(item.claimedByName || item.claimedBy || "Unknown umpire")}</strong></span>` : ""}
                 </div>
                 <div class="operations-detail-actions">
                   ${metric.id === "pending-claims" ? `
@@ -2243,14 +2292,22 @@ function renderOperationsStaffingBoard(events = [], today = "") {
             <table class="operations-staffing-table">
               <thead><tr><th>Time</th><th>Age</th><th>Matchup</th><th>Location</th>${positions.map(position => `<th>${escapeOperationsCenterHtml(position)}</th>`).join("")}</tr></thead>
               <tbody>${group.events.map(event => `
-                <tr>
+                <tr
+                  class="operations-staffing-row"
+                  tabindex="0"
+                  role="link"
+                  data-testid="operations-upcoming-event"
+                  data-operations-action="today-priority"
+                  data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(event))}"
+                  aria-label="Open ${escapeOperationsCenterHtml(event.matchup)} in Game Hub"
+                >
                   <td><time datetime="${escapeOperationsCenterHtml(`${event.date} ${event.time || ""}`)}">${escapeOperationsCenterHtml(event.time || "—")}</time></td>
                   <td>${escapeOperationsCenterHtml(event.level || "—")}</td>
-                  <td><button type="button" class="operations-timeline-event" data-testid="operations-upcoming-event" data-operations-action="today-priority" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(event))}">${escapeOperationsCenterHtml(event.matchup)}</button></td>
+                  <td><strong class="operations-staffing-matchup">${escapeOperationsCenterHtml(event.matchup)}</strong></td>
                   <td>${escapeOperationsCenterHtml(event.field || "—")}</td>
                   ${positions.map(position => {
                     const assignment = (event.assignments || []).find(item => item.position === position);
-                    return `<td class="operations-staffing-assignment" data-status="${assignment?.crewId ? "assigned" : "open"}">${escapeOperationsCenterHtml(assignment?.crewName || "—")}</td>`;
+                    return `<td class="operations-staffing-assignment" data-status="${assignment?.crewId ? "assigned" : "open"}">${escapeOperationsCenterHtml(assignment?.crewName || "OPEN")}</td>`;
                   }).join("")}
                 </tr>
               `).join("")}</tbody>
@@ -2285,8 +2342,18 @@ function renderOperationsStaffingHealthCompact(periods = []) {
           <span class="operations-status-light operations-status-light-${escapeOperationsCenterHtml(period.status)}" aria-hidden="true"></span>
           <div class="operations-period-health-content">
             <div class="operations-period-health-summary"><strong>${escapeOperationsCenterHtml(period.label)}</strong><span>${period.fullyStaffedCount}/${period.eventCount} staffed</span></div>
+            <div
+              class="operations-staffing-progress"
+              role="progressbar"
+              aria-label="${escapeOperationsCenterHtml(period.label)} staffing coverage"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="${period.eventCount ? Math.round((period.fullyStaffedCount / period.eventCount) * 100) : 100}"
+            >
+              <span style="width: ${period.eventCount ? Math.round((period.fullyStaffedCount / period.eventCount) * 100) : 100}%"></span>
+            </div>
             <dl class="operations-period-signals">
-              ${(period.signals || []).map(signal => `<div><dt>${escapeOperationsCenterHtml(signal.label)}</dt><dd class="${Number(signal.value) > 0 ? "operations-signal-active" : ""}">${Number(signal.value) || 0}</dd></div>`).join("")}
+              ${(period.signals || []).map(signal => `<div data-status="${escapeOperationsCenterHtml(signal.status || "healthy")}"><dt><span class="operations-status-light operations-status-light-${escapeOperationsCenterHtml(signal.status || "healthy")}" aria-hidden="true"></span><span>${escapeOperationsCenterHtml(signal.label)}</span><span class="operations-signal-status">${escapeOperationsCenterHtml(signal.status || "healthy")}</span></dt><dd class="${Number(signal.value) > 0 ? "operations-signal-active" : ""}">${Number(signal.value) || 0}</dd></div>`).join("")}
             </dl>
           </div>
         </article>
@@ -2356,53 +2423,6 @@ function renderOperationsCenter(context = {}) {
       "
       data-testid="operations-center"
     >
-      <header
-        class="operations-console-titlebar"
-        data-testid="operations-console-titlebar"
-      >
-        <div class="operations-title-context">
-          <span class="operations-console-eyebrow">
-            The Slate
-          </span>
-
-          <h1 data-page-heading tabindex="-1">Operations Center</h1>
-
-          <p>
-            ${escapeOperationsCenterHtml(
-              formatOperationsCenterDate(
-                operations.operationalDate
-              )
-            )}
-          </p>
-        </div>
-
-        <div class="operations-header-actions">
-          <div
-            class="operations-system-state"
-            data-testid="operations-system-state"
-          >
-            <span
-              class="operations-system-state-light"
-              aria-hidden="true"
-            ></span>
-
-            <span>
-              ${operations.totalOutstandingCount > 0 ? "Active work" : "Operations ready"}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            class="button button-primary"
-            data-testid="operations-primary-action"
-            data-operations-action="create-event"
-            data-operations-payload="{}"
-          >
-            Create Event
-          </button>
-        </div>
-      </header>
-
       <div
         class="operations-action-message"
         data-testid="operations-action-message"
@@ -2462,24 +2482,40 @@ function renderOperationsCenter(context = {}) {
           operations.operationalDate
         )}
 
-        ${renderOperationsCenterActivity(
-          operations.recentActivity,
-          operations
-        )}
-
         <aside class="operations-secondary" data-testid="operations-secondary">
           <div class="operations-status-rail" data-testid="operations-status-rail">
             ${renderOperationsStaffingHealthCompact(
               operations.staffingPeriods || []
             )}
           </div>
+
         </aside>
+
+        ${renderOperationsCenterActivity(
+          operations.recentActivity,
+          operations
+        )}
       </div>
     </section>
   `;
 }
 
 function setupOperationsCenterActions() {
+  const requestedDialog =
+    typeof currentPageContext !== "undefined" &&
+    currentPageContext &&
+    typeof currentPageContext === "object"
+      ? currentPageContext.operationsDialog || ""
+      : "";
+
+  if (requestedDialog) {
+    const {
+      operationsDialog,
+      ...remainingContext
+    } = currentPageContext;
+    currentPageContext = remainingContext;
+  }
+
   if (
     typeof currentPageContext !==
       "undefined" &&
@@ -2659,7 +2695,28 @@ function setupOperationsCenterActions() {
           );
         }
       );
+
+      if (button.getAttribute("role") === "link") {
+        button.addEventListener("keydown", event => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          button.click();
+        });
+      }
     });
+
+  if (requestedDialog) {
+    const dialog = document.getElementById(
+      `operations-detail-${requestedDialog}`
+    );
+
+    if (
+      dialog &&
+      typeof dialog.showModal === "function"
+    ) {
+      dialog.showModal();
+    }
+  }
 }
 
 function refreshOperationsCenterIfActive() {

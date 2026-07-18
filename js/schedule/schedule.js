@@ -47,20 +47,6 @@ function renderSchedule() {
     ◀ Previous
   </button>
 
-  <button
-    class="button button-primary primary"
-    data-testid="add-game"
-    onclick="openGameEditor()">
-    + Add Game
-  </button>
-
-  <button
-    class="button button-secondary"
-    data-testid="import-schedule"
-    onclick="openScheduleImport()">
-    Import CSV
-  </button>
-
     <button
     class="button button-secondary"
     data-testid="export-schedule"

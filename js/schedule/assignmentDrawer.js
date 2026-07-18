@@ -1061,6 +1061,12 @@ function autoFillCrewDraft() {
 }
 
 function saveCrewDraft() {
+  const returnGameId = activeAssignmentGameId;
+  const returnToGameHub =
+    typeof currentPage !== "undefined" &&
+    currentPage === "game-hub" &&
+    Boolean(returnGameId);
+
   const result = crewBuilderService.commit();
 
   if (window.qaService) {
@@ -1089,6 +1095,13 @@ function saveCrewDraft() {
   }
 
   if (
+    returnToGameHub &&
+    typeof renderPage === "function"
+  ) {
+    renderPage("game-hub", {
+      gameId: returnGameId
+    });
+  } else if (
     typeof renderScheduleContent === "function"
   ) {
     renderScheduleContent();

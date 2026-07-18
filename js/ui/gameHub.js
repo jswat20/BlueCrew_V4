@@ -1186,8 +1186,18 @@ function renderGameHubSection(
   `;
 }
 
+function canManageGameHubCrew(game) {
+  return Boolean(
+    game &&
+    !isGameHubReadOnly(game) &&
+    typeof authorizationService !== "undefined" &&
+    authorizationService.canAssignGames()
+  );
+}
+
 function renderGameHubQuickActions(
-  reviewMode = false
+  reviewMode = false,
+  game = null
 ) {
   return `
     <div
@@ -1215,6 +1225,17 @@ function renderGameHubQuickActions(
         reviewMode
           ? ""
           : `
+              ${canManageGameHubCrew(game) ? `
+                <button
+                  class="button button-primary"
+                  type="button"
+                  onclick="openAssignmentDrawer('${escapeGameHubText(game.id)}')"
+                  data-testid="game-hub-manage-crew"
+                >
+                  Assign / Change Crew
+                </button>
+              ` : ""}
+
               <button
                 class="button button-secondary"
                 type="button"
@@ -1323,7 +1344,7 @@ function renderGameHub(context = {}) {
       data-lifecycle-status="${game.lifecycleStatus}"
       data-read-only="${isGameHubReadOnly(game)}"
     >
-      ${renderGameHubQuickActions(reviewMode)}
+      ${renderGameHubQuickActions(reviewMode, game)}
 
       <h2>Game Hub</h2>
 

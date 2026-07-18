@@ -218,25 +218,44 @@ test.describe("Dashboard Entry Experience", () => {
     ).toHaveText("1");
   });
 
-  test("daily brief opens Operations", async ({
+  test("uses teal command metrics while preserving active edge highlights", async ({ app }) => {
+    await createGame(app.page);
+
+    await app.page.evaluate(() => {
+      renderPage("dashboard");
+    });
+
+    const openPositions = app.page.getByTestId(
+      "dashboard-summary-open-assignments"
+    );
+    const todayGames = app.page.getByTestId(
+      "dashboard-summary-today-games"
+    );
+
+    await expect(openPositions).toHaveClass(/dashboard-brief-metric-priority/);
+    await expect(openPositions).toHaveAttribute("data-attention", "true");
+    await expect(todayGames).toHaveClass(/dashboard-brief-metric-context/);
+
+    const visualState = await openPositions.evaluate(element => ({
+      backgroundImage: getComputedStyle(element).backgroundImage,
+      boxShadow: getComputedStyle(element).boxShadow
+    }));
+    expect(visualState.backgroundImage).toContain("linear-gradient");
+    expect(visualState.boxShadow).toContain("rgb(255, 103, 92)");
+  });
+
+  test("uses single-line greeting and Daily Brief headings without a redundant action", async ({
     app
   }) => {
     await app.page.evaluate(() => {
       renderPage("dashboard");
     });
 
-    await app.page
-      .getByTestId(
-        "dashboard-open-operations"
-      )
-      .click();
-
-    await expect(
-      app.page.locator("body")
-    ).toHaveAttribute(
-      "data-page",
-      "operations-center"
-    );
+    await expect(app.page.getByTestId("dashboard-welcome-name")).toContainText(/Good (morning|afternoon|evening), Administrator/);
+    await expect(app.page.getByRole("heading", { name: "The Daily Brief - Today At A Glance" })).toBeVisible();
+    await expect(app.page.getByTestId("dashboard-open-operations")).toHaveCount(0);
+    await expect(app.page.getByTestId("dashboard-summary-today-games")).toContainText("Games Today");
+    await expect(app.page.getByTestId("dashboard-summary-open-assignments")).toContainText("Open Positions");
   });
 
   test("daily brief metrics open the intended Operations queue", async ({
@@ -244,24 +263,19 @@ test.describe("Dashboard Entry Experience", () => {
   }) => {
     const drilldowns = [
       {
-        metric: "open-assignments",
-        queue: "assignments",
-        label: "Assignments"
-      },
-      {
         metric: "pending-claims",
         queue: "claims",
-        label: "Claims"
+        dialog: "pending-claims"
       },
       {
         metric: "pending-reviews",
         queue: "reviews",
-        label: "Reviews"
+        dialog: "reviews"
       },
       {
         metric: "pending-accounts",
         queue: "accounts",
-        label: "Accounts"
+        dialog: "pending-accounts"
       }
     ];
 
@@ -276,21 +290,31 @@ test.describe("Dashboard Entry Experience", () => {
         )
         .click();
 
-      await expect(
-        app.page.getByTestId(
-          `operations-queue-${drilldown.queue}`
-        )
-      ).toHaveAttribute(
-        "aria-pressed",
-        "true"
+      await expect(app.page.locator("body")).toHaveAttribute(
+        "data-page",
+        "operations-center"
       );
 
       await expect(
-        app.page.getByTestId(
-          "operations-active-queue-label"
-        )
-      ).toHaveText(drilldown.label);
+        app.page.getByTestId("operations-recent-activity")
+      ).toHaveAttribute("data-active-queue", drilldown.queue);
+
+      await expect(
+        app.page.getByTestId(`operations-detail-${drilldown.dialog}`)
+      ).toBeVisible();
     }
+  });
+
+  test("Open Positions opens a focused editable Workbench list", async ({ app }) => {
+    const game = await createGame(app.page);
+    await app.page.evaluate(() => renderPage("dashboard"));
+
+    await app.page.getByTestId("dashboard-summary-open-assignments").click();
+
+    await expect(app.page.locator("body")).toHaveAttribute("data-page", "assigner-workbench");
+    await expect(app.page.getByTestId("workbench-open-positions-focus")).toBeVisible();
+    await expect(app.page.getByTestId(`workbench-open-game-${game.id}`)).toBeVisible();
+    await expect(app.page.getByTestId(`workbench-manage-crew-${game.id}`)).toBeVisible();
   });
 
   test("today games opens the Schedule", async ({
@@ -312,6 +336,9 @@ test.describe("Dashboard Entry Experience", () => {
       "data-page",
       "schedule"
     );
+
+    await expect(app.page.getByTestId("view-all-games")).toHaveClass(/active/);
+    await expect(app.page.getByTestId("schedule-filter-today")).toHaveAttribute("aria-pressed", "true");
   });
 
   test("notification bell opens Notifications", async ({

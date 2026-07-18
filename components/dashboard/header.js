@@ -93,14 +93,10 @@ function renderDashboardWelcome() {
       data-testid="dashboard-welcome"
     >
       <div class="dashboard-welcome-copy">
-        <span class="dashboard-eyebrow">
-          ${getDashboardGreeting()}
-        </span>
-
         <h1
           data-testid="dashboard-welcome-name"
         >
-          ${getDashboardUserName()}
+          ${getDashboardGreeting()}, ${getDashboardUserName()}
         </h1>
       </div>
 

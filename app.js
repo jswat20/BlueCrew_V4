@@ -440,8 +440,21 @@ function updateHeader(page) {
   const title = document.getElementById("page-title");
   const subtitle = document.getElementById("page-subtitle");
 
-  if (title) title.textContent = pageConfig.title;
-  if (subtitle) subtitle.textContent = pageConfig.subtitle;
+  if (title) {
+    title.textContent = page === "operations-center"
+      ? `Operations Center — ${new Intl.DateTimeFormat("en-US", {
+          weekday: "long",
+          month: "long",
+          day: "numeric"
+        }).format(new Date())}`
+      : pageConfig.title;
+  }
+  if (subtitle) {
+    subtitle.textContent = page === "operations-center"
+      ? ""
+      : pageConfig.subtitle;
+    subtitle.hidden = page === "operations-center";
+  }
 }
 
 function renderGameRow(game) {

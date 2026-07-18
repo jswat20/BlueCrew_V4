@@ -108,3 +108,11 @@ test("navigation groups collapse and expand accessibly", async ({ page }) => {
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(schedule).toBeVisible();
 });
+
+test("role switch is explicitly labeled as preview mode", async ({ page }) => {
+  await page.goto("/");
+  const switcher = page.getByTestId("role-switcher");
+  await expect(switcher).toContainText("Preview mode");
+  await expect(page.getByTestId("role-admin")).toHaveText("Admin view");
+  await expect(page.getByTestId("role-umpire")).toHaveText("Umpire view");
+});

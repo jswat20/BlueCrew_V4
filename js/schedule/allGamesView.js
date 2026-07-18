@@ -40,8 +40,26 @@ const filter =
 
   container.innerHTML = `
     <section class="all-games-header presentation-page-header presentation-panel">
-      <h2>All Games</h2>
-      <p>Full schedule table.</p>
+      <div>
+        <h2>All Games</h2>
+        <p>Full schedule table.</p>
+      </div>
+      <div class="all-games-filters" aria-label="Filter scheduled games">
+        ${[
+          ["all", "All Games"],
+          ["today", "Games Today"],
+          ["assigned", "Assigned"],
+          ["open", "Open Positions"]
+        ].map(([id, label]) => `
+          <button
+            type="button"
+            class="button button-secondary ${filter === id ? "active" : ""}"
+            data-testid="schedule-filter-${id}"
+            aria-pressed="${filter === id}"
+            onclick="setAllGamesScheduleFilter('${id}')"
+          >${label}</button>
+        `).join("")}
+      </div>
     </section>
 
     <div class="schedule-table-wrap presentation-table-wrapper">
@@ -75,6 +93,12 @@ const filter =
       </table>
     </div>
   `;
+}
+
+function setAllGamesScheduleFilter(filter) {
+  uiStateService.setScheduleFilter(filter || "all");
+  currentScheduleView = "all";
+  renderScheduleContent();
 }
 
 function renderAllGamesRow(game, context = {}) {
@@ -128,26 +152,10 @@ const isHighlighted =
       <td>
         <button
   class="button button-primary"
-  data-testid="assign-game-${game.id}"
-  onclick="openAssignmentDrawer('${game.id}')"
+  data-testid="view-game-${game.id}"
+  onclick="openScheduleGameHub('${game.id}')"
 >
-  Assign
-</button>
-
-<button
-  class="button button-secondary"
-  data-testid="edit-game-${game.id}"
-  onclick="editGame('${game.id}')"
->
-  Edit
-</button>
-
-<button
-  class="button button-danger"
-  data-testid="delete-game-${game.id}"
-  onclick="deleteGame('${game.id}')"
->
-  Delete
+  View Game Hub
 </button>
       </td>
     </tr>
