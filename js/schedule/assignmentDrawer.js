@@ -29,14 +29,15 @@ function escapeAssignmentJs(value) {
     .replaceAll("'", "\\'");
 }
 
-function getAssignmentAvailability(crewId, gameDate) {
+function getAssignmentAvailability(crewId, gameDate, gameTime = "") {
   if (!crewId || !gameDate) {
     return null;
   }
 
   return availabilityService.getAvailability(
     crewId,
-    gameDate
+    gameDate,
+    gameTime
   );
 }
 
@@ -59,12 +60,13 @@ function getAssignmentAvailabilityDisplay(status) {
   return presentation[status] || null;
 }
 
-function getCrewOptionLabel(member, gameDate) {
+function getCrewOptionLabel(member, gameDate, gameTime = "") {
   const displayName = getCrewDisplayName(member);
 
   const status = getAssignmentAvailability(
     member.id,
-    gameDate
+    gameDate,
+    gameTime
   );
 
   if (status === "maybe") {
@@ -80,7 +82,8 @@ function getCrewOptionLabel(member, gameDate) {
 
 function renderAssignmentAvailabilityBadge(
   assignment,
-  gameDate
+  gameDate,
+  gameTime = ""
 ) {
   if (!assignment?.crewId) {
     return "";
@@ -88,7 +91,8 @@ function renderAssignmentAvailabilityBadge(
 
   const status = getAssignmentAvailability(
     assignment.crewId,
-    gameDate
+    gameDate,
+    gameTime
   );
 
   const display =
@@ -289,7 +293,8 @@ function renderCrewBuilderSlot(
     .map(member => {
       const optionLabel = getCrewOptionLabel(
         member,
-        gameDate
+        gameDate,
+        game.time
       );
 
       const selected =
@@ -302,7 +307,8 @@ function renderCrewBuilderSlot(
           data-availability="${escapeAssignmentHtml(
             getAssignmentAvailability(
               member.id,
-              gameDate
+              gameDate,
+              game.time
             ) || "available"
           )}"
           ${selected ? "selected" : ""}
@@ -369,7 +375,8 @@ function renderCrewBuilderSlot(
 
         ${renderAssignmentAvailabilityBadge(
           assignment,
-          gameDate
+          gameDate,
+          game.time
         )}
 
         <button
@@ -418,7 +425,7 @@ function getAssignmentRecommendationConflictLabel(
 ) {
   return recommendation.conflict
     ? "Conflict"
-    : "No conflict";
+    : "None";
 }
 
 function getAssignmentRecommendationAvailabilityLabel(
@@ -686,6 +693,9 @@ function renderAssignmentRecommendationCard(
     getCrewDisplayName(
       recommendation.member
     );
+  const numericScore = Number(recommendation.score) || 0;
+  const starCount = numericScore >= 95 ? 5 : numericScore >= 88 ? 4 : numericScore >= 80 ? 3 : numericScore >= 70 ? 2 : 1;
+  const scoreClass = numericScore >= 90 ? "score-green" : numericScore >= 80 ? "score-yellow" : numericScore >= 70 ? "score-orange" : "score-red";
 
   return `
     <div
@@ -708,18 +718,20 @@ function renderAssignmentRecommendationCard(
             #${rank}
           </span>
 
-          <strong
+          <button type="button"
             class="recommendation-name"
             data-testid="${nameTestId}"
+            onclick="openCrewCard('${crewId}')"
           >
             ${escapeAssignmentHtml(
               recommendationName
             )}
-          </strong>
+          </button>
+          <span class="recommendation-stars" aria-label="${starCount} of 5 stars">${"★".repeat(starCount)}${"☆".repeat(5 - starCount)}</span>
         </div>
 
         <span
-          class="recommendation-score"
+          class="recommendation-score ${scoreClass}"
           data-testid="${scoreTestId}"
         >
           Score: ${escapeAssignmentHtml(
@@ -763,23 +775,10 @@ function renderAssignmentRecommendationCard(
         </span>
       </div>
 
-${renderAssignmentRecommendationExplanation(
-  recommendation,
-  assignment,
-  rank
-)}
-
-${renderAssignmentRecommendationHighlights(
-  recommendation,
-  assignment,
-  rank
-)}
-
-${renderAssignmentRecommendationReasons(
-  recommendation,
-  assignment,
-  rank
-)}
+      <div class="recommendation-more">
+        ${renderAssignmentRecommendationHighlights(recommendation, assignment, rank)}
+        ${renderAssignmentRecommendationReasons(recommendation, assignment, rank)}
+      </div>
       <button
         class="
           button

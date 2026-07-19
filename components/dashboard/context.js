@@ -72,12 +72,13 @@ function getDashboardBrief() {
   const todayGames =
     getDashboardTodayGames();
 
-  const openAssignments =
-    typeof dashboardService
-      .getOpenAssignments === "function"
-      ? dashboardService
-          .getOpenAssignments()
-      : [];
+  const openAssignmentsToday =
+    todayGames.reduce(
+      (total, game) =>
+        total +
+        (Number(game.openAssignmentCount) || 0),
+      0
+    );
 
   const pendingClaims =
     typeof dashboardService
@@ -115,8 +116,11 @@ function getDashboardBrief() {
     todayGames:
       todayGames.length,
 
+    fullyStaffed:
+      todayGames.filter(game => game.fullyStaffed).length,
+
     openAssignments:
-      openAssignments.length,
+      openAssignmentsToday,
 
     pendingClaims:
       pendingClaims.length,
@@ -168,10 +172,12 @@ function openDashboardOperations(
 }
 
 function openDashboardWorkbench(
-  focus = "open-positions"
+  focus = "open-positions",
+  scope = "today"
 ) {
   navigateTo("assigner-workbench", {
     focus,
+    scope,
     origin: "dashboard",
     returnPage: "dashboard"
   });

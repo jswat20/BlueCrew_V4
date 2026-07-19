@@ -9,6 +9,8 @@ const isPendingApproval = assignmentService.isPendingApproval(game);
 const isLocked = assignmentService.isLocked(game);
 const myCrewId = authService.currentCrewId();
   const crewName = crewService.getDisplayName(game.crewId);
+  const assignments = assignmentService.getAssignments(game);
+  const assignedCrew = assignments.filter(assignment => assignment.crewId);
   const warnings = getGameCardWarnings(game);
   const workload = getGameCrewWorkload(game);
 
@@ -78,13 +80,22 @@ const myCrewId = authService.currentCrewId();
 
       </div>
 
+      <div class="game-card-crew ${assignedCrew.length ? "" : "missing"}">
+        ${assignedCrew.length
+          ? assignedCrew.map(assignment => `
+              <span><small>${assignments.length === 1 ? "Solo" : assignment.position}</small><button type="button" class="game-card-crew-link" onclick="openCrewCard('${assignment.crewId}')">${crewService.getDisplayName(assignment.crewId)}</button></span>
+            `).join("")
+          : `<span><small>Crew</small><strong>No crew assigned</strong></span>`}
+      </div>
+
 <div
     class="game-card-actions"
     data-testid="game-actions-${game.id}">
 <button
     class="button button-secondary"
     data-testid="game-details-${game.id}"
-    onclick="openScheduleGameHub('${game.id}')">          View Game Hub
+    aria-label="View Game Hub"
+    onclick="openScheduleGameHub('${game.id}')">View<br>Game<br>Hub
         </button>
       </div>
     </article>

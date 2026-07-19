@@ -85,6 +85,7 @@ function renderCrewWorkloadPanel(date) {
       </div>
 
     </section>
+    </div>
   `;
 }
 
@@ -162,52 +163,43 @@ function renderCrewWorkloadOverview() {
     <section class="crew-roster-workload presentation-panel" data-testid="crew-page-workload">
       <div class="panel-header crew-roster-header">
         <div>
-          <h3>Crew Workload &amp; Roster</h3>
+          <h3>Crew Roster &amp; Workload</h3>
           <p>Contact details, eligibility, status, and assignment load in one place.</p>
         </div>
-        <span>${crewService.getAll().length} crew members</span>
-      </div>
-      <div class="crew-roster-columns" aria-hidden="true">
-        <span>Crew member</span><span>Eligibility</span><span>Contact</span><span>Workload</span>
+        <label class="crew-roster-search">
+          <span class="sr-only">Search crew by name or age level</span>
+          <input type="search" data-testid="crew-roster-search" placeholder="Search name or age level" oninput="filterCrewRosterCards(this.value)" autocomplete="off">
+        </label>
+        <div class="crew-roster-header-actions">
+          <label class="crew-inactive-toggle"><input type="checkbox" data-testid="crew-hide-inactive" onchange="applyCrewRosterFilters()"><span>Hide inactive</span></label>
+          <span data-testid="crew-roster-count">${crewService.getAll().length} crew members</span>
+        </div>
       </div>
       <div class="crew-roster-list">
-        ${crewService.getAll().map(member => {
-          const workload = workloadService.getCrewWorkloadForDate(member.id, today);
-          const season = workloadService.getSeasonAssignments(member.id);
-          const status = getDailyWorkloadStatus(workload.count);
-          const memberId = escapeCrewOverviewJs(member.id);
-          return `
-            <button
-              type="button"
-              class="crew-roster-row"
-              data-testid="crew-roster-member"
-              data-crew-id="${escapeCrewOverviewHtml(member.id)}"
-              onclick="openCrewCard('${memberId}')"
-              aria-label="Open Crew Card for ${escapeCrewOverviewHtml(crewService.getName(member))}"
-            >
-              <span class="crew-roster-identity">
-                <span class="crew-status-dot ${member.active === false ? "workload-heavy" : status.className}" aria-hidden="true"></span>
-                <span><strong>${escapeCrewOverviewHtml(crewService.getName(member))}</strong><small>${member.active === false ? "Inactive" : "Active"}</small></span>
-              </span>
-              <span class="crew-roster-levels">
-                ${(member.levels || []).length
-                  ? member.levels.map(level => `<span class="settings-pill">${escapeCrewOverviewHtml(level)}</span>`).join("")
-                  : `<span class="crew-roster-muted">No levels recorded</span>`}
-              </span>
-              <span class="crew-roster-contact">
-                <strong>${escapeCrewOverviewHtml(member.email || "No email recorded")}</strong>
-                <small>${escapeCrewOverviewHtml(member.phone || "No phone recorded")}</small>
-              </span>
-              <span class="crew-workload-stats">
-                <span><strong>${workload.count}</strong><small>Today</small></span>
-                <span><strong>${season}</strong><small>Season</small></span>
-              </span>
-            </button>
-          `;
-        }).join("")}
+        ${crewService.getAll().map(member => renderCrewCardFront(member, { className: "crew-roster-row" })).join("")}
       </div>
     </section>
   `;
+}
+
+function filterCrewRosterCards(query) {
+  applyCrewRosterFilters(query);
+}
+
+function applyCrewRosterFilters(query = document.querySelector('[data-testid="crew-roster-search"]')?.value || "") {
+  const normalized = String(query || "").trim().toLowerCase();
+  const hideInactive = document.querySelector('[data-testid="crew-hide-inactive"]')?.checked === true;
+  const cards = [...document.querySelectorAll('[data-testid="crew-roster-member"]')];
+  let visible = 0;
+  cards.forEach(card => {
+    const matchesSearch = !normalized || (card.dataset.crewSearch || "").includes(normalized);
+    const matchesStatus = !hideInactive || card.dataset.crewActive === "true";
+    const matches = matchesSearch && matchesStatus;
+    card.hidden = !matches;
+    if (matches) visible += 1;
+  });
+  const count = document.querySelector('[data-testid="crew-roster-count"]');
+  if (count) count.textContent = `${visible} crew member${visible === 1 ? "" : "s"}`;
 }
 
 function escapeCrewOverviewHtml(value) {
@@ -277,8 +269,8 @@ function openCrewCard(memberId) {
         <section class="crew-profile-card-contact" aria-labelledby="crew-card-contact">
           <h3 id="crew-card-contact">Contact</h3>
           <dl>
-            <div><dt>Email</dt><dd>${escapeCrewOverviewHtml(member.email || "Not recorded")}</dd></div>
-            <div><dt>Phone</dt><dd>${escapeCrewOverviewHtml(member.phone || "Not recorded")}</dd></div>
+            <div><dt>Email</dt><dd>${member.email ? `<button type="button" class="crew-contact-action" data-testid="crew-card-copy-email" onclick="copyCrewEmail('${escapeCrewOverviewJs(member.email)}', this)" title="Copy email address">${escapeCrewOverviewHtml(member.email)}</button>` : "Not recorded"}</dd></div>
+            <div><dt>Phone</dt><dd>${member.phone ? `<button type="button" class="crew-contact-action" data-testid="crew-card-call-phone" onclick="confirmCrewPhoneCall('${escapeCrewOverviewJs(member.phone)}')" title="Call ${escapeCrewOverviewHtml(member.phone)}">${escapeCrewOverviewHtml(member.phone)}</button>` : "Not recorded"}</dd></div>
           </dl>
         </section>
 
@@ -313,6 +305,22 @@ function closeCrewCard() {
   const dialog = document.getElementById("crew-card-dialog");
   if (!dialog) return;
   dialog.close();
+}
+
+async function copyCrewEmail(email, button) {
+  try {
+    await navigator.clipboard.writeText(email);
+    button.textContent = "Email copied";
+    button.setAttribute("aria-label", `${email} copied`);
+  } catch (_error) {
+    window.prompt("Copy email address", email);
+  }
+}
+
+function confirmCrewPhoneCall(phone) {
+  if (window.confirm(`Do you want to call ${phone}?`)) {
+    window.location.href = `tel:${String(phone).replace(/[^+\d]/g, "")}`;
+  }
 }
 
 function editCrewFromCard(memberId) {

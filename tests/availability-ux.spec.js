@@ -28,9 +28,9 @@ test.describe(
 
         notificationService.clearAll();
 
-        authService.loginAsAdmin();
+        authService.loginAsUmpire();
         document.body.dataset.role =
-          "admin";
+          "umpire";
       });
     });
 

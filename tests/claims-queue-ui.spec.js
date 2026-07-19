@@ -35,8 +35,30 @@ test.describe("Claims Queue UI", () => {
 
     await expect(app.page.getByTestId("claim-queue-card")).toHaveCount(1);
     await expect(app.page.getByText("Pending Away @ Pending Home")).toBeVisible();
-    await expect(app.page.getByText("Position: Plate")).toBeVisible();
-    await expect(app.page.getByText(/Claimed by:/)).toBeVisible();
+    await expect(app.page.getByTestId("claim-position").locator("strong")).toHaveText("Position");
+    await expect(app.page.getByTestId("claim-position").locator("span")).toHaveText("Plate");
+    await expect(app.page.getByTestId("claim-claimed-by").locator("strong")).toHaveText("Claimed by");
+  });
+
+  test("workbench pending claim popup accepts the claimant without crew reassignment controls", async ({ app }) => {
+    await app.createPendingClaim();
+    await app.page.evaluate(() => {
+      authService.loginAsAdmin();
+      document.body.dataset.role = "admin";
+      window.BlueCrew.test.currentRole = "admin";
+      if (window.qaService) qaService.setRole("admin");
+      navigateTo("assigner-workbench");
+    });
+
+    await app.page.getByTestId("workbench-pending-claims-item").click();
+    const dialog = app.page.getByTestId("workbench-game-dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByTestId("workbench-accept-claim")).toBeVisible();
+    await expect(dialog.getByTestId("workbench-reject-claim")).toBeVisible();
+    await expect(dialog.getByText("Assign Crew")).toHaveCount(0);
+
+    await dialog.getByTestId("workbench-accept-claim").click();
+    await expect(app.page.getByTestId("workbench-pending-claims-count")).toHaveText("0");
   });
 
   test("approves a pending claim and removes it from the queue", async ({ app }) => {

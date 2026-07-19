@@ -361,6 +361,48 @@ function getRoleSummary() {
           )
         : null;
 
+    let activityMessage =
+      getOperationalActivityMessage(
+        type,
+        action,
+        activity
+      );
+
+    if (
+      type === "assignment" &&
+      action === "assigned" &&
+      !/assigned to/i.test(activityMessage)
+    ) {
+      const position =
+        activity.metadata?.position ||
+        String(activityMessage)
+          .replace(/\s+assigned\.?$/i, "")
+          .trim();
+
+      const assignment = relatedGame && position
+        ? getAssignments(relatedGame).find(item =>
+            String(item.position).toLowerCase() ===
+            String(position).toLowerCase()
+          )
+        : null;
+
+      const crewId =
+        activity.crewId ||
+        assignment?.crewId ||
+        "";
+
+      const crewName = crewId &&
+        typeof crewService !== "undefined" &&
+        typeof crewService.getDisplayName === "function"
+          ? crewService.getDisplayName(crewId)
+          : "";
+
+      if (position && crewName) {
+        activityMessage =
+          `${position} assigned to ${crewName}.`;
+      }
+    }
+
     return {
       id:
         activity.id || "",
@@ -382,12 +424,7 @@ function getRoleSummary() {
           activity
         ),
 
-      message:
-        getOperationalActivityMessage(
-          type,
-          action,
-          activity
-        ),
+      message: activityMessage,
 
       matchup:
         activity.matchup || "",
@@ -541,6 +578,17 @@ function getRoleSummary() {
     action,
     activity = {}
   ) {
+    if (
+      type === "game" &&
+      action === "game_updated" &&
+      Array.isArray(activity.metadata?.changes) &&
+      activity.metadata.changes.length &&
+      typeof timelineService !== "undefined" &&
+      typeof timelineService.formatStory === "function"
+    ) {
+      return timelineService.formatStory(activity);
+    }
+
     if (activity.message) {
       return activity.message;
     }
@@ -949,8 +997,18 @@ function getRoleSummary() {
   }
 
   function getWorkbench() {
-    const needsAssignment =
-      assignmentService.getNeedsAssignmentGames();
+    // Build the staffing queue from the same canonical open-slot source used
+    // by dashboard metrics. A game's overall workflow status can be
+    // open-for-claim or pending while it still has another position that
+    // requires a manual assignment.
+    const needsAssignment = [
+      ...new Map(
+        getOpenAssignments().map(item => [
+          item.gameId,
+          item.game
+        ])
+      ).values()
+    ];
 
     const pendingClaims =
       claimsQueueService.getPendingClaims();
@@ -1339,24 +1397,28 @@ function getOperationsCenter(
   const statusMetrics = [
     {
       id: "events-today",
-      label: "Events today",
+      label: "Events Today",
       value: todaysEvents.length,
       action: "schedule-today",
       item: {}
     },
     {
       id: "fully-staffed",
-      label: "Fully staffed",
+      label: "Fully Staffed",
       value:
         todaysEvents.filter(
           event => event.fullyStaffed
         ).length,
+      displayValue:
+        `${todaysEvents.filter(event => event.fullyStaffed).length} of ${todaysEvents.length}`,
+      needsAttention:
+        todaysEvents.some(event => !event.fullyStaffed),
       action: "assigner-workbench",
       item: { staffing: "fully-staffed" }
     },
     {
       id: "open-positions",
-      label: "Open positions",
+      label: "Open Positions",
       value: openPositions.length,
       requiresAction: true,
       action: "assigner-workbench",
@@ -1364,7 +1426,7 @@ function getOperationsCenter(
     },
     {
       id: "pending-claims",
-      label: "Pending claims",
+      label: "Pending Claims",
       value: tasks.pendingClaims.count,
       requiresAction: true,
       action: "pending-claim",
@@ -1377,7 +1439,7 @@ function getOperationsCenter(
     },
     {
       id: "reviews",
-      label: "Reviews requiring action",
+      label: "Reviews Requiring Action",
       value: queueCounts.reviews,
       requiresAction: true,
       action:
@@ -1401,7 +1463,7 @@ function getOperationsCenter(
     ...(canManageAccounts
       ? [{
           id: "pending-accounts",
-          label: "Pending accounts",
+          label: "Pending Accounts",
           value:
             tasks.pendingAccounts.count,
           requiresAction: true,
@@ -1416,7 +1478,7 @@ function getOperationsCenter(
       : []),
     {
       id: "active-alerts",
-      label: "Active alerts",
+      label: "Active Alerts",
       value: tasks.conflicts.count,
       requiresAction: true,
       action: "schedule-conflict",

@@ -206,6 +206,11 @@ test.describe("Dashboard Entry Experience", () => {
     app
   }) => {
     await createGame(app.page);
+    await createGame(app.page, {
+      date: "2099-12-31",
+      homeTeam: "Future Open Home",
+      awayTeam: "Future Open Away"
+    });
 
     await app.page.evaluate(() => {
       renderPage("dashboard");
@@ -216,6 +221,73 @@ test.describe("Dashboard Entry Experience", () => {
         "dashboard-summary-open-assignments-value"
       )
     ).toHaveText("1");
+  });
+
+  test("uses a compact Today's Games header with the full schedule action", async ({ app }) => {
+    await createGame(app.page);
+    await app.page.evaluate(() => renderPage("dashboard"));
+
+    const heading = app.page.locator(".dashboard-today-heading");
+    await expect(heading.getByRole("heading", { name: "Today's Games" })).toBeVisible();
+    await expect(heading).toContainText("1 scheduled");
+    await expect(app.page.getByTestId("dashboard-view-schedule")).toHaveText("View Full Schedule");
+
+    const alignment = await heading.evaluate(element => {
+      const title = element.querySelector("h2").getBoundingClientRect();
+      const count = element.querySelector(".card-subtitle").getBoundingClientRect();
+      return Math.abs(title.bottom - count.bottom);
+    });
+    expect(alignment).toBeLessThan(8);
+
+    const horizontalPlacement = await app.page.getByTestId("dashboard-today-games").evaluate(card => {
+      const cardRight = card.getBoundingClientRect().right;
+      const actionRight = card.querySelector('[data-testid="dashboard-view-schedule"]').getBoundingClientRect().right;
+      return cardRight - actionRight;
+    });
+    expect(horizontalPlacement).toBeLessThan(25);
+
+    await expect(heading.locator(".card-subtitle")).toHaveCSS("font-weight", "800");
+
+    const verticalCenters = await app.page.getByTestId("dashboard-today-games").evaluate(card => {
+      const elements = [
+        card.querySelector("h2"),
+        card.querySelector(".card-subtitle"),
+        card.querySelector('[data-testid="dashboard-view-schedule"]')
+      ];
+      return elements.map(element => {
+        const rect = element.getBoundingClientRect();
+        return (rect.top + rect.bottom) / 2;
+      });
+    });
+    expect(Math.max(...verticalCenters) - Math.min(...verticalCenters)).toBeLessThan(8);
+  });
+
+  test("today's game times use bold emphasis", async ({ app }) => {
+    await createGame(app.page);
+    await app.page.evaluate(() => renderPage("dashboard"));
+    await expect(app.page.locator(".dashboard-today-time").first()).toHaveCSS("font-weight", "800");
+  });
+
+  test("shows today's staffing ratio and today-scoped attention total", async ({ app }) => {
+    await createGame(app.page);
+    await createGame(app.page, {
+      date: "2099-12-31",
+      homeTeam: "Future Home",
+      awayTeam: "Future Away"
+    });
+    await app.page.evaluate(() => renderPage("dashboard"));
+
+    await expect(app.page.getByTestId("dashboard-summary-fully-staffed-value")).toHaveText("0 of 1");
+    await expect(app.page.getByTestId("dashboard-summary-fully-staffed")).toHaveAttribute("data-attention", "true");
+    await expect(app.page.getByTestId("dashboard-brief-message")).toHaveText("1 operational item requires attention.");
+  });
+
+  test("omits secondary context labels from Daily Brief metrics", async ({ app }) => {
+    await app.page.evaluate(() => renderPage("dashboard"));
+
+    await expect(app.page.getByTestId("operations-summary").locator("small")).toHaveCount(0);
+    await expect(app.page.getByTestId("operations-summary")).not.toContainText("Open work");
+    await expect(app.page.getByTestId("operations-summary")).not.toContainText("Operational context");
   });
 
   test("uses teal command metrics while preserving active edge highlights", async ({ app }) => {
@@ -307,6 +379,11 @@ test.describe("Dashboard Entry Experience", () => {
 
   test("Open Positions opens a focused editable Workbench list", async ({ app }) => {
     const game = await createGame(app.page);
+    const futureGame = await createGame(app.page, {
+      date: "2099-12-31",
+      homeTeam: "Future Home",
+      awayTeam: "Future Away"
+    });
     await app.page.evaluate(() => renderPage("dashboard"));
 
     await app.page.getByTestId("dashboard-summary-open-assignments").click();
@@ -314,7 +391,26 @@ test.describe("Dashboard Entry Experience", () => {
     await expect(app.page.locator("body")).toHaveAttribute("data-page", "assigner-workbench");
     await expect(app.page.getByTestId("workbench-open-positions-focus")).toBeVisible();
     await expect(app.page.getByTestId(`workbench-open-game-${game.id}`)).toBeVisible();
+    await expect(app.page.getByTestId(`workbench-open-game-${futureGame.id}`)).toHaveCount(0);
     await expect(app.page.getByTestId(`workbench-manage-crew-${game.id}`)).toBeVisible();
+  });
+
+  test("Open Positions preserves games whose open slot is available for claims", async ({ app }) => {
+    const game = await createGame(app.page);
+
+    await app.page.evaluate(gameId => {
+      const source = gameService.getById(gameId);
+      const assignment = assignmentService.getAssignments(source)[0];
+      assignmentService.openAssignmentForClaims(gameId, assignment.id);
+      renderPage("dashboard");
+    }, game.id);
+
+    await expect(
+      app.page.getByTestId("dashboard-summary-open-assignments-value")
+    ).toHaveText("1");
+
+    await app.page.getByTestId("dashboard-summary-open-assignments").click();
+    await expect(app.page.getByTestId(`workbench-open-game-${game.id}`)).toBeVisible();
   });
 
   test("today games opens the Schedule", async ({

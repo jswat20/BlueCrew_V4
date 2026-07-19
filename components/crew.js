@@ -3,7 +3,7 @@ function renderCrew() {
   const inactiveCrew = crew.filter(member => !member.active);
 
   return `
-    <div class="card">
+    <div class="card crew-page-shell">
       <div class="page-section-header">
         <div>
           <h3>Crew</h3>
@@ -12,7 +12,7 @@ function renderCrew() {
     <button class="primary-btn" onclick="openAddCrewDrawer()">+ Add Crew Member</button>
       </div>
 
-      <div class="card-grid">
+      <div class="card-grid crew-summary-grid">
         <div class="card stat-card">
           <h3>Active Crew</h3>
           <div class="stat-number">${activeCrew.length}</div>

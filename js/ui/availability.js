@@ -4,13 +4,32 @@ const availabilityPageState = {
   selectedCrewId: "",
   selectedDate: "",
   selectedStatus: "available",
-  editingDate: ""
+  selectedStartTime: "",
+  selectedEndTime: "",
+  editingDate: "",
+  editingWindowId: ""
+};
+
+const availabilityFinderState = {
+  date: "",
+  time: "",
+  level: "",
+  hasSearched: false,
+  results: []
 };
 
 function renderAvailability() {
   const crewMembers = crewService.getAll();
+  const isUmpire = typeof authService !== "undefined" && authService.isUmpire();
 
-  ensureAvailabilityPageState(crewMembers);
+  if (!isUmpire) {
+    return renderAdminAvailabilityFinder(crewMembers);
+  }
+
+  const currentCrewId = authService.currentCrewId();
+  const umpireCrew = crewMembers.filter(member => String(member.id) === String(currentCrewId));
+
+  ensureAvailabilityPageState(umpireCrew);
 
   const selectedCrew = crewService.getById(
     availabilityPageState.selectedCrewId
@@ -29,14 +48,14 @@ function renderAvailability() {
         <div>
           <h2>Availability</h2>
           <p>
-            Manage crew availability by date.
+            Manage full-day availability or specific time windows.
           </p>
         </div>
       </div>
 
       ${
-        crewMembers.length
-          ? renderAvailabilityForm(crewMembers)
+        umpireCrew.length
+          ? renderAvailabilityForm(umpireCrew)
           : renderAvailabilityNoCrew()
       }
 
@@ -47,6 +66,42 @@ function renderAvailability() {
       }
     </section>
   `;
+}
+
+function renderAdminAvailabilityFinder(crewMembers) {
+  const levels = [...new Set(crewMembers.flatMap(member => member.levels || []))]
+    .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  return `
+    <section class="page-section availability-page availability-finder-page" data-testid="availability-page">
+      <div class="availability-page-header"><div><h2>Available Crew Finder</h2><p>Identify active, eligible crew without changing their submitted availability.</p></div></div>
+      <section class="availability-form-card" data-testid="availability-finder">
+        <div class="availability-finder-grid">
+          <label class="availability-field"><span>Date</span><input type="date" data-testid="availability-finder-date" value="${escapeAvailabilityHtml(availabilityFinderState.date)}" onchange="availabilityFinderState.date=this.value"></label>
+          <label class="availability-field"><span>Time</span><input type="time" data-testid="availability-finder-time" value="${escapeAvailabilityHtml(availabilityFinderState.time)}" onchange="availabilityFinderState.time=this.value"></label>
+          <label class="availability-field"><span>Age Eligibility</span><select data-testid="availability-finder-level" onchange="availabilityFinderState.level=this.value"><option value="">All Age Levels</option>${levels.map(level => `<option value="${escapeAvailabilityHtml(level)}" ${level === availabilityFinderState.level ? "selected" : ""}>${escapeAvailabilityHtml(level)}</option>`).join("")}</select></label>
+          <button type="button" class="button button-primary" data-testid="identify-available-crew" onclick="identifyAvailableCrew()">Identify Available Crew</button>
+        </div>
+      </section>
+      <section class="availability-finder-results" data-testid="availability-finder-results">${renderAvailabilityFinderResults(availabilityFinderState.hasSearched ? availabilityFinderState.results : null)}</section>
+    </section>`;
+}
+
+function identifyAvailableCrew() {
+  const { date, time, level } = availabilityFinderState;
+  availabilityFinderState.hasSearched = true;
+  availabilityFinderState.results = crewService.getAll()
+    .filter(member => member.active !== false)
+    .filter(member => !level || (member.levels || []).includes(level))
+    .filter(member => !date || availabilityService.getAvailability(member.id, date, time) === "available")
+    .filter(member => !date || !time || !availabilityService.evaluate(member.id, { id: "availability-finder", date, time, level }).conflict)
+    .sort((a, b) => crewService.getName(a).localeCompare(crewService.getName(b)));
+  renderPage("availability");
+}
+
+function renderAvailabilityFinderResults(results) {
+  if (results === null) return `<div class="presentation-empty-state">Choose any useful filters, then identify available crew.</div>`;
+  if (!results.length) return `<div class="presentation-empty-state" data-testid="availability-finder-empty">No available crew match these filters.</div>`;
+  return `<div class="availability-finder-result-header"><h3>Available Crew</h3><span>${results.length} match${results.length === 1 ? "" : "es"}</span></div><div class="availability-finder-card-grid">${results.map(member => renderCrewCardFront(member, { testId: "availability-finder-card", className: "availability-finder-card" })).join("")}</div>`;
 }
 
 function ensureAvailabilityPageState(crewMembers) {
@@ -113,6 +168,9 @@ function renderAvailabilityForm(crewMembers) {
             onchange="handleAvailabilityDateChange(this.value)"
           >
         </label>
+
+        <label class="availability-field"><span>Available From <small>(optional)</small></span><input type="time" value="${escapeAvailabilityHtml(availabilityPageState.selectedStartTime)}" data-testid="availability-start-time" onchange="availabilityPageState.selectedStartTime=this.value"></label>
+        <label class="availability-field"><span>Available Until <small>(optional)</small></span><input type="time" value="${escapeAvailabilityHtml(availabilityPageState.selectedEndTime)}" data-testid="availability-end-time" onchange="availabilityPageState.selectedEndTime=this.value"></label>
       </div>
 
       <fieldset
@@ -329,6 +387,8 @@ function renderAvailabilityEntry(entry) {
           ${formatAvailabilityStatus(entry.status)}
         </span>
 
+        ${entry.startTime && entry.endTime ? `<span class="availability-time-window" data-testid="availability-entry-window">${formatAvailabilityTime(entry.startTime)}–${formatAvailabilityTime(entry.endTime)}</span>` : `<span class="availability-time-window">All day</span>`}
+
         ${
           today
             ? `
@@ -375,9 +435,7 @@ function renderAvailabilityEntry(entry) {
                 data-testid="availability-edit-${escapeAvailabilityHtml(
                   entry.date
                 )}"
-                onclick="handleEditAvailability('${escapeAvailabilityJs(
-                  entry.date
-                )}')"
+                onclick="handleEditAvailability('${escapeAvailabilityJs(entry.date)}', '${escapeAvailabilityJs(entry.id || "")}')"
               >
                 Edit
               </button>
@@ -388,9 +446,7 @@ function renderAvailabilityEntry(entry) {
                 data-testid="availability-remove-${escapeAvailabilityHtml(
                   entry.date
                 )}"
-                onclick="handleRemoveAvailability('${escapeAvailabilityJs(
-                  entry.date
-                )}')"
+                onclick="handleRemoveAvailability('${escapeAvailabilityJs(entry.date)}', '${escapeAvailabilityJs(entry.id || "")}')"
               >
                 Remove
               </button>
@@ -453,6 +509,8 @@ async function handleSaveAvailability() {
   const status =
     selectedStatusInput?.value ||
     availabilityPageState.selectedStatus;
+  const startTime = document.querySelector('[data-testid="availability-start-time"]')?.value || "";
+  const endTime = document.querySelector('[data-testid="availability-end-time"]')?.value || "";
 
   if (!crewId) {
     showAvailabilityError(
@@ -465,6 +523,11 @@ async function handleSaveAvailability() {
     showAvailabilityError(
       "Choose an availability date."
     );
+    return;
+  }
+
+  if ((startTime || endTime) && (!startTime || !endTime || startTime >= endTime)) {
+    showAvailabilityError("Choose a valid start and end time.");
     return;
   }
 
@@ -507,7 +570,10 @@ async function handleSaveAvailability() {
     availabilityService.setAvailability({
       crewId,
       date,
-      status
+      status,
+      startTime,
+      endTime,
+      windowId: availabilityPageState.editingWindowId
     });
 
   if (!result) {
@@ -520,6 +586,8 @@ async function handleSaveAvailability() {
   availabilityPageState.selectedDate = "";
   availabilityPageState.selectedStatus =
     "available";
+  availabilityPageState.selectedStartTime = "";
+  availabilityPageState.selectedEndTime = "";
   availabilityPageState.editingDate = "";
 
   if (
@@ -805,7 +873,8 @@ function handleCopyPreviousWeek() {
   );
 }
 
-function handleEditAvailability(date) {
+function handleEditAvailability(date, windowId = "") {
+  const entry = availabilityService.getCrewAvailability(availabilityPageState.selectedCrewId).find(item => item.date === date && (!windowId || String(item.id) === String(windowId)));
   const status =
     availabilityService.getAvailability(
       availabilityPageState.selectedCrewId,
@@ -816,6 +885,9 @@ function handleEditAvailability(date) {
   availabilityPageState.selectedStatus =
     status || "available";
   availabilityPageState.editingDate = date;
+  availabilityPageState.editingWindowId = windowId;
+  availabilityPageState.selectedStartTime = entry?.startTime || "";
+  availabilityPageState.selectedEndTime = entry?.endTime || "";
 
   renderPage("availability");
 }
@@ -825,12 +897,10 @@ function handleCancelAvailabilityEdit() {
   renderPage("availability");
 }
 
-function handleRemoveAvailability(date) {
-  const removed =
-    availabilityService.clearAvailability(
-      availabilityPageState.selectedCrewId,
-      date
-    );
+function handleRemoveAvailability(date, windowId = "") {
+  const removed = windowId
+    ? availabilityService.clearAvailabilityWindow(availabilityPageState.selectedCrewId, windowId)
+    : availabilityService.clearAvailability(availabilityPageState.selectedCrewId, date);
 
   if (!removed) {
     showAvailabilityError(
@@ -857,6 +927,17 @@ function resetAvailabilityEditor() {
   availabilityPageState.selectedStatus =
     "available";
   availabilityPageState.editingDate = "";
+  availabilityPageState.editingWindowId = "";
+  availabilityPageState.editingWindowId = "";
+  availabilityPageState.selectedStartTime = "";
+  availabilityPageState.selectedEndTime = "";
+}
+
+function formatAvailabilityTime(value) {
+  if (!value) return "";
+  const [hourValue, minutes] = value.split(":");
+  const hour = Number(hourValue);
+  return `${hour % 12 || 12}:${minutes} ${hour >= 12 ? "PM" : "AM"}`;
 }
 
 function formatAvailabilityStatus(status) {

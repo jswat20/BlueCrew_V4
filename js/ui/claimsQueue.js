@@ -67,43 +67,45 @@ function renderClaimQueueCard(claim, highlightedId) {
       data-testid="claim-queue-card"
       ${isHighlighted ? 'data-highlighted="true"' : ""}
     >
-      <label>
-        <input
-          type="checkbox"
-          data-testid="claim-select-checkbox"
-          ${isSelected ? "checked" : ""}
-          onchange="toggleClaimSelection('${claim.assignmentId}')"
-        />
-        Select
-      </label>
+      <div class="claim-queue-card-header">
+        <label>
+          <input
+            type="checkbox"
+            data-testid="claim-select-checkbox"
+            ${isSelected ? "checked" : ""}
+            onchange="toggleClaimSelection('${claim.assignmentId}')"
+          />
+          Select
+        </label>
 
-      <h3 data-testid="claim-matchup">${claim.matchup}</h3>
+        <h3 data-testid="claim-matchup">${claim.matchup}</h3>
 
-      <div class="claim-queue-details">
-        <p data-testid="claim-date">Date: ${claim.date}</p>
-        <p data-testid="claim-time">Time: ${claim.time}</p>
-        <p data-testid="claim-field">Field: ${claim.field}</p>
-        <p data-testid="claim-level">Level: ${claim.level}</p>
-        <p data-testid="claim-position">Position: ${claim.position}</p>
-        <p data-testid="claim-claimed-by">Claimed by: ${claim.claimedByName}</p>
+        <div class="claim-queue-actions">
+          <button
+            type="button"
+            data-testid="approve-claim-${claim.assignmentId}"
+            onclick="handleApproveClaim('${claim.gameId}', '${claim.assignmentId}')"
+          >
+            Approve
+          </button>
+
+          <button
+            type="button"
+            data-testid="reject-claim-${claim.assignmentId}"
+            onclick="handleRejectClaim('${claim.gameId}', '${claim.assignmentId}')"
+          >
+            Reject
+          </button>
+        </div>
       </div>
 
-      <div class="claim-queue-actions">
-        <button
-          type="button"
-          data-testid="approve-claim-${claim.assignmentId}"
-          onclick="handleApproveClaim('${claim.gameId}', '${claim.assignmentId}')"
-        >
-          Approve
-        </button>
-
-        <button
-          type="button"
-          data-testid="reject-claim-${claim.assignmentId}"
-          onclick="handleRejectClaim('${claim.gameId}', '${claim.assignmentId}')"
-        >
-          Reject
-        </button>
+      <div class="claim-queue-details">
+        <p data-testid="claim-date"><strong>Date</strong><span>${claim.date}</span></p>
+        <p data-testid="claim-time"><strong>Time</strong><span>${claim.time}</span></p>
+        <p data-testid="claim-field"><strong>Field</strong><span>${claim.field}</span></p>
+        <p data-testid="claim-level"><strong>Level</strong><span>${claim.level}</span></p>
+        <p data-testid="claim-position"><strong>Position</strong><span>${claim.position}</span></p>
+        <p data-testid="claim-claimed-by"><strong>Claimed by</strong><span>${claim.claimedByName}</span></p>
       </div>
     </article>
   `;

@@ -30,7 +30,6 @@ function renderDashboardBriefMetric({
       </strong>
 
       <span>${label}</span>
-      <small>${isPriority ? "Open work" : "Operational context"}</small>
     </button>
   `;
 }
@@ -82,13 +81,29 @@ function renderDashboardDailyBrief() {
         })}
 
         ${renderDashboardBriefMetric({
+          id: "fully-staffed",
+          value: `${brief.fullyStaffed} of ${brief.todayGames}`,
+          label: "Fully Staffed",
+          action:
+            `openDashboardWorkbench(
+              "open-positions",
+              "today"
+            )`,
+          emphasis:
+            brief.fullyStaffed < brief.todayGames
+              ? "dashboard-brief-alert"
+              : ""
+        })}
+
+        ${renderDashboardBriefMetric({
           id: "open-assignments",
           value: brief.openAssignments,
           label:
             "Open Positions",
           action:
             `openDashboardWorkbench(
-              "open-positions"
+              "open-positions",
+              "today"
             )`,
           emphasis:
             brief.openAssignments

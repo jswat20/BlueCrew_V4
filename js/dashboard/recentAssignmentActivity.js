@@ -20,46 +20,21 @@ function getDashboardActivityStartTime() {
 }
 
 function getDashboardRecentActivity() {
-  const since =
-    getDashboardActivityStartTime();
-
   if (
-    typeof timelineService !== "undefined" &&
-    typeof timelineService.getSince ===
-      "function"
-  ) {
-    return timelineService.getSince(
-      since,
-      20
-    );
-  }
-
-  if (
-    typeof activityService === "undefined"
+    typeof dashboardService === "undefined" ||
+    typeof dashboardService.getRecentOperationalActivity !== "function"
   ) {
     return [];
   }
 
-  const activities =
-    typeof activityService.getSince ===
-      "function"
-      ? activityService.getSince(
-          since,
-          20
-        )
-      : activityService.getRecent(20);
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
 
-  return activities.map(activity => ({
-    id: activity.id || "",
-    type: activity.type || "general",
-    category: "Activity",
-    story:
-      activity.message ||
-      activity.matchup ||
-      "Activity recorded.",
-    createdAt:
-      activity.createdAt || ""
-  }));
+  return dashboardService
+    .getRecentOperationalActivity(50)
+    .filter(activity => {
+      const timestamp = new Date(activity.createdAt || "").getTime();
+      return Number.isFinite(timestamp) && timestamp >= cutoff;
+    });
 }
 
 function getDashboardActivityHeading() {
@@ -84,16 +59,19 @@ function renderRecentAssignmentActivity() {
       class="
         dashboard-card
         dashboard-activity-feed
+        operations-panel
+        operations-log
       "
       data-testid="dashboard-assignment-activity"
     >
-      <div class="card-header">
+      <div class="card-header operations-section-heading">
         <div>
-          <h2>Recent Activity</h2>
+          <h3>Recent Activity</h3>
 
           <span
             class="card-subtitle"
             data-testid="dashboard-activity-period"
+            hidden
           >
             ${getDashboardActivityHeading()}
           </span>
@@ -104,19 +82,23 @@ function renderRecentAssignmentActivity() {
         activities.length
           ? `
               <div
-                class="assignment-activity-list"
+                class="assignment-activity-list operations-log-list"
                 data-testid="dashboard-assignment-activity-list"
               >
                 ${activities
-                  .map(
-                    renderDashboardActivityItem
+                  .map((activity, index) =>
+                    renderOperationsCenterActivityItem(
+                      activity,
+                      index,
+                      { dashboard: true }
+                    )
                   )
                   .join("")}
               </div>
             `
           : `
               <div
-                class="empty-state"
+                class="empty-state operations-feed-empty"
                 data-testid="dashboard-assignment-activity-empty"
               >
                 No recent activity.
@@ -135,6 +117,7 @@ function renderDashboardActivityItem(
       class="
         assignment-activity-item
         dashboard-timeline-item
+        operations-log-row
       "
       data-testid="dashboard-assignment-activity-item"
       data-activity-id="${escapeDashboardActivityHtml(
@@ -144,41 +127,8 @@ function renderDashboardActivityItem(
         activity.type
       )}"
     >
-      <div
-        class="dashboard-timeline-marker"
-        aria-hidden="true"
-      ></div>
-
-      <div class="assignment-activity-content">
-        <span
-          class="dashboard-timeline-category"
-          data-testid="dashboard-activity-category"
-        >
-          ${escapeDashboardActivityHtml(
-            activity.category
-          )}
-        </span>
-
-        <strong
-          data-testid="dashboard-assignment-activity-action"
-        >
-          ${escapeDashboardActivityHtml(
-            activity.story
-          )}
-        </strong>
-
-        <span
-          data-testid="dashboard-assignment-activity-matchup"
-          hidden
-        >
-          ${escapeDashboardActivityHtml(
-            activity.matchup || ""
-          )}
-        </span>
-      </div>
-
       <time
-        class="assignment-activity-time"
+        class="assignment-activity-time operations-log-time"
         data-testid="dashboard-assignment-activity-time"
         datetime="${escapeDashboardActivityHtml(
           activity.createdAt
@@ -188,6 +138,21 @@ function renderDashboardActivityItem(
           activity.createdAt
         )}
       </time>
+
+      <span class="operations-log-type dashboard-timeline-category" data-testid="dashboard-activity-category">
+        <span class="operations-feed-signal" aria-hidden="true"></span>
+        ${escapeDashboardActivityHtml(activity.category)}
+      </span>
+
+      <span class="operations-log-location" data-testid="dashboard-assignment-activity-matchup">
+        ${escapeDashboardActivityHtml(activity.matchup || "—")}
+      </span>
+
+      <span class="operations-log-actor">${escapeDashboardActivityHtml(activity.actor || "System")}</span>
+
+      <strong class="operations-log-action" data-testid="dashboard-assignment-activity-action">
+        ${escapeDashboardActivityHtml(activity.story)}
+      </strong>
     </article>
   `;
 }

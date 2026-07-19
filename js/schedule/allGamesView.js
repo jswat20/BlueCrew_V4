@@ -36,7 +36,9 @@ const filter =
       break;
   }
 
-  const sortedGames = games.sort(sortGames);
+  const sortedGames = typeof applyScheduleAdvancedFilters === "function"
+    ? applyScheduleAdvancedFilters(games)
+    : games.sort(sortGames);
 
   container.innerHTML = `
     <section class="all-games-header presentation-page-header presentation-panel">

@@ -49,8 +49,15 @@ const migrationService = (() => {
     }
   }
 
+  function migrateCrewAccounts() {
+    return typeof accountService !== "undefined" && typeof accountService.migrateCrewCodes === "function"
+      ? accountService.migrateCrewCodes()
+      : [];
+  }
+
   return {
-    migrateGames
+    migrateGames,
+    migrateCrewAccounts
   };
 
 })();

@@ -110,7 +110,7 @@ test.describe(
     );
 
     test(
-      "workbench renders newest oldest and category summary",
+      "workbench presents notifications as a direct clickable list",
       async ({ page }) => {
         await page.evaluate(() => {
           navigateTo(
@@ -118,31 +118,9 @@ test.describe(
           );
         });
 
-        await expect(
-          page.getByTestId(
-            "workbench-newest-notification"
-          )
-        ).toContainText(
-          "Newest Review"
-        );
-
-        await expect(
-          page.getByTestId(
-            "workbench-oldest-unread-age"
-          )
-        ).toBeVisible();
-
-        await expect(
-          page.getByTestId(
-            "workbench-unread-assignments"
-          )
-        ).toContainText("1");
-
-        await expect(
-          page.getByTestId(
-            "workbench-unread-reviews"
-          )
-        ).toContainText("1");
+        await expect(page.getByTestId("workbench-notification-item")).toHaveCount(2);
+        await expect(page.getByTestId("workbench-newest-notification")).toHaveCount(0);
+        await expect(page.getByTestId("workbench-unread-by-category")).toHaveCount(0);
       }
     );
 

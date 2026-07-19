@@ -509,31 +509,8 @@ function renderApprovedAccount(account, crewMembers) {
     String(member.id) === String(account.crewId)
   );
 
-  return `
-    <div
-      class="card"
-      data-testid="approved-account-${account.id}">
-
-      <strong>
-        ${account.firstName} ${account.lastName}
-      </strong>
-
-      <div>${account.email}</div>
-
-      <div
-        data-testid="account-role-display-${account.id}">
-        Role: ${formatAccountRole(account.role)}
-      </div>
-
-      <small>
-        ${
-          crewMember
-            ? `Linked to ${crewMember.firstName} ${crewMember.lastName}`
-            : "Not linked to a crew member"
-        }
-      </small>
-    </div>
-  `;
+  if (account.role === "umpire" && typeof renderCrewCardFront === "function") return renderCrewCardFront(account, { testId: `approved-account-${account.id}`, className: "account-crew-card", roleTestId: `account-role-display-${account.id}` });
+  return `<div class="card" data-testid="approved-account-${account.id}"><strong>${account.firstName} ${account.lastName}</strong><div>${account.email}</div><div data-testid="account-role-display-${account.id}">Role: ${formatAccountRole(account.role)}</div><small>${crewMember ? `Linked to ${crewMember.firstName} ${crewMember.lastName}` : "Not linked to a crew member"}</small></div>`;
 }
 
 function changePendingAccountRole(accountId, role) {

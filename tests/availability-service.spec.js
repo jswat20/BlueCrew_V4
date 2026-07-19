@@ -7,6 +7,7 @@ test.describe("Availability Service", () => {
     await page.evaluate(() => {
       crewService.getAll().forEach(member => {
         delete member.dateAvailability;
+        delete member.availabilityTimeWindows;
       });
 
       if (typeof saveCrew === "function") {
@@ -50,6 +51,23 @@ test.describe("Availability Service", () => {
         status: "unavailable"
       }
     ]);
+  });
+
+  test("resolves availability against a saved time window", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const member = crewService.getAll()[0];
+      const saved = availabilityService.setAvailability({ crewId: member.id, date: "2026-08-20", status: "available", startTime: "13:00", endTime: "17:00" });
+      return {
+        saved,
+        during: availabilityService.getAvailability(member.id, "2026-08-20", "3:00 PM"),
+        before: availabilityService.getAvailability(member.id, "2026-08-20", "10:00 AM"),
+        entries: availabilityService.getCrewAvailability(member.id)
+      };
+    });
+    expect(result.saved.startTime).toBe("13:00");
+    expect(result.during).toBe("available");
+    expect(result.before).toBe("unavailable");
+    expect(result.entries[0]).toEqual(expect.objectContaining({ startTime: "13:00", endTime: "17:00" }));
   });
 
   test("overwrites existing availability", async ({ page }) => {

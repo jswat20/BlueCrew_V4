@@ -3,6 +3,7 @@
 let profileFormSnapshot = null;
 let profileFormMessage = "";
 let profileFormError = "";
+let profilePendingPhotoDataUrl = "";
 
 function escapeProfileHtml(value) {
   return String(value || "")
@@ -37,6 +38,7 @@ function renderProfile() {
   }
 
   profileFormSnapshot = { ...profile };
+  profilePendingPhotoDataUrl = profile.photoDataUrl || "";
 
   return renderProfileForm(profile);
 }
@@ -177,6 +179,10 @@ function renderProfileForm(profile) {
           : ""
       }
 
+      <div class="profile-crew-card-preview" data-testid="profile-crew-card-front">
+        ${typeof renderCrewCardFront === "function" ? renderCrewCardFront(accountService.getById(profile.id), { testId: "profile-crew-card" }) : ""}
+      </div>
+
       <form
         class="form-card"
         data-testid="profile-form"
@@ -184,6 +190,11 @@ function renderProfileForm(profile) {
         onsubmit="handleSaveProfile(event)"
       >
         <div class="form-grid">
+          <label>
+            Crew ID
+            <input type="text" data-testid="profile-crew-id" value="${escapeProfileHtml(profile.crewCode || "Not issued")}" disabled>
+          </label>
+
           <label>
             Name
             <input
@@ -221,6 +232,16 @@ function renderProfileForm(profile) {
           </label>
 
           <label>
+            Birthdate
+            <input type="text" data-testid="profile-birthdate" value="${escapeProfileHtml(profile.birthdate ? formatCrewCardDate(profile.birthdate) : "Not recorded")}" disabled>
+          </label>
+
+          <label>
+            Age
+            <input type="text" data-testid="profile-age" value="${escapeProfileHtml(profile.age ?? "Not recorded")}" disabled>
+          </label>
+
+          <label>
             Email
             <input
               type="email"
@@ -246,6 +267,11 @@ function renderProfileForm(profile) {
           </label>
 
           <label>
+            Home Phone
+            <input type="tel" id="profile-home-phone" data-testid="profile-home-phone" value="${escapeProfileHtml(profile.homePhone || "")}">
+          </label>
+
+          <label>
             Address
             <input
               type="text"
@@ -255,6 +281,16 @@ function renderProfileForm(profile) {
                 profile.address
               )}"
             >
+          </label>
+
+          <label>
+            Contact Preference
+            <select id="profile-contact-preference" data-testid="profile-contact-preference"><option value="text" ${profile.contactPreference !== "call" ? "selected" : ""}>Text</option><option value="call" ${profile.contactPreference === "call" ? "selected" : ""}>Call</option></select>
+          </label>
+
+          <label>
+            Crew Photo
+            <input type="file" id="profile-photo" data-testid="profile-photo" accept="image/jpeg,image/png,image/webp" onchange="handleProfilePhotoSelected(this)">
           </label>
 
           <label>
@@ -348,6 +384,7 @@ function getProfileFormValues() {
       document.getElementById(
         "profile-phone"
       )?.value || "",
+    homePhone: document.getElementById("profile-home-phone")?.value || "",
     address:
       document.getElementById(
         "profile-address"
@@ -360,12 +397,36 @@ function getProfileFormValues() {
       document.getElementById(
         "profile-emergency-phone"
       )?.value || "",
+    contactPreference: document.getElementById("profile-contact-preference")?.value || "text",
+    photoDataUrl: profilePendingPhotoDataUrl,
     communicationPreferences:
       portalService.getProfile()
         ?.communicationPreferences ||
       accountService
         .getDefaultCommunicationPreferences()
   };
+}
+
+async function handleProfilePhotoSelected(input) {
+  profileFormMessage = "";
+  const result = await crewPhotoService.processFile(input.files?.[0]);
+  if (!result.success) {
+    profileFormError = result.message;
+    input.value = "";
+    const error = document.querySelector('[data-testid="profile-error"]');
+    if (error) error.textContent = result.message;
+    return;
+  }
+  profilePendingPhotoDataUrl = result.data;
+  profileFormMessage = "Photo ready to save.";
+  const photo = document.querySelector('[data-testid="profile-crew-card"] .crew-credential-photo');
+  if (photo) {
+    const preview = document.createElement("img");
+    preview.className = photo.className.replace("crew-credential-photo-fallback", "");
+    preview.src = result.data;
+    preview.alt = "Selected crew photo preview";
+    photo.replaceWith(preview);
+  }
 }
 
 function handleCommunicationPreferenceChange(

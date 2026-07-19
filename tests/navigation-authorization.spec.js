@@ -116,3 +116,16 @@ test("role switch is explicitly labeled as preview mode", async ({ page }) => {
   await expect(page.getByTestId("role-admin")).toHaveText("Admin view");
   await expect(page.getByTestId("role-umpire")).toHaveText("Umpire view");
 });
+
+test("browser Back returns to the previous in-app page", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    authService.loginAsAdmin();
+    navigateTo("schedule");
+    navigateTo("operations-center");
+  });
+
+  await expect(page.locator("body")).toHaveAttribute("data-page", "operations-center");
+  await page.goBack();
+  await expect(page.locator("body")).toHaveAttribute("data-page", "schedule");
+});

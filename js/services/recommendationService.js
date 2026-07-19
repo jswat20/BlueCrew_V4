@@ -52,7 +52,8 @@ function getDateAvailability(crewId, game) {
   return (
     availabilityService.getAvailability(
       crewId,
-      game.date
+      game.date,
+      game.time
     ) || "available"
   );
 }

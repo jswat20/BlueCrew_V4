@@ -4,8 +4,9 @@ function renderDailySchedule(container) {
   currentScheduleDate =
     currentScheduleDate || gameService.getFirstDateOrToday();
 
-  const allDayGames =
-    gameService.getByDate(currentScheduleDate);
+  const allDayGames = typeof applyScheduleAdvancedFilters === "function"
+    ? applyScheduleAdvancedFilters(gameService.getByDate(currentScheduleDate))
+    : gameService.getByDate(currentScheduleDate);
 
   const selectedCrewId =
     getSelectedWorkloadCrewId();
@@ -43,6 +44,16 @@ const workflowCount =
   const openCount =
     allDayGames.length - assignedCount;
 
+  const openAssignmentCount =
+    allDayGames.reduce(
+      (total, game) =>
+        total + assignmentService
+          .getAssignments(game)
+          .filter(assignment => !assignment.crewId)
+          .length,
+      0
+    );
+
   const conflictCount =
     conflictService.getDailyIssueCount(currentScheduleDate);
 
@@ -55,11 +66,15 @@ const workflowCount =
     : "";
 
   container.innerHTML = `
-    <div class="daily-overview-grid">
     <section class="daily-hero presentation-panel">
-      <div>
-        <div class="daily-kicker">Daily Schedule</div>
-        <h2>${formatLongDate(currentScheduleDate)}</h2>
+      <div class="daily-date-heading">
+        <button type="button" class="button button-secondary daily-date-step" data-testid="previous-date" onclick="goToPreviousGameDate()" aria-label="Previous schedule date">◀ Previous</button>
+        <div>
+          <div class="daily-kicker">Daily Schedule</div>
+          <h2>${formatLongDate(currentScheduleDate)}</h2>
+          <p class="daily-assignment-status" data-testid="schedule-assignment-status">${openAssignmentCount ? `${openAssignmentCount} open assignment${openAssignmentCount === 1 ? "" : "s"} for this day.` : "No open assignments for this day."}</p>
+        </div>
+        <button type="button" class="button button-secondary daily-date-step" data-testid="next-date" onclick="goToNextGameDate()" aria-label="Next schedule date">Next ▶</button>
       </div>
 
       <div class="daily-summary-inline" aria-label="Daily schedule status">
@@ -71,9 +86,6 @@ const workflowCount =
         </span>
       </div>
     </section>
-
-    ${renderScheduleStaffingReadiness(currentScheduleDate)}
-    </div>
 
     ${renderScheduleMonthCalendar(currentScheduleDate)}
 
@@ -113,7 +125,7 @@ function renderScheduleMonthCalendar(selectedDate) {
     date.setDate(gridStart.getDate() + index);
     const value = date.toISOString().split("T")[0];
     const gameCount = gamesByDate.get(value) || 0;
-    return `<button type="button" class="schedule-calendar-day ${date.getMonth() === month ? "" : "outside-month"} ${value < today ? "past-date" : ""} ${value === selectedDate ? "selected" : ""} ${gameCount ? "has-games" : "no-games"}" onclick="selectScheduleCalendarDate('${value}')" aria-pressed="${value === selectedDate}" aria-label="${formatLongDate(value)}${gameCount ? `, ${gameCount} games` : ", no games"}"><span>${date.getDate()}</span>${gameCount ? `<small>${gameCount}</small>` : ""}</button>`;
+    return `<button type="button" class="schedule-calendar-day ${date.getMonth() === month ? "" : "outside-month"} ${value < today ? "past-date" : ""} ${value === selectedDate ? "selected" : ""} ${gameCount ? "has-games" : "no-games"}" onclick="selectScheduleCalendarDate('${value}')" aria-pressed="${value === selectedDate}" aria-label="${formatLongDate(value)}${gameCount ? `, ${gameCount} games` : ", no games"}"><span>${date.getDate()}</span>${gameCount ? `<small>(${gameCount})</small>` : ""}</button>`;
   }).join("");
 
   return `<section class="schedule-calendar presentation-panel" data-testid="schedule-calendar"><header><button type="button" class="button button-link" onclick="shiftScheduleCalendarMonth(-1)" aria-label="Previous month">‹</button><h3>${formatter.format(first)}</h3><button type="button" class="button button-link" onclick="shiftScheduleCalendarMonth(1)" aria-label="Next month">›</button></header><div class="schedule-calendar-weekdays" aria-hidden="true">${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(day => `<span>${day}</span>`).join("")}</div><div class="schedule-calendar-grid">${days}</div></section>`;

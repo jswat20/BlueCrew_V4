@@ -221,7 +221,8 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
   function createAssignmentActivity(
     game,
     action,
-    message
+    message,
+    details = {}
   ) {
     if (
       typeof activityService === "undefined" ||
@@ -237,7 +238,10 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
       matchup:
         `${game?.awayTeam || "Away"} @ ` +
         `${game?.homeTeam || "Home"}`,
-      message
+      message,
+      crewId: details.crewId || "",
+      subject: details.subject || "",
+      metadata: details.metadata || {}
     });
   }
 
@@ -267,6 +271,22 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
       relatedId: game.id,
       audience: "umpire"
     });
+  }
+
+  function getAssignmentCrewName(crewId) {
+    return crewId && typeof crewService !== "undefined" &&
+      typeof crewService.getDisplayName === "function"
+      ? crewService.getDisplayName(crewId)
+      : String(crewId || "");
+  }
+
+  function getAssignmentChangeMessage(position, previousCrewId, crewId) {
+    if (!crewId) {
+      return `${position}: ${getAssignmentCrewName(previousCrewId) || "Crew member"} removed from ${String(position).toLowerCase()}.`;
+    }
+    return previousCrewId && String(previousCrewId) !== String(crewId)
+      ? `${position}: Changed to ${getAssignmentCrewName(crewId)}.`
+      : `${position}: Assigned to ${getAssignmentCrewName(crewId)}.`;
   }
 
   function requireAssignGames() {
@@ -303,6 +323,8 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
       return mutationResult(false, "This assignment is locked.");
     }
 
+    const previousCrewId = assignment.crewId || "";
+
     assignment.crewId = crewId || "";
     assignment.claimedBy = "";
     assignment.status = crewId ? STATUS.ASSIGNED : STATUS.NEEDS_ASSIGNMENT;
@@ -316,9 +338,14 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
     createAssignmentActivity(
       game,
       crewId ? "assigned" : "cleared",
+      getAssignmentChangeMessage(position, previousCrewId, crewId),
       crewId
-        ? `${position} assigned.`
-        : `${position} cleared.`
+        ? {
+            crewId,
+            subject: position,
+            metadata: { position }
+          }
+        : { metadata: { position } }
     );
 
     if (crewId) {
@@ -359,6 +386,8 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
       return mutationResult(false, "This assignment is locked.");
     }
 
+    const previousCrewId = assignment.crewId || "";
+
     assignment.crewId = crewId || "";
     assignment.claimedBy = "";
     assignment.status = crewId ? STATUS.ASSIGNED : STATUS.NEEDS_ASSIGNMENT;
@@ -372,9 +401,20 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
     createAssignmentActivity(
       game,
       crewId ? "assigned" : "cleared",
+      getAssignmentChangeMessage(assignment.position, previousCrewId, crewId),
       crewId
-        ? `${assignment.position} assigned.`
-        : `${assignment.position} cleared.`
+        ? {
+            crewId,
+            subject: assignment.position,
+            metadata: {
+              position: assignment.position
+            }
+          }
+        : {
+            metadata: {
+              position: assignment.position
+            }
+          }
     );
 
     if (crewId) {

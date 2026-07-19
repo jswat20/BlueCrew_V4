@@ -179,13 +179,26 @@ const availabilityService = (() => {
    * Date-based availability
    */
 
-  function setAvailability({ crewId, date, status } = {}) {
+  function setAvailability({ crewId, date, status, startTime = "", endTime = "", windowId = "" } = {}) {
     const member = crewService.getById(crewId);
     const normalizedDate = normalizeDate(date);
     const normalizedStatus = normalizeStatus(status);
 
     if (!member || !normalizedDate || !normalizedStatus) {
       return null;
+    }
+
+    const normalizedStartTime = normalizeTime(startTime);
+    const normalizedEndTime = normalizeTime(endTime);
+    if ((startTime || endTime) && (!normalizedStartTime || !normalizedEndTime || normalizedStartTime >= normalizedEndTime)) return null;
+
+    if (normalizedStartTime && normalizedEndTime) {
+      const windows = ensureAvailabilityWindows(member);
+      const existingIndex = windows.findIndex(item => windowId ? String(item.id) === String(windowId) : item.date === normalizedDate && item.startTime === normalizedStartTime && item.endTime === normalizedEndTime);
+      const record = { id: existingIndex >= 0 ? windows[existingIndex].id : `availability-${Date.now()}-${Math.random().toString(16).slice(2)}`, date: normalizedDate, startTime: normalizedStartTime, endTime: normalizedEndTime, status: normalizedStatus };
+      if (existingIndex >= 0) windows[existingIndex] = record; else windows.push(record);
+      persistCrew();
+      return { crewId: member.id, ...record };
     }
 
     const availability = ensureDateAvailability(member);
@@ -201,12 +214,24 @@ const availabilityService = (() => {
     };
   }
 
-  function getAvailability(crewId, date) {
+  function getAvailability(crewId, date, time = "") {
     const member = crewService.getById(crewId);
     const normalizedDate = normalizeDate(date);
 
     if (!member || !normalizedDate) {
       return null;
+    }
+
+    const windows = getAvailabilityWindows(member).filter(item => item.date === normalizedDate);
+    if (windows.length) {
+      const normalizedTime = normalizeTime(time);
+      if (normalizedTime) {
+        const match = windows.find(item => normalizedTime >= item.startTime && normalizedTime < item.endTime);
+        return match?.status || STATUS.UNAVAILABLE;
+      }
+      if (windows.some(item => item.status === STATUS.AVAILABLE)) return STATUS.AVAILABLE;
+      if (windows.some(item => item.status === STATUS.MAYBE)) return STATUS.MAYBE;
+      return STATUS.UNAVAILABLE;
     }
 
     const availability = getDateAvailability(member);
@@ -224,11 +249,13 @@ const availabilityService = (() => {
 
     const availability = getDateAvailability(member);
 
-    if (!Object.prototype.hasOwnProperty.call(availability, normalizedDate)) {
-      return false;
-    }
-
-    delete availability[normalizedDate];
+    const hadDay = Object.prototype.hasOwnProperty.call(availability, normalizedDate);
+    if (hadDay) delete availability[normalizedDate];
+    const windows = ensureAvailabilityWindows(member);
+    const remainingWindows = windows.filter(item => item.date !== normalizedDate);
+    const hadWindows = remainingWindows.length !== windows.length;
+    member.availabilityTimeWindows = remainingWindows;
+    if (!hadDay && !hadWindows) return false;
 
     persistCrew();
 
@@ -244,7 +271,7 @@ const availabilityService = (() => {
 
     const availability = getDateAvailability(member);
 
-    return Object.entries(availability)
+    const dayEntries = Object.entries(availability)
       .filter(([date, status]) => {
         return !!normalizeDate(date) && VALID_STATUSES.has(status);
       })
@@ -253,7 +280,8 @@ const availabilityService = (() => {
         date,
         status
       }))
-      .sort((left, right) => left.date.localeCompare(right.date));
+    const windowEntries = getAvailabilityWindows(member).map(item => ({ crewId: member.id, ...item }));
+    return [...dayEntries, ...windowEntries].sort((left, right) => left.date.localeCompare(right.date) || String(left.startTime || "").localeCompare(String(right.startTime || "")));
   }
 
   function getAvailableCrew(date) {
@@ -656,6 +684,28 @@ const availabilityService = (() => {
       : null;
   }
 
+  function clearAvailabilityWindow(crewId, windowId) {
+    const member = crewService.getById(crewId);
+    if (!member || !windowId) return false;
+    const windows = ensureAvailabilityWindows(member);
+    const remaining = windows.filter(item => String(item.id) !== String(windowId));
+    if (remaining.length === windows.length) return false;
+    member.availabilityTimeWindows = remaining;
+    persistCrew();
+    return true;
+  }
+
+  function normalizeTime(time) {
+    const value = String(time || "").trim();
+    if (!value) return null;
+    if (/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return value;
+    const match = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return null;
+    let hour = Number(match[1]) % 12;
+    if (match[3].toUpperCase() === "PM") hour += 12;
+    return `${String(hour).padStart(2, "0")}:${match[2]}`;
+  }
+
   function normalizeDate(date) {
     const normalizedDate = String(date || "").trim();
 
@@ -701,6 +751,15 @@ const availabilityService = (() => {
     return member.dateAvailability;
   }
 
+  function getAvailabilityWindows(member) {
+    return Array.isArray(member?.availabilityTimeWindows) ? member.availabilityTimeWindows : [];
+  }
+
+  function ensureAvailabilityWindows(member) {
+    if (!Array.isArray(member.availabilityTimeWindows)) member.availabilityTimeWindows = [];
+    return member.availabilityTimeWindows;
+  }
+
   function persistCrew() {
     if (typeof saveCrew === "function") {
       saveCrew();
@@ -720,6 +779,7 @@ const availabilityService = (() => {
     copyAvailabilityWeek,
     getAvailability,
     clearAvailability,
+    clearAvailabilityWindow,
     getCrewAvailability,
     getAvailabilitySummary,
     getAssignmentsOnDate,

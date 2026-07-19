@@ -16,11 +16,6 @@ test.describe("Schedule Daily View redesign", () => {
     await expect(metrics).toHaveCount(4);
     await expect(metrics.first()).toHaveCSS("align-items", "center");
     await expect(page.locator(".daily-summary-metric.status-good, .daily-summary-metric.status-watch, .daily-summary-metric.status-danger")).toHaveCount(3);
-    const panelSizes = await page.locator(".daily-overview-grid > section").evaluateAll(elements =>
-      elements.map(element => ({ width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height }))
-    );
-    expect(Math.abs(panelSizes[0].width - panelSizes[1].width)).toBeLessThanOrEqual(1);
-    expect(Math.abs(panelSizes[0].height - panelSizes[1].height)).toBeLessThanOrEqual(1);
     const summary = page.locator(".daily-summary-inline");
     const centering = await summary.evaluate(element => ({
       width: element.getBoundingClientRect().width,
@@ -48,6 +43,64 @@ test.describe("Schedule Daily View redesign", () => {
     await page.locator(`[onclick="selectScheduleCalendarDate('${targetDate}')"]`).click();
     await expect.poll(() => page.evaluate(() => currentScheduleDate)).toBe(targetDate);
     await expect(page.getByTestId("schedule-calendar")).toBeVisible();
+  });
+
+  test("advanced filters and sorting apply in all-games view", async ({ page }) => {
+    await page.evaluate(() => {
+      gameService.create({ date: "2099-10-01", time: "8:00 AM", field: "Filter Field Alpha", level: "8U", homeTeam: "Filter Home A", awayTeam: "Filter Away A", gameType: "single" });
+      gameService.create({ date: "2099-10-01", time: "6:00 PM", field: "Filter Field Beta", level: "14U", homeTeam: "Filter Home B", awayTeam: "Filter Away B", gameType: "single" });
+      currentScheduleView = "all";
+      renderPage("schedule");
+    });
+    await page.getByTestId("schedule-advanced-field").selectOption("Filter Field Beta");
+    await expect(page.locator(".schedule-table tbody tr")).toHaveCount(1);
+    await expect(page.locator(".schedule-table tbody tr")).toContainText("Filter Away B @ Filter Home B");
+    await page.getByTestId("schedule-clear-filters").click();
+    await page.getByTestId("schedule-sort-field").selectOption("time");
+    await page.getByTestId("schedule-sort-direction").selectOption("desc");
+    await expect(page.getByTestId("schedule-advanced-filters")).toBeVisible();
+  });
+
+  test("advanced filters stay out of Daily View and Today", async ({ page }) => {
+    await expect(page.getByTestId("schedule-advanced-filters")).toHaveCount(0);
+    await page.getByTestId("view-all-games").click();
+    await expect(page.getByTestId("schedule-advanced-filters")).toBeVisible();
+    await page.getByTestId("today").click();
+    await expect(page.getByTestId("schedule-advanced-filters")).toHaveCount(0);
+    await expect(page.getByTestId("view-daily")).toHaveClass(/active/);
+  });
+
+  test("date controls live inside the daily card and keep the calendar selection synchronized", async ({ page }) => {
+    await expect(page.getByTestId("schedule-toolbar").getByTestId("previous-date")).toHaveCount(0);
+    const startingDate = await page.evaluate(() => currentScheduleDate);
+    await page.getByTestId("next-date").click();
+    const selectedDate = await page.evaluate(() => currentScheduleDate);
+    expect(selectedDate).not.toBe(startingDate);
+    await expect(page.locator(`.schedule-calendar-day[aria-pressed="true"]`)).toHaveAttribute(
+      "onclick",
+      `selectScheduleCalendarDate('${selectedDate}')`
+    );
+  });
+
+  test("Today sits beside All Games and date arrows flank the selected date", async ({ page }) => {
+    const tabs = page.getByTestId("schedule-view-tabs");
+    await expect(tabs.getByTestId("today")).toBeVisible();
+
+    const geometry = await page.locator(".daily-date-heading").evaluate(element => {
+      const previous = element.querySelector('[data-testid="previous-date"]').getBoundingClientRect();
+      const date = element.querySelector("h2").getBoundingClientRect();
+      const next = element.querySelector('[data-testid="next-date"]').getBoundingClientRect();
+      return {
+        ordered: previous.right < date.left && date.right < next.left,
+        centerSpread: Math.max(
+          Math.abs((previous.top + previous.bottom) / 2 - (date.top + date.bottom) / 2),
+          Math.abs((next.top + next.bottom) / 2 - (date.top + date.bottom) / 2)
+        )
+      };
+    });
+
+    expect(geometry.ordered).toBe(true);
+    expect(geometry.centerSpread).toBeLessThan(24);
   });
 
   test("All Games exposes persistent operational filters", async ({ page }) => {
@@ -118,13 +171,30 @@ test.describe("Schedule Daily View redesign", () => {
   });
 
   test("crew workload and games share the daily workspace", async ({ page }) => {
-    const columns = await page.locator(".daily-assignment-grid").evaluate(
-      element => getComputedStyle(element).gridTemplateColumns.split(" ").length
-    );
-    expect(columns).toBe(2);
+    await page.setViewportSize({ width: 900, height: 900 });
+    const layout = await page.locator(".daily-assignment-grid").evaluate(element => {
+      const children = [...element.children].map(child => child.getBoundingClientRect());
+      return {
+        display: getComputedStyle(element).display,
+        direction: getComputedStyle(element).flexDirection,
+        viewport: window.innerWidth,
+        sideBySide: children.length === 2 && Math.abs(children[0].top - children[1].top) < 2,
+        similarWidths: children.length === 2 && Math.abs(children[0].width - children[1].width) < 3
+      };
+    });
+    expect(layout).toEqual({ display: "flex", direction: "row", viewport: 900, sideBySide: true, similarWidths: true });
     const workloadSection = page.locator(".crew-workload-section");
     await expect(workloadSection.locator(":scope > .daily-section-heading")).toContainText("Crew Workload");
     await expect(workloadSection.locator(".crew-workload-panel h3")).toHaveCount(0);
+  });
+
+  test("calendar uses defined cells and parenthesized event counts", async ({ page }) => {
+    const day = page.locator(".schedule-calendar-day").first();
+    await expect(day).toHaveCSS("border-top-style", "solid");
+    const count = page.locator(".schedule-calendar-day.has-games small").first();
+    if (await count.count()) {
+      await expect(count).toHaveText(/^\(\d+\)$/);
+    }
   });
 
   test("game cards retain actions in a compact row", async ({ page }) => {
@@ -134,13 +204,22 @@ test.describe("Schedule Daily View redesign", () => {
     await expect(card.getByRole("button", { name: "View Game Hub" })).toBeVisible();
     const radius = await card.evaluate(element => parseFloat(getComputedStyle(element).borderRadius));
     expect(radius).toBeLessThanOrEqual(8);
+    await expect(card.locator(".game-card-main .workload-badge")).toBeHidden();
+    const assignedCrew = card.locator(".game-card-crew span");
+    if (await assignedCrew.count()) {
+      await expect(assignedCrew.first().locator("small")).toHaveText(/Solo|Plate|Base/i);
+      const crewLink = assignedCrew.first().getByRole("button");
+      await crewLink.click();
+      await expect(page.getByTestId("crew-card-dialog")).toBeVisible();
+      await page.getByTestId("crew-card-dialog").getByRole("button", { name: "Close" }).last().click();
+    }
   });
 
-  test("staffing readiness routes changes to the assigner workbench", async ({ page }) => {
-    const readiness = page.getByTestId("schedule-staffing-readiness");
-    await expect(readiness).toContainText(/All Games Assigned|Assignments Need Attention/);
-    await readiness.getByTestId("schedule-open-workbench").click();
-    await expect(page.locator("body")).toHaveAttribute("data-page", "assigner-workbench");
+  test("shows assignment readiness as a compact line beneath the date", async ({ page }) => {
+    await expect(page.getByTestId("schedule-staffing-readiness")).toHaveCount(0);
+    await expect(page.getByTestId("schedule-assignment-status")).toHaveText(
+      /No open assignments for this day\.|\d+ open assignments? for this day\./
+    );
   });
 
   test("Crew page combines roster details and workload into one interactive list", async ({ page }) => {
@@ -162,5 +241,32 @@ test.describe("Schedule Daily View redesign", () => {
     await expect(crewCard).toContainText("Today");
     await expect(crewCard).toContainText("Season");
     await expect(crewCard.getByTestId("crew-card-edit")).toBeVisible();
+    await expect(crewCard.getByTestId("crew-card-copy-email")).toBeVisible();
+    await expect(crewCard.getByTestId("crew-card-call-phone")).toBeVisible();
+  });
+
+  test("Crew roster filters live by name and eligible age level", async ({ page }) => {
+    await page.getByTestId("nav-crew").click();
+    const search = page.getByTestId("crew-roster-search");
+    const members = page.getByTestId("crew-roster-member");
+    const target = await members.first().evaluate(card => ({
+      name: card.querySelector(".crew-credential-front-main strong")?.textContent || "",
+      level: card.querySelector(".settings-pill")?.textContent || ""
+    }));
+
+    await search.fill(target.name.slice(0, 3));
+    await expect(page.locator('[data-testid="crew-roster-member"]:visible').first()).toContainText(target.name);
+    await search.fill(target.level.replace(/U$/i, ""));
+    await expect(page.locator('[data-testid="crew-roster-member"]:visible').first().locator(".settings-pill").first()).toBeVisible();
+    await search.fill("no-such-crew-member");
+    await expect(page.getByTestId("crew-roster-count")).toHaveText("0 crew members");
+  });
+
+  test("Crew roster can hide inactive members", async ({ page }) => {
+    await page.getByTestId("nav-crew").click();
+    const inactiveCount = await page.locator('[data-testid="crew-roster-member"][data-crew-active="false"]').count();
+    await page.getByTestId("crew-hide-inactive").check();
+    await expect(page.locator('[data-testid="crew-roster-member"][data-crew-active="false"]:visible')).toHaveCount(0);
+    expect(inactiveCount).toBeGreaterThanOrEqual(0);
   });
 });

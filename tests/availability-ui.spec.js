@@ -12,14 +12,15 @@ test.describe("Availability Management UI", () => {
     await app.page.evaluate(() => {
       crewService.getAll().forEach(member => {
         delete member.dateAvailability;
+        delete member.availabilityTimeWindows;
       });
 
       if (typeof saveCrew === "function") {
         saveCrew();
       }
 
-      authService.loginAsAdmin();
-      document.body.dataset.role = "admin";
+      authService.loginAsUmpire();
+      document.body.dataset.role = "umpire";
     });
   });
 
@@ -58,6 +59,29 @@ test.describe("Availability Management UI", () => {
       );
 
     expect(savedStatus).toBe("unavailable");
+  });
+
+  test("admin sees a read-only availability finder with optional filters", async ({ app }) => {
+    await app.page.evaluate(() => {
+      authService.loginAsAdmin();
+      document.body.dataset.role = "admin";
+      renderPage("availability");
+    });
+    await expect(app.page.getByTestId("availability-form")).toHaveCount(0);
+    await expect(app.page.getByTestId("availability-finder")).toBeVisible();
+    await app.page.getByTestId("identify-available-crew").click();
+    await expect(app.page.getByTestId("availability-finder-card").first()).toBeVisible();
+  });
+
+  test("creates a granular availability time window", async ({ app }) => {
+    const crewId = await app.page.evaluate(() => crewService.getAll()[0].id);
+    await app.page.evaluate(() => navigateTo("availability"));
+    await app.page.getByTestId("availability-crew-select").selectOption(String(crewId));
+    await app.page.getByTestId("availability-date-input").fill("2026-09-12");
+    await app.page.getByTestId("availability-start-time").fill("13:00");
+    await app.page.getByTestId("availability-end-time").fill("17:30");
+    await app.page.getByTestId("availability-save").click();
+    await expect(app.page.getByTestId("availability-entry-window")).toHaveText("1:00 PM–5:30 PM");
   });
 
   test("edits availability", async ({ app }) => {
@@ -219,6 +243,14 @@ test.describe("Availability Management UI", () => {
     });
 
     await app.page.reload();
+
+    await app.page.evaluate(crewId => {
+      authService.loginAsCrew(crewId);
+      document.body.dataset.role = "umpire";
+      if (window.BlueCrew?.test) window.BlueCrew.test.currentRole = "umpire";
+      if (window.qaService) window.qaService.setRole("umpire");
+      if (typeof refreshNavigationAuthorization === "function") refreshNavigationAuthorization();
+    }, crewMember.id);
 
     await availabilityPage.open();
 

@@ -8,7 +8,8 @@ const ACCOUNT_ROLES = Object.freeze({
   UMPIRE: "umpire"
 });
 
-const VALID_ACCOUNT_ROLES = Object.values(ACCOUNT_ROLES);
+  const VALID_ACCOUNT_ROLES = Object.values(ACCOUNT_ROLES);
+  const MAX_PERSISTED_PHOTO_BYTES = 400 * 1024;
 
 function requireManageAccounts() {
   if (
@@ -34,18 +35,67 @@ function isValidRole(role) {
     return { success, message, data };
   }
 
-  function getAll() {
+  function profileMutationResult(success, message, data = null, errors = {}) {
+    return { success, message, data, errors };
+  }
+
+  function readAll() {
     const accounts = localStorage.getItem(STORAGE_KEY);
     return accounts ? JSON.parse(accounts) : [];
+  }
+
+  function getAll() {
+    return migrateCrewCodes(readAll());
   }
 
   function saveAll(accounts) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
   }
 
-  function generateId() {
+function generateId() {
   return `account-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
+
+  function getCrewCodeYear(value = new Date()) {
+    const date = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(date.getTime()) ? new Date().getFullYear() : date.getFullYear();
+  }
+
+  function generateUniqueCrewId(accounts = readAll(), issuedAt = new Date()) {
+    const year = getCrewCodeYear(issuedAt);
+    const prefix = `BC-${year}-`;
+    const used = new Set(accounts.map(account => String(account.crewCode || "").toUpperCase()).filter(Boolean));
+    let sequence = accounts.reduce((highest, account) => {
+      const match = String(account.crewCode || "").toUpperCase().match(/^BC-(\d{4})-(\d{4,})$/);
+      return match && Number(match[1]) === year ? Math.max(highest, Number(match[2])) : highest;
+    }, 0) + 1;
+    let candidate = `${prefix}${String(sequence).padStart(4, "0")}`;
+    while (used.has(candidate)) {
+      sequence += 1;
+      candidate = `${prefix}${String(sequence).padStart(4, "0")}`;
+    }
+    return candidate;
+  }
+
+  function migrateCrewCodes(sourceAccounts = readAll()) {
+    const accounts = Array.isArray(sourceAccounts) ? sourceAccounts : [];
+    let changed = false;
+    const assigned = new Set(accounts.map(account => String(account.crewCode || "").toUpperCase()).filter(Boolean));
+    accounts
+      .filter(account => normalizeRole(account.role) === ACCOUNT_ROLES.UMPIRE && !account.crewCode)
+      .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+      .forEach(account => {
+        let crewCode = generateUniqueCrewId(accounts, account.createdAt || new Date());
+        while (assigned.has(crewCode)) crewCode = generateUniqueCrewId([...accounts, ...[...assigned].map(code => ({ crewCode }))], account.createdAt || new Date());
+        account.crewCode = crewCode;
+        account.crewCodeIssuedAt = account.crewCodeIssuedAt || account.createdAt || new Date().toISOString();
+        assigned.add(crewCode);
+        changed = true;
+        activityService?.log?.({ type: "account", action: "crew_id_assigned", accountId: account.id, subject: `${account.firstName || ""} ${account.lastName || ""}`.trim(), metadata: { crewCode } });
+      });
+    if (changed) saveAll(accounts);
+    return accounts;
+  }
 
   const DEFAULT_COMMUNICATION_PREFERENCES = {
     assignments: true,
@@ -74,13 +124,19 @@ function isValidRole(role) {
   }
 
   function normalizeAccount(account) {
-    return {
+    const normalized = {
       id: account.id || generateId(),
       firstName: account.firstName || "",
       lastName: account.lastName || "",
       email: account.email || "",
       phone: account.phone || "",
+      homePhone: account.homePhone || "",
       address: account.address || "",
+      contactPreference: ["text", "call"].includes(account.contactPreference) ? account.contactPreference : "text",
+      birthdate: account.birthdate || "",
+      photoDataUrl: account.photoDataUrl || "",
+      officialHistory: normalizeOfficialHistory(account.officialHistory),
+      adminNotes: account.adminNotes || "",
       emergencyContact: account.emergencyContact || "",
       emergencyContactPhone:
         account.emergencyContactPhone || "",
@@ -95,7 +151,14 @@ role: normalizeRole(account.role),
         normalizeCommunicationPreferences(
           account.communicationPreferences
         ),
+      crewCode: account.crewCode || "",
+      crewCodeIssuedAt: account.crewCodeIssuedAt || null
     };
+    if (normalized.role === ACCOUNT_ROLES.UMPIRE && !normalized.crewCode) {
+      normalized.crewCode = generateUniqueCrewId(readAll(), normalized.createdAt);
+      normalized.crewCodeIssuedAt = normalized.createdAt;
+    }
+    return normalized;
   }
 
 
@@ -151,6 +214,16 @@ role: normalizeRole(account.role),
 
     accounts.push(account);
     saveAll(accounts);
+
+    if (account.crewCode) {
+      activityService?.log?.({ type: "account", action: "crew_id_assigned", accountId: account.id, subject: `${account.firstName} ${account.lastName}`.trim(), metadata: { crewCode: account.crewCode } });
+    }
+
+    if (!isValidEmail(account.email)) return profileMutationResult(false, "Enter a valid email address.", null, { email: "Enter a valid email address." });
+    if (!isValidPhone(account.phone) || !isValidPhone(account.homePhone)) return profileMutationResult(false, "Enter a valid phone number.", null, { phone: "Phone numbers must contain 7 to 15 digits." });
+    if (!isValidBirthdate(account.birthdate)) return profileMutationResult(false, "Enter a valid birthdate that is not in the future.", null, { birthdate: "Invalid birthdate." });
+    const photoValidation = validatePhotoDataUrl(account.photoDataUrl);
+    if (!photoValidation.success) return photoValidation;
 
     if (
       typeof activityService !== "undefined" &&
@@ -396,6 +469,10 @@ function getPendingAccounts(options = {}) {
       return mutationResult(false, "Account not found.");
     }
 
+    if (Object.prototype.hasOwnProperty.call(updates, "crewCode") && updates.crewCode !== account.crewCode) {
+      return mutationResult(false, "Crew ID is immutable.", account);
+    }
+
     Object.assign(account, {
       ...updates,
       id: account.id
@@ -503,6 +580,10 @@ function updateRole(accountId, role) {
   }
 
   account.role = role;
+  if (role === ACCOUNT_ROLES.UMPIRE && !account.crewCode) {
+    account.crewCode = generateUniqueCrewId(accounts, account.createdAt || new Date());
+    account.crewCodeIssuedAt = account.crewCodeIssuedAt || new Date().toISOString();
+  }
 
   saveAll(accounts);
 
@@ -564,6 +645,50 @@ function getRoleSummary() {
     return phone;
   }
 
+  function isValidPhone(value) {
+    if (!value) return true;
+    const length = String(value).replace(/\D/g, "").length;
+    return length >= 7 && length <= 15;
+  }
+
+  function isValidBirthdate(value) {
+    if (!value) return true;
+    const date = new Date(`${value}T12:00:00`);
+    return !Number.isNaN(date.getTime()) && date.getTime() <= Date.now();
+  }
+
+  function normalizeOfficialHistory(history) {
+    if (!Array.isArray(history)) return [];
+    return history.map(entry => ({
+      year: Number(entry?.year),
+      season: normalizeProfileValue(entry?.season),
+      label: normalizeProfileValue(entry?.label),
+      note: normalizeProfileValue(entry?.note)
+    })).filter(entry => Number.isInteger(entry.year) && entry.year >= 1900 && entry.year <= new Date().getFullYear() + 1 && entry.label);
+  }
+
+  function deriveAge(birthdate, today = new Date()) {
+    if (!isValidBirthdate(birthdate) || !birthdate) return null;
+    const born = new Date(`${birthdate}T12:00:00`);
+    let age = today.getFullYear() - born.getFullYear();
+    const beforeBirthday = today.getMonth() < born.getMonth() || (today.getMonth() === born.getMonth() && today.getDate() < born.getDate());
+    if (beforeBirthday) age -= 1;
+    return age >= 0 ? age : null;
+  }
+
+  function deriveYearsOfService(history) {
+    return new Set(normalizeOfficialHistory(history).filter(entry => entry.label !== "-").map(entry => entry.year)).size;
+  }
+
+  function validatePhotoDataUrl(value) {
+    if (!value) return profileMutationResult(true, "No photo supplied.", "");
+    const match = String(value).match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/i);
+    if (!match) return profileMutationResult(false, "Use a JPEG, PNG, or WebP image.", null, { photo: "Unsupported image format." });
+    const estimatedBytes = Math.floor(match[2].length * 0.75);
+    if (estimatedBytes > MAX_PERSISTED_PHOTO_BYTES) return profileMutationResult(false, "The processed photo is too large.", null, { photo: "Photo must be smaller than 400 KB after processing." });
+    return profileMutationResult(true, "Photo is valid.", value);
+  }
+
   function getProfile(accountId) {
     const account = getById(accountId);
 
@@ -581,7 +706,18 @@ function getRoleSummary() {
         }`.trim(),
       email: account.email || "",
       phone: account.phone || "",
+      homePhone: account.homePhone || "",
       address: account.address || "",
+      contactPreference: account.contactPreference || "text",
+      birthdate: account.birthdate || "",
+      age: deriveAge(account.birthdate),
+      photoDataUrl: account.photoDataUrl || "",
+      officialHistory: normalizeOfficialHistory(account.officialHistory),
+      yearsOfService: deriveYearsOfService(account.officialHistory),
+      adminNotes: account.adminNotes || "",
+      crewCode: account.crewCode || "",
+      crewCodeIssuedAt: account.crewCodeIssuedAt || null,
+      status: account.status || "pending",
       emergencyContact:
         account.emergencyContact || "",
       emergencyContactPhone:
@@ -595,7 +731,11 @@ function getRoleSummary() {
     };
   }
 
-  function updateProfile(accountId, updates = {}) {
+  function updateCrewSelfServiceProfile(accountId, updates = {}) {
+    const current = typeof loginService !== "undefined" ? loginService.getCurrentAccount?.() : null;
+    if (!current || String(current.id) !== String(accountId)) {
+      return profileMutationResult(false, "Unauthorized profile update.", null, { authorization: "You may update only your own profile." });
+    }
     const accounts = getAll();
 
     const account = accounts.find(
@@ -603,7 +743,7 @@ function getRoleSummary() {
     );
 
     if (!account) {
-      return mutationResult(
+      return profileMutationResult(
         false,
         "Account not found."
       );
@@ -613,14 +753,14 @@ function getRoleSummary() {
       normalizeProfileValue(updates.email);
 
     if (!email) {
-      return mutationResult(
+      return profileMutationResult(
         false,
         "Email is required."
       );
     }
 
     if (!isValidEmail(email)) {
-      return mutationResult(
+      return profileMutationResult(
         false,
         "Enter a valid email address."
       );
@@ -634,15 +774,22 @@ function getRoleSummary() {
     );
 
     if (duplicateEmail) {
-      return mutationResult(
+      return profileMutationResult(
         false,
         "An account with this email already exists."
       );
     }
 
+    const restrictedFields = ["crewCode", "firstName", "lastName", "birthdate", "age", "levels", "eligibility", "officialHistory", "adminNotes", "status", "role", "crewId"];
+    const submittedRestricted = restrictedFields.filter(field => Object.prototype.hasOwnProperty.call(updates, field));
+    if (submittedRestricted.length) {
+      return profileMutationResult(false, "One or more profile fields are administrator-managed.", getProfile(account.id), Object.fromEntries(submittedRestricted.map(field => [field, "This field cannot be changed in self-service."])));
+    }
+
     account.email = email;
     account.phone =
       normalizePhone(updates.phone);
+    account.homePhone = normalizePhone(updates.homePhone);
     account.address =
       normalizeProfileValue(updates.address);
     account.emergencyContact =
@@ -653,6 +800,21 @@ function getRoleSummary() {
       normalizePhone(
         updates.emergencyContactPhone
       );
+
+    if (!isValidPhone(account.phone) || !isValidPhone(account.homePhone) || !isValidPhone(account.emergencyContactPhone)) {
+      return profileMutationResult(false, "Enter a valid phone number.", getProfile(account.id), { phone: "Phone numbers must contain 7 to 15 digits." });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, "contactPreference")) {
+      if (!["text", "call"].includes(updates.contactPreference)) return profileMutationResult(false, "Select text or call as the contact preference.", getProfile(account.id), { contactPreference: "Invalid contact preference." });
+      account.contactPreference = updates.contactPreference;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, "photoDataUrl")) {
+      const photo = validatePhotoDataUrl(updates.photoDataUrl);
+      if (!photo.success) return photo;
+      account.photoDataUrl = photo.data;
+    }
 
     if (
       updates.communicationPreferences &&
@@ -673,11 +835,68 @@ function getRoleSummary() {
 
     saveAll(accounts);
 
-    return mutationResult(
+    activityService?.log?.({ type: "profile", action: "crew_self_service_updated", accountId: account.id, subject: `${account.firstName} ${account.lastName}`.trim(), message: "Crew contact profile updated." });
+    if (Object.prototype.hasOwnProperty.call(updates, "photoDataUrl")) activityService?.log?.({ type: "profile", action: "crew_photo_updated", accountId: account.id, subject: `${account.firstName} ${account.lastName}`.trim(), message: "Crew photo updated." });
+
+    return profileMutationResult(
       true,
       "Profile saved.",
       getProfile(account.id)
     );
+  }
+
+  function updateProfile(accountId, updates = {}) {
+    return updateCrewSelfServiceProfile(accountId, updates);
+  }
+
+  function updateCrewProfileAsAdmin(accountId, changes = {}) {
+    const authorization = requireManageAccounts();
+    if (authorization) return profileMutationResult(false, authorization.message, null, { authorization: authorization.message });
+    const accounts = getAll();
+    const account = accounts.find(item => String(item.id) === String(accountId));
+    if (!account) return profileMutationResult(false, "Account not found.", null, { account: "Account not found." });
+    if (Object.prototype.hasOwnProperty.call(changes, "crewCode") && changes.crewCode !== account.crewCode) return profileMutationResult(false, "Crew ID is immutable.", getProfile(account.id), { crewCode: "Crew ID cannot be changed." });
+
+    const errors = {};
+    const email = Object.prototype.hasOwnProperty.call(changes, "email") ? normalizeProfileValue(changes.email) : account.email;
+    if (!email || !isValidEmail(email)) errors.email = "Enter a valid email address.";
+    if (accounts.some(item => String(item.id) !== String(accountId) && String(item.email || "").toLowerCase() === email.toLowerCase())) errors.email = "An account with this email already exists.";
+    if (!isValidPhone(changes.phone ?? account.phone) || !isValidPhone(changes.homePhone ?? account.homePhone)) errors.phone = "Phone numbers must contain 7 to 15 digits.";
+    if (!isValidBirthdate(changes.birthdate ?? account.birthdate)) errors.birthdate = "Enter a valid birthdate that is not in the future.";
+    if (Object.prototype.hasOwnProperty.call(changes, "contactPreference") && !["text", "call"].includes(changes.contactPreference)) errors.contactPreference = "Select text or call.";
+    if (Object.keys(errors).length) return profileMutationResult(false, "Crew profile could not be saved.", getProfile(account.id), errors);
+
+    ["firstName", "lastName", "address", "adminNotes"].forEach(field => {
+      if (Object.prototype.hasOwnProperty.call(changes, field)) account[field] = normalizeProfileValue(changes[field]);
+    });
+    if (!account.firstName || !account.lastName) return profileMutationResult(false, "First and last name are required.", getProfile(account.id), { name: "First and last name are required." });
+    account.email = email;
+    if (Object.prototype.hasOwnProperty.call(changes, "phone")) account.phone = normalizePhone(changes.phone);
+    if (Object.prototype.hasOwnProperty.call(changes, "homePhone")) account.homePhone = normalizePhone(changes.homePhone);
+    if (Object.prototype.hasOwnProperty.call(changes, "birthdate")) account.birthdate = changes.birthdate || "";
+    if (Object.prototype.hasOwnProperty.call(changes, "contactPreference")) account.contactPreference = changes.contactPreference;
+    if (Object.prototype.hasOwnProperty.call(changes, "officialHistory")) account.officialHistory = normalizeOfficialHistory(changes.officialHistory);
+    if (Object.prototype.hasOwnProperty.call(changes, "photoDataUrl")) {
+      const photo = validatePhotoDataUrl(changes.photoDataUrl);
+      if (!photo.success) return photo;
+      account.photoDataUrl = photo.data;
+    }
+
+    const linkedCrew = account.crewId ? crewService.getById(account.crewId) : null;
+    if (linkedCrew) {
+      linkedCrew.firstName = account.firstName;
+      linkedCrew.lastName = account.lastName;
+      linkedCrew.email = account.email;
+      linkedCrew.phone = account.phone;
+      if (Object.prototype.hasOwnProperty.call(changes, "levels")) linkedCrew.levels = [...new Set((changes.levels || []).filter(level => settings.levels.includes(level)))];
+      if (Object.prototype.hasOwnProperty.call(changes, "active")) linkedCrew.active = changes.active === true;
+      if (Object.prototype.hasOwnProperty.call(changes, "adminNotes")) linkedCrew.notes = account.adminNotes;
+      saveCrew?.();
+    }
+    saveAll(accounts);
+    const changedAreas = ["photoDataUrl", "levels", "officialHistory", "adminNotes", "active"].filter(field => Object.prototype.hasOwnProperty.call(changes, field));
+    activityService?.log?.({ type: "profile", action: "crew_profile_updated", accountId: account.id, crewId: account.crewId || "", subject: `${account.firstName} ${account.lastName}`.trim(), message: "Crew profile updated by administrator.", metadata: { changedAreas } });
+    return profileMutationResult(true, "Crew profile saved.", getProfile(account.id));
   }
 
   function deleteAccount(accountId) {
@@ -712,6 +931,12 @@ function getRoleSummary() {
     getById,
     getProfile,
     updateProfile,
+    updateCrewSelfServiceProfile,
+    updateCrewProfileAsAdmin,
+    deriveAge,
+    deriveYearsOfService,
+    normalizeOfficialHistory,
+    validatePhotoDataUrl,
     updateAccount,
     deleteAccount,
     linkCrew,
@@ -720,6 +945,8 @@ function getRoleSummary() {
     updateRole,
     getByRole,
     getRoleSummary,
+    generateUniqueCrewId,
+    migrateCrewCodes,
     getDefaultCommunicationPreferences:
       () => ({
         ...DEFAULT_COMMUNICATION_PREFERENCES

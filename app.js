@@ -112,6 +112,7 @@ function initializeApp() {
   migrateCrewIds();
 
   migrationService.migrateGames();
+  migrationService.migrateCrewAccounts();
 
   document.body.dataset.page = "dashboard";
   document.body.dataset.role = "admin";
@@ -125,13 +126,19 @@ function initializeApp() {
 
   renderPage("dashboard");
 
+  window.history.replaceState(
+    { blueCrewPage: "dashboard", context: {} },
+    "",
+    window.location.href
+  );
+
   window.BlueCrew.test.initialized = true;
 }
 
 function setupNavigation() {
   document.querySelectorAll(".nav-link").forEach(button => {
     button.addEventListener("click", () => {
-      renderPage(button.dataset.page);
+      navigateTo(button.dataset.page);
     });
   });
 }
@@ -272,10 +279,23 @@ function renderPage(page, context = {}) {
 }
 
 function navigateTo(page, context = {}) {
+  window.history.pushState(
+    { blueCrewPage: page, context },
+    "",
+    window.location.href
+  );
+
   renderPage(page, context);
 }
 
 window.navigateTo = navigateTo;
+
+window.addEventListener("popstate", event => {
+  renderPage(
+    event.state?.blueCrewPage || "dashboard",
+    event.state?.context || {}
+  );
+});
 
 function runPageSetup(page, context = {}) {
   if (
@@ -388,6 +408,11 @@ function renderUmpireView(page, context = {}) {
       return typeof renderMyClaims === "function"
         ? renderMyClaims(context)
         : placeholderPage("My Claims", "My Claims is unavailable.");
+
+    case "availability":
+      return typeof renderAvailability === "function"
+        ? renderAvailability(context)
+        : placeholderPage("Availability", "Availability is unavailable.");
 
     default:
       return placeholderPage(

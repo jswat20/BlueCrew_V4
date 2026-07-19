@@ -251,6 +251,11 @@ game.assignments =
       };
     }
 
+    const trackedFields = ["date", "time", "field", "venue", "level", "homeTeam", "awayTeam", "status"];
+    const previousValues = Object.fromEntries(
+      trackedFields.filter(field => Object.hasOwn(updates, field)).map(field => [field, game[field]])
+    );
+
     Object.assign(game, updates);
     normalizeGameLifecycleStatus(game);
     this.save();
@@ -277,7 +282,10 @@ game.assignments =
         gameId: game.id,
         metadata: {
           fields:
-            Object.keys(updates || {})
+            Object.keys(updates || {}),
+          changes: trackedFields
+            .filter(field => Object.hasOwn(updates, field) && String(previousValues[field] ?? "") !== String(game[field] ?? ""))
+            .map(field => ({ field, from: previousValues[field] ?? "", to: game[field] ?? "" }))
         }
       });
     }

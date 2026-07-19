@@ -213,13 +213,19 @@ test.describe("Assigner Workbench 9B", () => {
       page.getByTestId(
         "assigner-workbench-empty"
       )
-    ).toBeVisible();
+    ).toHaveCount(0);
 
     await expect(
       page.getByTestId(
         "workbench-needs-assignment"
       )
-    ).toHaveCount(0);
+    ).toBeVisible();
+
+    await expect(
+      page.getByTestId(
+        "workbench-needs-assignment-empty"
+      )
+    ).toBeVisible();
   });
 
   test("refresh hook rerenders current workbench data", async ({

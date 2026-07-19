@@ -35,6 +35,12 @@ test.describe(
       ).toHaveText(
         "No recent activity."
       );
+
+      await expect(
+        app.page.getByTestId(
+          "dashboard-assignment-activity"
+        )
+      ).toHaveClass(/operations-panel/);
     });
 
     test("manual assignment appears", async ({ app }) => {
@@ -66,15 +72,24 @@ test.describe(
         app.page.getByTestId(
           "dashboard-assignment-activity-action"
         ).first()
-      ).toContainText("Assignment updated for");
+      ).toContainText(/assigned to/i);
 
       await expect(
         app.page.getByTestId(
           "dashboard-assignment-activity-matchup"
         ).first()
       ).toHaveText(
-        "Activity Dashboard Away @ Activity Dashboard Home"
+        "Activity Dashboard Field"
       );
+
+      const rowLayout = await app.page.getByTestId("dashboard-assignment-activity-item").first().evaluate(element => ({
+        display: getComputedStyle(element).display,
+        columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
+        actorWidth: element.querySelector(".operations-log-actor").getBoundingClientRect().width
+      }));
+      expect(rowLayout.display).toBe("grid");
+      expect(rowLayout.columns).toBe(5);
+      expect(rowLayout.actorWidth).toBeGreaterThan(80);
     });
 
     test("claim approval appears", async ({ app }) => {
@@ -117,7 +132,7 @@ test.describe(
         app.page.getByTestId(
           "dashboard-assignment-activity-action"
         ).first()
-      ).toContainText("Claim approved for");
+      ).toContainText(/claim approved/i);
     });
 
     test("activity is newest first", async ({ app }) => {
@@ -144,17 +159,17 @@ test.describe(
         renderPage("dashboard");
       });
 
-      const matchups =
+      const actions =
         app.page.getByTestId(
-          "dashboard-assignment-activity-matchup"
+          "dashboard-assignment-activity-action"
         );
 
-      await expect(matchups.nth(0)).toHaveText(
-        "Second Away @ Second Home"
+      await expect(actions.nth(0)).toHaveText(
+        "Second"
       );
 
-      await expect(matchups.nth(1)).toHaveText(
-        "First Away @ First Home"
+      await expect(actions.nth(1)).toHaveText(
+        "First"
       );
     });
 
@@ -201,7 +216,7 @@ test.describe(
           "dashboard-assignment-activity-action"
         ).first()
       ).toHaveText(
-        "Marcus Reed was assigned to Plate for Orioles @ Yankees."
+        "Marcus Reed: Plate — Orioles @ Yankees"
       );
     });
 
@@ -223,8 +238,31 @@ test.describe(
           "dashboard-assignment-activity-action"
         ).first()
       ).toHaveText(
-        "10 games were imported into the schedule."
+        "Schedule activity recorded."
       );
+    });
+
+    test("excludes operational activity older than 24 hours", async ({ app }) => {
+      await app.page.evaluate(() => {
+        activityService.log({
+          id: "older-than-dashboard-window",
+          type: "assignment",
+          action: "assigned",
+          message: "Old dashboard activity",
+          createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString()
+        });
+        activityService.log({
+          id: "within-dashboard-window",
+          type: "assignment",
+          action: "assigned",
+          message: "Current dashboard activity",
+          createdAt: new Date().toISOString()
+        });
+        renderPage("dashboard");
+      });
+
+      await expect(app.page.locator('[data-activity-id="within-dashboard-window"]')).toBeVisible();
+      await expect(app.page.locator('[data-activity-id="older-than-dashboard-window"]')).toHaveCount(0);
     });
   }
 );

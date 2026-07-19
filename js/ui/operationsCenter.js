@@ -1,8 +1,8 @@
 // js/ui/operationsCenter.js
 
 let operationsCenterActiveQueue = "all";
-let operationsCenterActivityVisibleCount = 4;
-const OPERATIONS_CENTER_ACTIVITY_BATCH = 10;
+let operationsCenterActivityWeekOffset = 0;
+const OPERATIONS_CENTER_ACTIVITY_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const OPERATIONS_CENTER_QUEUE_IDS =
   Object.freeze([
@@ -1775,8 +1775,10 @@ function getOperationsActivityMessage(
 
 function renderOperationsCenterActivityItem(
   activity,
-  index
+  index,
+  options = {}
 ) {
+  const dashboardFeed = options.dashboard === true;
   const label =
     getOperationsActivityLabel(
       activity
@@ -1815,7 +1817,7 @@ function renderOperationsCenterActivityItem(
     <button
       type="button"
       class="operations-log-row"
-      data-testid="operations-activity-item"
+      data-testid="${dashboardFeed ? "dashboard-assignment-activity-item" : "operations-activity-item"}"
       data-activity-id="${escapeOperationsCenterHtml(
         activity.id ||
         `operations-activity-${index}`
@@ -1830,6 +1832,7 @@ function renderOperationsCenterActivityItem(
     >
       <time
         class="operations-log-time"
+        ${dashboardFeed ? 'data-testid="dashboard-assignment-activity-time"' : ""}
         datetime="${escapeOperationsCenterHtml(
           activity.createdAt || ""
         )}"
@@ -1842,7 +1845,7 @@ function renderOperationsCenterActivityItem(
         )}
       </time>
 
-      <span class="operations-log-type">
+      <span class="operations-log-type" ${dashboardFeed ? 'data-testid="dashboard-activity-category"' : ""}>
         <span class="operations-feed-signal" aria-hidden="true"></span>
         <span class="visually-hidden">Activity type:</span>
         ${escapeOperationsCenterHtml(
@@ -1850,7 +1853,7 @@ function renderOperationsCenterActivityItem(
         )}
       </span>
 
-      <span class="operations-log-location">
+      <span class="operations-log-location" ${dashboardFeed ? 'data-testid="dashboard-assignment-activity-matchup"' : ""}>
         ${escapeOperationsCenterHtml(
           activity.location || "—"
         )}
@@ -1864,7 +1867,7 @@ function renderOperationsCenterActivityItem(
         )}
       </span>
 
-      <span class="operations-log-action">
+      <span class="operations-log-action" ${dashboardFeed ? 'data-testid="dashboard-assignment-activity-action"' : ""}>
         ${escapeOperationsCenterHtml(
           message
         )}
@@ -1882,24 +1885,19 @@ function renderOperationsCenterActivity(
       ? activities
       : [];
 
-  const visibleActivities =
-    normalizedActivities.slice(
-      0,
-      operationsCenterActivityVisibleCount
-    );
-
-  const remainingCount =
-    Math.max(
-      normalizedActivities.length -
-      visibleActivities.length,
-      0
-    );
-
-  const nextBatchCount =
-    Math.min(
-      remainingCount,
-      OPERATIONS_CENTER_ACTIVITY_BATCH
-    );
+  const periodEnd = Date.now() - operationsCenterActivityWeekOffset * OPERATIONS_CENTER_ACTIVITY_WEEK_MS;
+  const periodStart = periodEnd - OPERATIONS_CENTER_ACTIVITY_WEEK_MS;
+  const visibleActivities = normalizedActivities.filter(activity => {
+    const timestamp = new Date(activity.createdAt || "").getTime();
+    return Number.isFinite(timestamp) && timestamp >= periodStart && timestamp < periodEnd;
+  });
+  const hasPreviousWeek = normalizedActivities.some(activity => {
+    const timestamp = new Date(activity.createdAt || "").getTime();
+    return Number.isFinite(timestamp) && timestamp < periodStart;
+  });
+  const periodLabel = operationsCenterActivityWeekOffset === 0
+    ? "Last 7 days"
+    : `${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(periodStart))}–${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(periodEnd - 1))}`;
 
   const profile =
     getOperationsCenterTelemetryProfile(
@@ -1921,6 +1919,7 @@ function renderOperationsCenterActivity(
           <h3 id="operations-log-title">
             Live Feed
           </h3>
+          <span class="operations-log-period">${escapeOperationsCenterHtml(periodLabel)}</span>
         </div>
       </div>
 
@@ -1959,18 +1958,10 @@ function renderOperationsCenterActivity(
             `
       }
 
-      ${remainingCount > 0 ? `
-        <button
-          type="button"
-          class="button button-link operations-log-more"
-          data-testid="operations-activity-more"
-          data-operations-activity-more
-          aria-controls="operations-activity-list"
-          aria-expanded="${visibleActivities.length > 6 ? "true" : "false"}"
-        >
-          View previous activity (${nextBatchCount})
-        </button>
-      ` : ""}
+      <div class="operations-log-week-navigation">
+        ${operationsCenterActivityWeekOffset > 0 ? `<button type="button" class="button button-link" data-testid="operations-activity-next-week" data-operations-activity-next-week>Next week</button>` : ""}
+        ${hasPreviousWeek ? `<button type="button" class="button button-link" data-testid="operations-activity-previous-week" data-operations-activity-previous-week>Previous week</button>` : ""}
+      </div>
     </section>
   `;
 }
@@ -2013,22 +2004,28 @@ function renderOperationsCenterStatusStrip(
           Array.isArray(metric.detailItems);
         const isPriority =
           priorityMetricIds.has(metric.id);
+        const needsAttention =
+          Boolean(metric.needsAttention) ||
+          (metric.requiresAction && Number(metric.value) > 0);
+        const displayValue =
+          metric.displayValue ??
+          (Number(metric.value) || 0);
 
         return `
         <button
           type="button"
-          class="operations-status-metric ${isPriority ? "operations-status-metric-priority" : "operations-status-metric-context"} ${metric.requiresAction && Number(metric.value) > 0 ? "operations-status-metric-attention" : ""}"
-          data-attention="${metric.requiresAction && Number(metric.value) > 0 ? "true" : "false"}"
+          class="operations-status-metric ${isPriority ? "operations-status-metric-priority" : "operations-status-metric-context"} ${needsAttention ? "operations-status-metric-attention" : ""}"
+          data-attention="${needsAttention ? "true" : "false"}"
+          data-metric-id="${escapeOperationsCenterHtml(metric.id)}"
           data-testid="operations-metric-${escapeOperationsCenterHtml(metric.id)}"
           ${hasDetailDialog
             ? `data-operations-dialog-target="operations-detail-${escapeOperationsCenterHtml(metric.id)}"`
             : `data-operations-action="${escapeOperationsCenterHtml(metric.action || "")}"`}
           data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(metric.item || {}))}"
-          aria-label="${escapeOperationsCenterHtml(metric.label)}: ${metric.value}"
+          aria-label="${escapeOperationsCenterHtml(metric.label)}: ${escapeOperationsCenterHtml(displayValue)}"
         >
           <span>${escapeOperationsCenterHtml(metric.label)}</span>
-          <strong>${Number(metric.value) || 0}</strong>
-          <small>${metric.requiresAction ? "Open work" : "Operational context"}</small>
+          <strong>${escapeOperationsCenterHtml(displayValue)}</strong>
         </button>
       `;
       }).join("")}
@@ -2341,7 +2338,7 @@ function renderOperationsStaffingHealthCompact(periods = []) {
         <article class="operations-period-health" data-testid="operations-period-${escapeOperationsCenterHtml(period.id)}" data-status="${escapeOperationsCenterHtml(period.status)}">
           <span class="operations-status-light operations-status-light-${escapeOperationsCenterHtml(period.status)}" aria-hidden="true"></span>
           <div class="operations-period-health-content">
-            <div class="operations-period-health-summary"><strong>${escapeOperationsCenterHtml(period.label)}</strong><span>${period.fullyStaffedCount}/${period.eventCount} staffed</span></div>
+            <div class="operations-period-health-summary"><strong>${escapeOperationsCenterHtml(period.label)}</strong><span data-incomplete="${period.fullyStaffedCount < period.eventCount}">${period.fullyStaffedCount}/${period.eventCount} staffed</span></div>
             <div
               class="operations-staffing-progress"
               role="progressbar"
@@ -2400,6 +2397,25 @@ function renderOperationsCenter(context = {}) {
   operations.recentActivity =
     operations.recentActivity || [];
 
+  const actionableMetricIds = new Set([
+    "open-positions",
+    "pending-claims",
+    "reviews",
+    "pending-accounts",
+    "active-alerts"
+  ]);
+
+  const actionableOutstandingCount =
+    operations.statusMetrics.reduce(
+      (total, metric) =>
+        total + (
+          actionableMetricIds.has(metric.id)
+            ? Number(metric.value) || 0
+            : 0
+        ),
+      0
+    );
+
   const operationsFlash =
     context.operationsFlash &&
     typeof context.operationsFlash ===
@@ -2443,6 +2459,10 @@ function renderOperationsCenter(context = {}) {
       ${renderOperationsCenterStatusStrip(
         operations.statusMetrics
       )}
+
+      <p class="operations-attention-summary" data-testid="operations-attention-summary" role="status">
+        ${actionableOutstandingCount} operational ${actionableOutstandingCount === 1 ? "item requires" : "items require"} attention.
+      </p>
 
       ${renderOperationsCenterMetricDialogs(
         operations.statusMetrics
@@ -2613,27 +2633,14 @@ function setupOperationsCenterActions() {
       });
     });
 
-  const activityMore =
-    document.querySelector(
-      "[data-operations-activity-more]"
-    );
-
-  if (activityMore) {
-    activityMore.addEventListener(
-      "click",
-      () => {
-        operationsCenterActivityVisibleCount +=
-          OPERATIONS_CENTER_ACTIVITY_BATCH;
-
-        renderPage(
-          "operations-center",
-          typeof currentPageContext !== "undefined"
-            ? currentPageContext
-            : {}
-        );
-      }
-    );
-  }
+  document.querySelector("[data-operations-activity-previous-week]")?.addEventListener("click", () => {
+    operationsCenterActivityWeekOffset += 1;
+    renderPage("operations-center", typeof currentPageContext !== "undefined" ? currentPageContext : {});
+  });
+  document.querySelector("[data-operations-activity-next-week]")?.addEventListener("click", () => {
+    operationsCenterActivityWeekOffset = Math.max(0, operationsCenterActivityWeekOffset - 1);
+    renderPage("operations-center", typeof currentPageContext !== "undefined" ? currentPageContext : {});
+  });
 
   document
     .querySelectorAll(

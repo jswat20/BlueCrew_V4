@@ -83,7 +83,7 @@ async function setupGameHub(app) {
 }
 
 test.describe("Game Hub", () => {
-  test("administrators can open crew assignment from Game Hub", async ({ app }) => {
+  test("administrators use the compact command view and assign eligible crew by position", async ({ app }) => {
     const { gameId } = await setupGameHub(app);
 
     await app.page.evaluate(id => {
@@ -92,11 +92,58 @@ test.describe("Game Hub", () => {
       renderPage("game-hub", { gameId: id });
     }, gameId);
 
-    const manageCrew = app.page.getByTestId("game-hub-manage-crew");
-    await expect(manageCrew).toBeVisible();
-    await manageCrew.click();
-    await expect(app.page.getByTestId("assignment-drawer")).toBeVisible();
-    await expect(app.page.getByTestId("assignment-save")).toBeVisible();
+    await expect(app.page.getByTestId("game-hub-admin-view")).toBeVisible();
+    await expect(app.page.getByTestId("game-hub-summary-time")).toContainText("6:30 PM");
+    await expect(app.page.getByTestId("game-hub-summary-field")).toContainText("Game Hub Field");
+    await expect(app.page.getByTestId("game-hub-summary-level")).toContainText("12U");
+    await expect(app.page.getByTestId("game-hub-checklist")).toHaveCount(0);
+    await expect(app.page.getByTestId("game-hub-section-arrival")).toHaveCount(0);
+    await expect(app.page.getByTestId("game-hub-section-game-day")).toHaveCount(0);
+    await expect(app.page.getByTestId("game-hub-section-timeline")).toHaveCount(0);
+    await expect(app.page.getByTestId("game-hub-section-status")).toHaveCount(0);
+    await expect(app.page.getByTestId("game-hub-complete-game")).toHaveCount(0);
+
+    await app.page.getByTestId("game-hub-open-crew-notes").click();
+    await expect(app.page.getByTestId("game-hub-crew-notes-dialog")).toBeVisible();
+    await app.page.getByTestId("game-hub-crew-notes-dialog").getByRole("button", { name: "Close" }).click();
+
+    const assignButton = app.page.getByRole("button", { name: "Assign Crew" }).first();
+    if (await assignButton.count()) {
+      await assignButton.click();
+      const picker = app.page.locator("dialog[open]");
+      await expect(picker).toBeVisible();
+      const radios = picker.getByRole("radio");
+      await expect(radios.first()).toBeVisible();
+      const names = await picker.locator(".game-hub-crew-option strong").allTextContents();
+      const byLastName = [...names].sort((a, b) => {
+        const aParts = a.trim().split(/\s+/);
+        const bParts = b.trim().split(/\s+/);
+        return aParts.at(-1).localeCompare(bParts.at(-1), undefined, { sensitivity: "base" }) || a.localeCompare(b);
+      });
+      expect(names).toEqual(byLastName);
+      const search = picker.getByPlaceholder("Search by name or level");
+      await search.fill(names[0]);
+      await expect(picker.locator(".game-hub-crew-option:visible")).toHaveCount(1);
+      await search.fill("");
+      await radios.first().check();
+      const selectedName = await picker.locator("label:has(input:checked) strong").textContent();
+      await picker.getByRole("button", { name: "Save" }).click();
+      await expect(app.page.getByTestId("game-hub-admin-crew")).toContainText(selectedName);
+      const latestActivity = await app.page.evaluate(() => activityService.getRecent(1)[0]);
+      expect(latestActivity.message).toContain(selectedName.trim());
+      expect(latestActivity.message).toContain("Plate assigned to");
+    }
+
+    await app.page.evaluate(id => {
+      gameService.update(id, {
+        date: "2000-01-01",
+        time: "12:00 AM"
+      });
+      renderPage("game-hub", { gameId: id });
+    }, gameId);
+
+    await expect(app.page.getByTestId("game-hub-complete-game")).toBeVisible();
+    await expect(app.page.locator(".game-hub-command-status")).toHaveCount(0);
   });
 
   test(

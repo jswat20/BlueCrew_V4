@@ -38,14 +38,14 @@ function renderClaimHistory(context = {}) {
       ${renderClaimHistorySummary(summary)}
       ${renderClaimHistoryFilters()}
 
-      <section data-testid="claim-history-approved">
-        <h3>Approved Claims</h3>
-${filteredApprovedClaims.map(claim => renderClaimHistoryCard(claim, "approved", highlightedId)).join("")}
+      <section class="claim-history-section" data-testid="claim-history-approved">
+        <header><h3>Approved Claims</h3><span>${filteredApprovedClaims.length}</span></header>
+        <div class="claim-history-list">${filteredApprovedClaims.map(claim => renderClaimHistoryCard(claim, "approved", highlightedId)).join("")}</div>
       </section>
 
-      <section data-testid="claim-history-rejected">
-        <h3>Rejected Claims</h3>
-        ${filteredRejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected", highlightedId)).join("")}
+      <section class="claim-history-section" data-testid="claim-history-rejected">
+        <header><h3>Rejected Claims</h3><span>${filteredRejectedClaims.length}</span></header>
+        <div class="claim-history-list">${filteredRejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected", highlightedId)).join("")}</div>
       </section>
     </section>
   `;
@@ -168,14 +168,15 @@ function renderClaimHistoryCard(claim, status, highlightedId) {
       data-testid="${status}-claim-card"
       ${isHighlighted ? 'data-highlighted="true"' : ""}
     >
-      <h4>${claim.matchup}</h4>
-
-      <p>Position: ${claim.position}</p>
-      <p>Claimed by: ${claim.claimedByName}</p>
-      <p>Date: ${claim.date}</p>
-      <p>Time: ${claim.time}</p>
-      <p>Field: ${claim.field}</p>
-      <p>Level: ${claim.level}</p>
+      <div class="claim-history-card-header"><h4>${claim.matchup}</h4><span class="claim-history-status" data-status="${status}">${status}</span></div>
+      <div class="claim-history-card-details">
+        <p><strong>Position</strong><span>${claim.position}</span></p>
+        <p><strong>Claimed by</strong><span>${claim.claimedByName}</span></p>
+        <p><strong>Date</strong><span>${claim.date}</span></p>
+        <p><strong>Time</strong><span>${claim.time}</span></p>
+        <p><strong>Field</strong><span>${claim.field}</span></p>
+        <p><strong>Level</strong><span>${claim.level}</span></p>
+      </div>
     </article>
   `;
 }

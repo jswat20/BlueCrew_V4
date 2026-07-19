@@ -63,6 +63,10 @@ const timelineService = (() => {
 
     switch (activity.action) {
       case "assigned":
+        if (/(assigned to|changed to)/i.test(activity.message || "")) {
+          return activity.message;
+        }
+
         if (
           activity.actor &&
           subject &&
@@ -87,12 +91,9 @@ const timelineService = (() => {
         );
 
       case "cleared":
-        return object
+        return activity.message || (object
           ? `Assignment cleared for ${object}.`
-          : (
-              activity.message ||
-              "An assignment was cleared."
-            );
+          : "An assignment was cleared.");
 
       case "opened_for_claim":
         return object
@@ -199,6 +200,12 @@ const timelineService = (() => {
 
       case "game_updated":
       case "updated":
+        if (Array.isArray(activity.metadata?.changes) && activity.metadata.changes.length) {
+          const labels = { date: "Date", time: "Time", field: "Field", venue: "Location", level: "Level", homeTeam: "Home team", awayTeam: "Away team", status: "Status" };
+          return activity.metadata.changes.map(change =>
+            `${labels[change.field] || change.field}: ${change.from || "Not set"} changed to ${change.to || "Not set"}.`
+          ).join(" ");
+        }
         return object
           ? `${object} was updated.`
           : "A game was updated.";

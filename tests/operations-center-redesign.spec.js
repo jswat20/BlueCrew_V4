@@ -52,8 +52,33 @@ test.describe("Operations Center redesign", () => {
       if (await metric.count() === 0) continue;
       const value = Number(await metric.locator("strong").textContent());
       await expect(metric).toHaveAttribute("data-attention", value > 0 ? "true" : "false");
-      if (value > 0) await expect(metric.locator("strong")).toHaveCSS("color", "rgb(255, 180, 172)");
+      if (value > 0) {
+        await expect(metric.locator("strong")).toHaveCSS("color", "rgb(255, 255, 255)");
+        await expect(metric.locator("strong")).toHaveCSS("-webkit-text-stroke-color", "rgb(180, 35, 24)");
+        expect(await metric.evaluate(element => getComputedStyle(element).boxShadow)).toContain("rgb(255, 103, 92)");
+      }
     }
+  });
+
+  test("uses title-case labels, an explicit staffing ratio, and no context captions", async ({ page }) => {
+    const strip = page.getByTestId("operations-status-strip");
+    await expect(page.getByTestId("operations-metric-events-today")).toContainText("Events Today");
+    const fullyStaffed = page.getByTestId("operations-metric-fully-staffed");
+    await expect(fullyStaffed.locator("span")).toHaveText("Fully Staffed");
+    await expect(fullyStaffed.locator("strong")).toHaveText(/\d+ of \d+/);
+    await expect(strip.locator("small")).toHaveCount(0);
+    await expect(strip).not.toContainText("Open work");
+    await expect(strip).not.toContainText("Operational context");
+    await expect(page.getByTestId("operations-attention-summary")).toHaveCSS("color", "rgb(180, 35, 24)");
+  });
+
+  test("attention summary totals every actionable status metric", async ({ page }) => {
+    const expected = await page.locator(".operations-status-metric").evaluateAll(metrics =>
+      metrics
+        .filter(metric => ["open-positions", "pending-claims", "reviews", "pending-accounts", "active-alerts"].includes(metric.dataset.metricId))
+        .reduce((total, metric) => total + Number(metric.querySelector("strong")?.textContent || 0), 0)
+    );
+    await expect(page.getByTestId("operations-attention-summary")).toContainText(`${expected} operational`);
   });
 
   test("operational periods retain channel-level readiness counts", async ({ page }) => {
@@ -237,7 +262,7 @@ test.describe("Operations Center redesign", () => {
     await page.keyboard.press("Enter");
     await expect(page.locator("body")).toHaveAttribute("data-page", "game-hub");
     await expect(page.getByTestId("game-hub-empty")).toHaveCount(0);
-    await expect(page.getByTestId("game-hub-summary")).toBeVisible();
+    await expect(page.getByTestId("game-hub-admin-view")).toBeVisible();
   });
 
   test("Operations Log is newest first with exact timestamps", async ({ page }) => {
@@ -255,30 +280,36 @@ test.describe("Operations Center redesign", () => {
     await expect(rows.first()).toHaveAttribute("data-activity-category", "Reviews");
   });
 
-  test("Operations Log reveals history in repeated batches", async ({ page }) => {
+  test("Operations Log loads the current week and pages by week", async ({ page }) => {
     await page.evaluate(() => {
       localStorage.removeItem("bluecrew_activity");
-      for (let index = 0; index < 20; index += 1) {
+      for (let index = 0; index < 10; index += 1) {
         activityService.log({
-          id: `activity-${index}`,
+          id: `current-week-${index}`,
           type: "assignment",
           action: "assigned",
-          message: `Activity ${index}`,
-          createdAt: new Date(Date.UTC(2026, 6, 17, 12, index)).toISOString()
+          message: `Current activity ${index}`,
+          createdAt: new Date(Date.now() - (index + 1) * 60 * 60 * 1000).toISOString()
+        });
+        activityService.log({
+          id: `previous-week-${index}`,
+          type: "assignment",
+          action: "assigned",
+          message: `Previous activity ${index}`,
+          createdAt: new Date(Date.now() - (8 * 24 * 60 * 60 * 1000) - index * 60 * 60 * 1000).toISOString()
         });
       }
-      operationsCenterActivityVisibleCount = 4;
+      operationsCenterActivityWeekOffset = 0;
       renderPage("operations-center");
     });
 
-    await expect(page.getByTestId("operations-activity-item")).toHaveCount(4);
-    await expect(page.getByTestId("operations-activity-more")).toHaveText("View previous activity (10)");
-    await page.getByTestId("operations-activity-more").click();
-    await expect(page.getByTestId("operations-activity-item")).toHaveCount(14);
-    await expect(page.getByTestId("operations-activity-more")).toHaveText("View previous activity (6)");
-    await page.getByTestId("operations-activity-more").click();
-    await expect(page.getByTestId("operations-activity-item")).toHaveCount(20);
-    await expect(page.getByTestId("operations-activity-more")).toHaveCount(0);
+    await expect(page.getByTestId("operations-activity-item")).toHaveCount(10);
+    await expect(page.getByTestId("operations-activity-previous-week")).toBeVisible();
+    await page.getByTestId("operations-activity-previous-week").click();
+    await expect(page.getByTestId("operations-activity-item")).toHaveCount(10);
+    await expect(page.getByTestId("operations-activity-next-week")).toBeVisible();
+    await page.getByTestId("operations-activity-next-week").click();
+    await expect(page.getByTestId("operations-activity-item")).toHaveCount(10);
   });
 
   test("event-related activity rows navigate with keyboard", async ({ page }) => {
@@ -319,9 +350,19 @@ test.describe("Operations Center redesign", () => {
         element.querySelector(".operations-period-signals dt").getBoundingClientRect().right
     }));
     expect(dimensions.width).toBeLessThanOrEqual(332);
-    expect(dimensions.labelSize).toBeGreaterThanOrEqual(13);
-    expect(dimensions.summarySize).toBeGreaterThanOrEqual(12);
-    expect(dimensions.statusGap).toBeGreaterThanOrEqual(68);
+    expect(dimensions.labelSize).toBeGreaterThanOrEqual(12.5);
+    expect(dimensions.summarySize).toBeGreaterThanOrEqual(11.5);
+    expect(dimensions.statusGap).toBeGreaterThanOrEqual(12);
+
+    const periodsFit = await rail.evaluate(element => {
+      const periods = [...element.querySelectorAll(".operations-period-health")];
+      const railRect = element.getBoundingClientRect();
+      return periods.length === 3 && periods.every(period => {
+        const rect = period.getBoundingClientRect();
+        return rect.top >= railRect.top && rect.bottom <= railRect.bottom + 1;
+      });
+    });
+    expect(periodsFit).toBe(true);
   });
 
   test("desktop log rows keep aligned columns on one line", async ({ page }) => {

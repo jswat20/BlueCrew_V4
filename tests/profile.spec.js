@@ -77,6 +77,15 @@ test.describe("Profile Self-Service", () => {
     ).toHaveValue("Pat Umpire");
   });
 
+  test("shows protected Crew Card facts as read-only", async ({ page }) => {
+    await expect(page.getByTestId("profile-crew-card")).toBeVisible();
+    await expect(page.getByTestId("profile-crew-id")).toBeDisabled();
+    await expect(page.getByTestId("profile-birthdate")).toBeDisabled();
+    await expect(page.getByTestId("profile-age")).toBeDisabled();
+    await expect(page.getByTestId("profile-home-phone")).toBeEditable();
+    await expect(page.getByTestId("profile-contact-preference")).toBeEditable();
+  });
+
   test("edits phone", async ({ page }) => {
     await page
       .getByTestId("profile-phone")

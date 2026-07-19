@@ -35,7 +35,7 @@ function renderDashboardTodayGames() {
       data-testid="dashboard-today-games"
     >
       <div class="dashboard-card-header">
-        <div>
+        <div class="dashboard-today-heading">
           <h2>Today&#39;s Games</h2>
 
           <span class="card-subtitle">
@@ -51,7 +51,7 @@ function renderDashboardTodayGames() {
             "all"
           )'
         >
-          View Schedule
+          View Full Schedule
         </button>
       </div>
 
