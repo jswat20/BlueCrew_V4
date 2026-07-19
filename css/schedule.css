@@ -1393,3 +1393,45 @@ color:#991b1b;
     gap: 12px;
   }
 }
+
+/* Slate command-center treatment for the Daily Schedule summary. */
+.daily-hero {
+  margin-bottom: 16px;
+  border-color: #74aeba;
+  border-top: 4px solid #22aabd;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(7, 31, 53, .12);
+}
+
+.daily-hero .daily-summary-inline {
+  padding: 4px;
+  border-top: 0;
+  background: #d5e5e9;
+  gap: 4px;
+}
+
+.daily-hero .daily-summary-metric {
+  border: 1px solid #19425d;
+  border-radius: 6px;
+  background: linear-gradient(145deg, #123b58, #0b2943);
+}
+
+.daily-hero .daily-summary-metric small,
+.daily-hero .daily-summary-metric strong {
+  color: #fff;
+}
+
+.daily-hero .daily-summary-metric.status-good strong {
+  color: #19a55a;
+  text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+}
+
+.daily-hero .daily-summary-metric.status-watch strong,
+.daily-hero .daily-summary-metric.status-danger strong {
+  color: #d92d20;
+  text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+}
+
+.schedule-calendar {
+  margin-bottom: 16px;
+}

@@ -84,6 +84,8 @@ test.describe("Profile Self-Service", () => {
     await expect(page.getByTestId("profile-age")).toBeDisabled();
     await expect(page.getByTestId("profile-home-phone")).toBeEditable();
     await expect(page.getByTestId("profile-contact-preference")).toBeEditable();
+    await expect(page.getByTestId("profile-credentials")).toContainText("Age Eligibility");
+    await expect(page.getByTestId("profile-credentials")).toContainText("Official History");
   });
 
   test("edits phone", async ({ page }) => {

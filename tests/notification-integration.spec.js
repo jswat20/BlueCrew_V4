@@ -83,7 +83,7 @@ test.describe(
     );
 
     test(
-      "dashboard bell shows count and opens unread notifications",
+      "administrator dashboard omits the crew notification bell",
       async ({ page }) => {
         await page.evaluate(() => {
           notificationService.create({
@@ -95,37 +95,8 @@ test.describe(
           renderPage("dashboard");
         });
 
-        await expect(
-          page.getByTestId(
-            "dashboard-notification-count"
-          )
-        ).toHaveText("1");
-
-        await page
-          .getByTestId(
-            "dashboard-notification-bell"
-          )
-          .click();
-
-        await expect(
-          page.getByTestId(
-            "notifications"
-          )
-        ).toBeVisible();
-
-        const state =
-          await page.evaluate(() => ({
-            page: currentPage,
-            context:
-              currentPageContext
-          }));
-
-        expect(state).toEqual({
-          page: "notifications",
-          context: {
-            filter: "unread"
-          }
-        });
+        await expect(page.getByTestId("dashboard-notification-bell")).toHaveCount(0);
+        await expect(page.getByTestId("nav-notifications")).toBeHidden();
       }
     );
 
@@ -177,7 +148,7 @@ test.describe(
     );
 
     test(
-      "dashboard count refreshes after notification is read",
+      "notification summary refreshes after notification is read",
       async ({ page }) => {
         const notificationId =
           await page.evaluate(() => {
@@ -193,11 +164,7 @@ test.describe(
             return result.data.id;
           });
 
-        await expect(
-          page.getByTestId(
-            "dashboard-notification-count"
-          )
-        ).toHaveText("1");
+        expect(await page.evaluate(() => dashboardService.getNotificationsSummary().unreadCount)).toBe(1);
 
         await page.evaluate(id => {
           notificationService.markAsRead(
@@ -207,11 +174,7 @@ test.describe(
           renderPage("dashboard");
         }, notificationId);
 
-        await expect(
-          page.getByTestId(
-            "dashboard-notification-count"
-          )
-        ).toHaveCount(0);
+        expect(await page.evaluate(() => dashboardService.getNotificationsSummary().unreadCount)).toBe(0);
       }
     );
   }

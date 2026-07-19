@@ -38,15 +38,15 @@ function renderClaimHistory(context = {}) {
       ${renderClaimHistorySummary(summary)}
       ${renderClaimHistoryFilters()}
 
-      <section class="claim-history-section" data-testid="claim-history-approved">
-        <header><h3>Approved Claims</h3><span>${filteredApprovedClaims.length}</span></header>
+      <details class="claim-history-section" data-testid="claim-history-approved" open>
+        <summary><h3>Approved Claims</h3><span>${filteredApprovedClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredApprovedClaims.map(claim => renderClaimHistoryCard(claim, "approved", highlightedId)).join("")}</div>
-      </section>
+      </details>
 
-      <section class="claim-history-section" data-testid="claim-history-rejected">
-        <header><h3>Rejected Claims</h3><span>${filteredRejectedClaims.length}</span></header>
+      <details class="claim-history-section" data-testid="claim-history-rejected" open>
+        <summary><h3>Rejected Claims</h3><span>${filteredRejectedClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredRejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected", highlightedId)).join("")}</div>
-      </section>
+      </details>
     </section>
   `;
 }
@@ -170,12 +170,12 @@ function renderClaimHistoryCard(claim, status, highlightedId) {
     >
       <div class="claim-history-card-header"><h4>${claim.matchup}</h4><span class="claim-history-status" data-status="${status}">${status}</span></div>
       <div class="claim-history-card-details">
-        <p><strong>Position</strong><span>${claim.position}</span></p>
-        <p><strong>Claimed by</strong><span>${claim.claimedByName}</span></p>
-        <p><strong>Date</strong><span>${claim.date}</span></p>
-        <p><strong>Time</strong><span>${claim.time}</span></p>
-        <p><strong>Field</strong><span>${claim.field}</span></p>
-        <p><strong>Level</strong><span>${claim.level}</span></p>
+        <p><strong>Position</strong><span class="claim-data-pill">${claim.position}</span></p>
+        <p><strong>Claimed by</strong><span class="claim-data-pill">${claim.claimedByName}</span></p>
+        <p><strong>Date</strong><span class="claim-data-pill">${claim.date}</span></p>
+        <p><strong>Time</strong><span class="claim-data-pill">${claim.time}</span></p>
+        <p><strong>Field</strong><span class="claim-data-pill">${claim.field}</span></p>
+        <p><strong>Level</strong><span class="claim-data-pill">${claim.level}</span></p>
       </div>
     </article>
   `;

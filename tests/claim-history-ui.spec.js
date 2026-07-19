@@ -139,6 +139,9 @@ async function createApprovedAndRejectedClaims(
 
     await expect(app.page.getByTestId("approved-claim-card")).toHaveCount(1);
     await expect(
+      app.page.getByTestId("approved-claim-card").locator(".claim-data-pill")
+    ).toHaveCount(6);
+    await expect(
       app.page.getByText("Pending Away @ Pending Home")
     ).toBeVisible();
   });
@@ -186,6 +189,17 @@ async function createApprovedAndRejectedClaims(
     await expect(
       app.page.getByTestId("claim-history-filter-rejected")
     ).toBeVisible();
+  });
+
+  test("approved and rejected sections can be collapsed independently", async ({ app }) => {
+    await createApprovedAndRejectedClaims(app);
+    await app.page.getByTestId("nav-claim-history").click();
+
+    const approved = app.page.getByTestId("claim-history-approved");
+    const rejected = app.page.getByTestId("claim-history-rejected");
+    await approved.locator("summary").click();
+    await expect(approved).not.toHaveAttribute("open", "");
+    await expect(rejected).toHaveAttribute("open", "");
   });
 
   test("approved filter displays only approved claim cards", async ({ app }) => {

@@ -84,6 +84,8 @@ function renderRecentAssignmentActivity() {
               <div
                 class="assignment-activity-list operations-log-list"
                 data-testid="dashboard-assignment-activity-list"
+                tabindex="0"
+                aria-label="Recent operational activity"
               >
                 ${activities
                   .map((activity, index) =>

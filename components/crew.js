@@ -13,19 +13,19 @@ function renderCrew() {
       </div>
 
       <div class="card-grid crew-summary-grid">
-        <div class="card stat-card">
+        <div class="card stat-card crew-summary-card crew-summary-active">
           <h3>Active Crew</h3>
           <div class="stat-number">${activeCrew.length}</div>
           <p class="placeholder">Available for assignments.</p>
         </div>
 
-        <div class="card stat-card">
+        <div class="card stat-card crew-summary-card crew-summary-inactive">
           <h3>Inactive Crew</h3>
           <div class="stat-number">${inactiveCrew.length}</div>
           <p class="placeholder">Not currently assignable.</p>
         </div>
 
-        <div class="card stat-card">
+        <div class="card stat-card crew-summary-card crew-summary-total">
           <h3>Total Crew</h3>
           <div class="stat-number">${crew.length}</div>
           <p class="placeholder">All crew records.</p>

@@ -237,12 +237,22 @@ test.describe("Schedule Daily View redesign", () => {
     await rows.first().click();
     const crewCard = page.getByTestId("crew-card-dialog");
     await expect(crewCard).toBeVisible();
-    await expect(crewCard).toContainText("Eligible Age Ranges");
+    await expect(crewCard).toContainText("Age Eligibility");
     await expect(crewCard).toContainText("Today");
     await expect(crewCard).toContainText("Season");
     await expect(crewCard.getByTestId("crew-card-edit")).toBeVisible();
     await expect(crewCard.getByTestId("crew-card-copy-email")).toBeVisible();
     await expect(crewCard.getByTestId("crew-card-call-phone")).toBeVisible();
+  });
+
+  test("uses separated navy status blocks and matching Crew summary cards", async ({ page }) => {
+    const metric = page.locator(".daily-summary-metric").first();
+    await expect(metric).toHaveCSS("background-image", /linear-gradient/);
+    await expect(metric.locator("small")).toHaveCSS("color", "rgb(255, 255, 255)");
+    await page.getByTestId("nav-crew").click();
+    await expect(page.locator(".crew-summary-card")).toHaveCount(3);
+    await expect(page.locator(".crew-summary-card").first()).toHaveCSS("background-image", /linear-gradient/);
+    await expect(page.getByTestId("crew-page-workload")).not.toContainText("Contact details, eligibility, status");
   });
 
   test("Crew roster filters live by name and eligible age level", async ({ page }) => {

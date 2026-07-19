@@ -130,6 +130,12 @@ function renderCommunicationProfileOption(
 }
 
 function renderProfileForm(profile) {
+  const account = accountService.getById(profile.id);
+  const crewCard =
+    typeof getCrewCardModel === "function"
+      ? getCrewCardModel(account)
+      : null;
+
   return `
     <section
       class="page-section"
@@ -317,6 +323,41 @@ function renderProfileForm(profile) {
             >
           </label>
         </div>
+
+        <section class="profile-credentials" data-testid="profile-credentials">
+          <div class="section-header">
+            <div>
+              <h3>Crew Credentials</h3>
+              <p class="muted">The verified information shown on your Crew Card.</p>
+            </div>
+          </div>
+          <div class="profile-credential-grid">
+            <div>
+              <span>Status</span>
+              <strong>${escapeProfileHtml(crewCard?.statusLabel || profile.status || "Pending")}</strong>
+            </div>
+            <div>
+              <span>Years of Service</span>
+              <strong>${escapeProfileHtml(crewCard?.yearsOfService ?? profile.yearsOfService ?? 0)}</strong>
+            </div>
+            <div class="profile-credential-levels">
+              <span>Age Eligibility</span>
+              <div>
+                ${(crewCard?.levels || []).length
+                  ? crewCard.levels.map(level => `<span class="settings-pill">${escapeProfileHtml(level)}</span>`).join("")
+                  : `<span class="muted">No eligible age ranges recorded.</span>`}
+              </div>
+            </div>
+            <div class="profile-credential-history">
+              <span>Official History</span>
+              <ul>
+                ${(crewCard?.officialHistory || []).length
+                  ? crewCard.officialHistory.map(item => `<li>${escapeProfileHtml(item.year)} — ${escapeProfileHtml(item.label)}</li>`).join("")
+                  : `<li>No official history recorded.</li>`}
+              </ul>
+            </div>
+          </div>
+        </section>
 
         <section
           class="settings-section"

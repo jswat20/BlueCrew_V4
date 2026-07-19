@@ -100,7 +100,7 @@ test.describe("Dashboard Entry Experience", () => {
       app.page.getByTestId(
         "dashboard-notification-bell"
       )
-    ).toBeVisible();
+    ).toHaveCount(0);
 
     await expect(
       app.page.getByTestId(
@@ -221,6 +221,35 @@ test.describe("Dashboard Entry Experience", () => {
         "dashboard-summary-open-assignments-value"
       )
     ).toHaveText("1");
+  });
+
+  test("keeps all of today's games visible in a larger viewport than recent activity", async ({ app }) => {
+    for (let index = 0; index < 10; index += 1) {
+      await createGame(app.page, {
+        time: `${index + 1}:00 PM`,
+        homeTeam: `Home ${index + 1}`,
+        awayTeam: `Away ${index + 1}`
+      });
+    }
+
+    await app.page.evaluate(() => {
+      activityService.log({
+        type: "assignment",
+        action: "assigned",
+        matchup: "Dashboard Field",
+        message: "Crew assignment updated.",
+        createdAt: new Date().toISOString()
+      });
+      renderPage("dashboard");
+    });
+
+    await expect(app.page.locator('[data-testid^="dashboard-today-game-"]')).toHaveCount(10);
+    const viewportHeights = await app.page.evaluate(() => ({
+      games: getComputedStyle(document.querySelector(".dashboard-today-list")).maxHeight,
+      activity: getComputedStyle(document.querySelector(".dashboard-entry-activity .operations-log-list")).maxHeight
+    }));
+    expect(viewportHeights.games).toBe("420px");
+    expect(viewportHeights.activity).toBe("180px");
   });
 
   test("uses a compact Today's Games header with the full schedule action", async ({ app }) => {
@@ -437,24 +466,19 @@ test.describe("Dashboard Entry Experience", () => {
     await expect(app.page.getByTestId("schedule-filter-today")).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("notification bell opens Notifications", async ({
+  test("administrator dashboard omits the crew Notification Center shortcut", async ({
     app
   }) => {
     await app.page.evaluate(() => {
       renderPage("dashboard");
     });
 
-    await app.page
-      .getByTestId(
-        "dashboard-notification-bell"
-      )
-      .click();
+    await expect(
+      app.page.getByTestId("dashboard-notification-bell")
+    ).toHaveCount(0);
 
     await expect(
-      app.page.locator("body")
-    ).toHaveAttribute(
-      "data-page",
-      "notifications"
-    );
+      app.page.getByTestId("nav-notifications")
+    ).toBeHidden();
   });
 });

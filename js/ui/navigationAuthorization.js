@@ -12,7 +12,9 @@ function refreshNavigationAuthorization() {
     .querySelectorAll(".nav-link[data-page]")
     .forEach(link => {
       const page = link.dataset.page;
-      link.hidden = !authorizationService.canView(page);
+      const crewOnly = link.dataset.crewOnly === "true";
+      const isCrewRole = authorizationService.currentRole() === "umpire";
+      link.hidden = !authorizationService.canView(page) || (crewOnly && !isCrewRole);
     });
 
   document

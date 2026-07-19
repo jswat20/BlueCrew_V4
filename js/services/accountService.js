@@ -136,6 +136,11 @@ function generateId() {
       birthdate: account.birthdate || "",
       photoDataUrl: account.photoDataUrl || "",
       officialHistory: normalizeOfficialHistory(account.officialHistory),
+      yearsOfServiceOverride: account.yearsOfServiceOverride !== null &&
+        account.yearsOfServiceOverride !== undefined &&
+        Number.isInteger(Number(account.yearsOfServiceOverride))
+        ? Math.max(0, Math.min(80, Number(account.yearsOfServiceOverride)))
+        : null,
       adminNotes: account.adminNotes || "",
       emergencyContact: account.emergencyContact || "",
       emergencyContactPhone:
@@ -713,7 +718,9 @@ function getRoleSummary() {
       age: deriveAge(account.birthdate),
       photoDataUrl: account.photoDataUrl || "",
       officialHistory: normalizeOfficialHistory(account.officialHistory),
-      yearsOfService: deriveYearsOfService(account.officialHistory),
+      yearsOfService: Number.isInteger(account.yearsOfServiceOverride)
+        ? account.yearsOfServiceOverride
+        : deriveYearsOfService(account.officialHistory),
       adminNotes: account.adminNotes || "",
       crewCode: account.crewCode || "",
       crewCodeIssuedAt: account.crewCodeIssuedAt || null,
@@ -780,7 +787,7 @@ function getRoleSummary() {
       );
     }
 
-    const restrictedFields = ["crewCode", "firstName", "lastName", "birthdate", "age", "levels", "eligibility", "officialHistory", "adminNotes", "status", "role", "crewId"];
+    const restrictedFields = ["crewCode", "firstName", "lastName", "birthdate", "age", "levels", "eligibility", "officialHistory", "yearsOfServiceOverride", "adminNotes", "status", "role", "crewId"];
     const submittedRestricted = restrictedFields.filter(field => Object.prototype.hasOwnProperty.call(updates, field));
     if (submittedRestricted.length) {
       return profileMutationResult(false, "One or more profile fields are administrator-managed.", getProfile(account.id), Object.fromEntries(submittedRestricted.map(field => [field, "This field cannot be changed in self-service."])));
@@ -863,6 +870,10 @@ function getRoleSummary() {
     if (accounts.some(item => String(item.id) !== String(accountId) && String(item.email || "").toLowerCase() === email.toLowerCase())) errors.email = "An account with this email already exists.";
     if (!isValidPhone(changes.phone ?? account.phone) || !isValidPhone(changes.homePhone ?? account.homePhone)) errors.phone = "Phone numbers must contain 7 to 15 digits.";
     if (!isValidBirthdate(changes.birthdate ?? account.birthdate)) errors.birthdate = "Enter a valid birthdate that is not in the future.";
+    if (Object.prototype.hasOwnProperty.call(changes, "yearsOfServiceOverride")) {
+      const years = Number(changes.yearsOfServiceOverride);
+      if (!Number.isInteger(years) || years < 0 || years > 80) errors.yearsOfServiceOverride = "Years of service must be a whole number from 0 to 80.";
+    }
     if (Object.prototype.hasOwnProperty.call(changes, "contactPreference") && !["text", "call"].includes(changes.contactPreference)) errors.contactPreference = "Select text or call.";
     if (Object.keys(errors).length) return profileMutationResult(false, "Crew profile could not be saved.", getProfile(account.id), errors);
 
@@ -876,6 +887,7 @@ function getRoleSummary() {
     if (Object.prototype.hasOwnProperty.call(changes, "birthdate")) account.birthdate = changes.birthdate || "";
     if (Object.prototype.hasOwnProperty.call(changes, "contactPreference")) account.contactPreference = changes.contactPreference;
     if (Object.prototype.hasOwnProperty.call(changes, "officialHistory")) account.officialHistory = normalizeOfficialHistory(changes.officialHistory);
+    if (Object.prototype.hasOwnProperty.call(changes, "yearsOfServiceOverride")) account.yearsOfServiceOverride = Number(changes.yearsOfServiceOverride);
     if (Object.prototype.hasOwnProperty.call(changes, "photoDataUrl")) {
       const photo = validatePhotoDataUrl(changes.photoDataUrl);
       if (!photo.success) return photo;
@@ -894,7 +906,7 @@ function getRoleSummary() {
       saveCrew?.();
     }
     saveAll(accounts);
-    const changedAreas = ["photoDataUrl", "levels", "officialHistory", "adminNotes", "active"].filter(field => Object.prototype.hasOwnProperty.call(changes, field));
+    const changedAreas = ["photoDataUrl", "levels", "officialHistory", "yearsOfServiceOverride", "adminNotes", "active"].filter(field => Object.prototype.hasOwnProperty.call(changes, field));
     activityService?.log?.({ type: "profile", action: "crew_profile_updated", accountId: account.id, crewId: account.crewId || "", subject: `${account.firstName} ${account.lastName}`.trim(), message: "Crew profile updated by administrator.", metadata: { changedAreas } });
     return profileMutationResult(true, "Crew profile saved.", getProfile(account.id));
   }

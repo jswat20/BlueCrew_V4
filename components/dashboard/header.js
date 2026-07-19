@@ -18,6 +18,13 @@ function getDashboardUnreadNotificationCount() {
 }
 
 function renderDashboardNotificationBell() {
+  if (
+    typeof authorizationService !== "undefined" &&
+    authorizationService.currentRole() !== "umpire"
+  ) {
+    return "";
+  }
+
   const unreadCount =
     getDashboardUnreadNotificationCount();
 
