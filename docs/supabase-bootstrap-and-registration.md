@@ -1,6 +1,6 @@
 # Bootstrap and registration boundary
 
-Milestone 2A defines this boundary but does not expose it to production JavaScript.
+Milestone 2B implements this boundary without exposing privileged credentials to browser JavaScript.
 
 ## Trusted first-organization bootstrap
 
@@ -17,7 +17,7 @@ It must abort on an existing organization slug, an Auth user already attached to
 
 ## Controlled umpire registration
 
-Milestone 2B should implement one authenticated, `security definer` provisioning RPC after Supabase Auth signup and email verification. The RPC must validate an organization-issued, expiring, single-use invitation or registration code; derive the organization on the server; force role `umpire` and status `pending`; and create only the caller's profile. Raw anonymous or authenticated profile inserts remain unavailable.
+`provision_pending_umpire` is the single authenticated, `security definer` provisioning RPC used after Supabase Auth signup and email verification. It validates an organization-issued, expiring invitation code; derives the organization on the server; forces role `umpire` and status `pending`; and creates only the caller's profile. Raw anonymous or authenticated profile inserts remain unavailable.
 
 Duplicate behavior is explicit:
 
@@ -26,7 +26,7 @@ Duplicate behavior is explicit:
 - A retry for the same Auth user and organization returns the existing pending profile.
 - A request that would attach the Auth user to a different organization or elevated role is rejected.
 
-Administrator approval changes the profile to `approved` and links it to the intended crew member in one transaction. Invitation storage, hashing, expiry, consumption, and the provisioning/approval RPCs belong in the reviewed Milestone 2B migration.
+`approve_umpire_profile` changes the profile to `approved`, links it to the intended crew member, creates the notification, and appends activity in one transaction. Invitation codes are stored only as SHA-256 digests and are consumed under a row lock.
 
 ## Parent-managed credentials
 

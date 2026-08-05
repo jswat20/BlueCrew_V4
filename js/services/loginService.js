@@ -61,12 +61,19 @@ const loginService = (() => {
   }
 
   function logout() {
+    if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+      return logoutAuthenticated();
+    }
+
     getRepository().remove();
 
     return mutationResult(true, "Logged out.");
   }
 
   function getCurrentSession() {
+    if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+      return supabaseAuthService.getCurrentSession();
+    }
     return getRepository().read();
   }
 
@@ -75,6 +82,10 @@ const loginService = (() => {
   }
 
   function getCurrentAccount() {
+    if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+      return supabaseAuthService.getCurrentAccount();
+    }
+
     const session = getCurrentSession();
 
     if (!session) {
@@ -84,11 +95,33 @@ const loginService = (() => {
     return accountService.getById(session.accountId);
   }
 
+  async function loginWithPassword(email, password) {
+    if (!email || !password) {
+      return mutationResult(false, "Email and password are required.");
+    }
+    return supabaseAuthService.login(email, password);
+  }
+
+  async function logoutAuthenticated() {
+    return supabaseAuthService.logout();
+  }
+
+  async function initializeAuthenticatedIdentity() {
+    if (typeof supabaseClientService === "undefined" || !supabaseClientService.isConfigured()) {
+      return mutationResult(true, "Local authentication mode.");
+    }
+    await supabaseAuthService.startSessionListener();
+    return supabaseAuthService.restoreSession();
+  }
+
   return {
     login,
     logout,
     isLoggedIn,
     getCurrentSession,
-    getCurrentAccount
+    getCurrentAccount,
+    loginWithPassword,
+    logoutAuthenticated,
+    initializeAuthenticatedIdentity
   };
 })();

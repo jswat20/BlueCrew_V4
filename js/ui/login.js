@@ -1,12 +1,13 @@
 // js/ui/login.js
 
 function renderLogin() {
+  const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   return `
     <section class="panel" data-testid="login-page">
       <h2>Umpire Login</h2>
 
       <p class="muted">
-        Enter your email to continue.
+        ${usesSupabaseAuth ? "Enter your verified email and password to continue." : "Enter your email to continue."}
       </p>
 
       <form data-testid="login-form" onsubmit="handleLoginSubmit(event)">
@@ -21,6 +22,18 @@ function renderLogin() {
           />
         </div>
 
+        ${usesSupabaseAuth ? `
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input
+            id="login-password"
+            data-testid="login-password"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+        </div>` : ""}
+
         <button type="submit" data-testid="login-submit">
           Log In
         </button>
@@ -32,18 +45,26 @@ function renderLogin() {
         aria-live="polite"
       ></div>
     </section>
+    ${usesSupabaseAuth && typeof renderAccountRegistration === "function"
+      ? renderAccountRegistration()
+      : ""}
   `;
 }
 
-function handleLoginSubmit(event) {
+async function handleLoginSubmit(event) {
   event.preventDefault();
 
   const emailInput = document.querySelector("[data-testid='login-email']");
   const messageEl = document.querySelector("[data-testid='login-message']");
 
   const email = emailInput.value.trim();
-
-  const result = loginService.login(email);
+  const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  const result = usesSupabaseAuth
+    ? await loginService.loginWithPassword(
+        email,
+        document.querySelector("[data-testid='login-password']").value
+      )
+    : loginService.login(email);
 
   messageEl.textContent = result.message;
 

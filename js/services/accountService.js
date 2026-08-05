@@ -42,6 +42,47 @@ function isValidRole(role) {
     return { success, message, data };
   }
 
+  async function registerAuthenticatedAccount(accountData = {}) {
+    if (typeof supabaseClientService === "undefined" || !supabaseClientService.isConfigured()) {
+      return mutationResult(false, "Supabase Auth is not configured.");
+    }
+
+    return supabaseAuthService.signUpAndProvision({
+      email: String(accountData.email || "").trim(),
+      password: String(accountData.password || ""),
+      invitationCode: String(accountData.invitationCode || "").trim(),
+      firstName: String(accountData.firstName || "").trim(),
+      lastName: String(accountData.lastName || "").trim(),
+      phone: String(accountData.phone || "").trim()
+    });
+  }
+
+  async function createRegistrationInvitation(invitationCode, expiresAt, maxUses = 1) {
+    const client = await supabaseClientService.getClient();
+    const { data, error } = await client.rpc("create_umpire_invitation", {
+      p_invitation_code: invitationCode,
+      p_expires_at: expiresAt,
+      p_max_uses: maxUses
+    });
+    return error
+      ? mutationResult(false, error.message)
+      : mutationResult(true, "Registration invitation created.", { id: data });
+  }
+
+  async function approveAuthenticatedAccount(profileId, crewMemberId) {
+    const authorization = requireManageAccounts();
+    if (authorization) return authorization;
+
+    const client = await supabaseClientService.getClient();
+    const { data, error } = await client.rpc("approve_umpire_profile", {
+      p_target_profile_id: profileId,
+      p_target_crew_member_id: crewMemberId
+    });
+    return error
+      ? mutationResult(false, error.message)
+      : mutationResult(true, "Account approved and linked to crew.", data);
+  }
+
   function profileMutationResult(success, message, data = null, errors = {}) {
     return { success, message, data, errors };
   }
@@ -951,6 +992,9 @@ function getRoleSummary() {
   return {
     getAll,
     createAccount,
+    registerAuthenticatedAccount,
+    createRegistrationInvitation,
+    approveAuthenticatedAccount,
     approveAccount,
     approveAccounts,
     rejectAccount,

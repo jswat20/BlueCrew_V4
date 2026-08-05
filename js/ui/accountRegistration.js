@@ -1,6 +1,7 @@
 // js/ui/accountRegistration.js
 
 function renderAccountRegistration() {
+  const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   return `
     <div class="page account-registration">
 
@@ -16,6 +17,17 @@ function renderAccountRegistration() {
             data-testid="account-first-name"
           >
         </div>
+
+        ${usesSupabaseAuth ? `
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="account-password" data-testid="account-password" autocomplete="new-password">
+        </div>
+
+        <div class="form-group">
+          <label>Registration Code</label>
+          <input type="text" id="account-invitation-code" data-testid="account-invitation-code" autocomplete="off">
+        </div>` : ""}
 
         <div class="form-group">
           <label>Last Name</label>
@@ -64,7 +76,7 @@ function renderAccountRegistration() {
   `;
 }
 
-function submitAccountRegistration() {
+async function submitAccountRegistration() {
 
   const firstName =
     document.getElementById("account-first-name").value.trim();
@@ -78,12 +90,17 @@ function submitAccountRegistration() {
   const phone =
     document.getElementById("account-phone").value.trim();
 
-  const result = accountService.createAccount({
-    firstName,
-    lastName,
-    email,
-    phone
-  });
+  const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  const result = usesSupabaseAuth
+    ? await accountService.registerAuthenticatedAccount({
+        firstName,
+        lastName,
+        email,
+        phone,
+        password: document.getElementById("account-password").value,
+        invitationCode: document.getElementById("account-invitation-code").value.trim()
+      })
+    : accountService.createAccount({ firstName, lastName, email, phone });
 
   const message =
     document.getElementById("account-registration-message");
@@ -101,4 +118,8 @@ function submitAccountRegistration() {
   document.getElementById("account-last-name").value = "";
   document.getElementById("account-email").value = "";
   document.getElementById("account-phone").value = "";
+  if (usesSupabaseAuth && !result.data?.verificationRequired) {
+    document.getElementById("account-password").value = "";
+    document.getElementById("account-invitation-code").value = "";
+  }
 }

@@ -13,3 +13,4 @@ node_modules/
 !.env.example
 /config/supabase.js
 /supabase/.temp/
+/.npm-cache/

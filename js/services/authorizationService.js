@@ -199,6 +199,14 @@ const authorizationService = (() => {
 }
 
   function can(permission, role = currentRole()) {
+    if (
+      typeof supabaseClientService !== "undefined" &&
+      supabaseClientService.isConfigured() &&
+      !loginService.getCurrentAccount()
+    ) {
+      return false;
+    }
+
     const normalizedRole = normalizeRole(role);
     const rolePermissions = PERMISSIONS[normalizedRole];
 
@@ -207,6 +215,15 @@ const authorizationService = (() => {
 
   function canView(page, role = currentRole()) {
     const normalizedPage = String(page || "").trim().toLowerCase();
+
+    if (
+      typeof supabaseClientService !== "undefined" &&
+      supabaseClientService.isConfigured() &&
+      !loginService.getCurrentAccount()
+    ) {
+      return normalizedPage === "login";
+    }
+
     const normalizedRole = normalizeRole(role);
     const allowedRoles = PAGE_ACCESS[normalizedPage];
 

@@ -84,6 +84,16 @@ const authService = (() => {
     return currentUser;
   }
 
+  function clearAuthenticatedAccount() {
+    currentUser = {
+      id: null,
+      role: "umpire",
+      crewId: null,
+      name: "User"
+    };
+    return currentUser;
+  }
+
   return {
     getCurrentUser,
     isAdmin,
@@ -94,6 +104,7 @@ const authService = (() => {
     loginAsAssigner,
     loginAsUmpire,
     loginAsCrew,
-    useAuthenticatedAccount
+    useAuthenticatedAccount,
+    clearAuthenticatedAccount
   };
 })();

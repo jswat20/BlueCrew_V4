@@ -6,6 +6,7 @@ const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH;
 
 module.exports = defineConfig({
   testDir: "./tests",
+  globalSetup: "./tests/global-setup.cjs",
   timeout: 30000,
   retries: 1,
   workers: 1,

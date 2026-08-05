@@ -7410,3 +7410,6 @@ body[data-page="notifications"] .notification-card-actions button { padding: 7px
     min-width: 760px;
   }
 }
+.role-switcher[hidden] {
+  display: none;
+}

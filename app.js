@@ -114,11 +114,34 @@ function initializeApp() {
   migrationService.migrateGames();
   migrationService.migrateCrewAccounts();
 
-  document.body.dataset.page = "dashboard";
-  document.body.dataset.role = "admin";
+  const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+
+  document.body.dataset.page = usesSupabaseAuth ? "login" : "dashboard";
+  document.body.dataset.role = usesSupabaseAuth ? "umpire" : "admin";
 
   setupNavigation();
   setupRoleSwitcher();
+
+  if (usesSupabaseAuth) {
+    authService.clearAuthenticatedAccount?.();
+    renderPage("login");
+    window.history.replaceState(
+      { blueCrewPage: "login", context: {} },
+      "",
+      window.location.href
+    );
+    window.BlueCrew.test.currentRole = "umpire";
+    window.BlueCrew.test.initialized = true;
+
+    loginService.initializeAuthenticatedIdentity().then(result => {
+      if (!result.success || !result.data) return;
+      document.body.dataset.role = result.data.role;
+      window.BlueCrew.test.currentRole = result.data.role;
+      refreshNavigationAuthorization?.();
+      renderPage("dashboard");
+    });
+    return;
+  }
 
   if (typeof refreshNavigationAuthorization === "function") {
     refreshNavigationAuthorization();
@@ -148,6 +171,11 @@ function setupRoleSwitcher() {
   const umpireButton = document.getElementById("umpire-role-btn");
 
   if (!adminButton || !umpireButton) return;
+
+  if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+    document.querySelector(".role-switcher")?.setAttribute("hidden", "");
+    return;
+  }
 
   adminButton.addEventListener("click", () => {
     authService.loginAsAdmin();
@@ -362,6 +390,11 @@ function renderAdminView(page, context = {}) {
 
 function renderUmpireView(page, context = {}) {
   switch (page) {
+    case "login":
+      return typeof renderLogin === "function"
+        ? renderLogin(context)
+        : placeholderPage("Login", "Login is unavailable.");
+
     case "dashboard":
       return typeof renderCrewDashboard === "function"
         ? renderCrewDashboard(context)
