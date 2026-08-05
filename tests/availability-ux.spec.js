@@ -146,6 +146,8 @@ test.describe(
     test(
       "requires confirmation for an assigned date",
       async ({ app }) => {
+        await app.loginAsApprovedUmpire();
+
         const page =
           new AvailabilityPage(app.page);
 
@@ -170,7 +172,6 @@ test.describe(
         await page.open();
 
         await page.save({
-          crewId,
           date: "2099-11-10",
           status: "unavailable"
         });
@@ -195,6 +196,8 @@ test.describe(
     test(
       "cancelling conflict leaves availability unchanged",
       async ({ app }) => {
+        await app.loginAsApprovedUmpire();
+
         const page =
           new AvailabilityPage(app.page);
 
@@ -219,7 +222,6 @@ test.describe(
         await page.open();
 
         await page.save({
-          crewId,
           date: "2099-12-10",
           status: "unavailable"
         });

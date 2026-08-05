@@ -3,6 +3,10 @@
 const loginService = (() => {
   const SESSION_KEY = "bluecrew_session";
 
+  function getRepository() {
+    return repositoryProvider.get("session");
+  }
+
   function mutationResult(success, message, data = null) {
     return {
       success,
@@ -39,31 +43,31 @@ const loginService = (() => {
       lastLogin: account.lastLogin
     });
 
-    localStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify({
+    getRepository().write({
         accountId: account.id,
         role: account.role || "umpire",
         loginAt,
         previousLoginAt
-      })
-    );
+      });
+
+    if (
+      typeof authService !== "undefined" &&
+      typeof authService.useAuthenticatedAccount === "function"
+    ) {
+      authService.useAuthenticatedAccount(account);
+    }
 
     return mutationResult(true, "Login successful.", account);
   }
 
   function logout() {
-    localStorage.removeItem(SESSION_KEY);
+    getRepository().remove();
 
     return mutationResult(true, "Logged out.");
   }
 
   function getCurrentSession() {
-    const session = localStorage.getItem(SESSION_KEY);
-
-    return session
-      ? JSON.parse(session)
-      : null;
+    return getRepository().read();
   }
 
   function isLoggedIn() {

@@ -56,6 +56,16 @@ const notificationActionConfig = {
       gameId: relatedId
     })
   },
+  "assignment-updated": {
+    label: "View Game",
+    page: "game-hub",
+    context: relatedId => ({ gameId: relatedId })
+  },
+  "game-available": {
+    label: "View Available Games",
+    page: "claim-games",
+    context: relatedId => ({ highlightId: relatedId })
+  },
   "availability-saved": {
     label: "View Availability",
     page: "availability",
@@ -154,6 +164,8 @@ function getReturnedReviewNotifications() {
 function formatNotificationType(type) {
   return {
     assignment: "Assignment",
+    "assignment-updated": "Assignment",
+    "game-available": "Available Game",
     claim: "Claim",
     "claim-submitted": "Claim",
     "claim-approved": "Claim",

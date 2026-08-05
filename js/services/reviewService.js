@@ -118,10 +118,9 @@ const reviewService = (() => {
       matchup:
         game.matchup ||
         `${game.awayTeam || ""} @ ${game.homeTeam || ""}`,
-      field:
-        game.field ||
-        game.venue ||
-        "",
+      locationComplex: game.locationComplex || "",
+      locationField: game.locationField || game.field || "",
+      field: locationService.getDisplayName(game),
       completedBy:
         game.completedBy ||
         game.completion?.completedBy ||

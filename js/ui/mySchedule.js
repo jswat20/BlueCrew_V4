@@ -512,6 +512,17 @@ function renderMyScheduleChecklist(game) {
 }
 
 function renderMyScheduleStatus(game) {
+  const canDecline =
+    ["assigned", "locked"].includes(
+      game.assignmentStatus
+    ) &&
+    ![
+      "completed",
+      "submitted",
+      "approved",
+      "cancelled"
+    ].includes(game.lifecycleStatus);
+
   return `
     <div
       class="status-badges"
@@ -519,7 +530,62 @@ function renderMyScheduleStatus(game) {
     >
       ${renderMyScheduleBadges(game)}
     </div>
+
+    ${
+      canDecline
+        ? `
+            <button
+              type="button"
+              class="button button-danger button-compact"
+              data-testid="decline-assignment-${game.id}"
+              onclick="handleDeclineAssignment('${game.id}')"
+            >
+              Decline Assignment
+            </button>
+          `
+        : ""
+    }
   `;
+}
+
+function handleDeclineAssignment(gameId) {
+  const reason = window.prompt(
+    "Why are you declining this assignment? A reason is required."
+  );
+
+  if (reason === null) {
+    return;
+  }
+
+  const result =
+    portalService.declineAssignment(
+      gameId,
+      reason
+    );
+
+  if (!result.success) {
+    if (
+      typeof toastService !== "undefined" &&
+      typeof toastService.error === "function"
+    ) {
+      toastService.error(result.message);
+    } else {
+      window.alert(result.message);
+    }
+
+    return;
+  }
+
+  if (
+    typeof toastService !== "undefined" &&
+    typeof toastService.success === "function"
+  ) {
+    toastService.success(
+      "Assignment declined. The assigner has been notified."
+    );
+  }
+
+  renderPage("my-schedule");
 }
 
 const gameDayRenderers = Object.freeze({

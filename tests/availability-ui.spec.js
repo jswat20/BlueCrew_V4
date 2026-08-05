@@ -25,6 +25,8 @@ test.describe("Availability Management UI", () => {
   });
 
   test("creates availability", async ({ app }) => {
+    await app.loginAsApprovedUmpire();
+
     const availabilityPage =
       new AvailabilityPage(app.page);
 
@@ -36,7 +38,6 @@ test.describe("Availability Management UI", () => {
     await availabilityPage.open();
 
     await availabilityPage.save({
-      crewId: crewMember.id,
       date: "2026-09-10",
       status: "unavailable"
     });
@@ -74,9 +75,9 @@ test.describe("Availability Management UI", () => {
   });
 
   test("creates a granular availability time window", async ({ app }) => {
-    const crewId = await app.page.evaluate(() => crewService.getAll()[0].id);
+    await app.loginAsApprovedUmpire();
+
     await app.page.evaluate(() => navigateTo("availability"));
-    await app.page.getByTestId("availability-crew-select").selectOption(String(crewId));
     await app.page.getByTestId("availability-date-input").fill("2026-09-12");
     await app.page.getByTestId("availability-start-time").fill("13:00");
     await app.page.getByTestId("availability-end-time").fill("17:30");
@@ -85,6 +86,8 @@ test.describe("Availability Management UI", () => {
   });
 
   test("edits availability", async ({ app }) => {
+    await app.loginAsApprovedUmpire();
+
     const availabilityPage =
       new AvailabilityPage(app.page);
 
@@ -103,10 +106,6 @@ test.describe("Availability Management UI", () => {
       });
 
     await availabilityPage.open();
-
-    await availabilityPage.selectCrew(
-      crewMember.id
-    );
 
     await availabilityPage.edit(
       "2026-09-11"
@@ -226,6 +225,8 @@ test.describe("Availability Management UI", () => {
   });
 
   test("persists availability after reload", async ({ app }) => {
+    await app.loginAsApprovedUmpire();
+
     const availabilityPage =
       new AvailabilityPage(app.page);
 
@@ -237,7 +238,6 @@ test.describe("Availability Management UI", () => {
     await availabilityPage.open();
 
     await availabilityPage.save({
-      crewId: crewMember.id,
       date: "2026-09-16",
       status: "maybe"
     });
@@ -253,10 +253,6 @@ test.describe("Availability Management UI", () => {
     }, crewMember.id);
 
     await availabilityPage.open();
-
-    await availabilityPage.selectCrew(
-      crewMember.id
-    );
 
     await availabilityPage.expectEntry({
       date: "2026-09-16",

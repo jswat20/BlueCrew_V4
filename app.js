@@ -273,7 +273,7 @@ function renderPage(page, context = {}) {
     </div>
   `;
 
-  updateNotificationBadge();
+updateNotificationBadge();
 
   runPageSetup(page, context);
 }

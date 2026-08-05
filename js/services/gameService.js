@@ -86,9 +86,60 @@ function normalizeGameLifecycleStatus(game) {
   return game;
 }
 
+function getGameRecipientAccount(crewId) {
+  return typeof accountService !== "undefined"
+    ? accountService.getAll().find(account => account.status === "approved" && String(account.crewId) === String(crewId))
+    : null;
+}
+
+function notifyEligibleCrewOfNewGame(game) {
+  if (typeof notificationService === "undefined" || typeof crewService === "undefined") return;
+  crewService.getAll().filter(member => member.active !== false).filter(member =>
+    typeof recommendationService !== "undefined" && typeof recommendationService.isCrewEligibleForGame === "function"
+      ? recommendationService.isCrewEligibleForGame(member.id, game)
+      : (member.levels || []).includes(game.level)
+  ).forEach(member => {
+    const account = getGameRecipientAccount(member.id);
+    if (!account) return;
+    notificationService.create({
+      type: "game-available",
+      title: "New Eligible Game",
+      message: `A new game has been added to the schedule: ${game.awayTeam} @ ${game.homeTeam}, ${game.date} at ${game.time}.`,
+      relatedId: game.id,
+      audience: "umpire",
+      recipientAccountId: account.id,
+      destination: { page: "claim-games", context: { highlightId: game.id } }
+    });
+  });
+}
+
+function notifyAssignedCrewOfGameChanges(game, changes) {
+  if (!changes.length || typeof notificationService === "undefined" || typeof assignmentService === "undefined") return;
+  const labels = { date: "date", time: "time", locationComplex: "location complex", locationField: "location field", level: "level", homeTeam: "home team", awayTeam: "away team", status: "status" };
+  const detail = changes.map(change => `${labels[change.field] || change.field} changed from ${change.from || "not set"} to ${change.to || "not set"}`).join("; ");
+  const crewIds = [...new Set(assignmentService.getAssignments(game).map(assignment => assignment.crewId).filter(Boolean))];
+  crewIds.forEach(crewId => {
+    const account = getGameRecipientAccount(crewId);
+    if (!account) return;
+    notificationService.create({
+      type: "assignment-updated",
+      title: "Accepted Game Updated",
+      message: `${game.awayTeam} @ ${game.homeTeam}: ${detail}.`,
+      relatedId: game.id,
+      audience: "umpire",
+      recipientAccountId: account.id,
+      destination: { page: "game-hub", context: { gameId: game.id } }
+    });
+  });
+}
+
 const gameService = {
   getAll() {
-    return Array.isArray(games) ? games : [];
+    const source = Array.isArray(games) ? games : [];
+    if (typeof locationService !== "undefined") {
+      source.forEach(game => locationService.normalizeGame(game));
+    }
+    return source;
   },
 
   getById(gameId) {
@@ -251,12 +302,16 @@ game.assignments =
       };
     }
 
-    const trackedFields = ["date", "time", "field", "venue", "level", "homeTeam", "awayTeam", "status"];
+    const trackedFields = ["date", "time", "locationComplex", "locationField", "level", "homeTeam", "awayTeam", "status"];
     const previousValues = Object.fromEntries(
       trackedFields.filter(field => Object.hasOwn(updates, field)).map(field => [field, game[field]])
     );
 
     Object.assign(game, updates);
+    if (typeof locationService !== "undefined") locationService.normalizeGame(game);
+    const locationChanges = trackedFields
+      .filter(field => Object.hasOwn(updates, field) && String(previousValues[field] ?? "") !== String(game[field] ?? ""))
+      .map(field => ({ field, from: previousValues[field] ?? "", to: game[field] ?? "" }));
     normalizeGameLifecycleStatus(game);
     this.save();
 
@@ -283,12 +338,12 @@ game.assignments =
         metadata: {
           fields:
             Object.keys(updates || {}),
-          changes: trackedFields
-            .filter(field => Object.hasOwn(updates, field) && String(previousValues[field] ?? "") !== String(game[field] ?? ""))
-            .map(field => ({ field, from: previousValues[field] ?? "", to: game[field] ?? "" }))
+          changes: locationChanges
         }
       });
     }
+
+    notifyAssignedCrewOfGameChanges(game, locationChanges);
 
     return {
       success: true,
@@ -357,6 +412,8 @@ game.assignments =
 
 create(game) {
 
+  if (typeof locationService !== "undefined") locationService.normalizeGame(game);
+
   // Generate an ID if one doesn't already exist.
   if (!game.id) {
     game.id = Date.now();
@@ -405,12 +462,17 @@ create(game) {
       metadata: {
         date: game.date || "",
         time: game.time || "",
+        locationComplex: game.locationComplex || "",
+        locationField: game.locationField || "",
         field: game.field || ""
       }
     });
   }
 
+  const shouldNotifyEligibleCrew = game.suppressActivity !== true;
   delete game.suppressActivity;
+
+  if (shouldNotifyEligibleCrew) notifyEligibleCrewOfNewGame(game);
 
   return {
     success: true,
@@ -430,9 +492,8 @@ create(game) {
       };
     }
 
-    normalizeGameLifecycleStatus(
-      updatedGame
-    );
+    if (typeof locationService !== "undefined") locationService.normalizeGame(updatedGame);
+    normalizeGameLifecycleStatus(updatedGame);
 
     games[index] = updatedGame;
     this.save();

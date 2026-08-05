@@ -1,7 +1,7 @@
 import {
   expect,
   test
-} from "@playwright/test";
+} from "./fixtures/app.fixture.js";
 
 test.describe(
   "Review Notifications",
@@ -318,9 +318,12 @@ test.describe(
 
     test(
       "approving a submitted review creates one umpire notification",
-      async ({ page }) => {
+      async ({ app }) => {
+        const account =
+          await app.loginAsApprovedUmpire();
+
         const result =
-          await page.evaluate(() => {
+          await app.page.evaluate(account => {
             const game =
               gameService.create({
                 date: "2099-10-01",
@@ -336,7 +339,9 @@ test.describe(
               }).data;
 
             const crew =
-              crewService.getAll()[0];
+              crewService.getById(
+                account.crewId
+              );
 
             const assignments =
               assignmentService
@@ -359,37 +364,18 @@ test.describe(
 
             gameService.save();
 
-            const originalAccount =
-              loginService
-                .getCurrentAccount;
-
-            loginService
-              .getCurrentAccount =
-              () => ({
-                id:
-                  "review-approval-account",
-                crewId: crew.id,
-                firstName: "Review",
-                lastName: "Umpire"
-              });
-
             const submitResult =
               portalService
                 .submitGameForReview(
                   game.id
                 );
 
-            loginService
-              .getCurrentAccount =
-              originalAccount;
-
             if (!submitResult.success) {
               return {
                 gameId: game.id,
                 command: submitResult,
                 notifications:
-                  notificationService
-                    .getNotifications()
+                  notificationService.getAll()
               };
             }
 
@@ -408,9 +394,15 @@ test.describe(
               command,
               notifications:
                 notificationService
-                  .getNotifications()
+                  .getAll()
+                  .filter(notification =>
+                    notification.type ===
+                      "review-approved" &&
+                    notification.relatedId ===
+                      game.id
+                  )
             };
-          });
+          }, account);
 
         expect(result.command.success)
           .toBe(true);
@@ -427,6 +419,8 @@ test.describe(
               "Game Review Approved",
             relatedId: result.gameId,
             audience: "umpire",
+            recipientAccountId:
+              account.id,
             destination: {
               page: "game-hub",
               context: {
@@ -466,9 +460,12 @@ test.describe(
 
     test(
       "approved review notification opens the exact game",
-      async ({ page }) => {
+      async ({ app }) => {
+        const account =
+          await app.loginAsApprovedUmpire();
+
         const notificationId =
-          await page.evaluate(() => {
+          await app.page.evaluate(account => {
             const result =
               notificationService.create({
                 type:
@@ -480,6 +477,8 @@ test.describe(
                 relatedId:
                   "approved-review-game",
                 audience: "umpire",
+                recipientAccountId:
+                  account.id,
                 destination: {
                   page: "game-hub",
                   context: {
@@ -494,9 +493,9 @@ test.describe(
             );
 
             return result.data.id;
-          });
+          }, account);
 
-        await page
+        await app.page
           .locator(
             `[data-testid="notification-action"]` +
             `[data-notification-id="${notificationId}"]`
@@ -504,7 +503,7 @@ test.describe(
           .click();
 
         const state =
-          await page.evaluate(() => ({
+          await app.page.evaluate(() => ({
             page: currentPage,
             context:
               currentPageContext

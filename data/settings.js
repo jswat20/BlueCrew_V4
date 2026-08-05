@@ -1,5 +1,11 @@
 const settings = {
   fields: ["Field 1", "Field 2", "Field 3", "Field 4"],
+  locations: [
+    { name: "Central Complex", fields: ["Field 1", "Field 2", "Field 3", "Field 4"] },
+    { name: "Riverside Park", fields: ["Field 1", "Field 2"] },
+    { name: "East Complex", fields: ["Field 1", "Field 2"] },
+    { name: "West Complex", fields: ["Field 1"] }
+  ],
   levels: ["8U", "10U", "12U", "14U", "Juniors", "Seniors"],
   teams: ["Orioles", "Yankees", "Red Sox", "Blue Jays", "Mets", "Phillies", "Nationals", "Braves"],
   timeSlots: [

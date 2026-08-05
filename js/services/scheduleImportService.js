@@ -10,6 +10,10 @@ window.scheduleImportService = (() => {
 
   const SUPPORTED_FIELDS = [
     ...REQUIRED_FIELDS,
+    "locationComplex",
+    "locationField",
+    "field",
+    "level",
     "gameType"
   ];
 
@@ -27,6 +31,14 @@ window.scheduleImportService = (() => {
 
     home: "homeTeam",
     hometeam: "homeTeam",
+
+    locationcomplex: "locationComplex",
+    complex: "locationComplex",
+    venue: "locationComplex",
+    locationfield: "locationField",
+    field: "field",
+    level: "level",
+    agelevel: "level",
 
     type: "gameType",
     gametype: "gameType"
@@ -139,7 +151,7 @@ window.scheduleImportService = (() => {
   }
 
   function normalizeGame(data = {}) {
-    return {
+    const normalized = {
       date: String(data.date || "").trim(),
       time: String(data.time || "").trim(),
       awayTeam: String(data.awayTeam || "").trim(),
@@ -147,6 +159,13 @@ window.scheduleImportService = (() => {
       gameType:
         String(data.gameType || "single").trim() || "single"
     };
+    if (Object.hasOwn(data, "locationComplex") || Object.hasOwn(data, "locationField") || Object.hasOwn(data, "field")) {
+      normalized.locationComplex = String(data.locationComplex || "").trim();
+      normalized.locationField = String(data.locationField || data.field || "").trim();
+      normalized.field = normalized.locationField;
+    }
+    if (Object.hasOwn(data, "level")) normalized.level = String(data.level || "").trim();
+    return normalized;
   }
 
   function validateRow(row) {

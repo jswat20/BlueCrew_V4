@@ -131,15 +131,15 @@ test.describe("Schedule Export UI", () => {
       await readDownload(download);
 
     expect(csv).toContain(
-      "date,time,awayTeam,homeTeam,field,level,gameType"
+      "date,time,awayTeam,homeTeam,locationComplex,locationField,field,level,gameType"
     );
 
     expect(csv).toContain(
-      "2026-08-11,6:00 PM,Export Tigers,Export Bears,Field 1,12U,single"
+      "2026-08-11,6:00 PM,Export Tigers,Export Bears,,Field 1,Field 1,12U,single"
     );
 
     expect(csv).toContain(
-      "2026-08-12,8:00 PM,Export Hawks,Export Eagles,Field 2,14U,single"
+      "2026-08-12,8:00 PM,Export Hawks,Export Eagles,,Field 2,Field 2,14U,single"
     );
   });
 

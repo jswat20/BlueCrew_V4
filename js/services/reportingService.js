@@ -287,7 +287,9 @@ const reportingService = (() => {
           date: game.date || "",
           time: game.time || "",
           matchup: game.matchup || "",
-          field: game.field || "",
+          locationComplex: game.locationComplex || "",
+          locationField: game.locationField || game.field || "",
+          field: locationService.getDisplayName(game),
           level: game.level || "",
           assignmentCount,
           assignedCount,
@@ -424,7 +426,9 @@ const reportingService = (() => {
             `${game.awayTeam || "Away"} @ ${
               game.homeTeam || "Home"
             }`,
-          field: game.field || "",
+          locationComplex: game.locationComplex || "",
+          locationField: game.locationField || game.field || "",
+          field: locationService.getDisplayName(game),
           level: game.level || "",
           status: group.status,
           statusLabel: group.label,

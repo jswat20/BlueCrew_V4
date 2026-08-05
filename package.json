@@ -15,6 +15,7 @@
     "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.1.0",
-    "http-server": "^14.1.1"
+    "http-server": "^14.1.1",
+    "supabase": "^2.111.0"
   }
 }

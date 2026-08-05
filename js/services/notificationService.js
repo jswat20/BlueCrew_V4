@@ -1,13 +1,12 @@
 const notificationService = (() => {
   const STORAGE_KEY = "bluecrew_notifications";
+  const getRepository = () => repositoryProvider.get("notifications");
 
   function getAll() {
-    const stored = localStorage.getItem(STORAGE_KEY);
-
-    if (!stored) return [];
-
     try {
-      const notifications = JSON.parse(stored);
+      const stored = getRepository().read();
+      if (!stored) return [];
+      const notifications = stored;
       return Array.isArray(notifications) ? notifications : [];
     } catch {
       return [];
@@ -15,10 +14,7 @@ const notificationService = (() => {
   }
 
   function saveAll(notifications) {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(notifications)
-    );
+    getRepository().write(notifications);
   }
 
   function getCurrentNotificationAccount() {
@@ -63,11 +59,8 @@ const notificationService = (() => {
       notification.recipientAccountId ||
       "";
 
-    // Preserve existing assignment, claim, review,
-    // and lifecycle notifications that predate
-    // account-specific targeting.
     if (!recipientAccountId) {
-      return true;
+      return false;
     }
 
     if (isCurrentNotificationAdmin()) {
@@ -124,7 +117,8 @@ const notificationService = (() => {
     }
 
     if (
-      value.includes("assignment")
+      value.includes("assignment") ||
+      value === "game-available"
     ) {
       return "assignments";
     }
@@ -203,7 +197,8 @@ const notificationService = (() => {
     audience = "admin",
     recipientAccountId = "",
     destination = null,
-    createdAt = ""
+    createdAt = "",
+    reminderKey = ""
   } = {}) {
     if (!title || !message) {
       return {
@@ -224,6 +219,31 @@ const notificationService = (() => {
 
     const notifications = getAll();
 
+    if (
+      reminderKey &&
+      notifications.some(
+        notification =>
+          String(notification.reminderKey || "") ===
+          String(reminderKey)
+      )
+    ) {
+      return {
+        success: true,
+        message:
+          "Notification already exists.",
+        data: notifications.find(
+          notification =>
+            String(notification.reminderKey || "") ===
+            String(reminderKey)
+        ),
+        duplicate: true
+      };
+    }
+
+    const currentAccount = getCurrentNotificationAccount();
+    const resolvedRecipientAccountId = recipientAccountId ||
+      (audience === "umpire" && !isCurrentNotificationAdmin() ? currentAccount?.id || "" : "");
+
     const notification = {
       id: `notification-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       type,
@@ -233,7 +253,7 @@ const notificationService = (() => {
       audience,
       recipientAccountId:
         String(
-          recipientAccountId || ""
+          resolvedRecipientAccountId || ""
         ),
       destination:
         destination &&
@@ -251,7 +271,9 @@ const notificationService = (() => {
       read: false,
       createdAt:
         createdAt ||
-        new Date().toISOString()
+        new Date().toISOString(),
+      reminderKey:
+        String(reminderKey || "")
     };
 
     notifications.push(notification);
@@ -294,7 +316,7 @@ const notificationService = (() => {
     const notifications = getAll();
     const notification = notifications.find(item => item.id === notificationId);
 
-    if (!notification) {
+    if (!notification || !isVisibleToCurrentUser(notification)) {
       return {
         success: false,
         message: "Notification not found."
@@ -315,7 +337,7 @@ const notificationService = (() => {
     const notifications = getAll();
 
     notifications.forEach(notification => {
-      notification.read = true;
+      if (isVisibleToCurrentUser(notification)) notification.read = true;
     });
 
     saveAll(notifications);
@@ -329,9 +351,8 @@ const notificationService = (() => {
   function clearRead() {
     const notifications = getAll();
 
-    const unread = notifications.filter(
-      notification =>
-        notification.read !== true
+    const unread = notifications.filter(notification =>
+      !isVisibleToCurrentUser(notification) || notification.read !== true
     );
 
     const clearedCount =
@@ -519,6 +540,7 @@ const notificationService = (() => {
         ids.has(
           String(notification.id)
         ) &&
+        isVisibleToCurrentUser(notification) &&
         !notification.read
       ) {
         notification.read = true;
@@ -550,9 +572,7 @@ const notificationService = (() => {
     const remaining =
       notifications.filter(
         notification =>
-          !ids.has(
-            String(notification.id)
-          )
+          !isVisibleToCurrentUser(notification) || !ids.has(String(notification.id))
       );
 
     const deletedCount =
@@ -571,6 +591,281 @@ const notificationService = (() => {
     };
   }
 
+
+  function parseReminderGameTime(
+    timeValue
+  ) {
+    const value =
+      String(timeValue || "").trim();
+
+    const twelveHour =
+      value.match(
+        /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i
+      );
+
+    if (twelveHour) {
+      let hour = Number(twelveHour[1]);
+      const minute = Number(twelveHour[2]);
+      const period =
+        twelveHour[3].toUpperCase();
+
+      if (hour === 12) {
+        hour = 0;
+      }
+
+      if (period === "PM") {
+        hour += 12;
+      }
+
+      return {
+        hour,
+        minute
+      };
+    }
+
+    const twentyFourHour =
+      value.match(
+        /^(\d{1,2}):(\d{2})$/
+      );
+
+    if (!twentyFourHour) {
+      return null;
+    }
+
+    return {
+      hour: Number(twentyFourHour[1]),
+      minute: Number(twentyFourHour[2])
+    };
+  }
+
+  function getReminderGameDateTime(
+    game
+  ) {
+    const date =
+      String(game?.date || "").trim();
+
+    const time =
+      parseReminderGameTime(
+        game?.time
+      );
+
+    if (!date || !time) {
+      return null;
+    }
+
+    const value =
+      new Date(`${date}T00:00:00`);
+
+    if (Number.isNaN(value.getTime())) {
+      return null;
+    }
+
+    value.setHours(
+      time.hour,
+      time.minute,
+      0,
+      0
+    );
+
+    return value;
+  }
+
+  function isReminderAssignmentForCrew(
+    game,
+    crewId
+  ) {
+    if (
+      typeof assignmentService ===
+        "undefined" ||
+      typeof assignmentService
+        .getAssignments !==
+        "function"
+    ) {
+      return false;
+    }
+
+    return assignmentService
+      .getAssignments(game)
+      .some(
+        assignment =>
+          String(assignment.crewId || "") ===
+            String(crewId) &&
+          [
+            "assigned",
+            "locked"
+          ].includes(
+            assignment.status
+          )
+      );
+  }
+
+  function getReminderWindow(
+    millisecondsUntilGame
+  ) {
+    const hoursUntilGame =
+      millisecondsUntilGame /
+      (60 * 60 * 1000);
+
+    if (
+      hoursUntilGame < 0 ||
+      hoursUntilGame > 24
+    ) {
+      return null;
+    }
+
+    if (hoursUntilGame <= 2) {
+      return {
+        key: "2h",
+        title: "Game Starting Soon",
+        messagePrefix:
+          "Your game starts within 2 hours:"
+      };
+    }
+
+    return {
+      key: "24h",
+      title: "Upcoming Game Reminder",
+      messagePrefix:
+        "You have a game within 24 hours:"
+    };
+  }
+
+  function generateUpcomingGameReminders(
+    nowValue = new Date()
+  ) {
+    const account =
+      getCurrentNotificationAccount();
+
+    if (
+      !account ||
+      !account.crewId ||
+      isCurrentNotificationAdmin()
+    ) {
+      return {
+        success: true,
+        createdCount: 0,
+        duplicateCount: 0
+      };
+    }
+
+    if (
+      typeof gameService === "undefined" ||
+      typeof gameService.getAll !==
+        "function"
+    ) {
+      return {
+        success: false,
+        message:
+          "Game service is unavailable.",
+        createdCount: 0,
+        duplicateCount: 0
+      };
+    }
+
+    const now =
+      nowValue instanceof Date
+        ? nowValue
+        : new Date(nowValue);
+
+    if (Number.isNaN(now.getTime())) {
+      return {
+        success: false,
+        message:
+          "Invalid reminder time.",
+        createdCount: 0,
+        duplicateCount: 0
+      };
+    }
+
+    let createdCount = 0;
+    let duplicateCount = 0;
+
+    gameService
+      .getAll()
+      .filter(
+        game =>
+          isReminderAssignmentForCrew(
+            game,
+            account.crewId
+          )
+      )
+      .filter(
+        game =>
+          ![
+            "completed",
+            "submitted",
+            "approved",
+            "cancelled"
+          ].includes(
+            typeof gameService.getStatus ===
+              "function"
+              ? gameService.getStatus(game)
+              : game.status
+          )
+      )
+      .forEach(game => {
+        const gameDateTime =
+          getReminderGameDateTime(game);
+
+        if (!gameDateTime) {
+          return;
+        }
+
+        const window =
+          getReminderWindow(
+            gameDateTime.getTime() -
+            now.getTime()
+          );
+
+        if (!window) {
+          return;
+        }
+
+        const reminderKey = [
+          "assignment-reminder",
+          account.id,
+          game.id,
+          window.key
+        ].join(":");
+
+        const result = create({
+          type:
+            `assignment-reminder-${window.key}`,
+          title: window.title,
+          message:
+            `${window.messagePrefix} ` +
+            `${game.awayTeam || "Away"} @ ` +
+            `${game.homeTeam || "Home"} on ` +
+            `${game.date} at ${game.time}.`,
+          relatedId: game.id,
+          audience: "umpire",
+          recipientAccountId:
+            account.id,
+          reminderKey,
+          destination: {
+            page: "game-hub",
+            context: {
+              gameId: game.id
+            }
+          }
+        });
+
+        if (result.duplicate) {
+          duplicateCount += 1;
+        } else if (
+          result.success &&
+          !result.suppressed
+        ) {
+          createdCount += 1;
+        }
+      });
+
+    return {
+      success: true,
+      createdCount,
+      duplicateCount
+    };
+  }
   return {
     getAll,
     create,
@@ -589,6 +884,7 @@ const notificationService = (() => {
     getUnreadByCategory,
     getOldestUnread,
     getNotificationCategory,
-    isCategoryEnabled
+    isCategoryEnabled,
+    generateUpcomingGameReminders
   };
 })();

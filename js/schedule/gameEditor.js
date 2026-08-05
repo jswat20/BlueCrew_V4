@@ -36,11 +36,15 @@ function editGame(gameId) {
 }
 
 function createBlankGame() {
+  const defaultComplex = locationService.getComplexes()[0] || "";
+  const defaultField = locationService.getFields(defaultComplex)[0] || "";
   return {
     id: "",
     date: new Date().toISOString().split("T")[0],
     time: "6:00 PM",
-    field: "Field 1",
+    locationComplex: defaultComplex,
+    locationField: defaultField,
+    field: defaultField,
     level: "12U",
     gameType: "single",
     awayTeam: "",
@@ -54,6 +58,8 @@ function createBlankGame() {
 }
 
 function renderGameEditorForm(game, isEditing) {
+  const selectedComplex = game.locationComplex || (game.locationField || game.field ? locationService.LEGACY_COMPLEX : locationService.getComplexes()[0] || "");
+  const selectedField = game.locationField || game.field || locationService.getFields(selectedComplex)[0] || "";
   return `
     <label>Date</label>
     <input id="edit-date" data-testid="game-date-input" type="date" value="${game.date || ""}" />
@@ -63,9 +69,14 @@ function renderGameEditorForm(game, isEditing) {
       ${renderTimeOptions(game.time)}
     </select>
 
-    <label>Field</label>
-    <select id="edit-field" data-testid="game-field-input">
-      ${renderOptionList(getFieldOptions(), game.field)}
+    <label>Location Complex</label>
+    <select id="edit-location-complex" data-testid="game-location-complex-input" onchange="handleGameComplexChange(this.value)">
+      ${renderOptionList(locationService.getComplexes(), selectedComplex)}
+    </select>
+
+    <label>Location Field</label>
+    <select id="edit-location-field" data-testid="game-field-input">
+      ${renderOptionList(locationService.getFields(selectedComplex), selectedField)}
     </select>
 
     <label>Level</label>
@@ -214,10 +225,14 @@ function saveGameEditor(gameId, isEditing) {
 }
 
 function readGameEditorValues() {
+  const locationComplex = document.getElementById("edit-location-complex")?.value || "";
+  const locationField = document.getElementById("edit-location-field")?.value || "";
   return {
     date: document.getElementById("edit-date")?.value || "",
     time: document.getElementById("edit-time")?.value || "",
-    field: document.getElementById("edit-field")?.value || "",
+    locationComplex,
+    locationField,
+    field: locationField,
     level: document.getElementById("edit-level")?.value || "",
     gameType: document.getElementById("edit-game-type")?.value || "single",
     awayTeam: document.getElementById("edit-away-team")?.value.trim() || "",
@@ -233,6 +248,11 @@ function validateGameEditorValues(values) {
 
   if (!values.time) {
     toastService.error("Choose a game time.");
+    return false;
+  }
+
+  if (!values.locationComplex || !values.locationField) {
+    toastService.error("Choose a location complex and field.");
     return false;
   }
 
@@ -412,6 +432,12 @@ function getFieldOptions() {
     "Field 3",
     "Field 4"
   ]);
+}
+
+function handleGameComplexChange(complexName) {
+  const fieldSelect = document.getElementById("edit-location-field");
+  if (!fieldSelect) return;
+  fieldSelect.innerHTML = renderOptionList(locationService.getFields(complexName), "");
 }
 
 function getLevelOptions() {

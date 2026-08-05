@@ -48,6 +48,18 @@ function handleLoginSubmit(event) {
   messageEl.textContent = result.message;
 
   if (result.success) {
-    renderPage("dashboard");
+        if (
+      typeof authService !== "undefined" &&
+      authService.isUmpire() &&
+      typeof notificationService !== "undefined" &&
+      typeof notificationService
+        .generateUpcomingGameReminders ===
+        "function"
+    ) {
+      notificationService
+        .generateUpcomingGameReminders();
+    }
+
+renderPage("dashboard");
   }
 }

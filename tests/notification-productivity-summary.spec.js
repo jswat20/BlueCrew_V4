@@ -76,7 +76,7 @@ test.describe(
     );
 
     test(
-      "dashboard bell exposes the unread total",
+      "administrator dashboard omits the umpire notification bell",
       async ({ page }) => {
         await page.evaluate(() => {
           navigateTo("dashboard");
@@ -84,28 +84,9 @@ test.describe(
 
         await expect(
           page.getByTestId(
-            "dashboard-notification-count"
-          )
-        ).toHaveText("2");
-
-        await page
-          .getByTestId(
             "dashboard-notification-bell"
           )
-          .click();
-
-        const state =
-          await page.evaluate(() => ({
-            page: currentPage,
-            filter:
-              uiStateService
-                .getNotificationFilter()
-          }));
-
-        expect(state).toEqual({
-          page: "notifications",
-          filter: "all"
-        });
+        ).toHaveCount(0);
       }
     );
 

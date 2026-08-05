@@ -2,13 +2,14 @@
 
 const activityService = (() => {
   const STORAGE_KEY = "bluecrew_activity";
+  const getRepository = () => repositoryProvider.get("activity");
 
   function getAll() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    return getRepository().read() || [];
   }
 
   function save(items) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    getRepository().write(items);
   }
 
   function log(typeOrActivity, message) {

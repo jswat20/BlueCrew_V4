@@ -1260,7 +1260,7 @@ function renderGameHubCrewPicker(game, assignment) {
     <dialog class="game-hub-crew-picker" data-testid="game-hub-crew-picker-${escapeGameHubText(assignment.id)}">
       <form method="dialog" onsubmit="event.preventDefault(); saveGameHubCrewAssignment('${escapeGameHubText(game.id)}', '${escapeGameHubText(assignment.id)}')">
         <header>
-          <div><span class="dashboard-eyebrow">${escapeGameHubText(`${game.level} - ${game.awayTeam} @ ${game.homeTeam} - ${new Date(`${game.date}T12:00:00`).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" })} @ ${game.time} - ${game.field || game.venue || "Location TBD"}`)}</span><h3>Assign ${escapeGameHubText(assignment.position)}</h3></div>
+          <div><span class="dashboard-eyebrow">${escapeGameHubText(`${game.level} - ${game.awayTeam} @ ${game.homeTeam} - ${new Date(`${game.date}T12:00:00`).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" })} @ ${game.time} - ${locationService.getDisplayName(game) || "Location TBD"}`)}</span><h3>Assign ${escapeGameHubText(assignment.position)}</h3></div>
           <div class="game-hub-picker-actions">
             <button type="submit" class="button button-primary" data-testid="game-hub-crew-save-${escapeGameHubText(assignment.id)}">Save</button>
             <button type="button" class="button button-secondary" onclick="this.closest('dialog').close()" aria-label="Close crew picker">Close</button>
@@ -1353,7 +1353,7 @@ function renderAdministrativeGameHub(game) {
           : `<div class="game-hub-command-status">${renderGameHubLifecycleBadge(game)} ${gameDayRenderers.renderStatus(game)}</div>`}
         <dl>
           <div data-testid="game-hub-summary-time"><dt>Time</dt><dd>${escapeGameHubText(game.time)}</dd></div>
-          <div data-testid="game-hub-summary-field"><dt>Location</dt><dd>${escapeGameHubText(game.gameInformation?.field || game.field || "")}</dd></div>
+          <div data-testid="game-hub-summary-field"><dt>Location</dt><dd>${escapeGameHubText(locationService.getDisplayName(game) || game.gameInformation?.field || "")}</dd></div>
           <div data-testid="game-hub-summary-level"><dt>Level</dt><dd>${escapeGameHubText(game.level)}</dd></div>
         </dl>
       </section>

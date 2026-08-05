@@ -100,6 +100,28 @@ const portalService = (() => {
     );
   }
 
+  function declineAssignment(
+    gameId,
+    reason
+  ) {
+    const account =
+      getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return {
+        success: false,
+        message: "No logged in umpire."
+      };
+    }
+
+    return assignmentService
+      .declineAssignment(
+        gameId,
+        account.crewId,
+        reason
+      );
+  }
+
   function getAssignments(game) {
     if (
       typeof assignmentService !== "undefined" &&
@@ -449,12 +471,37 @@ const portalService = (() => {
       return;
     }
 
+    const assignedCrewIds = [
+      game.crewId,
+      ...(typeof assignmentService !== "undefined" &&
+      typeof assignmentService.getAssignments === "function"
+        ? assignmentService.getAssignments(game).map(
+            assignment => assignment.crewId
+          )
+        : [])
+    ].filter(Boolean);
+
+    const recipientAccount =
+      audience === "umpire" &&
+      typeof accountService !== "undefined" &&
+      typeof accountService.getAll === "function"
+        ? accountService.getAll().find(account =>
+            assignedCrewIds.some(
+              crewId =>
+                String(account.crewId || "") ===
+                String(crewId)
+            )
+          )
+        : null;
+
     notificationService.create({
       type,
       title,
       message,
       relatedId: game.id,
       audience,
+      recipientAccountId:
+        recipientAccount?.id || "",
       destination: {
         page: "game-hub",
         context: {
@@ -1144,7 +1191,9 @@ const portalService = (() => {
 
   function getGameInformation(game) {
     return {
-      field: normalizeOptionalValue(game.field),
+      locationComplex: normalizeOptionalValue(game.locationComplex),
+      locationField: normalizeOptionalValue(game.locationField || game.field),
+      field: normalizeOptionalValue(locationService.getDisplayName(game)),
       venue: normalizeOptionalValue(game.venue),
       address: normalizeOptionalValue(game.address),
       notes: normalizeOptionalValue(
@@ -2010,6 +2059,7 @@ const portalService = (() => {
     toggleChecklistItem,
     getClaimableGames,
     claimGame,
+    declineAssignment,
     getMyPendingClaims,
     getArrivalRecommendation
   };

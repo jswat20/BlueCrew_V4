@@ -2,6 +2,9 @@
 
 const accountService = (() => {
   const STORAGE_KEY = "bluecrew_accounts";
+  function getRepository() {
+    return repositoryProvider.get("accounts");
+  }
 const ACCOUNT_ROLES = Object.freeze({
   ADMINISTRATOR: "administrator",
   ASSIGNER: "assigner",
@@ -23,6 +26,10 @@ function requireManageAccounts() {
 }
 
 function normalizeRole(role) {
+  if (role === "admin") {
+    return ACCOUNT_ROLES.ADMINISTRATOR;
+  }
+
   return VALID_ACCOUNT_ROLES.includes(role)
     ? role
     : ACCOUNT_ROLES.UMPIRE;
@@ -40,8 +47,7 @@ function isValidRole(role) {
   }
 
   function readAll() {
-    const accounts = localStorage.getItem(STORAGE_KEY);
-    return accounts ? JSON.parse(accounts) : [];
+    return getRepository().read() || [];
   }
 
   function getAll() {
@@ -49,7 +55,7 @@ function isValidRole(role) {
   }
 
   function saveAll(accounts) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+    getRepository().write(accounts);
   }
 
 function generateId() {
@@ -80,6 +86,13 @@ function generateId() {
   function migrateCrewCodes(sourceAccounts = readAll()) {
     const accounts = Array.isArray(sourceAccounts) ? sourceAccounts : [];
     let changed = false;
+    accounts.forEach(account => {
+      const normalizedRole = normalizeRole(account.role);
+      if (account.role !== normalizedRole) {
+        account.role = normalizedRole;
+        changed = true;
+      }
+    });
     const assigned = new Set(accounts.map(account => String(account.crewCode || "").toUpperCase()).filter(Boolean));
     accounts
       .filter(account => normalizeRole(account.role) === ACCOUNT_ROLES.UMPIRE && !account.crewCode)
@@ -788,7 +801,12 @@ function getRoleSummary() {
     }
 
     const restrictedFields = ["crewCode", "firstName", "lastName", "birthdate", "age", "levels", "eligibility", "officialHistory", "yearsOfServiceOverride", "adminNotes", "status", "role", "crewId"];
-    const submittedRestricted = restrictedFields.filter(field => Object.prototype.hasOwnProperty.call(updates, field));
+    const currentProfile = getProfile(account.id);
+    const submittedRestricted = restrictedFields.filter(field =>
+      Object.prototype.hasOwnProperty.call(updates, field) &&
+      JSON.stringify(updates[field] ?? null) !==
+        JSON.stringify(currentProfile?.[field] ?? null)
+    );
     if (submittedRestricted.length) {
       return profileMutationResult(false, "One or more profile fields are administrator-managed.", getProfile(account.id), Object.fromEntries(submittedRestricted.map(field => [field, "This field cannot be changed in self-service."])));
     }

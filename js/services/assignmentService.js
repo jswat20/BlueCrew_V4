@@ -18,7 +18,7 @@ const assignmentService = (() => {
       return getGamesFromStorage();
     }
 
-    return JSON.parse(localStorage.getItem("bluecrew_games")) || [];
+    return repositoryProvider.get("legacyGames").read() || [];
   }
 
   function saveGames(games) {
@@ -37,7 +37,7 @@ const assignmentService = (() => {
       return;
     }
 
-    localStorage.setItem("bluecrew_games", JSON.stringify(games));
+    repositoryProvider.get("legacyGames").write(games);
   }
 
   function findGame(gameId) {
@@ -258,8 +258,13 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
       return;
     }
 
+    const recipientAccount = typeof accountService !== "undefined"
+      ? accountService.getAll().find(account => String(account.crewId) === String(assignment.crewId))
+      : null;
+    if (!recipientAccount) return;
+
     notificationService.create({
-      type: "assignment",
+      type: action === "approved" ? "claim-approved" : "assignment",
       title:
         action === "assigned"
           ? "New Assignment"
@@ -269,8 +274,17 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
         `${game.awayTeam} @ ${game.homeTeam} • ` +
         `${game.date} ${game.time}`,
       relatedId: game.id,
-      audience: "umpire"
+      audience: "umpire",
+      recipientAccountId: recipientAccount.id
     });
+  }
+
+  function createCrewNotification(game, crewId, type, title, message) {
+    const recipientAccount = typeof accountService !== "undefined"
+      ? accountService.getAll().find(account => String(account.crewId) === String(crewId))
+      : null;
+    if (!recipientAccount) return;
+    notificationService?.create?.({ type, title, message, relatedId: game.id, audience: "umpire", recipientAccountId: recipientAccount.id });
   }
 
   function getAssignmentCrewName(crewId) {
@@ -355,6 +369,9 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
         "assigned"
       );
     }
+    if (previousCrewId && String(previousCrewId) !== String(crewId)) {
+      createCrewNotification(game, previousCrewId, "assignment-updated", "Assignment Changed", `${assignment.position}: You were removed from ${game.awayTeam} @ ${game.homeTeam}.`);
+    }
 
     return mutationResult(
       true,
@@ -423,6 +440,9 @@ game.assignmentStatus = getOverallStatusFromAssignments(game.assignments);
         assignment,
         "assigned"
       );
+    }
+    if (previousCrewId && String(previousCrewId) !== String(crewId)) {
+      createCrewNotification(game, previousCrewId, "assignment-updated", "Assignment Changed", `${assignment.position}: You were removed from ${game.awayTeam} @ ${game.homeTeam}.`);
     }
 
     return mutationResult(
@@ -575,6 +595,7 @@ function rejectAssignmentClaim(gameId, assignmentId) {
     return mutationResult(false, "No pending claim found for this position.");
   }
 
+  const claimantCrewId = assignment.claimedBy;
   assignment.claimedBy = "";
   assignment.status = STATUS.OPEN_FOR_CLAIM;
 
@@ -586,6 +607,8 @@ function rejectAssignmentClaim(gameId, assignmentId) {
     "claim_rejected",
     `${assignment.position} claim rejected.`
   );
+
+  createCrewNotification(game, claimantCrewId, "claim-rejected", "Claim Rejected", `${assignment.position}: Your claim for ${game.awayTeam} @ ${game.homeTeam} was rejected.`);
 
   return mutationResult(true, `${assignment.position} claim rejected.`, assignment);
 }
@@ -804,7 +827,8 @@ notificationService?.create?.({
 assignment.claimProcessed = true;
 assignment.claimStatus = "approved";
 
-assignment.crewId = assignment.claimedBy;
+const claimantCrewId = assignment.claimedBy;
+assignment.crewId = claimantCrewId;
 assignment.claimedBy = "";
 assignment.status = STATUS.ASSIGNED;
 
@@ -824,7 +848,8 @@ notificationService?.create?.({
   title: "Claim Approved",
   message: `${game.awayTeam} @ ${game.homeTeam} claim has been approved.`,
   relatedId: game.id,
-  audience: "umpire"
+  audience: "umpire",
+  recipientAccountId: accountService.getAll().find(account => String(account.crewId) === String(claimantCrewId))?.id || ""
 });
 
     return mutationResult(true, "Claim approved.", game);
@@ -853,6 +878,7 @@ notificationService?.create?.({
 assignment.claimProcessed = true;
 assignment.claimStatus = "rejected";
 
+const claimantCrewId = assignment.claimedBy;
 assignment.claimedBy = "";
 assignment.status = STATUS.OPEN_FOR_CLAIM;
 
@@ -870,10 +896,179 @@ notificationService?.create?.({
   title: "Claim Rejected",
   message: `${game.awayTeam} @ ${game.homeTeam} claim has been rejected.`,
   relatedId: game.id,
-  audience: "umpire"
+  audience: "umpire",
+  recipientAccountId: accountService.getAll().find(account => String(account.crewId) === String(claimantCrewId))?.id || ""
 });
 
     return mutationResult(true, "Claim rejected.", game);
+  }
+
+  function declineAssignment(
+    gameId,
+    crewId,
+    reason
+  ) {
+    const normalizedCrewId =
+      String(crewId || "").trim();
+
+    const normalizedReason =
+      String(reason || "").trim();
+
+    if (!normalizedCrewId) {
+      return mutationResult(
+        false,
+        "No umpire was provided."
+      );
+    }
+
+    if (!normalizedReason) {
+      return mutationResult(
+        false,
+        "Enter a reason for declining the assignment."
+      );
+    }
+
+    const { games, game } =
+      findGame(gameId);
+
+    if (!game) {
+      return mutationResult(
+        false,
+        "Game not found."
+      );
+    }
+
+    normalizeGame(game);
+
+    const declinedAssignments =
+      getAssignments(game).filter(
+        assignment =>
+          String(assignment.crewId || "") ===
+            normalizedCrewId &&
+          [
+            STATUS.ASSIGNED,
+            STATUS.LOCKED
+          ].includes(assignment.status)
+      );
+
+    if (!declinedAssignments.length) {
+      return mutationResult(
+        false,
+        "You are not assigned to this game."
+      );
+    }
+
+    const declinedAt =
+      new Date().toISOString();
+
+    const reopenStatus =
+      game.assignmentMode === "claim"
+        ? STATUS.OPEN_FOR_CLAIM
+        : STATUS.NEEDS_ASSIGNMENT;
+
+    const declinedPositions =
+      declinedAssignments.map(
+        assignment => assignment.position
+      );
+
+    declinedAssignments.forEach(
+      assignment => {
+        assignment.declinedBy =
+          normalizedCrewId;
+
+        assignment.declineReason =
+          normalizedReason;
+
+        assignment.declinedAt =
+          declinedAt;
+
+        assignment.crewId = "";
+        assignment.claimedBy = "";
+        assignment.locked = false;
+        assignment.status = reopenStatus;
+      }
+    );
+
+    const existingDeclines =
+      Array.isArray(game.assignmentDeclines)
+        ? game.assignmentDeclines
+        : [];
+
+    game.assignmentDeclines = [
+      ...existingDeclines,
+      {
+        id:
+          `decline-${Date.now()}-` +
+          Math.random()
+            .toString(16)
+            .slice(2),
+        crewId: normalizedCrewId,
+        positions: declinedPositions,
+        reason: normalizedReason,
+        declinedAt,
+        resultingStatus: reopenStatus
+      }
+    ];
+
+    syncLegacyFields(game);
+    saveGames(games);
+
+    const positionText =
+      declinedPositions.join(", ");
+
+    createAssignmentActivity(
+      game,
+      "declined",
+      `${positionText} assignment declined: ` +
+        normalizedReason,
+      {
+        crewId: normalizedCrewId,
+        subject: positionText,
+        metadata: {
+          reason: normalizedReason,
+          positions: declinedPositions,
+          resultingStatus: reopenStatus
+        }
+      }
+    );
+
+    if (
+      typeof notificationService !==
+        "undefined" &&
+      typeof notificationService.create ===
+        "function"
+    ) {
+      notificationService.create({
+        type: "assignment-declined",
+        title: "Assignment Declined",
+        message:
+          `${getAssignmentCrewName(
+            normalizedCrewId
+          )} declined ${positionText} for ` +
+          `${game.awayTeam || "Away"} @ ` +
+          `${game.homeTeam || "Home"}. ` +
+          `Reason: ${normalizedReason}`,
+        relatedId: game.id,
+        audience: "admin",
+        destination: {
+          page: "game-hub",
+          context: {
+            gameId: game.id
+          }
+        }
+      });
+    }
+
+    return mutationResult(
+      true,
+      "Assignment declined.",
+      {
+        game,
+        positions: declinedPositions,
+        reason: normalizedReason,
+        resultingStatus: reopenStatus
+      }
+    );
   }
 
   function lockAssignment(gameId) {
@@ -1228,6 +1423,7 @@ lockAssignmentSlot,
     claimGame,
     approveClaim,
     rejectClaim,
+    declineAssignment,
     lockAssignment,
     unlockAssignment,
 

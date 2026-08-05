@@ -123,7 +123,7 @@ function renderDashboardTodayGame(game) {
       </strong>
 
       <span class="dashboard-today-location">
-        ${game.field || "Location TBD"}
+        ${locationService.getDisplayName(game) || "Location TBD"}
       </span>
 
       <span

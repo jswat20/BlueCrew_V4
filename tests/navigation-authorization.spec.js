@@ -66,6 +66,8 @@ test.describe("Role-Aware Navigation", () => {
     await expect(page.getByTestId("crew-dashboard-today")).toBeVisible();
     await expect(page.getByTestId("crew-dashboard-actions")).toBeVisible();
     await expect(page.locator(".crew-stats .stat-card")).toHaveCount(4);
+    await expect(page.locator(".crew-command-header time strong")).not.toBeEmpty();
+    await expect(page.locator(".crew-stats .stat-label").first()).toHaveCSS("color", "rgb(255, 255, 255)");
   });
 
   test("restores administrator navigation after switching back", async ({

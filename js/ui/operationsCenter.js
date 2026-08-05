@@ -2227,7 +2227,7 @@ function renderOperationsCenterUpcoming(
                   data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(event))}"
                 >
                   <strong>${escapeOperationsCenterHtml(event.matchup)}</strong>
-                  <span>${escapeOperationsCenterHtml([event.field, event.level].filter(Boolean).join(" · "))}</span>
+                  <span>${escapeOperationsCenterHtml([locationService.getDisplayName(event), event.level].filter(Boolean).join(" · "))}</span>
                   <span class="operations-timeline-status" data-status="${event.fullyStaffed ? "healthy" : "watch"}">
                     ${event.fullyStaffed
                       ? "Fully staffed"
@@ -2301,7 +2301,7 @@ function renderOperationsStaffingBoard(events = [], today = "") {
                   <td><time datetime="${escapeOperationsCenterHtml(`${event.date} ${event.time || ""}`)}">${escapeOperationsCenterHtml(event.time || "—")}</time></td>
                   <td>${escapeOperationsCenterHtml(event.level || "—")}</td>
                   <td><strong class="operations-staffing-matchup">${escapeOperationsCenterHtml(event.matchup)}</strong></td>
-                  <td>${escapeOperationsCenterHtml(event.field || "—")}</td>
+                  <td>${escapeOperationsCenterHtml(locationService.getDisplayName(event) || "—")}</td>
                   ${positions.map(position => {
                     const assignment = (event.assignments || []).find(item => item.position === position);
                     return `<td class="operations-staffing-assignment" data-status="${assignment?.crewId ? "assigned" : "open"}">${escapeOperationsCenterHtml(assignment?.crewName || "OPEN")}</td>`;

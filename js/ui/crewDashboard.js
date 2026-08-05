@@ -47,12 +47,13 @@ function renderCrewDashboard() {
     month: "long",
     day: "numeric"
   });
+  const timeLabel = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
   return `
     <div class="crew-dashboard crew-command-dashboard" data-testid="crew-dashboard">
       <header class="crew-command-header">
         <div><h1>Good ${greeting}, ${member?.name || "Crew Member"}</h1><p>Your assignments, claims, and game-day work at a glance.</p></div>
-        <time>${todayLabel}</time>
+        <time><span>${todayLabel}</span><strong>${timeLabel}</strong></time>
       </header>
 
       ${renderCrewStats(
@@ -108,7 +109,7 @@ function renderCrewHero(game) {
     <button type="button" class="crew-hero" onclick="renderPage('game-hub', { gameId: '${game.id}' })">
       <span class="crew-hero-time">${game.time}</span>
       <span class="crew-hero-matchup"><strong>${game.awayTeam} @ ${game.homeTeam}</strong><small>${formatDate(game.date)}</small></span>
-      <span class="crew-hero-detail"><b>${game.level}</b><small>Field ${game.field}</small></span>
+      <span class="crew-hero-detail"><b>${game.level}</b><small>${locationService.getDisplayName(game)}</small></span>
       <span class="crew-hero-status">${renderAssignmentStatusBadge(game)}</span>
     </button>
   `;
@@ -130,7 +131,7 @@ function renderCrewAssignmentCard(game) {
     <button type="button" class="schedule-game-card crew-command-game-row" onclick="renderPage('game-hub', { gameId: '${game.id}' })">
       <strong>${game.time}</strong>
       <span><b>${game.awayTeam} @ ${game.homeTeam}</b><small>${formatDate(game.date)}</small></span>
-      <span><b>${game.level}</b><small>Field ${game.field}</small></span>
+      <span><b>${game.level}</b><small>${locationService.getDisplayName(game)}</small></span>
       ${renderAssignmentStatusBadge(game)}
     </button>
   `;
@@ -151,7 +152,7 @@ function renderCrewClaimCard(game) {
 
   return `
     <article class="schedule-game-card crew-command-claim-row">
-      <div class="crew-claim-summary"><strong>${game.time}</strong><span><b>${game.awayTeam} @ ${game.homeTeam}</b><small>${formatDate(game.date)} · ${game.level} · Field ${game.field}</small></span><em data-status="${availability}">${availabilityText[availability] || availabilityText.unknown}</em></div>
+      <div class="crew-claim-summary"><strong>${game.time}</strong><span><b>${game.awayTeam} @ ${game.homeTeam}</b><small>${formatDate(game.date)} · ${game.level} · ${locationService.getDisplayName(game)}</small></span><em data-status="${availability}">${availabilityText[availability] || availabilityText.unknown}</em></div>
       <div class="crew-availability-buttons">
         <button type="button" class="button button-secondary" onclick="setCrewAvailability('${game.id}', 'available')">Available</button>
         <button type="button" class="button button-secondary" onclick="setCrewAvailability('${game.id}', 'unavailable')">Can't Work</button>

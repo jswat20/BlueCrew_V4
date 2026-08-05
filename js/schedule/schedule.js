@@ -4,7 +4,7 @@ let currentScheduleView = "daily";
 let currentScheduleDate = null;
 let currentScheduleContext = {};
 const scheduleAdvancedFilters = {
-  date: "", time: "", field: "", level: "", matchup: "", crew: "", status: "", sort: "date", direction: "asc"
+  date: "", time: "", locationComplex: "", field: "", level: "", matchup: "", crew: "", status: "", sort: "date", direction: "asc"
 };
 
 function escapeScheduleFilterHtml(value) {
@@ -19,7 +19,8 @@ function renderScheduleAdvancedFilters() {
     <div class="schedule-filter-grid">
       <label>Date<input type="date" value="${scheduleAdvancedFilters.date}" onchange="setScheduleAdvancedFilter('date', this.value)" data-testid="schedule-advanced-date"></label>
       <label>Time<select onchange="setScheduleAdvancedFilter('time', this.value)" data-testid="schedule-advanced-time"><option value="">All Times</option>${optionList(games.map(game => game.time), scheduleAdvancedFilters.time)}</select></label>
-      <label>Field<select onchange="setScheduleAdvancedFilter('field', this.value)" data-testid="schedule-advanced-field"><option value="">All Fields</option>${optionList(games.map(game => game.field || game.venue), scheduleAdvancedFilters.field)}</select></label>
+      <label>Location Complex<select onchange="setScheduleAdvancedFilter('locationComplex', this.value)" data-testid="schedule-advanced-complex"><option value="">All Complexes</option>${optionList(games.map(game => game.locationComplex), scheduleAdvancedFilters.locationComplex)}</select></label>
+      <label>Location Field<select onchange="setScheduleAdvancedFilter('field', this.value)" data-testid="schedule-advanced-field"><option value="">All Fields</option>${optionList(games.map(game => game.locationField || game.field), scheduleAdvancedFilters.field)}</select></label>
       <label>Level<select onchange="setScheduleAdvancedFilter('level', this.value)" data-testid="schedule-advanced-level"><option value="">All Levels</option>${optionList(games.map(game => game.level), scheduleAdvancedFilters.level)}</select></label>
       <label>Matchup<input type="search" value="${escapeScheduleFilterHtml(scheduleAdvancedFilters.matchup)}" placeholder="Teams or matchup" oninput="setScheduleAdvancedFilter('matchup', this.value)" data-testid="schedule-advanced-matchup"></label>
       <label>Crew<select onchange="setScheduleAdvancedFilter('crew', this.value)" data-testid="schedule-advanced-crew"><option value="">All Crew</option>${crewService.getAll().sort((a,b) => crewService.getName(a).localeCompare(crewService.getName(b))).map(member => `<option value="${escapeScheduleFilterHtml(member.id)}" ${String(member.id) === String(scheduleAdvancedFilters.crew) ? "selected" : ""}>${escapeScheduleFilterHtml(crewService.getName(member))}</option>`).join("")}</select></label>
@@ -39,7 +40,8 @@ function applyScheduleAdvancedFilters(games = []) {
   const filtered = games.filter(game =>
     (!scheduleAdvancedFilters.date || game.date === scheduleAdvancedFilters.date) &&
     (!scheduleAdvancedFilters.time || game.time === scheduleAdvancedFilters.time) &&
-    (!scheduleAdvancedFilters.field || (game.field || game.venue) === scheduleAdvancedFilters.field) &&
+    (!scheduleAdvancedFilters.locationComplex || game.locationComplex === scheduleAdvancedFilters.locationComplex) &&
+    (!scheduleAdvancedFilters.field || (game.locationField || game.field) === scheduleAdvancedFilters.field) &&
     (!scheduleAdvancedFilters.level || game.level === scheduleAdvancedFilters.level) &&
     (!query || `${game.awayTeam || ""} @ ${game.homeTeam || ""}`.toLowerCase().includes(query)) &&
     (!scheduleAdvancedFilters.crew || getScheduleGameCrewIds(game).includes(String(scheduleAdvancedFilters.crew))) &&
@@ -65,7 +67,7 @@ function setScheduleAdvancedFilter(key, value) {
 }
 
 function clearScheduleAdvancedFilters() {
-  Object.assign(scheduleAdvancedFilters, { date: "", time: "", field: "", level: "", matchup: "", crew: "", status: "", sort: "date", direction: "asc" });
+  Object.assign(scheduleAdvancedFilters, { date: "", time: "", locationComplex: "", field: "", level: "", matchup: "", crew: "", status: "", sort: "date", direction: "asc" });
   renderPage("schedule", currentScheduleContext);
 }
 
@@ -119,7 +121,24 @@ function renderSchedule() {
     ◀ Previous
   </button>
 
-    <button
+  <button
+    type="button"
+    class="button button-primary"
+    data-testid="add-game"
+    onclick="openGameEditor()">
+    Add Game
+  </button>
+
+  <button
+    type="button"
+    class="button button-secondary"
+    data-testid="import-schedule"
+    onclick="openScheduleImport()">
+    Import CSV
+  </button>
+
+  <button
+    type="button"
     class="button button-secondary"
     data-testid="export-schedule"
     onclick="exportSchedule()"

@@ -39,7 +39,7 @@ const myCrewId = authService.currentCrewId();
         <div
     class="game-meta"
     data-testid="game-meta-${game.id}">
-          <span>${game.field || "Field TBD"}</span>
+          <span>${locationService.getDisplayName(game) || "Location TBD"}</span>
           ${game.level ? `<span>${game.level}</span>` : ""}
         </div>
 
@@ -91,12 +91,47 @@ const myCrewId = authService.currentCrewId();
 <div
     class="game-card-actions"
     data-testid="game-actions-${game.id}">
-<button
-    class="button button-secondary"
-    data-testid="game-details-${game.id}"
-    aria-label="View Game Hub"
-    onclick="openScheduleGameHub('${game.id}')">View<br>Game<br>Hub
+${
+  isAdmin
+    ? `
+        <button
+          type="button"
+          class="button button-primary"
+          data-testid="game-details-${game.id}"
+          aria-label="Manage Crew"
+          onclick="openAssignmentDrawer('${game.id}')">
+          Manage<br>Crew
         </button>
+
+        <button
+          type="button"
+          class="button button-secondary"
+          data-testid="edit-game-${game.id}"
+          aria-label="Edit"
+          onclick="editGame('${game.id}')">
+          Edit
+        </button>
+
+        <button
+          type="button"
+          class="button button-danger"
+          data-testid="delete-game-${game.id}"
+          aria-label="Delete"
+          onclick="deleteGame('${game.id}')">
+          Delete
+        </button>
+      `
+    : ""
+}
+
+<button
+  type="button"
+  class="button button-secondary"
+  data-testid="game-hub-${game.id}"
+  aria-label="View Game Hub"
+  onclick="openScheduleGameHub('${game.id}')">
+  View<br>Game<br>Hub
+</button>
       </div>
     </article>
   `;

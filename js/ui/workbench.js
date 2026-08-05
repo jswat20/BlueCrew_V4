@@ -44,7 +44,7 @@ function getWorkbenchItemDetail(item) {
   return [
     item.date,
     item.time,
-    item.field || item.venue,
+    typeof locationService !== "undefined" ? locationService.getDisplayName(item) : item.field || item.venue,
     item.level
   ]
     .filter(Boolean)
@@ -202,7 +202,7 @@ function renderWorkbenchItem(
         )'
       >
         <span class="workbench-mini-game-time">${escapeWorkbenchHtml(game?.time || "Time TBD")}</span>
-        <span class="workbench-mini-game-main"><strong>${escapeWorkbenchHtml(label)}</strong><small>${escapeWorkbenchHtml([game?.level, game?.field || game?.venue, game?.date].filter(Boolean).join(" · "))}</small></span>
+        <span class="workbench-mini-game-main"><strong>${escapeWorkbenchHtml(label)}</strong><small>${escapeWorkbenchHtml([game?.level, locationService.getDisplayName(game), game?.date].filter(Boolean).join(" · "))}</small></span>
         <span class="workbench-mini-game-crew">${action === "pending-claim" ? `<strong>${escapeWorkbenchHtml(item.position || "Position")}</strong><small>Claimed by ${escapeWorkbenchHtml(item.claimedByName || item.claimedBy || "Unknown umpire")}</small>` : `<strong class="workbench-staffing-count" data-incomplete="${crew.filter(slot => slot.crewId).length < crew.length}">${crew.filter(slot => slot.crewId).length}/${crew.length || "—"} staffed</strong>${action === "needs-assignment" ? "" : `<small>${action === "returned-review" ? "Review returned" : "Review submitted"}</small>`}`}</span>
       </button>
     </li>
@@ -506,7 +506,7 @@ function renderWorkbenchOpenPositions(games = []) {
                   <td>${escapeWorkbenchHtml(game.date || "—")}</td>
                   <td>${escapeWorkbenchHtml(game.time || "TBD")}</td>
                   <td><strong>${escapeWorkbenchHtml(getWorkbenchItemLabel(game))}</strong><br><span class="muted">${escapeWorkbenchHtml(game.level || "")}</span></td>
-                  <td>${escapeWorkbenchHtml(game.field || game.venue || "Location TBD")}</td>
+                  <td>${escapeWorkbenchHtml(locationService.getDisplayName(game) || "Location TBD")}</td>
                   <td><div class="workbench-open-position-list">${openAssignments.map(assignment => `<span class="status-badge status-badge-open">${escapeWorkbenchHtml(assignment.position)}</span>`).join("")}</div></td>
                   <td><button type="button" class="button button-primary" data-testid="workbench-manage-crew-${escapeWorkbenchHtml(game.id)}" onclick="openAssignmentDrawer('${escapeWorkbenchHtml(game.id)}')">Manage Crew</button></td>
                 </tr>
@@ -611,6 +611,8 @@ function getWorkbenchNotificationChange(notification) {
 function renderWorkbenchNotificationCenter() {
   workbenchVisibleNotifications = getWorkbenchNotifications();
   const summary = dashboardService.getNotificationsSummary();
+  const communicationSummary =
+    dashboardService.getCommunicationPreferencesSummary();
 
   return `
     <section class="workbench-notification-center" data-testid="workbench-notifications">
@@ -621,6 +623,13 @@ function renderWorkbenchNotificationCenter() {
           <button type="button" class="button button-secondary" data-testid="workbench-open-notifications" onclick="navigateTo('notifications', {})">View All</button>
         </div>
       </header>
+      ${communicationSummary.hasMuted ? `
+        <ul class="workbench-muted-categories" data-testid="workbench-muted-categories">
+          ${communicationSummary.muted.map(category => `
+            <li class="muted" data-testid="workbench-muted-${escapeWorkbenchHtml(category.key)}">${escapeWorkbenchHtml(category.text)}</li>
+          `).join("")}
+        </ul>
+      ` : ""}
       ${workbenchNotificationsCollapsed ? "" : workbenchVisibleNotifications.length ? `
         <div class="workbench-notification-list">
           ${workbenchVisibleNotifications.map(notification => `
@@ -706,7 +715,7 @@ function openWorkbenchNotification(notificationId) {
     <article class="workbench-game-notification">
       <header><div><span class="dashboard-eyebrow">Game Hub</span><h2>${escapeWorkbenchHtml(game.awayTeam)} @ ${escapeWorkbenchHtml(game.homeTeam)}</h2></div><button type="button" class="button button-secondary" onclick="this.closest('dialog').close()">Close</button></header>
       <div class="workbench-final-score"><span>${escapeWorkbenchHtml(game.awayTeam)} <strong>${completion.awayScore ?? "—"}</strong></span><span>${escapeWorkbenchHtml(game.homeTeam)} <strong>${completion.homeScore ?? "—"}</strong></span></div>
-      <dl class="workbench-game-facts"><div><dt>Date</dt><dd>${escapeWorkbenchHtml(game.date || "—")}</dd></div><div><dt>Location</dt><dd>${escapeWorkbenchHtml(game.field || "—")}</dd></div><div><dt>Level</dt><dd>${escapeWorkbenchHtml(game.level || "—")}</dd></div></dl>
+      <dl class="workbench-game-facts"><div><dt>Date</dt><dd>${escapeWorkbenchHtml(game.date || "—")}</dd></div><div><dt>Location</dt><dd>${escapeWorkbenchHtml(locationService.getDisplayName(game) || "—")}</dd></div><div><dt>Level</dt><dd>${escapeWorkbenchHtml(game.level || "—")}</dd></div></dl>
       <section><h3>Game Notes</h3><p>${escapeWorkbenchHtml(completion.notes || game.notes || game.gameNotes || "No game notes were entered.")}</p></section>
       <footer><button type="button" class="button button-primary" onclick="this.closest('dialog').close(); navigateTo('game-hub', { gameId: '${escapeWorkbenchHtml(game.id)}', origin: 'assigner-workbench', returnPage: 'assigner-workbench' })">Open Full Game Hub</button></footer>
     </article>

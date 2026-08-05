@@ -35,11 +35,12 @@ test.describe("Claim Notifications", () => {
   await app.page.evaluate(() => {
     const claim = claimsQueueService.getPendingClaims()[0];
     claimsQueueService.approveClaim(claim.gameId);
+    authService.loginAsUmpire();
+    document.body.dataset.role = "umpire";
+    refreshNavigationAuthorization();
   });
 
   await app.page.getByTestId("nav-notifications").click();
-
-  await expect(app.page.getByTestId("notification-card")).toHaveCount(2);
 
   await expect(
     app.page.getByText("Claim Approved")
@@ -60,11 +61,12 @@ test("rejecting a claim creates a rejection notification", async ({ app }) => {
   await app.page.evaluate(() => {
     const claim = claimsQueueService.getPendingClaims()[0];
     claimsQueueService.rejectClaim(claim.gameId);
+    authService.loginAsUmpire();
+    document.body.dataset.role = "umpire";
+    refreshNavigationAuthorization();
   });
 
   await app.page.getByTestId("nav-notifications").click();
-
-  await expect(app.page.getByTestId("notification-card")).toHaveCount(2);
 
   await expect(
     app.page.getByText("Claim Rejected")

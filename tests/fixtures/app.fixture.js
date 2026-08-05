@@ -15,7 +15,7 @@ export const test = base.extend({
       assignmentPage: new AssignmentPage(page),
 
       async loginAsApprovedUmpire() {
-        await page.evaluate(() => {
+        return page.evaluate(() => {
           localStorage.removeItem("bluecrew_accounts");
 
           const account = accountService.createAccount({
@@ -32,20 +32,22 @@ export const test = base.extend({
 
           loginService.login(account.email);
 
-          authService.loginAsUmpire();
-document.body.dataset.role = "umpire";
+          authService.loginAsCrew(crewMember.id);
+          document.body.dataset.role = "umpire";
 
-if (typeof refreshNavigationAuthorization === "function") {
-  refreshNavigationAuthorization();
-}
+          if (typeof refreshNavigationAuthorization === "function") {
+            refreshNavigationAuthorization();
+          }
 
-if (window.BlueCrew?.test) {
-  window.BlueCrew.test.currentRole = "umpire";
-}
+          if (window.BlueCrew?.test) {
+            window.BlueCrew.test.currentRole = "umpire";
+          }
 
-if (window.qaService) {
-  qaService.setRole("umpire");
-}
+          if (window.qaService) {
+            qaService.setRole("umpire");
+          }
+
+          return loginService.getCurrentAccount();
         });
       },
 

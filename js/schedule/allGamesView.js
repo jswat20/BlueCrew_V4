@@ -123,7 +123,7 @@ const isHighlighted =
 
       <td>${game.time || ""}</td>
 
-      <td>${game.field || ""}</td>
+      <td>${locationService.getDisplayName(game)}</td>
 
       <td>${game.level || ""}</td>
 
