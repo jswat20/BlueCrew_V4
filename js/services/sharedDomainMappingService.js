@@ -121,6 +121,18 @@ const sharedDomainMappingService = (() => {
     // Legacy game.crewId reflects the first persisted assignment only; the
     // complete authoritative assignment list remains available on assignments.
     const primary = mappedAssignments[0] || null;
+    const report =
+      row.report &&
+      typeof row.report === "object" &&
+      !Array.isArray(row.report)
+        ? structuredClone(row.report)
+        : {};
+    const completion =
+      report.completion &&
+      typeof report.completion === "object" &&
+      !Array.isArray(report.completion)
+        ? report.completion
+        : {};
     return {
       id: row.id,
       legacyGameId: row.legacy_game_id || null,
@@ -145,7 +157,29 @@ const sharedDomainMappingService = (() => {
       crewId: primary?.crewId || "",
       assignmentStatus: primary?.status || "needs_assignment",
       review: row.review || {},
-      report: row.report || {},
+      report,
+      reports: report,
+      completed: completion.completed === true,
+      completionTime: completion.completionTime || null,
+      completedBy:
+        completion.completedBy ||
+        completion.completedByProfileId ||
+        "",
+      completionStatus:
+        completion.completionStatus ||
+        (completion.completed === true
+          ? "completed"
+          : "incomplete"),
+      awayScore:
+        completion.awayScore === null ||
+        completion.awayScore === undefined
+          ? null
+          : Number(completion.awayScore),
+      homeScore:
+        completion.homeScore === null ||
+        completion.homeScore === undefined
+          ? null
+          : Number(completion.homeScore),
       sourceMetadata: row.source_metadata || {},
       sharedHydrated: true
     };

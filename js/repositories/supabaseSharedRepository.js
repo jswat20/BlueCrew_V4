@@ -118,6 +118,21 @@ const supabaseSharedRepository = (() => {
     });
   }
 
+  async function saveOwnGameCompletion(
+    gameId,
+    awayScore,
+    homeScore,
+    notes = ""
+  ) {
+    const db = await client();
+    return db.rpc("save_own_game_completion", {
+      p_game_id: gameId,
+      p_away_score: awayScore,
+      p_home_score: homeScore,
+      p_notes: notes || ""
+    });
+  }
+
   async function getCrewMembersByIds(crewMemberIds = []) {
     if (!crewMemberIds.length) return { data: [], error: null };
     const db = await client();
@@ -146,6 +161,7 @@ const supabaseSharedRepository = (() => {
     getAssignmentClaims,
     submitAssignmentClaim,
     decideAssignmentClaim,
+    saveOwnGameCompletion,
     getCrewMembersByIds
   };
 })();

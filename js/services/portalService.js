@@ -1050,6 +1050,39 @@ const portalService = (() => {
     return Number.isNaN(start.getTime()) ? null : start;
   }
 
+  function hostedCompletionError(error, fallback) {
+    const message = String(error?.message || "");
+
+    const messages = {
+      game_completion_identity_required:
+        "An approved linked umpire account is required.",
+      game_completion_game_required:
+        "Game not found.",
+      game_completion_invalid_score:
+        "Enter non-negative whole numbers for both scores.",
+      game_completion_not_found:
+        "Game not found.",
+      game_completion_not_assigned:
+        "You are not assigned to this game.",
+      game_completion_cancelled:
+        "Cancelled games cannot be completed.",
+      game_completion_finalized:
+        "Approved game reviews are read-only.",
+      game_completion_not_editable:
+        "This game completion can no longer be edited.",
+      game_completion_start_unavailable:
+        "The scheduled start time is unavailable.",
+      game_completion_too_early:
+        "Complete Game becomes available after the scheduled start time."
+    };
+
+    const code = Object.keys(messages).find(
+      candidate => message.includes(candidate)
+    );
+
+    return code ? messages[code] : fallback;
+  }
+
   function validateCompletionScores(completionInput = {}) {
     const awayValue =
       String(completionInput.awayScore ?? "").trim();
@@ -1079,6 +1112,42 @@ const portalService = (() => {
       homeScore,
       notes:
         String(completionInput.notes || "").trim()
+    };
+  }
+
+  async function saveHostedCompletion(
+    gameId,
+    completionInput,
+    successMessage
+  ) {
+    const validated =
+      validateCompletionScores(completionInput);
+
+    if (!validated.success) {
+      return validated;
+    }
+
+    const result =
+      await gameService.saveOwnCompletion(
+        gameId,
+        validated
+      );
+
+    if (!result.success) {
+      return {
+        ...result,
+        message: hostedCompletionError(
+          result.error,
+          result.message ||
+            "Game completion could not be saved."
+        )
+      };
+    }
+
+    return {
+      success: true,
+      message: successMessage,
+      data: getGameCompletion(gameId)
     };
   }
 
@@ -1134,6 +1203,17 @@ const portalService = (() => {
         message: "Game already completed.",
         data: getGameCompletion(gameId)
       };
+    }
+
+    if (
+      typeof supabaseClientService !== "undefined" &&
+      supabaseClientService.isConfigured()
+    ) {
+      return saveHostedCompletion(
+        gameId,
+        completionInput,
+        "Game completed."
+      );
     }
 
     const eligibility = getCompletionEligibility(game);
@@ -2144,6 +2224,17 @@ const portalService = (() => {
         message:
           "Only a returned completion may be edited."
       };
+    }
+
+    if (
+      typeof supabaseClientService !== "undefined" &&
+      supabaseClientService.isConfigured()
+    ) {
+      return saveHostedCompletion(
+        gameId,
+        completionInput,
+        "Game completion updated."
+      );
     }
 
     const validated =

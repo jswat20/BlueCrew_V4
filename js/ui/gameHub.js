@@ -1035,8 +1035,8 @@ function openGameCompletionEditDialog() {
   dialog?.querySelector("input")?.focus();
 }
 
-function saveGameCompletionEdit(gameId) {
-  const result = portalService.updateCompletedGame(gameId, {
+async function saveGameCompletionEdit(gameId) {
+  const result = await portalService.updateCompletedGame(gameId, {
     awayScore: document.querySelector('[data-testid="game-hub-edit-away-score"]')?.value ?? "",
     homeScore: document.querySelector('[data-testid="game-hub-edit-home-score"]')?.value ?? "",
     notes: document.querySelector('[data-testid="game-hub-edit-notes"]')?.value ?? ""
@@ -1055,9 +1055,9 @@ function restoreGameCompletionFocus() {
   gameCompletionTrigger = null;
 }
 
-function completeGameFromHub(gameId) {
+async function completeGameFromHub(gameId) {
   const result =
-    portalService.completeGame(gameId, {
+    await portalService.completeGame(gameId, {
       awayScore: document.querySelector('[data-testid="game-hub-completion-away-score"]')?.value ?? "",
       homeScore: document.querySelector('[data-testid="game-hub-completion-home-score"]')?.value ?? "",
       notes: document.querySelector('[data-testid="game-hub-completion-notes"]')?.value ?? ""

@@ -199,6 +199,65 @@ const gameService = {
     return this.getAll();
   },
 
+  async saveOwnCompletion(
+    gameId,
+    {
+      awayScore,
+      homeScore,
+      notes = ""
+    } = {}
+  ) {
+    if (!isSharedGameMode()) {
+      return {
+        success: false,
+        message:
+          "Hosted completion persistence is unavailable in local mode."
+      };
+    }
+
+    const response =
+      await supabaseSharedRepository
+        .saveOwnGameCompletion(
+          gameId,
+          awayScore,
+          homeScore,
+          notes
+        );
+
+    if (response.error) {
+      return {
+        success: false,
+        message:
+          response.error.message ||
+          "Game completion could not be saved.",
+        error: response.error
+      };
+    }
+
+    const refresh =
+      await supabaseAuthService.refreshScheduling();
+
+    if (!refresh.success) {
+      return {
+        success: false,
+        message:
+          "Game completion was saved. Refresh the schedule to see the latest state.",
+        data: {
+          persisted: true,
+          refreshError: refresh.message,
+          result: response.data
+        }
+      };
+    }
+
+    return {
+      success: true,
+      message: "Game completion saved.",
+      game: this.getById(gameId),
+      data: response.data
+    };
+  },
+
   clearSharedGames() {
     sharedGamesSnapshot = null;
   },
