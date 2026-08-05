@@ -194,7 +194,7 @@ test.describe("deterministic mapping", () => {
 test("new repository reads use explicit projections and deterministic ordering without organization input", async ({ supabaseAuthApp }) => {
   await supabaseAuthApp.page.evaluate(() => loginService.loginWithPassword("linked@example.com", "password1234"));
   const calls = await supabaseAuthApp.calls();
-  const newTables = ["locations", "fields", "games", "game_assignments"];
+  const newTables = ["locations", "fields", "games", "game_assignments", "assignment_claims"];
   for (const table of newTables) {
     const projection = calls.find(call => call.operation === "selectColumns" && call.table === table)?.columns;
     expect(projection).toBeTruthy();
@@ -203,11 +203,13 @@ test("new repository reads use explicit projections and deterministic ordering w
   }
   expect(calls.filter(call => call.operation === "order" && call.table === "games").map(call => call.column)).toEqual(["game_date", "game_time", "id"]);
   expect(calls.filter(call => call.operation === "order" && call.table === "game_assignments").map(call => call.column)).toEqual(["game_id", "position", "id"]);
+  expect(calls.filter(call => call.operation === "order" && call.table === "assignment_claims").map(call => call.column)).toEqual(["assignment_id", "claimed_at", "id"]);
   const source = await supabaseAuthApp.page.evaluate(() => [
     supabaseSharedRepository.getLocations,
     supabaseSharedRepository.getFields,
     supabaseSharedRepository.getGames,
     supabaseSharedRepository.getGameAssignments,
+    supabaseSharedRepository.getAssignmentClaims,
     supabaseSharedRepository.getCrewMembersByIds
   ].map(method => method.toString()).join("\n"));
   expect(source).not.toContain('.eq("organization_id"');

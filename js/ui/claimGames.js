@@ -38,7 +38,8 @@ function renderClaimGames() {
                 <button
                   class="btn btn-primary"
                   data-testid="claim-game-${game.id}"
-                  onclick="claimPortalGame(${game.id})">
+                  data-game-id="${game.id}"
+                  onclick="claimPortalGameFromButton(this)">
                   Claim
                 </button>
               </td>
@@ -50,8 +51,12 @@ function renderClaimGames() {
   `;
 }
 
-function claimPortalGame(gameId) {
-  const result = portalService.claimGame(gameId);
+function claimPortalGameFromButton(button) {
+  return claimPortalGame(button?.dataset?.gameId || "");
+}
+
+async function claimPortalGame(gameId) {
+  const result = await portalService.claimGame(gameId);
 
   if (result.success) {
     renderPage("claim-games");

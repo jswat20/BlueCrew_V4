@@ -25,6 +25,7 @@ export const test = base.extend({
       fields: [],
       games: [],
       assignments: [],
+      claims: [],
       crewMembers: [],
       initialSession: false,
       deniedTable: "",
@@ -55,6 +56,7 @@ export const test = base.extend({
             fields: settings.fields,
             games: settings.games,
             game_assignments: settings.assignments,
+            assignment_claims: settings.claims,
             crew_members: settings.crewMembers.filter(member => !selectedIds.length || selectedIds.map(String).includes(String(member.id)))
           };
           return { data: rows[table] || [], error: null };
@@ -147,6 +149,41 @@ export const test = base.extend({
             return { data: count, error: null };
           }
           if (name === "copy_own_availability_week") return { data: 0, error: null };
+          if (name === "submit_assignment_claim") {
+            const assignment = settings.assignments.find(item => String(item.id) === String(args.p_assignment_id));
+            if (!assignment || assignment.status !== "open_for_claim" || assignment.locked) {
+              return { data: null, error: { message: "assignment_already_claimed" } };
+            }
+            const claim = {
+              id: `claim-${settings.claims.length + 1}`,
+              organization_id: settings.profile.organization_id,
+              assignment_id: assignment.id,
+              claimant_crew_member_id: settings.crewId,
+              status: "pending",
+              claimed_at: new Date().toISOString(),
+              decided_at: null
+            };
+            settings.claims.push(claim);
+            assignment.status = "pending_approval";
+            return { data: claim, error: null };
+          }
+          if (name === "decide_assignment_claim") {
+            const assignment = settings.assignments.find(item => String(item.id) === String(args.p_assignment_id));
+            const claim = settings.claims.find(item => String(item.assignment_id) === String(args.p_assignment_id) && item.status === "pending");
+            if (!assignment || assignment.status !== "pending_approval" || !claim) {
+              return { data: null, error: { message: "claim_no_longer_pending" } };
+            }
+            claim.status = args.p_decision;
+            claim.decided_at = new Date().toISOString();
+            if (args.p_decision === "approved") {
+              assignment.status = "assigned";
+              assignment.assigned_crew_member_id = claim.claimant_crew_member_id;
+            } else {
+              assignment.status = "open_for_claim";
+              assignment.assigned_crew_member_id = null;
+            }
+            return { data: assignment, error: null };
+          }
           if (name === "provision_pending_umpire") {
             return { data: { ...settings.profile, status: "pending" }, error: null };
           }

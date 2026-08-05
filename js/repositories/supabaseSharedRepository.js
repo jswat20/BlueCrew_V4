@@ -95,6 +95,29 @@ const supabaseSharedRepository = (() => {
       .order("id");
   }
 
+  async function getAssignmentClaims() {
+    const db = await client();
+    return db.from("assignment_claims")
+      .select("id,organization_id,assignment_id,claimant_crew_member_id,legacy_claim_id,status,decision_by_profile_id,decision_reason,claimed_at,decided_at")
+      .order("assignment_id")
+      .order("claimed_at")
+      .order("id");
+  }
+
+  async function submitAssignmentClaim(assignmentId) {
+    const db = await client();
+    return db.rpc("submit_assignment_claim", { p_assignment_id: assignmentId });
+  }
+
+  async function decideAssignmentClaim(assignmentId, decision, reason = "") {
+    const db = await client();
+    return db.rpc("decide_assignment_claim", {
+      p_assignment_id: assignmentId,
+      p_decision: decision,
+      p_reason: reason || null
+    });
+  }
+
   async function getCrewMembersByIds(crewMemberIds = []) {
     if (!crewMemberIds.length) return { data: [], error: null };
     const db = await client();
@@ -120,6 +143,9 @@ const supabaseSharedRepository = (() => {
     getFields,
     getGames,
     getGameAssignments,
+    getAssignmentClaims,
+    submitAssignmentClaim,
+    decideAssignmentClaim,
     getCrewMembersByIds
   };
 })();

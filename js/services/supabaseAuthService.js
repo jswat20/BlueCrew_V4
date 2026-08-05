@@ -62,6 +62,22 @@ const supabaseAuthService = (() => {
     gameService?.clearSharedGames?.();
   }
 
+  async function refreshScheduling() {
+    try {
+      const preparedLocations = await locationService.prepareSharedLocations();
+      const preparedSchedule = await gameService.prepareSharedGames(preparedLocations);
+      locationService.publishSharedLocations(preparedLocations);
+      crewService.publishReferencedCrewMembers(preparedSchedule.referencedCrew);
+      gameService.publishSharedGames(preparedSchedule);
+      hydrationState = { status: "ready", message: "" };
+      return mutationResult(true, "Schedule refreshed.");
+    } catch (error) {
+      clearSchedulingState();
+      hydrationState = { status: "error", message: error?.message || "Shared schedule data could not be loaded.", authenticated: true };
+      return mutationResult(false, hydrationState.message);
+    }
+  }
+
   function applyIdentity(account) {
     currentAccount = account;
     if (account && typeof authService !== "undefined") {
@@ -248,6 +264,7 @@ const supabaseAuthService = (() => {
     restoreSession,
     startSessionListener,
     signUpAndProvision,
+    refreshScheduling,
     completeVerifiedRegistration,
     loadAccountForUser,
     getCurrentAccount,

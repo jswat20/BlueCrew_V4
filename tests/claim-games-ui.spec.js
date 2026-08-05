@@ -73,11 +73,12 @@ const crew = crewService.getAll()[1];
         gameType: "single"
       });
 
+      authService.loginAsAdmin();
       assignmentService.openForClaims(result.data.id);
     });
 
 await app.page.evaluate(() => {
-  authService.loginAsUmpire();
+  authService.useAuthenticatedAccount(loginService.getCurrentAccount());
   renderPage("claim-games");
 });
     await expect(

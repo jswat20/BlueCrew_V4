@@ -142,12 +142,20 @@ function isSharedGameMode() {
 const gameService = {
   async prepareSharedGames(preparedLocations = null) {
     if (!isSharedGameMode()) return this.getAll();
-    const [gameResult, assignmentResult] = await Promise.all([
+    const [gameResult, assignmentResult, claimResult] = await Promise.all([
       supabaseSharedRepository.getGames(),
-      supabaseSharedRepository.getGameAssignments()
+      supabaseSharedRepository.getGameAssignments(),
+      supabaseSharedRepository.getAssignmentClaims()
     ]);
     if (gameResult.error) throw gameResult.error;
     if (assignmentResult.error) throw assignmentResult.error;
+    if (claimResult.error) throw claimResult.error;
+    const claimsByAssignment = new Map();
+    [...(claimResult.data || [])].forEach(claim => {
+      const claims = claimsByAssignment.get(claim.assignment_id) || [];
+      claims.push(claim);
+      claimsByAssignment.set(claim.assignment_id, claims);
+    });
     const assignmentsByGame = new Map();
     const assignmentRows = [...(assignmentResult.data || [])].sort((left, right) =>
       `${left.game_id}\u0000${left.position}\u0000${left.id}`.localeCompare(`${right.game_id}\u0000${right.position}\u0000${right.id}`)
@@ -168,10 +176,11 @@ const gameService = {
       return sharedDomainMappingService.mapGame(row, {
       location,
       field,
-      assignments: assignmentsByGame.get(row.id) || []
+      assignments: assignmentsByGame.get(row.id) || [],
+      claimsByAssignment
       });
     }).filter(Boolean).sort((left, right) => `${left.date}\u0000${left.time}\u0000${left.id}`.localeCompare(`${right.date}\u0000${right.time}\u0000${right.id}`));
-    const referencedCrewIds = [...new Set(mapped.flatMap(game => game.assignments.map(assignment => assignment.crewId).filter(Boolean)))];
+    const referencedCrewIds = [...new Set(mapped.flatMap(game => game.assignments.flatMap(assignment => [assignment.crewId, assignment.claimedBy]).filter(Boolean)))];
     const referencedCrew = await crewService.prepareReferencedCrewMembers(referencedCrewIds);
     return { games: mapped, referencedCrew };
   },

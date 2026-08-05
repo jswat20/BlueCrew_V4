@@ -134,23 +134,25 @@ begin
       values ('10000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000002', current_date + 8, 'available');
     raise exception 'other availability insert unexpectedly succeeded';
   exception when insufficient_privilege then null; end;
-  insert into public.assignment_claims (id, organization_id, assignment_id, claimant_crew_member_id)
-    values ('81000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001');
+  perform public.submit_assignment_claim('80000000-0000-0000-0000-000000000001');
   begin
-    insert into public.assignment_claims (organization_id, assignment_id, claimant_crew_member_id)
-      values ('10000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001');
+    perform public.submit_assignment_claim('80000000-0000-0000-0000-000000000001');
     raise exception 'duplicate pending claim unexpectedly succeeded';
-  exception when unique_violation then null; end;
+  exception when raise_exception then
+    if sqlerrm = 'duplicate pending claim unexpectedly succeeded' then raise; end if;
+  end;
   begin
-    insert into public.assignment_claims (organization_id, assignment_id, claimant_crew_member_id)
-      values ('10000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000002', '50000000-0000-0000-0000-000000000001');
+    perform public.submit_assignment_claim('80000000-0000-0000-0000-000000000002');
     raise exception 'locked assignment claim unexpectedly succeeded';
-  exception when insufficient_privilege then null; end;
+  exception when raise_exception then
+    if sqlerrm = 'locked assignment claim unexpectedly succeeded' then raise; end if;
+  end;
   begin
-    insert into public.assignment_claims (organization_id, assignment_id, claimant_crew_member_id)
-      values ('10000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000003', '50000000-0000-0000-0000-000000000001');
+    perform public.submit_assignment_claim('80000000-0000-0000-0000-000000000003');
     raise exception 'non-open assignment claim unexpectedly succeeded';
-  exception when insufficient_privilege then null; end;
+  exception when raise_exception then
+    if sqlerrm = 'non-open assignment claim unexpectedly succeeded' then raise; end if;
+  end;
   update public.game_assignments set status = 'assigned' where id = '80000000-0000-0000-0000-000000000001';
   if found then raise exception 'umpire assignment update unexpectedly succeeded'; end if;
   if (select count(*) from public.notifications) <> 2 then raise exception 'umpire notification visibility failed'; end if;
@@ -181,23 +183,15 @@ begin
   if found then raise exception 'assigner cross-organization game update unexpectedly succeeded'; end if;
   update public.game_assignments set status = 'pending_approval' where id = '80000000-0000-0000-0000-000000000001';
   if not found then raise exception 'assigner assignment update failed'; end if;
+  perform public.decide_assignment_claim('80000000-0000-0000-0000-000000000001', 'approved', null);
+  if (select status from public.game_assignments where id = '80000000-0000-0000-0000-000000000001') <> 'assigned' then
+    raise exception 'assigner claim decision failed';
+  end if;
   begin
-    insert into public.assignment_claims (organization_id, assignment_id, claimant_crew_member_id, status)
-      values ('10000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000003', '50000000-0000-0000-0000-000000000002', 'approved');
-    raise exception 'approved claim insert unexpectedly succeeded';
-  exception when raise_exception then
-    if sqlerrm = 'approved claim insert unexpectedly succeeded' then raise; end if;
-  end;
-  insert into public.assignment_claims (id, organization_id, assignment_id, claimant_crew_member_id)
-    values ('81000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000002');
-  update public.assignment_claims set status = 'approved', decision_by_profile_id = public.current_profile_id(), decided_at = now()
-    where id = '81000000-0000-0000-0000-000000000001';
-  if not found then raise exception 'assigner claim decision failed'; end if;
-  begin
-    update public.assignment_claims set status = 'approved', decision_by_profile_id = public.current_profile_id(), decided_at = now()
-      where id = '81000000-0000-0000-0000-000000000002';
-    raise exception 'second approved claim unexpectedly succeeded';
-  exception when unique_violation then null; end;
+    insert into public.assignment_claims (organization_id, assignment_id, claimant_crew_member_id)
+      values ('10000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000003', '50000000-0000-0000-0000-000000000002');
+    raise exception 'direct claim insert unexpectedly succeeded';
+  exception when insufficient_privilege then null; end;
   if (select count(*) from public.profiles where id = '40000000-0000-0000-0000-000000000004') <> 0 then raise exception 'assigner private profile leak'; end if;
   update public.seasons set name = 'Unauthorized' where id = '20000000-0000-0000-0000-000000000001';
   if found then raise exception 'assigner season update unexpectedly succeeded'; end if;
@@ -206,11 +200,9 @@ begin
   update public.organizations set name = 'Unauthorized';
   if found then raise exception 'assigner organization update unexpectedly succeeded'; end if;
   begin
-    update public.assignment_claims set status = 'rejected' where id = '81000000-0000-0000-0000-000000000001';
+    update public.assignment_claims set status = 'rejected' where assignment_id = '80000000-0000-0000-0000-000000000001';
     raise exception 'terminal claim transition unexpectedly succeeded';
-  exception when raise_exception then
-    if sqlerrm = 'terminal claim transition unexpectedly succeeded' then raise; end if;
-  end;
+  exception when insufficient_privilege then null; end;
 end $$;
 reset role;
 

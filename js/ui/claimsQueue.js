@@ -134,9 +134,9 @@ function handleClearSelectedClaims() {
   renderPage("claims-queue");
 }
 
-function handleApproveClaim(gameId, assignmentId) {
+async function handleApproveClaim(gameId, assignmentId) {
   const result =
-    claimsQueueService.approveClaim(
+    await claimsQueueService.approveClaim(
       gameId,
       assignmentId
     );
@@ -158,9 +158,9 @@ function handleApproveClaim(gameId, assignmentId) {
   return result;
 }
 
-function handleRejectClaim(gameId, assignmentId) {
+async function handleRejectClaim(gameId, assignmentId) {
   const result =
-    claimsQueueService.rejectClaim(
+    await claimsQueueService.rejectClaim(
       gameId,
       assignmentId
     );
@@ -182,21 +182,19 @@ function handleRejectClaim(gameId, assignmentId) {
   return result;
 }
 
-function handleBulkApproveClaims() {
+async function handleBulkApproveClaims() {
   const claims =
     claimsQueueService.getPendingClaims();
 
   let changed = false;
 
-  claims
-    .filter(claim =>
+  for (const claim of claims.filter(claim =>
       selectedClaimIds.has(
         claim.assignmentId
       )
-    )
-    .forEach(claim => {
+    )) {
       const result =
-        claimsQueueService.approveClaim(
+        await claimsQueueService.approveClaim(
           claim.gameId,
           claim.assignmentId
         );
@@ -204,7 +202,7 @@ function handleBulkApproveClaims() {
       if (result?.success !== false) {
         changed = true;
       }
-    });
+    }
 
   selectedClaimIds.clear();
 
@@ -218,21 +216,19 @@ function handleBulkApproveClaims() {
   renderPage("claims-queue");
 }
 
-function handleBulkRejectClaims() {
+async function handleBulkRejectClaims() {
   const claims =
     claimsQueueService.getPendingClaims();
 
   let changed = false;
 
-  claims
-    .filter(claim =>
+  for (const claim of claims.filter(claim =>
       selectedClaimIds.has(
         claim.assignmentId
       )
-    )
-    .forEach(claim => {
+    )) {
       const result =
-        claimsQueueService.rejectClaim(
+        await claimsQueueService.rejectClaim(
           claim.gameId,
           claim.assignmentId
         );
@@ -240,7 +236,7 @@ function handleBulkRejectClaims() {
       if (result?.success !== false) {
         changed = true;
       }
-    });
+    }
 
   selectedClaimIds.clear();
 

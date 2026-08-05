@@ -86,10 +86,13 @@ const sharedDomainMappingService = (() => {
     };
   }
 
-  function mapAssignment(row) {
+  function mapAssignment(row, claims = []) {
     if (!row) return null;
-    // Claims are intentionally outside Milestone 3B. game_assignments has no
-    // claimant column, so claimedBy remains empty rather than being inferred.
+    const orderedClaims = [...claims].sort((left, right) =>
+      `${left.claimed_at || ""}\u0000${left.id}`.localeCompare(`${right.claimed_at || ""}\u0000${right.id}`)
+    );
+    const pendingClaim = orderedClaims.find(claim => claim.status === "pending") || null;
+    const processedClaim = [...orderedClaims].reverse().find(claim => ["approved", "rejected"].includes(claim.status)) || null;
     return {
       id: row.id,
       gameId: row.game_id,
@@ -98,17 +101,21 @@ const sharedDomainMappingService = (() => {
       status: row.status,
       crewId: row.assigned_crew_member_id || "",
       locked: row.locked === true || row.status === "locked",
-      claimedBy: "",
+      claimedBy: pendingClaim?.claimant_crew_member_id || "",
+      claimId: pendingClaim?.id || processedClaim?.id || "",
+      claimStatus: pendingClaim?.status || processedClaim?.status || "",
+      claimProcessed: Boolean(processedClaim),
+      claimProcessedAt: processedClaim?.decided_at || null,
       acceptedAt: row.accepted_at || null,
       declinedAt: row.declined_at || null,
       declineReason: row.decline_reason || ""
     };
   }
 
-  function mapGame(row, { location = null, field = null, assignments = [] } = {}) {
+  function mapGame(row, { location = null, field = null, assignments = [], claimsByAssignment = new Map() } = {}) {
     if (!row) return null;
     const mappedAssignments = assignments
-      .map(mapAssignment)
+      .map(assignment => mapAssignment(assignment, claimsByAssignment.get(assignment.id) || []))
       .filter(Boolean)
       .sort((left, right) => `${left.position}\u0000${left.id}`.localeCompare(`${right.position}\u0000${right.id}`));
     // Legacy game.crewId reflects the first persisted assignment only; the

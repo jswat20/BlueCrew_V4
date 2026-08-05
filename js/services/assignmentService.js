@@ -40,6 +40,61 @@ const assignmentService = (() => {
     repositoryProvider.get("legacyGames").write(games);
   }
 
+  function isSharedAssignmentMode() {
+    return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  }
+
+  function sharedClaimError(error, fallback) {
+    const message = String(error?.message || "");
+    if (message.includes("assignment_already_claimed")) {
+      return "This assignment has already been claimed by another official.";
+    }
+    if (message.includes("claim_no_longer_pending")) return "This claim is no longer pending.";
+    if (message.includes("claim_identity_required")) return "An approved linked umpire account is required.";
+    if (message.includes("claim_decision_forbidden")) return "Only an administrator or assigner may decide claims.";
+    return fallback;
+  }
+
+  async function refreshAfterSharedClaim(successMessage, data) {
+    const refresh = await supabaseAuthService.refreshScheduling();
+    if (!refresh.success) {
+      return mutationResult(false, `${successMessage} Refresh the schedule to see the latest state.`, {
+        persisted: true,
+        refreshError: refresh.message,
+        result: data
+      });
+    }
+    return mutationResult(true, successMessage, data);
+  }
+
+  async function submitSharedClaim(gameId) {
+    const { game } = findGame(gameId);
+    if (!game) return mutationResult(false, "Game not found.");
+    const assignment = getAssignments(game).find(item => item.status === STATUS.OPEN_FOR_CLAIM && !item.locked);
+    if (!assignment) return mutationResult(false, "This game is not open for claims.");
+    const response = await supabaseSharedRepository.submitAssignmentClaim(assignment.id);
+    if (response.error) {
+      return mutationResult(false, sharedClaimError(response.error, "The claim could not be submitted. Please try again."));
+    }
+    return refreshAfterSharedClaim("Claim submitted for approval.", response.data);
+  }
+
+  async function decideSharedClaim(gameId, assignmentId, decision) {
+    const { game } = findGame(gameId);
+    if (!game) return mutationResult(false, "Game not found.");
+    const assignment = assignmentId
+      ? getAssignmentById(game, assignmentId)
+      : getAssignments(game).find(item => item.status === STATUS.PENDING_APPROVAL && item.claimedBy);
+    if (!assignment) return mutationResult(false, "No pending claim found.");
+    const response = await supabaseSharedRepository.decideAssignmentClaim(assignment.id, decision);
+    if (response.error) {
+      const fallback = decision === "approved" ? "The claim could not be approved." : "The claim could not be rejected.";
+      return mutationResult(false, sharedClaimError(response.error, fallback));
+    }
+    const message = decision === "approved" ? "Claim approved." : "Claim rejected.";
+    return refreshAfterSharedClaim(message, response.data);
+  }
+
   function findGame(gameId) {
     const games = getGames();
     const game = games.find(item => String(item.id) === String(gameId));
@@ -779,6 +834,7 @@ function lockAssignmentSlot(gameId, assignmentId) {
   }
 
   function claimGame(gameId, crewId) {
+    if (isSharedAssignmentMode()) return submitSharedClaim(gameId);
     const { games, game } = findGame(gameId);
 
     if (!game) return mutationResult(false, "Game not found.");
@@ -816,7 +872,8 @@ notificationService?.create?.({
     return mutationResult(true, "Claim submitted for approval.", game);
   }
 
-  function approveClaim(gameId) {
+  function approveClaim(gameId, assignmentId) {
+    if (isSharedAssignmentMode()) return decideSharedClaim(gameId, assignmentId, "approved");
     const { games, game } = findGame(gameId);
 
     if (!game) return mutationResult(false, "Game not found.");
@@ -867,7 +924,8 @@ notificationService?.create?.({
     return mutationResult(true, "Claim approved.", game);
   }
 
-  function rejectClaim(gameId) {
+  function rejectClaim(gameId, assignmentId) {
+    if (isSharedAssignmentMode()) return decideSharedClaim(gameId, assignmentId, "rejected");
     const { games, game } = findGame(gameId);
 
     if (!game) return mutationResult(false, "Game not found.");

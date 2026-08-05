@@ -45,7 +45,9 @@ test.describe("Portal Claims", () => {
       });
 
       // Open the game for claims using the service.
+      authService.loginAsAdmin();
       assignmentService.openForClaims(gameResult.data.id);
+      authService.useAuthenticatedAccount(loginService.getCurrentAccount());
 
       return portalService.getClaimableGames();
     });
