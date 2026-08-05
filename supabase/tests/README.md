@@ -4,14 +4,18 @@
 
 `auth_foundation_verification.sql` verifies the trusted bootstrap, verified-email requirement, invitation consumption, idempotent pending-profile provisioning, and transactional administrator approval/crew linkage. It also always rolls back.
 
+`shared_availability_verification.sql` verifies authenticated own-crew derivation and transactional range/copy behavior, including forced mid-operation failures with no partial writes. It always rolls back.
+
 Run them only against a new disposable database after applying all migrations. With a PostgreSQL connection string in the process environment:
 
 ```powershell
 psql $env:BLUECREW_TEST_DATABASE_URL -v ON_ERROR_STOP=1 -f supabase/migrations/202608040001_initial_schema.sql
 psql $env:BLUECREW_TEST_DATABASE_URL -v ON_ERROR_STOP=1 -f supabase/migrations/202608040002_rls.sql
 psql $env:BLUECREW_TEST_DATABASE_URL -v ON_ERROR_STOP=1 -f supabase/migrations/202608050001_auth_foundation.sql
+psql $env:BLUECREW_TEST_DATABASE_URL -v ON_ERROR_STOP=1 -f supabase/migrations/202608050002_shared_availability_rpc.sql
 psql $env:BLUECREW_TEST_DATABASE_URL -v ON_ERROR_STOP=1 -f supabase/tests/rls_verification.sql
 psql $env:BLUECREW_TEST_DATABASE_URL -v ON_ERROR_STOP=1 -f supabase/tests/auth_foundation_verification.sql
+psql $env:BLUECREW_TEST_DATABASE_URL -v ON_ERROR_STOP=1 -f supabase/tests/shared_availability_verification.sql
 ```
 
 Do not put the connection string in repository files or shell history. A successful test command ends with `ROLLBACK`; any failed assertion stops execution.

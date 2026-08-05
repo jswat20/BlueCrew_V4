@@ -1,7 +1,32 @@
 // js/services/crewService.js
 
+let authenticatedCrewSnapshot = null;
+
 const crewService = {
+  isSharedMode() {
+    return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  },
+
+  async loadAuthenticatedCrewMember(profileId) {
+    if (!this.isSharedMode() || !profileId) return null;
+    const { data, error } = await supabaseSharedRepository.getLinkedCrewMember(profileId);
+    if (error) throw error;
+    authenticatedCrewSnapshot = sharedDomainMappingService.mapCrewMember(data);
+    return authenticatedCrewSnapshot;
+  },
+
+  clearAuthenticatedCrewMember() {
+    authenticatedCrewSnapshot = null;
+  },
+
+  getAuthenticatedCrewMember() {
+    return authenticatedCrewSnapshot;
+  },
+
   getAll() {
+    if (this.isSharedMode()) {
+      return authenticatedCrewSnapshot ? [authenticatedCrewSnapshot] : [];
+    }
     return Array.isArray(crew) ? crew : [];
   },
 

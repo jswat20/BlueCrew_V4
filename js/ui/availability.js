@@ -553,15 +553,17 @@ async function handleSaveAvailability() {
 
   }
 
-  const result =
-    availabilityService.setAvailability({
+  const availabilityChanges = {
       crewId,
       date,
       status,
       startTime,
       endTime,
       windowId: availabilityPageState.editingWindowId
-    });
+    };
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await availabilityService.setAvailabilityShared(availabilityChanges)
+    : availabilityService.setAvailability(availabilityChanges);
 
   if (!result) {
     showAvailabilityError(
@@ -717,7 +719,7 @@ function finishAvailabilityQuickAction(
   renderPage("availability");
 }
 
-function handleWeekendUnavailable() {
+async function handleWeekendUnavailable() {
   const crewId =
     getAvailabilityCrewId();
 
@@ -737,13 +739,15 @@ function handleWeekendUnavailable() {
   const sunday =
     addAvailabilityDays(saturday, 1);
 
-  const result =
-    availabilityService.setAvailabilityRange({
+  const range = {
       crewId,
       startDate: saturday,
       endDate: sunday,
       status: "unavailable"
-    });
+    };
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await availabilityService.setAvailabilityRangeShared(range)
+    : availabilityService.setAvailabilityRange(range);
 
   if (!result.success) {
     showAvailabilityError(
@@ -766,7 +770,7 @@ function handleWeekendUnavailable() {
   );
 }
 
-function handleNextSevenAvailable() {
+async function handleNextSevenAvailable() {
   const crewId =
     getAvailabilityCrewId();
 
@@ -783,13 +787,15 @@ function handleNextSevenAvailable() {
   const endDate =
     addAvailabilityDays(startDate, 6);
 
-  const result =
-    availabilityService.setAvailabilityRange({
+  const range = {
       crewId,
       startDate,
       endDate,
       status: "available"
-    });
+    };
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await availabilityService.setAvailabilityRangeShared(range)
+    : availabilityService.setAvailabilityRange(range);
 
   if (!result.success) {
     showAvailabilityError(
@@ -812,7 +818,7 @@ function handleNextSevenAvailable() {
   );
 }
 
-function handleCopyPreviousWeek() {
+async function handleCopyPreviousWeek() {
   const crewId =
     getAvailabilityCrewId();
 
@@ -832,12 +838,14 @@ function handleCopyPreviousWeek() {
       -7
     );
 
-  const result =
-    availabilityService.copyAvailabilityWeek({
+  const copy = {
       crewId,
       sourceStartDate,
       targetStartDate
-    });
+    };
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await availabilityService.copyAvailabilityWeekShared(copy)
+    : availabilityService.copyAvailabilityWeek(copy);
 
   if (!result.success) {
     showAvailabilityError(
@@ -884,10 +892,13 @@ function handleCancelAvailabilityEdit() {
   renderPage("availability");
 }
 
-function handleRemoveAvailability(date, windowId = "") {
-  const removed = windowId
-    ? availabilityService.clearAvailabilityWindow(getAvailabilityCrewId(), windowId)
-    : availabilityService.clearAvailability(getAvailabilityCrewId(), date);
+async function handleRemoveAvailability(date, windowId = "") {
+  const crewId = getAvailabilityCrewId();
+  const removed = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await availabilityService.clearAvailabilityShared(crewId, date, windowId)
+    : windowId
+      ? availabilityService.clearAvailabilityWindow(crewId, windowId)
+      : availabilityService.clearAvailability(crewId, date);
 
   if (!removed) {
     showAvailabilityError(

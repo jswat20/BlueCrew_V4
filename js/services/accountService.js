@@ -2,6 +2,10 @@
 
 const accountService = (() => {
   const STORAGE_KEY = "bluecrew_accounts";
+  let authenticatedProfileSnapshot = null;
+  function isSharedMode() {
+    return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  }
   function getRepository() {
     return repositoryProvider.get("accounts");
   }
@@ -88,15 +92,39 @@ function isValidRole(role) {
   }
 
   function readAll() {
+    if (isSharedMode()) return authenticatedProfileSnapshot ? [authenticatedProfileSnapshot] : [];
     return getRepository().read() || [];
   }
 
   function getAll() {
+    if (isSharedMode()) return authenticatedProfileSnapshot ? [authenticatedProfileSnapshot] : [];
     return migrateCrewCodes(readAll());
   }
 
   function saveAll(accounts) {
+    if (isSharedMode()) throw new Error("Synchronous profile persistence is unavailable in Supabase mode.");
     getRepository().write(accounts);
+  }
+
+  async function loadAuthenticatedProfile(user, crewId = null) {
+    if (!isSharedMode() || !user?.id) return null;
+    const { data, error } = await supabaseSharedRepository.getProfileForAuthUser(user.id);
+    if (error) throw error;
+    authenticatedProfileSnapshot = sharedDomainMappingService.mapProfile(data, crewId);
+    return authenticatedProfileSnapshot;
+  }
+
+  function setAuthenticatedCrewId(crewId) {
+    if (authenticatedProfileSnapshot) authenticatedProfileSnapshot.crewId = crewId || null;
+    return authenticatedProfileSnapshot;
+  }
+
+  function clearAuthenticatedProfile() {
+    authenticatedProfileSnapshot = null;
+  }
+
+  function getAuthenticatedProfile() {
+    return authenticatedProfileSnapshot;
   }
 
 function generateId() {
@@ -915,6 +943,49 @@ function getRoleSummary() {
     return updateCrewSelfServiceProfile(accountId, updates);
   }
 
+  async function updateAuthenticatedProfile(accountId, updates = {}) {
+    const current = typeof loginService !== "undefined" ? loginService.getCurrentAccount?.() : null;
+    const account = authenticatedProfileSnapshot;
+    if (!isSharedMode() || !current || !account || String(current.id) !== String(accountId)) {
+      return profileMutationResult(false, "Unauthorized profile update.", null, { authorization: "You may update only your own profile." });
+    }
+
+    const email = normalizeProfileValue(updates.email);
+    if (!email || !isValidEmail(email)) return profileMutationResult(false, "Enter a valid email address.");
+    if (email.toLowerCase() !== String(account.email || "").toLowerCase()) {
+      return profileMutationResult(false, "Email changes require verified account recovery and are not available yet.", getProfile(account.id), { email: "Use your current verified login email." });
+    }
+    const phone = normalizePhone(updates.phone);
+    const homePhone = normalizePhone(updates.homePhone);
+    const emergencyContactPhone = normalizePhone(updates.emergencyContactPhone);
+    if (!isValidPhone(phone) || !isValidPhone(homePhone) || !isValidPhone(emergencyContactPhone)) {
+      return profileMutationResult(false, "Enter a valid phone number.", getProfile(account.id), { phone: "Phone numbers must contain 7 to 15 digits." });
+    }
+    if (updates.contactPreference && !["text", "call"].includes(updates.contactPreference)) {
+      return profileMutationResult(false, "Select text or call as the contact preference.");
+    }
+    const restrictedFields = ["crewCode", "firstName", "lastName", "birthdate", "age", "levels", "eligibility", "officialHistory", "yearsOfServiceOverride", "adminNotes", "status", "role", "crewId", "photoDataUrl"];
+    const currentProfile = getProfile(account.id);
+    const submittedRestricted = restrictedFields.filter(field => Object.prototype.hasOwnProperty.call(updates, field) && JSON.stringify(updates[field] ?? null) !== JSON.stringify(currentProfile?.[field] ?? null));
+    if (submittedRestricted.length) return profileMutationResult(false, "One or more profile fields are administrator-managed.", currentProfile, Object.fromEntries(submittedRestricted.map(field => [field, "This field cannot be changed in self-service."])));
+
+    const changes = {
+      email,
+      phone,
+      home_phone: homePhone,
+      address: normalizeProfileValue(updates.address),
+      contact_preference: updates.contactPreference || account.contactPreference || "text",
+      emergency_contact: normalizeProfileValue(updates.emergencyContact),
+      emergency_contact_phone: emergencyContactPhone,
+      communication_preferences: normalizeCommunicationPreferences({ ...account.communicationPreferences, ...(updates.communicationPreferences || {}) })
+    };
+    const { data, error } = await supabaseSharedRepository.updateProfile(account.id, changes);
+    if (error) return profileMutationResult(false, error.message || "Profile could not be saved.", currentProfile);
+    authenticatedProfileSnapshot = sharedDomainMappingService.mapProfile(data, account.crewId);
+    supabaseAuthService.refreshAuthenticatedAccount(authenticatedProfileSnapshot);
+    return profileMutationResult(true, "Profile saved.", getProfile(account.id));
+  }
+
   function updateCrewProfileAsAdmin(accountId, changes = {}) {
     const authorization = requireManageAccounts();
     if (authorization) return profileMutationResult(false, authorization.message, null, { authorization: authorization.message });
@@ -1005,6 +1076,11 @@ function getRoleSummary() {
     getById,
     getProfile,
     updateProfile,
+    loadAuthenticatedProfile,
+    updateAuthenticatedProfile,
+    getAuthenticatedProfile,
+    setAuthenticatedCrewId,
+    clearAuthenticatedProfile,
     updateCrewSelfServiceProfile,
     updateCrewProfileAsAdmin,
     deriveAge,

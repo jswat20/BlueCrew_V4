@@ -105,16 +105,19 @@ const pages = {
 };
 
 function initializeApp() {
+  const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   games = loadGames();
-  crew = loadCrew();
+  crew = usesSupabaseAuth ? [] : loadCrew();
 
-  ensureDataIds();
-  migrateCrewIds();
+  if (usesSupabaseAuth) {
+    ensureGameIds();
+  } else {
+    ensureDataIds();
+    migrateCrewIds();
+  }
 
   migrationService.migrateGames();
-  migrationService.migrateCrewAccounts();
-
-  const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  if (!usesSupabaseAuth) migrationService.migrateCrewAccounts();
 
   document.body.dataset.page = usesSupabaseAuth ? "login" : "dashboard";
   document.body.dataset.role = usesSupabaseAuth ? "umpire" : "admin";
@@ -164,6 +167,11 @@ function setupNavigation() {
       navigateTo(button.dataset.page);
     });
   });
+}
+
+async function retrySharedHydration() {
+  const result = await loginService.initializeAuthenticatedIdentity();
+  renderPage(result.success && result.data ? "dashboard" : "login");
 }
 
 function setupRoleSwitcher() {
@@ -234,6 +242,15 @@ function renderAccessDenied(page) {
   `;
 }
 
+function escapeSharedStateHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function renderPage(page, context = {}) {
   if (typeof refreshNavigationAuthorization === "function") {
     refreshNavigationAuthorization();
@@ -259,6 +276,12 @@ function renderPage(page, context = {}) {
 
   const content = document.getElementById("app-content");
   if (!content) return;
+
+  if (["profile", "availability"].includes(page) && typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured() && supabaseAuthService.getHydrationState().status !== "ready") {
+    const state = supabaseAuthService.getHydrationState();
+    content.innerHTML = `<div class="page-wrapper" data-testid="shared-hydration-error"><section class="page-section"><h2>Account data unavailable</h2><p>${escapeSharedStateHtml(state.message || "Your shared account data has not finished loading.")}</p><button type="button" data-testid="shared-hydration-retry" onclick="retrySharedHydration()">Retry</button><button type="button" class="secondary" data-testid="shared-hydration-logout" onclick="loginService.logoutAuthenticated().then(() => renderPage('login'))">Log out</button></section></div>`;
+    return;
+  }
 
   const isAuthorized =
     typeof authorizationService === "undefined" ||

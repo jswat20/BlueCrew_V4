@@ -1,63 +1,38 @@
 const supabaseAuthService = (() => {
   let currentAccount = null;
   let authSubscription = null;
+  let hydrationState = { status: "idle", message: "" };
 
   function mutationResult(success, message, data = null) {
     return { success, message, data };
   }
 
   function mapProfile(profile, crewId = null) {
-    if (!profile) return null;
-    return {
-      id: profile.id,
-      authUserId: profile.auth_user_id,
-      organizationId: profile.organization_id,
-      firstName: profile.first_name || "",
-      lastName: profile.last_name || "",
-      email: profile.email || "",
-      phone: profile.phone || "",
-      homePhone: profile.home_phone || "",
-      address: profile.address || "",
-      contactPreference: profile.contact_preference || "text",
-      birthdate: profile.birthdate || "",
-      emergencyContact: profile.emergency_contact || "",
-      emergencyContactPhone: profile.emergency_contact_phone || "",
-      officialHistory: profile.official_history || [],
-      yearsOfServiceOverride: profile.years_of_service_override ?? null,
-      adminNotes: profile.admin_notes || "",
-      communicationPreferences: profile.communication_preferences || {},
-      role: profile.role,
-      status: profile.status,
-      crewId,
-      crewCode: profile.crew_code || "",
-      crewCodeIssuedAt: profile.crew_code_issued_at || null,
-      approvedAt: profile.approved_at || null,
-      rejectedAt: profile.rejected_at || null,
-      lastLogin: profile.last_login_at || null,
-      createdAt: profile.created_at
-    };
+    return sharedDomainMappingService.mapProfile(profile, crewId);
   }
 
   async function loadAccountForUser(user) {
     if (!user?.id) return null;
-    const client = await supabaseClientService.getClient();
-    const { data: profile, error: profileError } = await client
-      .from("profiles")
-      .select("*")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
+    hydrationState = { status: "loading", message: "" };
+    clearSharedState();
+    const profile = await accountService.loadAuthenticatedProfile(user);
+    if (!profile) throw new Error("Account profile was not found.");
+    if (profile.status !== "approved") {
+      hydrationState = { status: "ready", message: "" };
+      return profile;
+    }
+    const crewMember = await crewService.loadAuthenticatedCrewMember(profile.id);
+    accountService.setAuthenticatedCrewId(crewMember?.id || null);
+    if (profile.role === "umpire" && !crewMember) throw new Error("Approved umpire has no linked crew member.");
+    if (crewMember) await availabilityService.loadAuthenticatedAvailability(crewMember.id);
+    hydrationState = { status: "ready", message: "" };
+    return accountService.getAuthenticatedProfile();
+  }
 
-    if (profileError) throw profileError;
-    if (!profile) return null;
-
-    const { data: crewMember, error: crewError } = await client
-      .from("crew_members")
-      .select("id")
-      .eq("profile_id", profile.id)
-      .maybeSingle();
-
-    if (crewError) throw crewError;
-    return mapProfile(profile, crewMember?.id || null);
+  function clearSharedState() {
+    accountService?.clearAuthenticatedProfile?.();
+    crewService?.clearAuthenticatedCrewMember?.();
+    availabilityService?.clearAuthenticatedAvailability?.();
   }
 
   function applyIdentity(account) {
@@ -70,11 +45,23 @@ const supabaseAuthService = (() => {
     return account;
   }
 
+  function refreshAuthenticatedAccount(account) {
+    return applyIdentity(account);
+  }
+
+  function failHydration(error) {
+    clearSharedState();
+    applyIdentity(null);
+    hydrationState = { status: "error", message: error?.message || "Shared account data could not be loaded." };
+  }
+
   async function restoreSession() {
     const client = await supabaseClientService.getClient();
     const { data, error } = await client.auth.getSession();
     if (error) return mutationResult(false, error.message);
     if (!data.session?.user) {
+      clearSharedState();
+      hydrationState = { status: "idle", message: "" };
       applyIdentity(null);
       return mutationResult(true, "No active session.");
     }
@@ -88,7 +75,7 @@ const supabaseAuthService = (() => {
       applyIdentity(account);
       return mutationResult(true, "Session restored.", account);
     } catch (error) {
-      applyIdentity(null);
+      failHydration(error);
       return mutationResult(false, error.message || "Could not restore the session.");
     }
   }
@@ -109,7 +96,7 @@ const supabaseAuthService = (() => {
       return mutationResult(true, "Login successful.", account);
     } catch (loadError) {
       await client.auth.signOut();
-      applyIdentity(null);
+      failHydration(loadError);
       return mutationResult(false, loadError.message || "Could not load the account profile.");
     }
   }
@@ -167,7 +154,9 @@ const supabaseAuthService = (() => {
   async function logout() {
     const client = await supabaseClientService.getClient();
     const { error } = await client.auth.signOut();
+    clearSharedState();
     applyIdentity(null);
+    hydrationState = { status: "idle", message: "" };
     return error
       ? mutationResult(false, error.message)
       : mutationResult(true, "Logged out.");
@@ -179,12 +168,18 @@ const supabaseAuthService = (() => {
     const { data } = client.auth.onAuthStateChange((event, session) => {
       setTimeout(async () => {
         if (event === "SIGNED_OUT" || !session?.user) {
+          clearSharedState();
           applyIdentity(null);
+          hydrationState = { status: "idle", message: "" };
           return;
         }
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-          const account = await loadAccountForUser(session.user);
-          if (account?.status === "approved") applyIdentity(account);
+          try {
+            const account = await loadAccountForUser(session.user);
+            if (account?.status === "approved") applyIdentity(account);
+          } catch (error) {
+            failHydration(error);
+          }
         }
       }, 0);
     });
@@ -210,6 +205,8 @@ const supabaseAuthService = (() => {
     authSubscription?.unsubscribe?.();
     authSubscription = null;
     currentAccount = null;
+    clearSharedState();
+    hydrationState = { status: "idle", message: "" };
   }
 
   return {
@@ -222,6 +219,8 @@ const supabaseAuthService = (() => {
     loadAccountForUser,
     getCurrentAccount,
     getCurrentSession,
+    getHydrationState: () => ({ ...hydrationState }),
+    refreshAuthenticatedAccount,
     clearForTests
   };
 })();

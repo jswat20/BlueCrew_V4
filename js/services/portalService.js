@@ -2036,10 +2036,17 @@ const portalService = (() => {
     );
   }
 
+  async function saveProfileShared(profile = {}) {
+    const account = getCurrentAccount();
+    if (!account) return { success: false, message: "No logged in umpire." };
+    return accountService.updateAuthenticatedProfile(account.id, profile);
+  }
+
 
   return {
     getProfile,
     saveProfile,
+    saveProfileShared,
     getGameReview,
     cancelGame,
     postponeGame,

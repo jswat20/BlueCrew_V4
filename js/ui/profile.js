@@ -470,7 +470,7 @@ async function handleProfilePhotoSelected(input) {
   }
 }
 
-function handleCommunicationPreferenceChange(
+async function handleCommunicationPreferenceChange(
   key,
   enabled
 ) {
@@ -491,14 +491,16 @@ function handleCommunicationPreferenceChange(
     return;
   }
 
-  const result =
-    portalService.saveProfile({
+  const profileChanges = {
       ...getProfileFormValues(),
       communicationPreferences: {
         ...current.communicationPreferences,
         [key]: enabled === true
       }
-    });
+    };
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await portalService.saveProfileShared(profileChanges)
+    : portalService.saveProfile(profileChanges);
 
   if (!result.success) {
     profileFormError =
@@ -532,15 +534,16 @@ function handleCommunicationPreferenceChange(
   );
 }
 
-function handleSaveProfile(event) {
+async function handleSaveProfile(event) {
   event?.preventDefault();
 
   profileFormMessage = "";
   profileFormError = "";
 
-  const result = portalService.saveProfile(
-    getProfileFormValues()
-  );
+  const values = getProfileFormValues();
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await portalService.saveProfileShared(values)
+    : portalService.saveProfile(values);
 
   if (!result.success) {
     profileFormError =

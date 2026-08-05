@@ -2,6 +2,38 @@
 
 const availabilityService = (() => {
   const MAX_GAMES_PER_DAY = 2;
+  let authenticatedAvailabilitySnapshot = null;
+
+  function isSharedMode() {
+    return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  }
+
+  function getAvailabilityMember(crewId) {
+    if (!isSharedMode()) return crewService.getById(crewId);
+    if (!authenticatedAvailabilitySnapshot || String(authenticatedAvailabilitySnapshot.crewId) !== String(crewId)) return null;
+    return authenticatedAvailabilitySnapshot;
+  }
+
+  async function loadAuthenticatedAvailability(crewId) {
+    if (!isSharedMode() || !crewId) {
+      authenticatedAvailabilitySnapshot = null;
+      return null;
+    }
+    const { data, error } = await supabaseSharedRepository.getAvailability(crewId);
+    if (error) throw error;
+    const entries = (data || []).map(sharedDomainMappingService.mapAvailability);
+    authenticatedAvailabilitySnapshot = {
+      id: crewId,
+      crewId,
+      dateAvailability: Object.fromEntries(entries.filter(entry => !entry.startTime).map(entry => [entry.date, entry.status])),
+      availabilityTimeWindows: entries.filter(entry => entry.startTime)
+    };
+    return authenticatedAvailabilitySnapshot;
+  }
+
+  function clearAuthenticatedAvailability() {
+    authenticatedAvailabilitySnapshot = null;
+  }
 
   const STATUS = Object.freeze({
     AVAILABLE: "available",
@@ -180,6 +212,7 @@ const availabilityService = (() => {
    */
 
   function setAvailability({ crewId, date, status, startTime = "", endTime = "", windowId = "" } = {}) {
+    if (isSharedMode()) return null;
     const member = crewService.getById(crewId);
     const normalizedDate = normalizeDate(date);
     const normalizedStatus = normalizeStatus(status);
@@ -215,7 +248,7 @@ const availabilityService = (() => {
   }
 
   function getAvailability(crewId, date, time = "") {
-    const member = crewService.getById(crewId);
+    const member = getAvailabilityMember(crewId);
     const normalizedDate = normalizeDate(date);
 
     if (!member || !normalizedDate) {
@@ -240,6 +273,7 @@ const availabilityService = (() => {
   }
 
   function clearAvailability(crewId, date) {
+    if (isSharedMode()) return false;
     const member = crewService.getById(crewId);
     const normalizedDate = normalizeDate(date);
 
@@ -263,7 +297,7 @@ const availabilityService = (() => {
   }
 
   function getCrewAvailability(crewId) {
-    const member = crewService.getById(crewId);
+    const member = getAvailabilityMember(crewId);
 
     if (!member) {
       return [];
@@ -685,6 +719,7 @@ const availabilityService = (() => {
   }
 
   function clearAvailabilityWindow(crewId, windowId) {
+    if (isSharedMode()) return false;
     const member = crewService.getById(crewId);
     if (!member || !windowId) return false;
     const windows = ensureAvailabilityWindows(member);
@@ -766,6 +801,63 @@ const availabilityService = (() => {
     }
   }
 
+  async function setAvailabilityShared({ crewId, date, status, startTime = "", endTime = "", windowId = "" } = {}) {
+    const linkedCrew = crewService.getAuthenticatedCrewMember?.();
+    const normalizedDate = normalizeDate(date);
+    const normalizedStatus = normalizeStatus(status);
+    const normalizedStartTime = normalizeTime(startTime);
+    const normalizedEndTime = normalizeTime(endTime);
+    if (!isSharedMode() || !linkedCrew || String(linkedCrew.id) !== String(crewId) || !normalizedDate || !normalizedStatus) return null;
+    if ((startTime || endTime) && (!normalizedStartTime || !normalizedEndTime || normalizedStartTime >= normalizedEndTime)) return null;
+    const response = await supabaseSharedRepository.upsertOwnAvailability({
+      date: normalizedDate,
+      status: normalizedStatus,
+      startTime: normalizedStartTime || null,
+      endTime: normalizedEndTime || null,
+      id: windowId || null
+    });
+    if (response.error) return null;
+    await loadAuthenticatedAvailability(linkedCrew.id);
+    return sharedDomainMappingService.mapAvailability(response.data);
+  }
+
+  async function clearAvailabilityShared(crewId, date, windowId = "") {
+    const linkedCrew = crewService.getAuthenticatedCrewMember?.();
+    const normalizedDate = normalizeDate(date);
+    if (!isSharedMode() || !linkedCrew || String(linkedCrew.id) !== String(crewId) || !normalizedDate) return false;
+    const response = windowId
+      ? await supabaseSharedRepository.deleteAvailabilityWindow(linkedCrew.id, windowId)
+      : await supabaseSharedRepository.deleteAvailabilityDate(linkedCrew.id, normalizedDate);
+    if (response.error) return false;
+    await loadAuthenticatedAvailability(linkedCrew.id);
+    return true;
+  }
+
+  async function setAvailabilityRangeShared({ crewId, startDate, endDate, status } = {}) {
+    const start = normalizeDate(startDate);
+    const end = normalizeDate(endDate);
+    const normalizedStatus = normalizeStatus(status);
+    if (!start || !end || !normalizedStatus || start > end) return { success: false, message: "Choose a valid availability range." };
+    const linkedCrew = crewService.getAuthenticatedCrewMember?.();
+    if (!linkedCrew || String(linkedCrew.id) !== String(crewId)) return { success: false, message: "Crew member not found." };
+    const response = await supabaseSharedRepository.setOwnAvailabilityRange(start, end, normalizedStatus);
+    if (response.error) return { success: false, message: response.error.message || "Unable to update availability." };
+    await loadAuthenticatedAvailability(linkedCrew.id);
+    return { success: true, message: "Availability updated.", data: { updated: response.data } };
+  }
+
+  async function copyAvailabilityWeekShared({ crewId, sourceStartDate, targetStartDate } = {}) {
+    const source = normalizeDate(sourceStartDate);
+    const target = normalizeDate(targetStartDate);
+    if (!source || !target) return { success: false, message: "Choose valid source and target weeks." };
+    const linkedCrew = crewService.getAuthenticatedCrewMember?.();
+    if (!linkedCrew || String(linkedCrew.id) !== String(crewId)) return { success: false, message: "Crew member not found." };
+    const response = await supabaseSharedRepository.copyOwnAvailabilityWeek(source, target);
+    if (response.error) return { success: false, message: response.error.message || "Unable to copy availability." };
+    await loadAuthenticatedAvailability(linkedCrew.id);
+    return { success: true, message: "Availability copied.", data: { copied: response.data } };
+  }
+
   return {
     STATUS,
 
@@ -775,6 +867,12 @@ const availabilityService = (() => {
     getAvailabilityScore,
 
     setAvailability,
+    loadAuthenticatedAvailability,
+    setAvailabilityShared,
+    setAvailabilityRangeShared,
+    copyAvailabilityWeekShared,
+    clearAvailabilityShared,
+    clearAuthenticatedAvailability,
     setAvailabilityRange,
     copyAvailabilityWeek,
     getAvailability,
