@@ -486,6 +486,9 @@ function renderNotificationFilterChip(
 }
 
 function renderNotifications() {
+  const hydrationState = typeof notificationService.getNotificationHydrationState === "function"
+    ? notificationService.getNotificationHydrationState()
+    : { status: "ready", message: "" };
   const query =
     getNotificationCenterQuery();
 
@@ -550,6 +553,13 @@ function renderNotifications() {
         badgeTestId:
           "notifications-unread-count"
       })}
+
+      ${hydrationState.status === "error" ? `
+        <div class="form-message error" data-testid="notification-hydration-error" role="status">
+          <span>${escapeNotificationHtml(hydrationState.message || "Notifications could not be loaded.")}</span>
+          <button type="button" class="button button-secondary" data-testid="notification-hydration-retry" onclick="retryNotificationHydration()">Retry</button>
+        </div>
+      ` : ""}
 
       ${
         !hasNotifications
@@ -786,6 +796,12 @@ function refreshNotificationCenter() {
   }
 }
 
+async function retryNotificationHydration() {
+  const result = await notificationService.refreshAuthenticatedNotifications();
+  refreshNotificationCenter();
+  return result;
+}
+
 function handleNotificationFilter(
   filter
 ) {
@@ -870,13 +886,13 @@ function handleClearNotificationSelection() {
   refreshNotificationCenter();
 }
 
-function handleMarkSelectedNotificationsRead() {
+async function handleMarkSelectedNotificationsRead() {
   const ids =
     uiStateService
       .getSelectedNotificationIds();
 
   const result =
-    notificationService
+    await notificationService
       .markAsReadBulk(ids);
 
   if (!result.success) return;
@@ -922,11 +938,11 @@ function handleDeleteSelectedNotifications() {
   );
 }
 
-function handleMarkNotificationRead(
+async function handleMarkNotificationRead(
   notificationId
 ) {
   const result =
-    notificationService.markAsRead(
+    await notificationService.markAsRead(
       notificationId
     );
 
@@ -935,9 +951,9 @@ function handleMarkNotificationRead(
   refreshNotificationCenter();
 }
 
-function handleMarkAllNotificationsRead() {
+async function handleMarkAllNotificationsRead() {
   const result =
-    notificationService
+    await notificationService
       .markAllAsRead();
 
   if (!result.success) return;
@@ -963,7 +979,7 @@ function handleClearReadNotifications() {
   refreshNotificationCenter();
 }
 
-function handleNotificationAction(
+async function handleNotificationAction(
   type,
   relatedId,
   notificationId = ""
@@ -987,7 +1003,7 @@ function handleNotificationAction(
     !notification.virtual &&
     !notification.read
   ) {
-    notificationService.markAsRead(
+    await notificationService.markAsRead(
       notification.id
     );
   }

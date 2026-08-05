@@ -19,6 +19,7 @@ const supabaseAuthService = (() => {
     if (profile.status !== "approved") {
       crewService?.clearAllSharedCrew?.();
       availabilityService?.clearAuthenticatedAvailability?.();
+      notificationService?.clearAuthenticatedNotifications?.();
       clearSchedulingState();
       hydrationState = { status: "ready", message: "" };
       return profile;
@@ -27,6 +28,7 @@ const supabaseAuthService = (() => {
     accountService.setAuthenticatedCrewId(crewMember?.id || null);
     if (profile.role === "umpire" && !crewMember) throw new Error("Approved umpire has no linked crew member.");
     if (crewMember) await availabilityService.loadAuthenticatedAvailability(crewMember.id);
+    await notificationService?.hydrateAuthenticatedNotifications?.();
     try {
       const preparedLocations = await locationService.prepareSharedLocations();
       const preparedSchedule = await gameService.prepareSharedGames(preparedLocations);
@@ -53,6 +55,7 @@ const supabaseAuthService = (() => {
     accountService?.clearAuthenticatedProfile?.();
     crewService?.clearAllSharedCrew?.();
     availabilityService?.clearAuthenticatedAvailability?.();
+    notificationService?.clearAuthenticatedNotifications?.();
     clearSchedulingState();
   }
 

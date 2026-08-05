@@ -96,7 +96,7 @@ test.describe(
         });
 
         await expect(page.getByTestId("dashboard-notification-bell")).toHaveCount(0);
-        await expect(page.getByTestId("nav-notifications")).toBeHidden();
+        await expect(page.getByTestId("nav-notifications")).toBeVisible();
       }
     );
 

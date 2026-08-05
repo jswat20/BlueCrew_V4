@@ -1,8 +1,83 @@
 const notificationService = (() => {
   const STORAGE_KEY = "bluecrew_notifications";
   const getRepository = () => repositoryProvider.get("notifications");
+  let authenticatedNotifications = null;
+  let notificationHydrationState = { status: "idle", message: "" };
+
+  function isSupabaseNotificationMode() {
+    return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  }
+
+  function cloneNotifications(notifications) {
+    return structuredClone(Array.isArray(notifications) ? notifications : []);
+  }
+
+  function mapSupabaseNotification(row) {
+    const destinationContext = row.destination_context && typeof row.destination_context === "object"
+      ? structuredClone(row.destination_context)
+      : {};
+    return {
+      id: row.id,
+      organizationId: row.organization_id,
+      type: row.type || "",
+      audience: row.audience || "account",
+      recipientProfileId: row.recipient_profile_id || "",
+      recipientAccountId: row.recipient_profile_id || "",
+      title: row.title || "",
+      message: row.message || "",
+      relatedId: row.related_legacy_id || "",
+      destinationPage: row.destination_page || "",
+      destinationContext,
+      destination: row.destination_page
+        ? { page: row.destination_page, context: destinationContext }
+        : null,
+      reminderKey: row.reminder_key || "",
+      read: Boolean(row.read_at),
+      readAt: row.read_at || null,
+      createdAt: row.created_at || ""
+    };
+  }
+
+  async function hydrateAuthenticatedNotifications() {
+    if (!isSupabaseNotificationMode()) {
+      notificationHydrationState = { status: "ready", message: "" };
+      return { success: true, message: "Local notifications ready.", data: getAll() };
+    }
+    notificationHydrationState = { status: "loading", message: "" };
+    let result;
+    try {
+      result = await supabaseNotificationRepository.getNotifications();
+    } catch (error) {
+      notificationHydrationState = { status: "error", message: error?.message || "Notifications could not be loaded." };
+      return { success: false, message: notificationHydrationState.message };
+    }
+    if (result.error) {
+      notificationHydrationState = { status: "error", message: result.error.message || "Notifications could not be loaded." };
+      return { success: false, message: notificationHydrationState.message };
+    }
+    const mapped = (result.data || [])
+      .map(mapSupabaseNotification)
+      .sort((left, right) => `${right.createdAt}\u0000${right.id}`.localeCompare(`${left.createdAt}\u0000${left.id}`));
+    authenticatedNotifications = cloneNotifications(mapped);
+    notificationHydrationState = { status: "ready", message: "" };
+    return { success: true, message: "Notifications loaded.", data: getAll() };
+  }
+
+  function refreshAuthenticatedNotifications() {
+    return hydrateAuthenticatedNotifications();
+  }
+
+  function clearAuthenticatedNotifications() {
+    authenticatedNotifications = null;
+    notificationHydrationState = { status: "idle", message: "" };
+  }
+
+  function getNotificationHydrationState() {
+    return { ...notificationHydrationState };
+  }
 
   function getAll() {
+    if (isSupabaseNotificationMode()) return cloneNotifications(authenticatedNotifications || []);
     try {
       const stored = getRepository().read();
       if (!stored) return [];
@@ -14,7 +89,9 @@ const notificationService = (() => {
   }
 
   function saveAll(notifications) {
+    if (isSupabaseNotificationMode()) return false;
     getRepository().write(notifications);
+    return true;
   }
 
   function getCurrentNotificationAccount() {
@@ -200,6 +277,12 @@ const notificationService = (() => {
     createdAt = "",
     reminderKey = ""
   } = {}) {
+    if (isSupabaseNotificationMode()) {
+      return {
+        success: false,
+        message: "Notification creation is managed by the shared backend."
+      };
+    }
     if (!title || !message) {
       return {
         success: false,
@@ -312,7 +395,51 @@ const notificationService = (() => {
     return getUnread().length;
   }
 
+  async function markAuthenticatedNotificationRead(notificationId) {
+    const current = getAll();
+    const notification = current.find(item => String(item.id) === String(notificationId));
+    if (!notification || !isVisibleToCurrentUser(notification)) {
+      return { success: false, message: "Notification not found." };
+    }
+    if (notification.read) {
+      return { success: true, message: "Notification already read.", data: notification };
+    }
+    const result = await supabaseNotificationRepository.markRead(notification.id);
+    if (result.error) return { success: false, message: result.error.message || "Notification could not be marked as read." };
+    const readAt = new Date().toISOString();
+    authenticatedNotifications = current.map(item => String(item.id) === String(notification.id)
+      ? { ...item, read: true, readAt }
+      : item);
+    return { success: true, message: "Notification marked as read.", data: getAll().find(item => String(item.id) === String(notification.id)) };
+  }
+
+  async function markAllAuthenticatedNotificationsRead() {
+    const current = getAll();
+    const result = await supabaseNotificationRepository.markAllRead();
+    if (result.error) return { success: false, message: result.error.message || "Notifications could not be marked as read." };
+    const readAt = new Date().toISOString();
+    authenticatedNotifications = current.map(notification => notification.read
+      ? notification
+      : { ...notification, read: true, readAt });
+    return { success: true, message: "All notifications marked as read." };
+  }
+
+  async function markAuthenticatedNotificationsReadBulk(notificationIds = []) {
+    const ids = new Set(notificationIds.map(String));
+    const targets = getAll().filter(notification => ids.has(String(notification.id)) && !notification.read);
+    if (!targets.length) return { success: true, message: "Selected notifications marked as read.", data: { updatedCount: 0 } };
+    const results = await Promise.all(targets.map(notification => supabaseNotificationRepository.markRead(notification.id)));
+    const failure = results.find(result => result.error);
+    if (failure) return { success: false, message: failure.error.message || "Selected notifications could not be marked as read." };
+    const readAt = new Date().toISOString();
+    authenticatedNotifications = getAll().map(notification => ids.has(String(notification.id))
+      ? { ...notification, read: true, readAt: notification.readAt || readAt }
+      : notification);
+    return { success: true, message: "Selected notifications marked as read.", data: { updatedCount: targets.length } };
+  }
+
   function markAsRead(notificationId) {
+    if (isSupabaseNotificationMode()) return markAuthenticatedNotificationRead(notificationId);
     const notifications = getAll();
     const notification = notifications.find(item => item.id === notificationId);
 
@@ -334,6 +461,7 @@ const notificationService = (() => {
   }
 
   function markAllAsRead() {
+    if (isSupabaseNotificationMode()) return markAllAuthenticatedNotificationsRead();
     const notifications = getAll();
 
     notifications.forEach(notification => {
@@ -349,6 +477,7 @@ const notificationService = (() => {
   }
 
   function clearRead() {
+    if (isSupabaseNotificationMode()) return { success: false, message: "Deleting shared notifications is not available." };
     const notifications = getAll();
 
     const unread = notifications.filter(notification =>
@@ -370,6 +499,7 @@ const notificationService = (() => {
   }
 
   function clearAll() {
+    if (isSupabaseNotificationMode()) return { success: false, message: "Deleting shared notifications is not available." };
     saveAll([]);
 
     return {
@@ -528,6 +658,7 @@ const notificationService = (() => {
   function markAsReadBulk(
     notificationIds = []
   ) {
+    if (isSupabaseNotificationMode()) return markAuthenticatedNotificationsReadBulk(notificationIds);
     const ids = new Set(
       notificationIds.map(String)
     );
@@ -563,6 +694,7 @@ const notificationService = (() => {
   function deleteBulk(
     notificationIds = []
   ) {
+    if (isSupabaseNotificationMode()) return { success: false, message: "Deleting shared notifications is not available." };
     const ids = new Set(
       notificationIds.map(String)
     );
@@ -868,6 +1000,10 @@ const notificationService = (() => {
   }
   return {
     getAll,
+    hydrateAuthenticatedNotifications,
+    refreshAuthenticatedNotifications,
+    clearAuthenticatedNotifications,
+    getNotificationHydrationState,
     create,
     getUnread,
     getRead,

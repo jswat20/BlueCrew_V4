@@ -16,7 +16,7 @@ const defaultProfile = {
 export const test = base.extend({
   supabaseScenario: [{}, { option: true }],
 
-  supabaseAuthApp: async ({ page, supabaseScenario }, use) => {
+  supabaseAuthApp: async ({ page, browser, supabaseScenario }, use) => {
     const scenario = {
       profile: defaultProfile,
       crewId: "crew-umpire-1",
@@ -26,6 +26,7 @@ export const test = base.extend({
       games: [],
       assignments: [],
       claims: [],
+      notifications: [],
       crewMembers: [],
       initialSession: false,
       deniedTable: "",
@@ -34,7 +35,7 @@ export const test = base.extend({
       ...supabaseScenario
     };
 
-    await page.addInitScript((settings) => {
+    const installFixture = (settings) => {
       window.BLUECREW_SUPABASE_CONFIG = Object.freeze({
         url: "https://fixture.supabase.co",
         publishableKey: "sb_publishable_fixture"
@@ -57,8 +58,18 @@ export const test = base.extend({
             games: settings.games,
             game_assignments: settings.assignments,
             assignment_claims: settings.claims,
+            notifications: settings.notifications,
             crew_members: settings.crewMembers.filter(member => !selectedIds.length || selectedIds.map(String).includes(String(member.id)))
           };
+          if (table === "notifications") {
+            rows.notifications = settings.notifications.filter(notification =>
+              String(notification.organization_id) === String(settings.profile.organization_id) &&
+              (String(notification.recipient_profile_id || "") === String(settings.profile.id) ||
+                (!notification.recipient_profile_id &&
+                  ((notification.audience === "admin" && settings.profile.role === "administrator") ||
+                    (notification.audience === "umpire" && settings.profile.role === "umpire"))))
+            );
+          }
           return { data: rows[table] || [], error: null };
         }
         const query = {
@@ -149,6 +160,17 @@ export const test = base.extend({
             return { data: count, error: null };
           }
           if (name === "copy_own_availability_week") return { data: 0, error: null };
+          if (name === "mark_notification_read") {
+            const notification = settings.notifications.find(item => String(item.id) === String(args.p_notification_id) && String(item.recipient_profile_id) === String(settings.profile.id));
+            if (notification && !notification.read_at) notification.read_at = new Date().toISOString();
+            return { data: null, error: null };
+          }
+          if (name === "mark_all_notifications_read") {
+            settings.notifications.forEach(notification => {
+              if (String(notification.recipient_profile_id) === String(settings.profile.id) && !notification.read_at) notification.read_at = new Date().toISOString();
+            });
+            return { data: null, error: null };
+          }
           if (name === "submit_assignment_claim") {
             const assignment = settings.assignments.find(item => String(item.id) === String(args.p_assignment_id));
             if (!assignment || assignment.status !== "open_for_claim" || assignment.locked) {
@@ -184,6 +206,128 @@ export const test = base.extend({
             }
             return { data: assignment, error: null };
           }
+          if (name === "save_own_game_completion") {
+            const game = settings.games.find(
+              item =>
+                String(item.id) ===
+                String(args.p_game_id)
+            );
+            const assignment = settings.assignments.find(
+              item =>
+                String(item.game_id) ===
+                  String(args.p_game_id) &&
+                String(item.assigned_crew_member_id) ===
+                  String(settings.crewId) &&
+                ["assigned", "locked"].includes(item.status)
+            );
+
+            if (!game) {
+              return {
+                data: null,
+                error: {
+                  message:
+                    "game_completion_not_found"
+                }
+              };
+            }
+
+            if (!assignment) {
+              return {
+                data: null,
+                error: {
+                  message:
+                    "game_completion_not_assigned"
+                }
+              };
+            }
+
+            if (game.lifecycle_status === "cancelled") {
+              return {
+                data: null,
+                error: {
+                  message:
+                    "game_completion_cancelled"
+                }
+              };
+            }
+
+            if (
+              game.lifecycle_status === "approved" ||
+              game.review?.status === "approved" ||
+              game.review?.finalized === true
+            ) {
+              return {
+                data: null,
+                error: {
+                  message:
+                    "game_completion_finalized"
+                }
+              };
+            }
+
+            if (
+              !["scheduled", "returned"].includes(
+                game.lifecycle_status
+              )
+            ) {
+              return {
+                data: null,
+                error: {
+                  message:
+                    "game_completion_not_editable"
+                }
+              };
+            }
+
+            if (
+              !Number.isInteger(args.p_away_score) ||
+              args.p_away_score < 0 ||
+              !Number.isInteger(args.p_home_score) ||
+              args.p_home_score < 0
+            ) {
+              return {
+                data: null,
+                error: {
+                  message:
+                    "game_completion_invalid_score"
+                }
+              };
+            }
+
+            const completionTime =
+              game.report?.completion?.completionTime ||
+              new Date().toISOString();
+
+            game.report = {
+              ...(game.report || {}),
+              notes:
+                String(args.p_notes || "").trim(),
+              completion: {
+                completed: true,
+                completionTime,
+                completedByProfileId:
+                  settings.profile.id,
+                completedByCrewMemberId:
+                  settings.crewId,
+                completionStatus: "completed",
+                awayScore: args.p_away_score,
+                homeScore: args.p_home_score,
+                notes:
+                  String(args.p_notes || "").trim()
+              }
+            };
+
+            if (
+              game.lifecycle_status !== "returned"
+            ) {
+              game.lifecycle_status = "completed";
+            }
+
+            return {
+              data: { ...game },
+              error: null
+            };
+          }
           if (name === "provision_pending_umpire") {
             return { data: { ...settings.profile, status: "pending" }, error: null };
           }
@@ -199,12 +343,21 @@ export const test = base.extend({
 
       window.__supabaseFixture = { calls, client, settings };
       window.BLUECREW_SUPABASE_CLIENT_FACTORY = () => client;
-    }, scenario);
+    };
+
+    await page.addInitScript(installFixture, scenario);
 
     await page.goto("/");
     await use({
       page,
-      calls: () => page.evaluate(() => window.__supabaseFixture.calls)
+      calls: () => page.evaluate(() => window.__supabaseFixture.calls),
+      openContext: async (overrides = {}) => {
+        const context = await browser.newContext();
+        const contextPage = await context.newPage();
+        await contextPage.addInitScript(installFixture, { ...scenario, ...overrides });
+        await contextPage.goto("/");
+        return { context, page: contextPage };
+      }
     });
   }
 });
