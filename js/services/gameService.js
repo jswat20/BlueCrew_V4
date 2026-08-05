@@ -435,7 +435,7 @@ game.assignments =
       };
     }
 
-    const trackedFields = ["date", "time", "locationComplex", "locationField", "level", "homeTeam", "awayTeam", "status"];
+    const trackedFields = ["date", "time", "field", "locationComplex", "locationField", "level", "homeTeam", "awayTeam", "status"];
     const previousValues = Object.fromEntries(
       trackedFields.filter(field => Object.hasOwn(updates, field)).map(field => [field, game[field]])
     );
@@ -443,8 +443,8 @@ game.assignments =
     Object.assign(game, updates);
     if (typeof locationService !== "undefined") locationService.normalizeGame(game);
     const locationChanges = trackedFields
-      .filter(field => Object.hasOwn(updates, field) && String(previousValues[field] ?? "") !== String(game[field] ?? ""))
-      .map(field => ({ field, from: previousValues[field] ?? "", to: game[field] ?? "" }));
+      .filter(field => Object.hasOwn(updates, field) && String(previousValues[field] ?? "") !== String(updates[field] ?? game[field] ?? ""))
+      .map(field => ({ field, from: previousValues[field] ?? "", to: updates[field] ?? game[field] ?? "" }));
     normalizeGameLifecycleStatus(game);
     this.save();
 

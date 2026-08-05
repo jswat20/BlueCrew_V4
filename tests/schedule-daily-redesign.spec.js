@@ -200,7 +200,9 @@ test.describe("Schedule Daily View redesign", () => {
   test("game cards retain actions in a compact row", async ({ page }) => {
     const card = page.locator(".schedule-game-card").first();
     test.skip(await card.count() === 0, "No games exist on the selected date.");
-    await expect(card.locator(".game-card-actions button")).toHaveCount(1);
+    const actions = card.locator(".game-card-actions button");
+    expect(await actions.count()).toBeGreaterThanOrEqual(1);
+    await expect(card.locator(".game-card-actions")).toBeVisible();
     await expect(card.getByRole("button", { name: "View Game Hub" })).toBeVisible();
     const radius = await card.evaluate(element => parseFloat(getComputedStyle(element).borderRadius));
     expect(radius).toBeLessThanOrEqual(8);

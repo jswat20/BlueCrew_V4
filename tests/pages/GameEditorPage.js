@@ -52,21 +52,26 @@ export class GameEditorPage {
     await this.page.getByTestId("view-all-games").click();
   }
 
+  async openCurrentScheduleCards() {
+    await this.page.getByTestId("nav-schedule").click();
+    await this.page.getByTestId("today").click();
+  }
+
   gameRow({ homeTeam, awayTeam }) {
     return this.page
-      .getByRole("row")
+      .locator(".schedule-game-card")
       .filter({ hasText: homeTeam })
       .filter({ hasText: awayTeam });
   }
 
   async openEditForGame(gameOrId) {
-    await this.openAllGames();
+    await this.openCurrentScheduleCards();
 
     if (typeof gameOrId === "object") {
       const row = this.gameRow(gameOrId);
 
       await expect(row).toBeVisible();
-      await row.getByRole("button", { name: "Edit" }).click();
+      await row.getByTestId(/^edit-game-/).click();
     } else {
       await this.page.getByTestId(`edit-game-${gameOrId}`).click();
     }
@@ -79,7 +84,7 @@ export class GameEditorPage {
   }
 
   async expectGameVisible({ homeTeam, awayTeam, field }) {
-    await this.openAllGames();
+    await this.openCurrentScheduleCards();
 
     const row = this.gameRow({ homeTeam, awayTeam });
 
@@ -91,7 +96,7 @@ export class GameEditorPage {
   }
 
   async expectGameNotVisible({ homeTeam, awayTeam }) {
-    await this.openAllGames();
+    await this.openCurrentScheduleCards();
 
     const row = this.gameRow({ homeTeam, awayTeam });
 
@@ -103,7 +108,7 @@ export class GameEditorPage {
   }
 
   async deleteGameByMatchup({ homeTeam, awayTeam }) {
-    await this.openAllGames();
+    await this.openCurrentScheduleCards();
 
     const row = this.gameRow({ homeTeam, awayTeam });
 
@@ -111,6 +116,6 @@ export class GameEditorPage {
 
     this.page.once("dialog", dialog => dialog.accept());
 
-    await row.getByRole("button", { name: "Delete" }).click();
+    await row.getByTestId(/^delete-game-/).click();
   }
 }

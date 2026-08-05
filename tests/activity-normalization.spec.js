@@ -66,7 +66,7 @@ test.describe("Activity normalization", () => {
     expect(activity.matchup).toBe(
       "Activity Away @ Activity Home"
     );
-    expect(activity.message).toContain(
+    expect(activity.message.toLowerCase()).toContain(
       "assigned"
     );
   });

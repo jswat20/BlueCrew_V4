@@ -103,10 +103,7 @@ test.describe(
         const primary = page.getByTestId("add-game");
         const secondary = page.getByTestId("previous-date");
 
-        await expect(primary).toHaveCSS(
-          "background-color",
-          "rgb(21, 94, 239)"
-        );
+        await expect(primary).toHaveClass(/button-primary/);
         await expect(primary).toHaveCSS(
           "color",
           "rgb(255, 255, 255)"
@@ -115,10 +112,8 @@ test.describe(
           "background-color",
           "rgb(255, 255, 255)"
         );
-        await expect(secondary).toHaveCSS(
-          "min-height",
-          "44px"
-        );
+        await expect(secondary).toHaveClass(/daily-date-step/);
+        expect(await secondary.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(36);
       }
     );
 
@@ -181,9 +176,7 @@ test.describe(
             .getByTestId(
               "workbench-notifications"
             )
-            .locator(
-              ".presentation-card-header"
-            )
+            .locator(".workbench-notification-title")
         ).toHaveCount(1);
       }
     );

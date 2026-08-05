@@ -679,18 +679,20 @@ function renderWorkbenchStatusStrip(workbench) {
   return `<nav class="workbench-status-strip" aria-label="Workbench status" data-testid="workbench-status-strip">${metrics.map(([id, label, value]) => `<button type="button" data-attention="${value > 0}" onclick="focusWorkbenchQueue('workbench-${id}')"><span>${label}</span><strong>${value}</strong></button>`).join("")}</nav>`;
 }
 
-function openWorkbenchNotification(notificationId) {
+async function openWorkbenchNotification(notificationId) {
   const notification = workbenchVisibleNotifications.find(item => String(item.id) === String(notificationId));
   if (!notification) return;
 
   if (!notification.virtual && !notification.read) {
-    notificationService.markAsRead(notification.id);
-    notification.read = true;
-    const row = document.querySelector(`[data-notification-id="${CSS.escape(String(notification.id))}"]`);
-    if (row) {
-      row.dataset.read = "true";
-      const state = row.querySelector(".workbench-notification-state");
-      if (state) state.textContent = "Read";
+    const result = await notificationService.markAsRead(notification.id);
+    if (result.success) {
+      notification.read = true;
+      const row = document.querySelector(`[data-notification-id="${CSS.escape(String(notification.id))}"]`);
+      if (row) {
+        row.dataset.read = "true";
+        const state = row.querySelector(".workbench-notification-state");
+        if (state) state.textContent = "Read";
+      }
     }
   }
 

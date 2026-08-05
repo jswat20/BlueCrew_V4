@@ -1320,38 +1320,43 @@ function getOperationsCenter(
         )
     );
 
+  const finiteCount = value => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+  };
+
   const queueCounts = {
     assignments:
-      tasks.todaysPriorities.count +
-      tasks.needsAssignment.count,
+      finiteCount(tasks.todaysPriorities.count) +
+      finiteCount(tasks.needsAssignment.count),
 
     claims:
-      tasks.pendingClaims.count,
+      finiteCount(tasks.pendingClaims.count),
 
     reviews:
-      tasks.awaitingReview.count +
-      tasks.returnedReviews.count,
+      finiteCount(tasks.awaitingReview.count) +
+      finiteCount(tasks.returnedReviews.count),
 
     accounts:
-      tasks.pendingAccounts.count,
+      finiteCount(tasks.pendingAccounts.count),
 
     conflicts:
-      tasks.conflicts.count,
+      finiteCount(tasks.conflicts.count),
 
     needsAssignment:
-      tasks.needsAssignment.count,
+      finiteCount(tasks.needsAssignment.count),
 
     pendingClaims:
-      tasks.pendingClaims.count,
+      finiteCount(tasks.pendingClaims.count),
 
     awaitingReview:
-      tasks.awaitingReview.count,
+      finiteCount(tasks.awaitingReview.count),
 
     returnedReviews:
-      tasks.returnedReviews.count,
+      finiteCount(tasks.returnedReviews.count),
 
     todaysPriorities:
-      tasks.todaysPriorities.count
+      finiteCount(tasks.todaysPriorities.count)
   };
 
   queueCounts.all =
@@ -1481,7 +1486,7 @@ function getOperationsCenter(
     {
       id: "active-alerts",
       label: "Active Alerts",
-      value: tasks.conflicts.count,
+      value: finiteCount(tasks.conflicts.count),
       requiresAction: true,
       action: "schedule-conflict",
       item: tasks.conflicts.items[0] || {}
@@ -1687,7 +1692,7 @@ function getOperationsCenter(
     operationalProgress,
 
     outstandingCount:
-      queueCounts[activeQueue],
+      finiteCount(queueCounts[activeQueue]),
 
     totalOutstandingCount:
       queueCounts.all,

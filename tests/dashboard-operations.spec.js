@@ -466,7 +466,7 @@ test.describe("Dashboard Entry Experience", () => {
     await expect(app.page.getByTestId("schedule-filter-today")).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("administrator dashboard omits the crew Notification Center shortcut", async ({
+  test("administrator dashboard omits the crew shortcut while retaining Notifications navigation", async ({
     app
   }) => {
     await app.page.evaluate(() => {
@@ -479,6 +479,6 @@ test.describe("Dashboard Entry Experience", () => {
 
     await expect(
       app.page.getByTestId("nav-notifications")
-    ).toBeHidden();
+    ).toBeVisible();
   });
 });
