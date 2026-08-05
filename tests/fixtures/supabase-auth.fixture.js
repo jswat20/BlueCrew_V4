@@ -21,9 +21,15 @@ export const test = base.extend({
       profile: defaultProfile,
       crewId: "crew-umpire-1",
       availability: [],
+      locations: [],
+      fields: [],
+      games: [],
+      assignments: [],
+      crewMembers: [],
       initialSession: false,
       deniedTable: "",
       failedRpc: "",
+      deniedReferencedCrew: false,
       ...supabaseScenario
     };
 
@@ -39,17 +45,29 @@ export const test = base.extend({
       function queryFor(table) {
         let operation = "select";
         let payload = null;
+        let selectedIds = [];
+        async function listResult() {
+          calls.push({ operation: "select", table });
+          if (settings.deniedTable === table || (table === "crew_members" && settings.deniedReferencedCrew && selectedIds.length)) return { data: null, error: { message: "RLS denied" } };
+          const rows = {
+            availability: settings.availability,
+            locations: settings.locations,
+            fields: settings.fields,
+            games: settings.games,
+            game_assignments: settings.assignments,
+            crew_members: settings.crewMembers.filter(member => !selectedIds.length || selectedIds.map(String).includes(String(member.id)))
+          };
+          return { data: rows[table] || [], error: null };
+        }
         const query = {
-          select() { return query; },
+          select(columns) { calls.push({ operation: "selectColumns", table, columns }); return query; },
           eq() { return query; },
           update(value) { operation = "update"; payload = value; return query; },
           upsert(value) { operation = "upsert"; payload = value; return query; },
           delete() { operation = "delete"; return query; },
-          async order() {
-            calls.push({ operation: "select", table });
-            if (settings.deniedTable === table) return { data: null, error: { message: "RLS denied" } };
-            return { data: table === "availability" ? settings.availability : [], error: null };
-          },
+          in(column, ids) { selectedIds = ids || []; return query; },
+          order(column) { calls.push({ operation: "order", table, column }); return query; },
+          then(resolve, reject) { return listResult().then(resolve, reject); },
           async single() {
             calls.push({ operation, table, payload });
             if (table === "profiles" && operation === "update") {
@@ -142,7 +160,7 @@ export const test = base.extend({
         }
       };
 
-      window.__supabaseFixture = { calls, client };
+      window.__supabaseFixture = { calls, client, settings };
       window.BLUECREW_SUPABASE_CLIENT_FACTORY = () => client;
     }, scenario);
 

@@ -107,6 +107,18 @@ const assignmentService = (() => {
   function normalizeGame(game) {
     if (!game) return null;
 
+    if (game.sharedHydrated === true) {
+      game.assignments = Array.isArray(game.assignments) ? game.assignments : [];
+      game.assignments.forEach(assignment => {
+        assignment.gameId = game.id;
+        assignment.crewId = assignment.crewId || "";
+        assignment.claimedBy = assignment.claimedBy || "";
+        assignment.locked = assignment.locked === true || assignment.status === STATUS.LOCKED;
+      });
+      syncLegacyFields(game);
+      return game;
+    }
+
     const positions = getPositionsForGame(game);
 
     if (!Array.isArray(game.assignments)) {

@@ -61,6 +61,51 @@ const supabaseSharedRepository = (() => {
     });
   }
 
+  async function getLocations() {
+    const db = await client();
+    return db.from("locations")
+      .select("id,organization_id,legacy_location_id,name,address,active")
+      .order("name")
+      .order("id");
+  }
+
+  async function getFields() {
+    const db = await client();
+    return db.from("fields")
+      .select("id,organization_id,location_id,legacy_field_id,name,active")
+      .order("name")
+      .order("id");
+  }
+
+  async function getGames() {
+    const db = await client();
+    return db.from("games")
+      .select("id,organization_id,season_id,location_id,field_id,legacy_game_id,game_date,game_time,timezone,home_team,away_team,level,game_type,lifecycle_status,review,report,source_metadata")
+      .order("game_date")
+      .order("game_time")
+      .order("id");
+  }
+
+  async function getGameAssignments() {
+    const db = await client();
+    return db.from("game_assignments")
+      .select("id,organization_id,game_id,legacy_assignment_id,position,status,assigned_crew_member_id,locked,accepted_at,declined_at,decline_reason")
+      .order("game_id")
+      .order("position")
+      .order("id");
+  }
+
+  async function getCrewMembersByIds(crewMemberIds = []) {
+    if (!crewMemberIds.length) return { data: [], error: null };
+    const db = await client();
+    return db.from("crew_members")
+      .select("id,organization_id,profile_id,legacy_crew_id,first_name,last_name,email,phone,active,eligible_levels,preferences,notes")
+      .in("id", crewMemberIds)
+      .order("last_name")
+      .order("first_name")
+      .order("id");
+  }
+
   return {
     getProfileForAuthUser,
     updateProfile,
@@ -70,6 +115,11 @@ const supabaseSharedRepository = (() => {
     deleteAvailabilityDate,
     deleteAvailabilityWindow,
     setOwnAvailabilityRange,
-    copyOwnAvailabilityWeek
+    copyOwnAvailabilityWeek,
+    getLocations,
+    getFields,
+    getGames,
+    getGameAssignments,
+    getCrewMembersByIds
   };
 })();

@@ -82,5 +82,9 @@ async function handleLoginSubmit(event) {
     }
 
 renderPage("dashboard");
+  } else if (result.data && supabaseAuthService.getHydrationState().authenticated === true) {
+    document.body.dataset.role = result.data.role;
+    refreshNavigationAuthorization?.();
+    renderPage("dashboard");
   }
 }

@@ -14,10 +14,12 @@ const supabaseAuthService = (() => {
   async function loadAccountForUser(user) {
     if (!user?.id) return null;
     hydrationState = { status: "loading", message: "" };
-    clearSharedState();
     const profile = await accountService.loadAuthenticatedProfile(user);
     if (!profile) throw new Error("Account profile was not found.");
     if (profile.status !== "approved") {
+      crewService?.clearAllSharedCrew?.();
+      availabilityService?.clearAuthenticatedAvailability?.();
+      clearSchedulingState();
       hydrationState = { status: "ready", message: "" };
       return profile;
     }
@@ -25,14 +27,39 @@ const supabaseAuthService = (() => {
     accountService.setAuthenticatedCrewId(crewMember?.id || null);
     if (profile.role === "umpire" && !crewMember) throw new Error("Approved umpire has no linked crew member.");
     if (crewMember) await availabilityService.loadAuthenticatedAvailability(crewMember.id);
+    try {
+      const preparedLocations = await locationService.prepareSharedLocations();
+      const preparedSchedule = await gameService.prepareSharedGames(preparedLocations);
+      locationService.publishSharedLocations(preparedLocations);
+      crewService.publishReferencedCrewMembers(preparedSchedule.referencedCrew);
+      gameService.publishSharedGames(preparedSchedule);
+    } catch (error) {
+      clearSchedulingState();
+      const account = accountService.getAuthenticatedProfile();
+      applyIdentity(account);
+      const hydrationError = error instanceof Error
+        ? error
+        : new Error(error?.message || "Shared schedule data could not be loaded.");
+      hydrationState = { status: "error", message: hydrationError.message, authenticated: true };
+      hydrationError.isSchedulingHydrationError = true;
+      hydrationError.account = account;
+      throw hydrationError;
+    }
     hydrationState = { status: "ready", message: "" };
     return accountService.getAuthenticatedProfile();
   }
 
   function clearSharedState() {
     accountService?.clearAuthenticatedProfile?.();
-    crewService?.clearAuthenticatedCrewMember?.();
+    crewService?.clearAllSharedCrew?.();
     availabilityService?.clearAuthenticatedAvailability?.();
+    clearSchedulingState();
+  }
+
+  function clearSchedulingState() {
+    crewService?.clearReferencedCrewMembers?.();
+    locationService?.clearSharedLocations?.();
+    gameService?.clearSharedGames?.();
   }
 
   function applyIdentity(account) {
@@ -75,6 +102,9 @@ const supabaseAuthService = (() => {
       applyIdentity(account);
       return mutationResult(true, "Session restored.", account);
     } catch (error) {
+      if (error.isSchedulingHydrationError) {
+        return mutationResult(false, error.message || "Could not load shared schedule data.", error.account);
+      }
       failHydration(error);
       return mutationResult(false, error.message || "Could not restore the session.");
     }
@@ -95,6 +125,9 @@ const supabaseAuthService = (() => {
       applyIdentity(account);
       return mutationResult(true, "Login successful.", account);
     } catch (loadError) {
+      if (loadError.isSchedulingHydrationError) {
+        return mutationResult(false, loadError.message || "Could not load shared schedule data.", loadError.account);
+      }
       await client.auth.signOut();
       failHydration(loadError);
       return mutationResult(false, loadError.message || "Could not load the account profile.");
@@ -178,7 +211,7 @@ const supabaseAuthService = (() => {
             const account = await loadAccountForUser(session.user);
             if (account?.status === "approved") applyIdentity(account);
           } catch (error) {
-            failHydration(error);
+            if (!error.isSchedulingHydrationError) failHydration(error);
           }
         }
       }, 0);

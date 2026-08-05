@@ -1,6 +1,7 @@
 // js/services/crewService.js
 
 let authenticatedCrewSnapshot = null;
+let referencedCrewSnapshots = [];
 
 const crewService = {
   isSharedMode() {
@@ -12,20 +13,51 @@ const crewService = {
     const { data, error } = await supabaseSharedRepository.getLinkedCrewMember(profileId);
     if (error) throw error;
     authenticatedCrewSnapshot = sharedDomainMappingService.mapCrewMember(data);
-    return authenticatedCrewSnapshot;
+    return authenticatedCrewSnapshot ? structuredClone(authenticatedCrewSnapshot) : null;
   },
 
   clearAuthenticatedCrewMember() {
     authenticatedCrewSnapshot = null;
   },
 
+  clearReferencedCrewMembers() {
+    referencedCrewSnapshots = [];
+  },
+
+  clearAllSharedCrew() {
+    this.clearAuthenticatedCrewMember();
+    this.clearReferencedCrewMembers();
+  },
+
   getAuthenticatedCrewMember() {
-    return authenticatedCrewSnapshot;
+    return authenticatedCrewSnapshot ? structuredClone(authenticatedCrewSnapshot) : null;
+  },
+
+  async prepareReferencedCrewMembers(crewMemberIds = []) {
+    if (!this.isSharedMode()) return [];
+    const ids = [...new Set(crewMemberIds.map(String).filter(Boolean))]
+      .filter(id => String(authenticatedCrewSnapshot?.id || "") !== id);
+    const { data, error } = await supabaseSharedRepository.getCrewMembersByIds(ids);
+    if (error) throw error;
+    return (data || [])
+      .map(sharedDomainMappingService.mapCrewMember)
+      .filter(Boolean)
+      .sort((left, right) => `${left.lastName}\u0000${left.firstName}\u0000${left.id}`.localeCompare(`${right.lastName}\u0000${right.firstName}\u0000${right.id}`));
+  },
+
+  publishReferencedCrewMembers(prepared = []) {
+    referencedCrewSnapshots = structuredClone(prepared);
+    return structuredClone(referencedCrewSnapshots);
+  },
+
+  async loadReferencedCrewMembers(crewMemberIds = []) {
+    const prepared = await this.prepareReferencedCrewMembers(crewMemberIds);
+    return this.publishReferencedCrewMembers(prepared);
   },
 
   getAll() {
     if (this.isSharedMode()) {
-      return authenticatedCrewSnapshot ? [authenticatedCrewSnapshot] : [];
+      return structuredClone([authenticatedCrewSnapshot, ...referencedCrewSnapshots].filter(Boolean));
     }
     return Array.isArray(crew) ? crew : [];
   },

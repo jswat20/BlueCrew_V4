@@ -44,7 +44,7 @@ test("profile and availability are shared across independent authenticated conte
           delete() { operation = "delete"; return builder; },
           maybeSingle() { return window.__bluecrewSharedQuery({ table, operation, payload }); },
           single() { return window.__bluecrewSharedQuery({ table, operation, payload }); },
-          order() { return window.__bluecrewSharedQuery({ table, operation, payload }); },
+          order() { return builder; },
           then(resolve, reject) { return window.__bluecrewSharedQuery({ table, operation, payload }).then(resolve, reject); }
         };
         return builder;

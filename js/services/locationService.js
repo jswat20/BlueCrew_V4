@@ -3,8 +3,66 @@ const locationService = (() => {
   const STORAGE_KEY = "bluecrew_location_catalog";
   const getRepository = () => repositoryProvider.get("locations");
   const clean = value => String(value || "").trim();
+  let sharedLocationsSnapshot = null;
+  let sharedLocationRecords = [];
+  let sharedFieldRecords = [];
+  const isSharedMode = () => typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+
+  async function prepareSharedLocations() {
+    if (!isSharedMode()) return getLocations();
+    const [locationResult, fieldResult] = await Promise.all([
+      supabaseSharedRepository.getLocations(),
+      supabaseSharedRepository.getFields()
+    ]);
+    if (locationResult.error) throw locationResult.error;
+    if (fieldResult.error) throw fieldResult.error;
+    const locations = (locationResult.data || []).map(sharedDomainMappingService.mapLocation).filter(Boolean);
+    const fields = (fieldResult.data || []).map(sharedDomainMappingService.mapField).filter(Boolean);
+    return {
+      locationRecords: locations,
+      fieldRecords: fields,
+      presentation: locations.map(location => ({
+      name: location.name,
+      fields: fields.filter(field => field.locationId === location.id).map(field => field.name)
+      }))
+    };
+  }
+
+  function publishSharedLocations(prepared) {
+    sharedLocationRecords = structuredClone(prepared?.locationRecords || []);
+    sharedFieldRecords = structuredClone(prepared?.fieldRecords || []);
+    sharedLocationsSnapshot = structuredClone(prepared?.presentation || []);
+    return getSharedLocationsSnapshot();
+  }
+
+  async function loadSharedLocations() {
+    const prepared = await prepareSharedLocations();
+    if (isSharedMode()) publishSharedLocations(prepared);
+    return getLocations();
+  }
+
+  function clearSharedLocations() {
+    sharedLocationsSnapshot = null;
+    sharedLocationRecords = [];
+    sharedFieldRecords = [];
+  }
+
+  function getSharedLocationsSnapshot() {
+    return sharedLocationsSnapshot ? structuredClone(sharedLocationsSnapshot) : null;
+  }
+
+  function getSharedLocationRecord(id) {
+    const record = sharedLocationRecords.find(location => String(location.id) === String(id)) || null;
+    return record ? structuredClone(record) : null;
+  }
+
+  function getSharedFieldRecord(id) {
+    const record = sharedFieldRecords.find(field => String(field.id) === String(id)) || null;
+    return record ? structuredClone(record) : null;
+  }
 
   function getConfiguredLocations() {
+    if (isSharedMode()) return sharedLocationsSnapshot || [];
     try {
       const stored = getRepository().read();
       if (Array.isArray(stored)) return stored;
@@ -13,6 +71,7 @@ const locationService = (() => {
   }
 
   function getLocations() {
+    if (isSharedMode()) return getSharedLocationsSnapshot() || [];
     const configured = getConfiguredLocations();
     const locations = configured.map(location => ({
       name: clean(location?.name),
@@ -52,9 +111,11 @@ const locationService = (() => {
     return Boolean(complex && field && getFields(complex).includes(field));
   }
   function saveConfiguredLocations(locations) {
+    if (isSharedMode()) throw new Error("Location mutations are unavailable in Supabase read mode.");
     getRepository().write(locations);
   }
   function addComplex(name) {
+    if (isSharedMode()) return { success: false, message: "Location changes are unavailable in shared read mode." };
     const cleanName = clean(name);
     if (!cleanName) return { success: false, message: "Enter a complex name." };
     const locations = getConfiguredLocations().map(location => ({ name: clean(location.name), fields: [...(location.fields || [])] }));
@@ -64,6 +125,7 @@ const locationService = (() => {
     return { success: true, message: "Location complex added." };
   }
   function addField(complexName, fieldName) {
+    if (isSharedMode()) return { success: false, message: "Field changes are unavailable in shared read mode." };
     const cleanComplex = clean(complexName);
     const cleanField = clean(fieldName);
     if (!cleanField) return { success: false, message: "Enter a field name." };
@@ -75,5 +137,5 @@ const locationService = (() => {
     saveConfiguredLocations(locations);
     return { success: true, message: "Location field added." };
   }
-  return { LEGACY_COMPLEX, getLocations, getComplexes, getFields, normalizeGame, getDisplayName, isValidPair, addComplex, addField };
+  return { LEGACY_COMPLEX, getLocations, getComplexes, getFields, normalizeGame, getDisplayName, isValidPair, addComplex, addField, prepareSharedLocations, publishSharedLocations, loadSharedLocations, clearSharedLocations, getSharedLocationsSnapshot, getSharedLocationRecord, getSharedFieldRecord };
 })();

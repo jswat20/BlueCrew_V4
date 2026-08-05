@@ -133,8 +133,73 @@ function notifyAssignedCrewOfGameChanges(game, changes) {
   });
 }
 
+let sharedGamesSnapshot = null;
+
+function isSharedGameMode() {
+  return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+}
+
 const gameService = {
+  async prepareSharedGames(preparedLocations = null) {
+    if (!isSharedGameMode()) return this.getAll();
+    const [gameResult, assignmentResult] = await Promise.all([
+      supabaseSharedRepository.getGames(),
+      supabaseSharedRepository.getGameAssignments()
+    ]);
+    if (gameResult.error) throw gameResult.error;
+    if (assignmentResult.error) throw assignmentResult.error;
+    const assignmentsByGame = new Map();
+    const assignmentRows = [...(assignmentResult.data || [])].sort((left, right) =>
+      `${left.game_id}\u0000${left.position}\u0000${left.id}`.localeCompare(`${right.game_id}\u0000${right.position}\u0000${right.id}`)
+    );
+    assignmentRows.forEach(row => {
+      const rows = assignmentsByGame.get(row.game_id) || [];
+      rows.push(row);
+      assignmentsByGame.set(row.game_id, rows);
+    });
+    const locationRecords = preparedLocations?.locationRecords || [];
+    const fieldRecords = preparedLocations?.fieldRecords || [];
+    const mapped = (gameResult.data || []).map(row => {
+      const location = locationRecords.find(item => String(item.id) === String(row.location_id)) || null;
+      const candidateField = fieldRecords.find(item => String(item.id) === String(row.field_id)) || null;
+      const field = candidateField && String(candidateField.locationId) === String(row.location_id)
+        ? candidateField
+        : null;
+      return sharedDomainMappingService.mapGame(row, {
+      location,
+      field,
+      assignments: assignmentsByGame.get(row.id) || []
+      });
+    }).filter(Boolean).sort((left, right) => `${left.date}\u0000${left.time}\u0000${left.id}`.localeCompare(`${right.date}\u0000${right.time}\u0000${right.id}`));
+    const referencedCrewIds = [...new Set(mapped.flatMap(game => game.assignments.map(assignment => assignment.crewId).filter(Boolean)))];
+    const referencedCrew = await crewService.prepareReferencedCrewMembers(referencedCrewIds);
+    return { games: mapped, referencedCrew };
+  },
+
+  publishSharedGames(prepared) {
+    sharedGamesSnapshot = structuredClone(prepared?.games || []);
+    return this.getSharedGamesSnapshot();
+  },
+
+  async loadSharedGames(preparedLocations = null) {
+    const prepared = await this.prepareSharedGames(preparedLocations);
+    if (isSharedGameMode()) {
+      crewService.publishReferencedCrewMembers(prepared.referencedCrew);
+      this.publishSharedGames(prepared);
+    }
+    return this.getAll();
+  },
+
+  clearSharedGames() {
+    sharedGamesSnapshot = null;
+  },
+
+  getSharedGamesSnapshot() {
+    return sharedGamesSnapshot ? structuredClone(sharedGamesSnapshot) : null;
+  },
+
   getAll() {
+    if (isSharedGameMode()) return sharedGamesSnapshot ? structuredClone(sharedGamesSnapshot) : [];
     const source = Array.isArray(games) ? games : [];
     if (typeof locationService !== "undefined") {
       source.forEach(game => locationService.normalizeGame(game));
@@ -396,7 +461,9 @@ game.assignments =
   },
 
   save() {
+    if (isSharedGameMode()) return false;
     saveGames();
+    return true;
   },
 
   getFirstDateOrToday() {

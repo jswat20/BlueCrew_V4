@@ -106,17 +106,15 @@ const pages = {
 
 function initializeApp() {
   const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
-  games = loadGames();
+  games = usesSupabaseAuth ? [] : loadGames();
   crew = usesSupabaseAuth ? [] : loadCrew();
 
-  if (usesSupabaseAuth) {
-    ensureGameIds();
-  } else {
+  if (!usesSupabaseAuth) {
     ensureDataIds();
     migrateCrewIds();
   }
 
-  migrationService.migrateGames();
+  if (!usesSupabaseAuth) migrationService.migrateGames();
   if (!usesSupabaseAuth) migrationService.migrateCrewAccounts();
 
   document.body.dataset.page = usesSupabaseAuth ? "login" : "dashboard";
@@ -137,7 +135,7 @@ function initializeApp() {
     window.BlueCrew.test.initialized = true;
 
     loginService.initializeAuthenticatedIdentity().then(result => {
-      if (!result.success || !result.data) return;
+      if (!result.data) return;
       document.body.dataset.role = result.data.role;
       window.BlueCrew.test.currentRole = result.data.role;
       refreshNavigationAuthorization?.();
@@ -277,8 +275,13 @@ function renderPage(page, context = {}) {
   const content = document.getElementById("app-content");
   if (!content) return;
 
-  if (["profile", "availability"].includes(page) && typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured() && supabaseAuthService.getHydrationState().status !== "ready") {
-    const state = supabaseAuthService.getHydrationState();
+  const sharedHydrationState = typeof supabaseAuthService !== "undefined"
+    ? supabaseAuthService.getHydrationState()
+    : { status: "ready" };
+  const requiresSharedHydration = sharedHydrationState.status === "error"
+    || (["profile", "availability"].includes(page) && sharedHydrationState.status !== "ready");
+  if (page !== "login" && requiresSharedHydration && typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+    const state = sharedHydrationState;
     content.innerHTML = `<div class="page-wrapper" data-testid="shared-hydration-error"><section class="page-section"><h2>Account data unavailable</h2><p>${escapeSharedStateHtml(state.message || "Your shared account data has not finished loading.")}</p><button type="button" data-testid="shared-hydration-retry" onclick="retrySharedHydration()">Retry</button><button type="button" class="secondary" data-testid="shared-hydration-logout" onclick="loginService.logoutAuthenticated().then(() => renderPage('login'))">Log out</button></section></div>`;
     return;
   }
