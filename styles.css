@@ -1885,6 +1885,27 @@ body {
   padding: 24px;
 }
 
+.game-hub-umpire-summary { padding: 20px; }
+.game-hub-umpire-summary h2 { margin: 0; font-size: clamp(1.3rem, 3vw, 1.75rem); }
+.game-hub-summary-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.game-hub-level-badge,
+.game-hub-operational-badge,
+.game-hub-assignment-badge,
+.game-hub-position-badge { border-radius: 999px; display: inline-flex; padding: 7px 12px; font-weight: 800; line-height: 1; }
+.game-hub-level-badge { background: #0f2742; color: #fff; }
+.game-hub-operational-badge[data-status="on-time"],
+.game-hub-assignment-badge[data-assigned="true"] { background: #15803d; color: #fff; }
+.game-hub-operational-badge[data-status="delayed"] { background: #c2410c; color: #fff; }
+.game-hub-operational-badge[data-status="cancelled"] { background: #b91c1c; color: #fff; }
+.game-hub-operational-badge[data-status="completed"] { background: var(--accent, #14b8a6); color: #062b2a; }
+.game-hub-assignment-badge[data-assigned="false"], .game-hub-position-badge { background: #e2e8f0; color: #0f2742; }
+.game-hub-weather { display: inline-flex; align-items: center; min-height: 30px; color: #334155; font-weight: 650; }
+.game-hub-summary-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+.game-hub-completion-dialog { width: min(92vw, 520px); border: 0; border-radius: 14px; padding: 24px; box-shadow: 0 24px 60px rgba(15, 39, 66, .28); }
+.game-hub-completion-dialog::backdrop { background: rgba(15, 23, 42, .58); }
+.game-hub-completion-dialog label { display: grid; gap: 6px; margin: 14px 0; font-weight: 700; }
+.game-hub-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
 .game-hub-summary-header {
   display: flex;
   justify-content: space-between;

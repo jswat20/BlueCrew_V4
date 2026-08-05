@@ -97,6 +97,54 @@ function renderGameHubLifecycleBanner(game) {
   `;
 }
 
+function getUmpireOperationalStatus(game) {
+  const status = game?.lifecycleStatus || "scheduled";
+  if (status === "cancelled") return { label: "Cancelled", key: "cancelled" };
+  if (["completed", "submitted", "returned", "approved"].includes(status)) return { label: "Completed", key: "completed" };
+  if (status === "postponed") return { label: "Delayed", key: "delayed" };
+  return { label: "On Time", key: "on-time" };
+}
+
+function getUmpirePositionLabel(position, game) {
+  const value = String(position || "").trim();
+  if (["B1", "B2", "B3"].includes(value.toUpperCase())) return value.toUpperCase();
+  if (/plate/i.test(value)) return Number(game?.crewSize || 1) === 1 ? "Plate (solo)" : "Plate";
+  if (/base/i.test(value)) return Number(game?.crewSize || 2) === 2 ? "Base (2-man)" : "Base";
+  return value || "Position unavailable";
+}
+
+function renderUmpireGameSummary(game) {
+  const operational = getUmpireOperationalStatus(game);
+  const assigned = ["assigned", "locked"].includes(game.assignmentStatus);
+  const conditions = game.gameConditions || {};
+  const weather = [conditions.summary, conditions.temperature, conditions.fieldStatus].filter(Boolean);
+  const canDecline = assigned && !["cancelled", "completed", "submitted", "returned", "approved"].includes(game.lifecycleStatus);
+  return `<section class="card game-hub-summary game-hub-umpire-summary" data-testid="game-hub-summary" data-umpire-summary="true">
+    <div class="game-hub-summary-header"><h2 data-testid="game-hub-matchup">${escapeGameHubText(game.matchup)}</h2><div class="game-hub-summary-badges">
+      <span class="game-hub-level-badge" data-testid="game-hub-level-badge">${escapeGameHubText(game.level || "Level TBD")}</span>
+      <span class="game-hub-operational-badge" data-status="${operational.key}" data-testid="game-hub-operational-status">${operational.label}</span>
+      <span class="game-hub-weather" data-testid="game-hub-weather">${weather.length ? escapeGameHubText(weather.join(" · ")) : "Forecast unavailable."}</span>
+      <span class="game-hub-assignment-badge" data-assigned="${assigned}" data-testid="game-hub-assignment-badge">${assigned ? "You’re Assigned" : "Assigned"}</span>
+    </div></div>
+    <div class="game-hub-summary-details">
+      <div data-testid="game-hub-summary-date"><span>When</span><strong>${escapeGameHubText(game.date || "Date TBD")}</strong></div>
+      <div data-testid="game-hub-summary-time"><span>Time</span><strong>${escapeGameHubText(game.time || "Time TBD")}</strong></div>
+      <div data-testid="game-hub-summary-location"><span>Where</span><strong>${escapeGameHubText(game.gameInformation?.locationComplex || game.gameInformation?.venue || "Location TBD")}</strong></div>
+      <div data-testid="game-hub-summary-field"><span>Field</span><strong>${escapeGameHubText(game.gameInformation?.locationField || game.gameInformation?.field || "Field TBD")}</strong></div>
+      ${assigned ? `<div data-testid="game-hub-summary-position"><span>Position</span><strong class="game-hub-position-badge">${escapeGameHubText(getUmpirePositionLabel(game.positions?.[0], game))}</strong></div>` : ""}
+    </div>${canDecline ? `<div class="game-hub-summary-actions"><button type="button" class="button button-danger" data-testid="game-hub-decline-assignment" onclick="declineAssignmentFromHub('${escapeGameHubText(game.id)}')">Decline Assignment</button></div>` : ""}
+  </section>`;
+}
+
+function declineAssignmentFromHub(gameId) {
+  const reason = window.prompt("Why are you declining this assignment? A reason is required.");
+  if (reason === null) return;
+  const result = portalService.declineAssignment(gameId, reason);
+  if (!result.success) return toastService?.error?.(result.message);
+  toastService?.success?.("Assignment declined. The assigner has been notified.");
+  renderPage("my-schedule");
+}
+
 function renderGameHubCrewNotes(game) {
   return `
     <section
@@ -792,6 +840,7 @@ function renderGameHubCompletion(
   };
 
   if (!completion.completed) {
+    const eligibility = portalService.getCompletionEligibility(game);
     return `
       <section
         class="card game-hub-section game-hub-completion"
@@ -809,10 +858,22 @@ function renderGameHubCompletion(
           type="button"
           class="button button-primary"
           data-testid="game-hub-complete-game"
-          onclick="completeGameFromHub('${game.id}')"
+          onclick="openGameCompletionDialog()"
+          ${eligibility.allowed ? "" : "disabled"}
+          aria-describedby="game-hub-completion-help"
         >
           Complete Game
         </button>
+
+        <p class="muted" id="game-hub-completion-help" data-testid="game-hub-completion-help">${escapeGameHubText(eligibility.allowed ? "Enter the final score and optional game notes." : eligibility.reason)}</p>
+        <dialog class="game-hub-completion-dialog" data-testid="game-hub-completion-dialog" aria-labelledby="game-hub-completion-dialog-title" onclose="restoreGameCompletionFocus()">
+          <div><h3 id="game-hub-completion-dialog-title">Complete Game</h3>
+          <label>Away Score<input type="number" min="0" step="1" data-testid="game-hub-completion-away-score"></label>
+          <label>Home Score<input type="number" min="0" step="1" data-testid="game-hub-completion-home-score"></label>
+          <label>Game Notes<textarea rows="5" data-testid="game-hub-completion-notes"></textarea></label>
+          <p class="form-status" role="alert" data-testid="game-hub-completion-dialog-error"></p>
+          <div class="game-hub-dialog-actions"><button type="button" class="button button-primary" data-testid="game-hub-confirm-completion" onclick="completeGameFromHub('${game.id}')">Complete Game</button><button type="button" class="button button-secondary" data-testid="game-hub-cancel-completion" onclick="closeGameCompletionDialog()">Cancel</button></div></div>
+        </dialog>
 
         <p
           class="form-status"
@@ -863,7 +924,7 @@ function renderGameHubCompletion(
         </div>
       </dl>
 
-      <div
+      ${false ? `<div
         class="game-hub-final-score"
         data-testid="game-hub-final-score"
       >
@@ -931,7 +992,23 @@ function renderGameHubCompletion(
       ${renderGameHubReports(
         game,
         completion
-      )}
+      )}` : ""}
+
+      <div class="game-hub-completion-summary" data-testid="game-hub-completion-summary">
+        <h4>Final Score</h4>
+        <p><strong>${escapeGameHubText(game.awayTeam)}</strong> ${completion.awayScore} – ${completion.homeScore} <strong>${escapeGameHubText(game.homeTeam)}</strong></p>
+        ${completion.reports?.notes ? `<p data-testid="game-hub-completion-notes-readonly"><strong>Game Notes:</strong> ${escapeGameHubText(completion.reports.notes)}</p>` : ""}
+      </div>
+
+      ${game.lifecycleStatus === "returned" ? `<button type="button" class="button button-primary" data-testid="game-hub-edit-completion" onclick="openGameCompletionEditDialog()">Edit Completion</button>
+      <dialog class="game-hub-completion-dialog" data-testid="game-hub-completion-edit-dialog" aria-labelledby="game-hub-completion-edit-title" onclose="restoreGameCompletionFocus()"><div>
+        <h3 id="game-hub-completion-edit-title">Edit Completion</h3>
+        <label>Away Score<input type="number" min="0" step="1" value="${completion.awayScore ?? ""}" data-testid="game-hub-edit-away-score"></label>
+        <label>Home Score<input type="number" min="0" step="1" value="${completion.homeScore ?? ""}" data-testid="game-hub-edit-home-score"></label>
+        <label>Game Notes<textarea rows="5" data-testid="game-hub-edit-notes">${escapeGameHubText(completion.reports?.notes || "")}</textarea></label>
+        <p class="form-status" role="alert" data-testid="game-hub-completion-edit-error"></p>
+        <div class="game-hub-dialog-actions"><button type="button" class="button button-primary" data-testid="game-hub-save-completion-edit" onclick="saveGameCompletionEdit('${game.id}')">Save Changes</button><button type="button" class="button button-secondary" onclick="document.querySelector('[data-testid=game-hub-completion-edit-dialog]').close()">Cancel</button></div>
+      </div></dialog>` : ""}
 
       ${renderGameHubReview(
         game,
@@ -942,9 +1019,49 @@ function renderGameHubCompletion(
   `;
 }
 
+let gameCompletionTrigger = null;
+
+function openGameCompletionDialog() {
+  const dialog = document.querySelector('[data-testid="game-hub-completion-dialog"]');
+  gameCompletionTrigger = document.activeElement;
+  dialog?.showModal();
+  dialog?.querySelector("input")?.focus();
+}
+
+function openGameCompletionEditDialog() {
+  const dialog = document.querySelector('[data-testid="game-hub-completion-edit-dialog"]');
+  gameCompletionTrigger = document.activeElement;
+  dialog?.showModal();
+  dialog?.querySelector("input")?.focus();
+}
+
+function saveGameCompletionEdit(gameId) {
+  const result = portalService.updateCompletedGame(gameId, {
+    awayScore: document.querySelector('[data-testid="game-hub-edit-away-score"]')?.value ?? "",
+    homeScore: document.querySelector('[data-testid="game-hub-edit-home-score"]')?.value ?? "",
+    notes: document.querySelector('[data-testid="game-hub-edit-notes"]')?.value ?? ""
+  });
+  if (result.success) return renderPage("game-hub", { gameId });
+  const status = document.querySelector('[data-testid="game-hub-completion-edit-error"]');
+  if (status) status.textContent = result.message;
+}
+
+function closeGameCompletionDialog() {
+  document.querySelector('[data-testid="game-hub-completion-dialog"]')?.close();
+}
+
+function restoreGameCompletionFocus() {
+  gameCompletionTrigger?.focus?.();
+  gameCompletionTrigger = null;
+}
+
 function completeGameFromHub(gameId) {
   const result =
-    portalService.completeGame(gameId);
+    portalService.completeGame(gameId, {
+      awayScore: document.querySelector('[data-testid="game-hub-completion-away-score"]')?.value ?? "",
+      homeScore: document.querySelector('[data-testid="game-hub-completion-home-score"]')?.value ?? "",
+      notes: document.querySelector('[data-testid="game-hub-completion-notes"]')?.value ?? ""
+    });
 
   if (result.success) {
     renderPage("game-hub", {
@@ -955,7 +1072,7 @@ function completeGameFromHub(gameId) {
   }
 
   const status = document.querySelector(
-    '[data-testid="game-hub-completion-status"]'
+    '[data-testid="game-hub-completion-dialog-error"], [data-testid="game-hub-completion-status"]'
   );
 
   if (status) {
@@ -1393,7 +1510,7 @@ function renderGameHubQuickActions(
       </button>
 
       ${
-        reviewMode
+        reviewMode || !isGameHubAdministrativeView()
           ? ""
           : `
               ${canManageGameHubCrew(game) ? `
@@ -1529,6 +1646,10 @@ function renderGameHub(context = {}) {
 
       <h2>Game Hub</h2>
 
+      ${renderUmpireGameSummary(game)}
+
+      ${false ? `
+      <div>
       ${renderGameHubLifecycleBanner(game)}
 
       <div
@@ -1578,9 +1699,10 @@ function renderGameHub(context = {}) {
         </div>
       </div>
 
-      ${renderGameHubCrewNotes(game)}
+      </div>
+      ` : ""}
 
-      ${renderGameHubChecklist(game)}
+      ${renderGameHubCrewNotes(game)}
 
       ${renderGameHubCompletion(
         game,
@@ -1588,7 +1710,7 @@ function renderGameHub(context = {}) {
           isGameHubReadOnly(game)
       )}
 
-      <div
+      ${false ? `<div
         class="game-hub-sections"
         data-testid="game-hub-sections"
       >
@@ -1602,7 +1724,7 @@ function renderGameHub(context = {}) {
             )
           )
           .join("")}
-      </div>
+      </div>` : ""}
     </section>
   `;
 }

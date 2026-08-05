@@ -1,1036 +1,142 @@
-import {
-  test,
-  expect
-} from "./fixtures/app.fixture.js";
+import { test, expect } from "./fixtures/app.fixture.js";
 
-async function setupGameHub(app) {
-  return app.page.evaluate(() => {
-    const accountResult =
-      accountService.createAccount({
-        firstName: "Game",
-        lastName: "Hub",
-        email:
-          `game.hub.${Date.now()}@example.com`,
-        password: "password123"
-      });
-
+async function setupGameHub(app, options = {}) {
+  return app.page.evaluate(settings => {
+    const accountResult = accountService.createAccount({ firstName: "Game", lastName: "Hub", email: `game.hub.${Date.now()}@example.com`, password: "password123" });
     const crew = crewService.getAll()[0];
-
-    accountService.approveAccount(
-      accountResult.data.id
-    );
-
-    accountService.updateAccount(
-      accountResult.data.id,
-      {
-        crewId: crew.id
-      }
-    );
-
-    loginService.login(
-      accountResult.data.email,
-      "password123"
-    );
-
+    accountService.approveAccount(accountResult.data.id);
+    accountService.updateAccount(accountResult.data.id, { crewId: crew.id });
+    loginService.login(accountResult.data.email, "password123");
     authService.loginAsUmpire();
-
-    const gameResult = gameService.create({
-      date: "2099-03-15",
-      time: "6:30 PM",
-      field: "Game Hub Field",
-      venue: "BlueCrew Sports Complex",
-      address: "123 Umpire Way",
-      notes: "Tournament semifinal",
-      specialInstructions:
-        "Use the north parking lot.",
-      level: "12U",
-      homeTeam: "Game Hub Home",
-      awayTeam: "Game Hub Away",
-      gameType: "single"
-    });
-
-    const game = gameService
-      .getAll()
-      .find(
-        item =>
-          String(item.id) ===
-          String(gameResult.data.id)
-      );
-
-    const assignments =
-      assignmentService.getAssignments(game);
-
-    assignments[0].crewId = crew.id;
-    assignments[0].position = "Plate";
-    assignments[0].status = "assigned";
-
-    game.crewId = crew.id;
-    game.assignmentStatus = "assigned";
-
-    if (
-      typeof gameService.save ===
-      "function"
-    ) {
-      gameService.save();
-    }
-
-    renderPage("my-schedule");
-
-    return {
-      gameId: game.id
-    };
-  });
+    const created = gameService.create({ date: settings.date || "2030-03-15", time: settings.time || "6:30 PM", locationComplex: "BlueCrew Sports Complex", locationField: "Game Hub Field", field: "Game Hub Field", venue: "BlueCrew Sports Complex", level: "12U", homeTeam: "Game Hub Home", awayTeam: "Game Hub Away", gameType: settings.gameType || "single", conditions: settings.conditions || {} });
+    const game = gameService.getById(created.data.id);
+    const assignment = assignmentService.getAssignments(game)[0];
+    assignment.crewId = settings.assigned === false ? crewService.getAll().find(item => String(item.id) !== String(crew.id))?.id || "other-crew" : crew.id;
+    assignment.position = settings.position || "Plate";
+    assignment.status = "assigned";
+    gameService.save();
+    portalService.setNowProviderForTests(() => new Date(settings.now || "2030-03-15T18:31:00"));
+    if (settings.status && settings.status !== "scheduled") gameService.transitionStatus(game.id, settings.status);
+    renderPage("game-hub", { gameId: game.id });
+    return { gameId: game.id };
+  }, options);
 }
 
-test.describe("Game Hub", () => {
-  test("administrators use the compact command view and assign eligible crew by position", async ({ app }) => {
-    const { gameId } = await setupGameHub(app);
+test.afterEach(async ({ app }) => {
+  await app.page.evaluate(() => portalService.setNowProviderForTests());
+});
 
-    await app.page.evaluate(id => {
-      authService.loginAsAdmin();
-      document.body.dataset.role = "admin";
-      renderPage("game-hub", { gameId: id });
-    }, gameId);
-
-    await expect(app.page.getByTestId("game-hub-admin-view")).toBeVisible();
+test.describe("Umpire Game Hub", () => {
+  test("renders the simplified contract and no legacy cards", async ({ app }) => {
+    const { gameId } = await setupGameHub(app, { conditions: { summary: "Sunny", temperature: "82° / 64°", fieldStatus: "Playable" } });
+    await expect(app.page.getByTestId("game-hub-actions").getByRole("button")).toHaveCount(1);
+    await expect(app.page.getByTestId("game-hub-back")).toContainText("Back to My Schedule");
+    await expect(app.page.getByTestId("game-hub-availability")).toHaveCount(0);
+    await expect(app.page.getByTestId("game-hub-claim-games")).toHaveCount(0);
+    await expect(app.page.getByTestId("game-hub-matchup")).toHaveText("Game Hub Away @ Game Hub Home");
+    await expect(app.page.getByTestId("game-hub-level-badge")).toHaveText("12U");
+    await expect(app.page.getByTestId("game-hub-operational-status")).toHaveText("On Time");
+    await expect(app.page.getByTestId("game-hub-weather")).toContainText("Sunny · 82° / 64° · Playable");
+    await expect(app.page.getByTestId("game-hub-summary-date")).toContainText("2030-03-15");
     await expect(app.page.getByTestId("game-hub-summary-time")).toContainText("6:30 PM");
+    await expect(app.page.getByTestId("game-hub-summary-location")).toContainText("BlueCrew Sports Complex");
     await expect(app.page.getByTestId("game-hub-summary-field")).toContainText("Game Hub Field");
-    await expect(app.page.getByTestId("game-hub-summary-level")).toContainText("12U");
-    await expect(app.page.getByTestId("game-hub-checklist")).toHaveCount(0);
-    await expect(app.page.getByTestId("game-hub-section-arrival")).toHaveCount(0);
-    await expect(app.page.getByTestId("game-hub-section-game-day")).toHaveCount(0);
-    await expect(app.page.getByTestId("game-hub-section-timeline")).toHaveCount(0);
-    await expect(app.page.getByTestId("game-hub-section-status")).toHaveCount(0);
-    await expect(app.page.getByTestId("game-hub-complete-game")).toHaveCount(0);
-
-    await app.page.getByTestId("game-hub-open-crew-notes").click();
-    await expect(app.page.getByTestId("game-hub-crew-notes-dialog")).toBeVisible();
-    await app.page.getByTestId("game-hub-crew-notes-dialog").getByRole("button", { name: "Close" }).click();
-
-    const assignButton = app.page.getByRole("button", { name: "Assign Crew" }).first();
-    if (await assignButton.count()) {
-      await assignButton.click();
-      const picker = app.page.locator("dialog[open]");
-      await expect(picker).toBeVisible();
-      const radios = picker.getByRole("radio");
-      await expect(radios.first()).toBeVisible();
-      const names = await picker.locator(".game-hub-crew-option strong").allTextContents();
-      const byLastName = [...names].sort((a, b) => {
-        const aParts = a.trim().split(/\s+/);
-        const bParts = b.trim().split(/\s+/);
-        return aParts.at(-1).localeCompare(bParts.at(-1), undefined, { sensitivity: "base" }) || a.localeCompare(b);
-      });
-      expect(names).toEqual(byLastName);
-      const search = picker.getByPlaceholder("Search by name or level");
-      await search.fill(names[0]);
-      await expect(picker.locator(".game-hub-crew-option:visible")).toHaveCount(1);
-      await search.fill("");
-      await radios.first().check();
-      const selectedName = await picker.locator("label:has(input:checked) strong").textContent();
-      await picker.getByRole("button", { name: "Save" }).click();
-      await expect(app.page.getByTestId("game-hub-admin-crew")).toContainText(selectedName);
-      const latestActivity = await app.page.evaluate(() => activityService.getRecent(1)[0]);
-      expect(latestActivity.message).toContain(selectedName.trim());
-      expect(latestActivity.message).toContain("Plate assigned to");
-    }
-
-    await app.page.evaluate(id => {
-      gameService.update(id, {
-        date: "2000-01-01",
-        time: "12:00 AM"
-      });
-      renderPage("game-hub", { gameId: id });
-    }, gameId);
-
-    await expect(app.page.getByTestId("game-hub-complete-game")).toBeVisible();
-    await expect(app.page.locator(".game-hub-command-status")).toHaveCount(0);
+    await expect(app.page.getByTestId("game-hub-assignment-badge")).toHaveText("You’re Assigned");
+    await expect(app.page.getByTestId("game-hub-summary-position")).toContainText("Plate (solo)");
+    for (const id of ["game-hub-checklist", "game-hub-section-game-information", "game-hub-section-arrival", "game-hub-section-game-day", "game-hub-section-timeline", "game-hub-section-conditions", "game-hub-section-status"]) await expect(app.page.getByTestId(id)).toHaveCount(0);
+    await app.page.getByTestId("game-hub-back").click();
+    await expect(app.page.getByTestId(`my-schedule-row-${gameId}`)).toBeVisible();
   });
 
-  test(
-    "opens the selected game, renders its panels, and returns to My Schedule",
-    async ({ app }) => {
-      const { gameId } =
-        await setupGameHub(app);
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      const hub =
-        app.page.getByTestId("game-hub");
-
-      await expect(hub).toBeVisible();
-
-      await expect(hub).toHaveAttribute(
-        "data-game-id",
-        String(gameId)
-      );
-
-      await expect(hub).toContainText(
-        "Game Hub Field"
-      );
-
-      await expect(hub).toContainText(
-        "Game Hub Away @ Game Hub Home"
-      );
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-summary"
-        )
-      ).toBeVisible();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-summary-field"
-        )
-      ).toContainText("Game Hub Field");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-summary-level"
-        )
-      ).toContainText("12U");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-summary-position"
-        )
-      ).toContainText("Plate");
-
-      const gameInformation =
-        app.page.getByTestId(
-          "game-hub-section-game-information"
-        );
-
-      await expect(gameInformation).toContainText(
-        "Game Hub Field"
-      );
-
-      await expect(gameInformation).toContainText(
-        "BlueCrew Sports Complex"
-      );
-
-      await expect(gameInformation).toContainText(
-        "123 Umpire Way"
-      );
-
-      await expect(gameInformation).toContainText(
-        "Tournament semifinal"
-      );
-
-      await expect(gameInformation).toContainText(
-        "Use the north parking lot."
-      );
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-summary-status"
-        )
-      ).toContainText("Assigned");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-actions"
-        )
-      ).toBeVisible();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-availability"
-        )
-      ).toBeVisible();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-claim-games"
-        )
-      ).toBeVisible();
-
-           const sectionKeys = [
-        "game-information",
-        "crew",
-        "arrival",
-        "game-day",
-        "timeline",
-        "conditions",
-        "contacts",
-        "status"
-      ];
-
-      for (const key of sectionKeys) {
-        await expect(
-          app.page.getByTestId(
-            `game-hub-section-${key}`
-          )
-        ).toBeVisible();
-      }
-
-      await app.page
-        .getByTestId("game-hub-back")
-        .click();
-
-      await expect(
-        app.page.getByTestId("my-schedule")
-      ).toBeVisible();
-
-      await expect(
-        app.page.getByTestId(
-          `my-schedule-row-${gameId}`
-        )
-      ).toBeVisible();
-    }
-  );
-
-  test(
-    "saves crew notes for the selected game",
-    async ({ app }) => {
-      const { gameId } =
-        await setupGameHub(app);
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      const notes =
-        app.page.getByTestId(
-          "game-hub-crew-notes-input"
-        );
-
-      await expect(notes).toBeVisible();
-
-      await notes.fill(
-        "Confirm the plate meeting at 6:10."
-      );
-
-      await app.page
-        .getByTestId(
-          "game-hub-save-crew-notes"
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-crew-notes-status"
-        )
-      ).toContainText("Crew notes saved.");
-
-      await app.page.evaluate(
-        selectedGameId => {
-          renderPage("my-schedule");
-          renderPage("game-hub", {
-            gameId: selectedGameId
-          });
-        },
-        gameId
-      );
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-crew-notes-input"
-        )
-      ).toHaveValue(
-        "Confirm the plate meeting at 6:10."
-      );
-    }
-  );
-
-  test(
-    "persists checklist progress for the selected game",
-    async ({ app }) => {
-      const { gameId } =
-        await setupGameHub(app);
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-checklist"
-        )
-      ).toBeVisible();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-checklist-progress"
-        )
-      ).toContainText("0 of 4 complete");
-
-      const uniformToggle =
-        app.page.getByTestId(
-          "game-hub-checklist-toggle-uniform"
-        );
-
-      await uniformToggle.check();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-checklist-progress"
-        )
-      ).toContainText("1 of 4 complete");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-checklist-toggle-uniform"
-        )
-      ).toBeChecked();
-
-      await app.page
-        .getByTestId("game-hub-back")
-        .click();
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-checklist-toggle-uniform"
-        )
-      ).toBeChecked();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-checklist-progress"
-        )
-      ).toContainText("1 of 4 complete");
-    }
-  );
-
-  test(
-    "completes a game and persists completion",
-    async ({ app }) => {
-      const { gameId } =
-        await setupGameHub(app);
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-completion"
-        )
-      ).toBeVisible();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-completion-incomplete"
-        )
-      ).toContainText(
-        "Game not yet completed."
-      );
-
-      const completeButton =
-        app.page.getByTestId(
-          "game-hub-complete-game"
-        );
-
-      await expect(
-        completeButton
-      ).toBeVisible();
-
-      await completeButton.click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-completion-complete"
-        )
-      ).toContainText(
-        "Game Completed"
-      );
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-completed-by"
-        )
-      ).toContainText("Game Hub");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-completed-at"
-        )
-      ).not.toBeEmpty();
-
-      const persistedCompletion =
-        await app.page.evaluate(
-          selectedGameId => {
-            const game =
-              gameService.getById(
-                selectedGameId
-              );
-
-            return {
-              completed:
-                game.completed,
-              completionTime:
-                game.completionTime,
-              completedBy:
-                game.completedBy,
-              completionStatus:
-                game.completionStatus
-            };
-          },
-          gameId
-        );
-
-      expect(
-        persistedCompletion.completed
-      ).toBe(true);
-
-      expect(
-        persistedCompletion.completionTime
-      ).toBeTruthy();
-
-      expect(
-        persistedCompletion.completedBy
-      ).toBe("Game Hub");
-
-      expect(
-        persistedCompletion.completionStatus
-      ).toBe("completed");
-
-      await app.page
-        .getByTestId("game-hub-back")
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "my-schedule"
-        )
-      ).toBeVisible();
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-completion-complete"
-        )
-      ).toContainText(
-        "Game Completed"
-      );
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-completed-by"
-        )
-      ).toContainText("Game Hub");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-completed-at"
-        )
-      ).not.toBeEmpty();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-complete-game"
-        )
-      ).toHaveCount(0);
-    }
-  );
-
-
-  test(
-    "saves and persists the final score after completion",
-    async ({ app }) => {
-      const { gameId } =
-        await setupGameHub(app);
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-final-score"
-        )
-      ).toHaveCount(0);
-
-      await app.page
-        .getByTestId(
-          "game-hub-complete-game"
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-final-score"
-        )
-      ).toBeVisible();
-
-      await app.page
-        .getByTestId(
-          "game-hub-away-score"
-        )
-        .fill("3");
-
-      await app.page
-        .getByTestId(
-          "game-hub-home-score"
-        )
-        .fill("7");
-
-      await app.page
-        .getByTestId(
-          "game-hub-save-score"
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-score-status"
-        )
-      ).toContainText(
-        "Final score saved."
-      );
-
-      const persistedScore =
-        await app.page.evaluate(
-          selectedGameId => {
-            const game =
-              gameService.getById(
-                selectedGameId
-              );
-
-            return {
-              homeScore: game.homeScore,
-              awayScore: game.awayScore
-            };
-          },
-          gameId
-        );
-
-      expect(
-        persistedScore.homeScore
-      ).toBe(7);
-
-      expect(
-        persistedScore.awayScore
-      ).toBe(3);
-
-      await app.page
-        .getByTestId("game-hub-back")
-        .click();
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-away-score"
-        )
-      ).toHaveValue("3");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-home-score"
-        )
-      ).toHaveValue("7");
-    }
-  );
-
-
-  test(
-    "saves and persists game reports after completion",
-    async ({ app }) => {
-      const { gameId } =
-        await setupGameHub(app);
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-reports"
-        )
-      ).toHaveCount(0);
-
-      await app.page
-        .getByTestId(
-          "game-hub-complete-game"
-        )
-        .click();
-
-      await app.page
-        .getByTestId(
-          "game-hub-away-score"
-        )
-        .fill("3");
-
-      await app.page
-        .getByTestId(
-          "game-hub-home-score"
-        )
-        .fill("7");
-
-      await app.page
-        .getByTestId(
-          "game-hub-save-score"
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-reports"
-        )
-      ).toBeVisible();
-
-      await app.page
-        .getByTestId(
-          "game-hub-report-incidents"
-        )
-        .check();
-
-      await app.page
-        .getByTestId(
-          "game-hub-report-rainout"
-        )
-        .check();
-
-      await app.page
-        .getByTestId(
-          "game-hub-report-notes"
-        )
-        .fill(
-          "Lightning delay ended the game early."
-        );
-
-      await app.page
-        .getByTestId(
-          "game-hub-save-reports"
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-reports-status"
-        )
-      ).toContainText(
-        "Game reports saved."
-      );
-
-      const persistedReports =
-        await app.page.evaluate(
-          selectedGameId => {
-            const game =
-              gameService.getById(
-                selectedGameId
-              );
-
-            return game.reports;
-          },
-          gameId
-        );
-
-      expect(
-        persistedReports
-      ).toEqual({
-        incidents: true,
-        ejections: false,
-        protests: false,
-        rainout: true,
-        notes:
-          "Lightning delay ended the game early."
-      });
-
-      await app.page
-        .getByTestId("game-hub-back")
-        .click();
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-report-incidents"
-        )
-      ).toBeChecked();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-report-ejections"
-        )
-      ).not.toBeChecked();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-report-protests"
-        )
-      ).not.toBeChecked();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-report-rainout"
-        )
-      ).toBeChecked();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-report-notes"
-        )
-      ).toHaveValue(
-        "Lightning delay ended the game early."
-      );
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-away-score"
-        )
-      ).toHaveValue("3");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-home-score"
-        )
-      ).toHaveValue("7");
-    }
-  );
-
-
-  test(
-    "submits a completed game for review and locks editing",
-    async ({ app }) => {
-      const { gameId } =
-        await setupGameHub(app);
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      await app.page
-        .getByTestId(
-          "game-hub-crew-notes-input"
-        )
-        .fill(
-          "Postgame notes ready for review."
-        );
-
-      await app.page
-        .getByTestId(
-          "game-hub-save-crew-notes"
-        )
-        .click();
-
-      await app.page
-        .getByTestId(
-          "game-hub-checklist-toggle-uniform"
-        )
-        .check();
-
-      await app.page
-        .getByTestId(
-          "game-hub-complete-game"
-        )
-        .click();
-
-      await app.page
-        .getByTestId(
-          "game-hub-away-score"
-        )
-        .fill("4");
-
-      await app.page
-        .getByTestId(
-          "game-hub-home-score"
-        )
-        .fill("6");
-
-      await app.page
-        .getByTestId(
-          "game-hub-save-score"
-        )
-        .click();
-
-      await app.page
-        .getByTestId(
-          "game-hub-report-incidents"
-        )
-        .check();
-
-      await app.page
-        .getByTestId(
-          "game-hub-report-notes"
-        )
-        .fill(
-          "Incident documentation submitted."
-        );
-
-      await app.page
-        .getByTestId(
-          "game-hub-save-reports"
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-review-status"
-        )
-      ).toContainText("Draft");
-
-      await app.page
-        .getByTestId(
-          "game-hub-submit-review"
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-review-submitted"
-        )
-      ).toContainText("Submitted");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-review-submitted-by"
-        )
-      ).toContainText("Game Hub");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-review-submitted-at"
-        )
-      ).not.toBeEmpty();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-submit-review"
-        )
-      ).toHaveCount(0);
-
-      await app.page
-        .getByTestId("game-hub-back")
-        .click();
-
-      await app.page
-        .getByTestId(
-          `my-schedule-open-game-${gameId}`
-        )
-        .click();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-review-submitted"
-        )
-      ).toContainText("Submitted");
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-away-score"
-        )
-      ).toBeDisabled();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-home-score"
-        )
-      ).toBeDisabled();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-save-score"
-        )
-      ).toBeDisabled();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-report-incidents"
-        )
-      ).toBeDisabled();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-report-notes"
-        )
-      ).toHaveAttribute(
-        "readonly",
-        ""
-      );
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-save-reports"
-        )
-      ).toBeDisabled();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-crew-notes-input"
-        )
-      ).toHaveAttribute(
-        "readonly",
-        ""
-      );
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-save-crew-notes"
-        )
-      ).toBeDisabled();
-
-      await expect(
-        app.page.getByTestId(
-          "game-hub-checklist-toggle-uniform"
-        )
-      ).toBeDisabled();
-
-      const persistedReview =
-        await app.page.evaluate(
-          selectedGameId => {
-            const game =
-              gameService.getById(
-                selectedGameId
-              );
-
-            return game.review;
-          },
-          gameId
-        );
-
-      expect(
-        persistedReview.status
-      ).toBe("submitted");
-
-      expect(
-        persistedReview.submittedForReview
-      ).toBe(true);
-
-      expect(
-        persistedReview.submittedAt
-      ).toBeTruthy();
-
-      expect(
-        persistedReview.submittedBy
-      ).toBe("Game Hub");
-    }
-  );
-
+  test("preserves Crew Notes", async ({ app }) => {
+    const { gameId } = await setupGameHub(app);
+    await app.page.getByTestId("game-hub-crew-notes-input").fill("Confirm plate meeting.");
+    await app.page.getByTestId("game-hub-save-crew-notes").click();
+    await expect(app.page.getByTestId("game-hub-crew-notes-status")).toContainText("saved");
+    await app.page.evaluate(id => renderPage("game-hub", { gameId: id }), gameId);
+    await expect(app.page.getByTestId("game-hub-crew-notes-input")).toHaveValue("Confirm plate meeting.");
+  });
+
+  test("does not expose another umpire's position or decline action", async ({ app }) => {
+    await setupGameHub(app, { assigned: false, position: "B2" });
+    await expect(app.page.getByTestId("game-hub-assignment-badge")).toHaveText("Assigned");
+    await expect(app.page.getByTestId("game-hub-summary-position")).toHaveCount(0);
+    await expect(app.page.getByTestId("game-hub-decline-assignment")).toHaveCount(0);
+  });
+
+  test("assigned umpire can decline with the existing required-reason workflow", async ({ app }) => {
+    const { gameId } = await setupGameHub(app);
+    app.page.once("dialog", dialog => dialog.accept("Pilot conflict"));
+    await app.page.getByTestId("game-hub-decline-assignment").click();
+    await expect(app.page.getByTestId("my-schedule")).toBeVisible();
+    const state = await app.page.evaluate(id => { const game = gameService.getById(id); const assignment = assignmentService.getAssignments(game)[0]; return { crewId: assignment.crewId, status: assignment.status, reason: assignment.declineReason }; }, gameId);
+    expect(state).toMatchObject({ crewId: "", reason: "Pilot conflict" });
+    expect(["needs_assignment", "open_for_claim"]).toContain(state.status);
+  });
+
+  for (const [stored, expected, gameType] of [["B1", "B1", "threeMan"], ["B2", "B2", "threeMan"], ["B3", "B3", "fourMan"], ["Plate", "Plate (solo)", "single"], ["Base", "Base (2-man)", "twoMan"], ["Legacy Rover", "Legacy Rover", "threeMan"]]) {
+    test(`maps ${stored} safely`, async ({ app }) => {
+      await setupGameHub(app, { position: stored, gameType });
+      await expect(app.page.getByTestId("game-hub-summary-position")).toContainText(expected);
+    });
+  }
+
+  for (const [label, now, enabled] of [["before", "2030-03-15T18:29:00", false], ["exactly at", "2030-03-15T18:30:00", false], ["one minute after", "2030-03-15T18:31:00", true]]) {
+    test(`completion is ${enabled ? "enabled" : "disabled"} ${label} start`, async ({ app }) => {
+      await setupGameHub(app, { now });
+      enabled ? await expect(app.page.getByTestId("game-hub-complete-game")).toBeEnabled() : await expect(app.page.getByTestId("game-hub-complete-game")).toBeDisabled();
+    });
+  }
+
+  test("cancelled game cannot complete or decline", async ({ app }) => {
+    await setupGameHub(app, { status: "cancelled" });
+    await expect(app.page.getByTestId("game-hub-complete-game")).toBeDisabled();
+    await expect(app.page.getByTestId("game-hub-decline-assignment")).toHaveCount(0);
+    await expect(app.page.getByTestId("game-hub-operational-status")).toHaveText("Cancelled");
+  });
+
+  test("completion dialog validates, cancels safely, persists atomically, and restores focus", async ({ app }) => {
+    const { gameId } = await setupGameHub(app);
+    const trigger = app.page.getByTestId("game-hub-complete-game");
+    await trigger.click();
+    const dialog = app.page.getByTestId("game-hub-completion-dialog");
+    await expect(dialog).toHaveAttribute("open", "");
+    await expect(app.page.getByTestId("game-hub-completion-away-score")).toBeFocused();
+    await app.page.getByTestId("game-hub-confirm-completion").click();
+    await expect(app.page.getByTestId("game-hub-completion-dialog-error")).toContainText("whole numbers");
+    await app.page.getByTestId("game-hub-cancel-completion").click();
+    await expect(trigger).toBeFocused();
+    expect(await app.page.evaluate(id => gameService.getById(id).completed, gameId)).not.toBe(true);
+    await trigger.click();
+    await app.page.getByTestId("game-hub-completion-away-score").fill("3");
+    await app.page.getByTestId("game-hub-completion-home-score").fill("7");
+    await app.page.getByTestId("game-hub-completion-notes").fill("Rain shortened; no ejections.");
+    await app.page.getByTestId("game-hub-confirm-completion").click();
+    await expect(app.page.getByTestId("game-hub-completion-complete")).toBeVisible();
+    const saved = await app.page.evaluate(id => { const game = gameService.getById(id); return { status: gameService.getStatus(game), away: game.awayScore, home: game.homeScore, notes: game.reports.notes }; }, gameId);
+    expect(saved).toEqual({ status: "completed", away: 3, home: 7, notes: "Rain shortened; no ejections." });
+  });
+
+  test("Escape closes the dialog and restores focus", async ({ app }) => {
+    await setupGameHub(app);
+    const trigger = app.page.getByTestId("game-hub-complete-game");
+    await trigger.click();
+    await app.page.keyboard.press("Escape");
+    await expect(app.page.getByTestId("game-hub-completion-dialog")).not.toHaveAttribute("open", "");
+    await expect(trigger).toBeFocused();
+  });
+
+  test("administrator command view remains separate", async ({ app }) => {
+    const { gameId } = await setupGameHub(app);
+    await app.page.evaluate(id => { authService.loginAsAdmin(); document.body.dataset.role = "admin"; renderPage("game-hub", { gameId: id }); }, gameId);
+    await expect(app.page.getByTestId("game-hub-admin-view")).toBeVisible();
+    await expect(app.page.locator('[data-umpire-summary="true"]')).toHaveCount(0);
+  });
+
+  test("summary remains usable at mobile width", async ({ app }) => {
+    await app.page.setViewportSize({ width: 390, height: 844 });
+    await setupGameHub(app);
+    await expect(app.page.getByTestId("game-hub-summary")).toBeVisible();
+    expect(await app.page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
 });

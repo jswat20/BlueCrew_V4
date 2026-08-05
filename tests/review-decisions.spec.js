@@ -310,41 +310,9 @@ test.describe(
           "Update the report."
         );
 
-        await expect(
-          page.getByTestId(
-            "game-hub-away-score"
-          )
-        ).toBeEnabled();
-
-        await expect(
-          page.getByTestId(
-            "game-hub-home-score"
-          )
-        ).toBeEnabled();
-
-        await expect(
-          page.getByTestId(
-            "game-hub-save-score"
-          )
-        ).toBeEnabled();
-
-        await expect(
-          page.getByTestId(
-            "game-hub-report-incidents"
-          )
-        ).toBeEnabled();
-
-        await expect(
-          page.getByTestId(
-            "game-hub-report-notes"
-          )
-        ).toBeEnabled();
-
-        await expect(
-          page.getByTestId(
-            "game-hub-save-reports"
-          )
-        ).toBeEnabled();
+        await expect(page.getByTestId("game-hub-edit-completion")).toBeEnabled();
+        await expect(page.getByTestId("game-hub-away-score")).toHaveCount(0);
+        await expect(page.getByTestId("game-hub-report-notes")).toHaveCount(0);
 
         await expect(
           page.getByTestId(
@@ -390,37 +358,11 @@ test.describe(
           fixture.gameId
         );
 
-        await page
-          .getByTestId(
-            "game-hub-away-score"
-          )
-          .fill("4");
-
-        await page
-          .getByTestId(
-            "game-hub-home-score"
-          )
-          .fill("6");
-
-        await page
-          .getByTestId(
-            "game-hub-save-score"
-          )
-          .click();
-
-        await page
-          .getByTestId(
-            "game-hub-report-notes"
-          )
-          .fill(
-            "Updated report notes."
-          );
-
-        await page
-          .getByTestId(
-            "game-hub-save-reports"
-          )
-          .click();
+        await page.getByTestId("game-hub-edit-completion").click();
+        await page.getByTestId("game-hub-edit-away-score").fill("4");
+        await page.getByTestId("game-hub-edit-home-score").fill("6");
+        await page.getByTestId("game-hub-edit-notes").fill("Updated report notes.");
+        await page.getByTestId("game-hub-save-completion-edit").click();
 
         await page
           .getByTestId(
@@ -517,41 +459,9 @@ test.describe(
           )
         ).toHaveText("Approved");
 
-        await expect(
-          page.getByTestId(
-            "game-hub-away-score"
-          )
-        ).toBeDisabled();
-
-        await expect(
-          page.getByTestId(
-            "game-hub-home-score"
-          )
-        ).toBeDisabled();
-
-        await expect(
-          page.getByTestId(
-            "game-hub-save-score"
-          )
-        ).toBeDisabled();
-
-        await expect(
-          page.getByTestId(
-            "game-hub-report-incidents"
-          )
-        ).toBeDisabled();
-
-        await expect(
-          page.getByTestId(
-            "game-hub-report-notes"
-          )
-        ).toBeDisabled();
-
-        await expect(
-          page.getByTestId(
-            "game-hub-save-reports"
-          )
-        ).toBeDisabled();
+        await expect(page.getByTestId("game-hub-edit-completion")).toHaveCount(0);
+        await expect(page.getByTestId("game-hub-away-score")).toHaveCount(0);
+        await expect(page.getByTestId("game-hub-report-notes")).toHaveCount(0);
 
         await expect(
           page.getByTestId(
