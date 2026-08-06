@@ -2,6 +2,8 @@
 
 let authenticatedCrewSnapshot = null;
 let referencedCrewSnapshots = [];
+let administrativeCrewSnapshot = null;
+let administrativeCrewState = { status: "idle", message: "" };
 
 const crewService = {
   isSharedMode() {
@@ -27,6 +29,68 @@ const crewService = {
   clearAllSharedCrew() {
     this.clearAuthenticatedCrewMember();
     this.clearReferencedCrewMembers();
+    administrativeCrewSnapshot = null;
+    administrativeCrewState = { status: "idle", message: "" };
+  },
+
+  getAdministrativeCrewState() {
+    return { ...administrativeCrewState };
+  },
+
+  async loadAdministrativeCrew() {
+    if (!this.isSharedMode()) return { success: true, data: this.getAll() };
+    administrativeCrewState = { status: "loading", message: "" };
+    const { data, error } = await supabaseSharedRepository.getCrewMembers();
+    if (error) {
+      administrativeCrewState = { status: "error", message: error.message || "Crew roster could not be loaded." };
+      return { success: false, message: administrativeCrewState.message };
+    }
+    administrativeCrewSnapshot = (data || []).map(sharedDomainMappingService.mapCrewMember).filter(Boolean)
+      .sort((left, right) => `${left.lastName}\u0000${left.firstName}\u0000${left.id}`.localeCompare(`${right.lastName}\u0000${right.firstName}\u0000${right.id}`));
+    administrativeCrewState = { status: "ready", message: "" };
+    return { success: true, data: structuredClone(administrativeCrewSnapshot) };
+  },
+
+  toHostedChanges(member = {}) {
+    return {
+      first_name: String(member.firstName || "").trim(),
+      last_name: String(member.lastName || "").trim(),
+      email: String(member.email || "").trim(),
+      phone: String(member.phone || "").trim(),
+      active: member.active !== false,
+      eligible_levels: Array.isArray(member.levels) ? [...member.levels] : [],
+      preferences: member.preferences && typeof member.preferences === "object" ? structuredClone(member.preferences) : {},
+      notes: String(member.notes || "").trim()
+    };
+  },
+
+  async create(member) {
+    if (!this.isSharedMode()) {
+      const created = { ...member, id: Date.now() };
+      crew.push(created);
+      saveCrew();
+      return { success: true, data: created };
+    }
+    const { data, error } = await supabaseSharedRepository.createCrewMember(this.toHostedChanges(member));
+    if (error) return { success: false, message: error.message || "Crew member could not be created." };
+    const refresh = await this.loadAdministrativeCrew();
+    return refresh.success ? { success: true, data: sharedDomainMappingService.mapCrewMember(data) } : refresh;
+  },
+
+  async updateMember(crewMemberId, changes) {
+    if (!this.isSharedMode()) {
+      const member = crew.find(item => String(item.id) === String(crewMemberId));
+      if (!member) return { success: false, message: "Crew member not found." };
+      Object.assign(member, changes);
+      saveCrew();
+      return { success: true, data: member };
+    }
+    const existing = this.getById(crewMemberId);
+    if (!existing) return { success: false, message: "Crew member not found." };
+    const { data, error } = await supabaseSharedRepository.updateCrewMember(crewMemberId, this.toHostedChanges({ ...existing, ...changes }));
+    if (error) return { success: false, message: error.message || "Crew member could not be updated." };
+    const refresh = await this.loadAdministrativeCrew();
+    return refresh.success ? { success: true, data: sharedDomainMappingService.mapCrewMember(data) } : refresh;
   },
 
   getAuthenticatedCrewMember() {
@@ -57,6 +121,7 @@ const crewService = {
 
   getAll() {
     if (this.isSharedMode()) {
+      if (administrativeCrewSnapshot) return structuredClone(administrativeCrewSnapshot);
       return structuredClone([authenticatedCrewSnapshot, ...referencedCrewSnapshots].filter(Boolean));
     }
     return Array.isArray(crew) ? crew : [];

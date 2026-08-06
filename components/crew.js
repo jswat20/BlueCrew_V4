@@ -1,6 +1,17 @@
 function renderCrew() {
-  const activeCrew = crew.filter(member => member.active);
-  const inactiveCrew = crew.filter(member => !member.active);
+  const roster = crewService.getAll();
+  const sharedState = crewService.getAdministrativeCrewState?.() || { status: "ready" };
+  if (crewService.isSharedMode() && sharedState.status === "idle") {
+    crewService.loadAdministrativeCrew().then(() => {
+      if (document.body.dataset.page === "crew") renderPage("crew");
+    });
+  }
+  if (crewService.isSharedMode() && sharedState.status !== "ready") {
+    const message = sharedState.status === "error" ? sharedState.message : "Loading crew roster…";
+    return `<div class="card crew-page-shell" data-testid="crew-shared-state"><h3>Crew</h3><p role="${sharedState.status === "error" ? "alert" : "status"}">${message}</p>${sharedState.status === "error" ? '<button type="button" onclick="crewService.loadAdministrativeCrew().then(() => renderPage(\'crew\'))">Retry</button>' : ""}</div>`;
+  }
+  const activeCrew = roster.filter(member => member.active);
+  const inactiveCrew = roster.filter(member => !member.active);
 
   return `
     <div class="card crew-page-shell">
@@ -15,19 +26,19 @@ function renderCrew() {
       <div class="card-grid crew-summary-grid">
         <div class="card stat-card crew-summary-card crew-summary-active">
           <h3>Active Crew</h3>
-          <div class="stat-number">${activeCrew.length}</div>
+          <div class="stat-number" data-testid="crew-active-count">${activeCrew.length}</div>
           <p class="placeholder">Available for assignments.</p>
         </div>
 
         <div class="card stat-card crew-summary-card crew-summary-inactive">
           <h3>Inactive Crew</h3>
-          <div class="stat-number">${inactiveCrew.length}</div>
+          <div class="stat-number" data-testid="crew-inactive-count">${inactiveCrew.length}</div>
           <p class="placeholder">Not currently assignable.</p>
         </div>
 
         <div class="card stat-card crew-summary-card crew-summary-total">
           <h3>Total Crew</h3>
-          <div class="stat-number">${crew.length}</div>
+          <div class="stat-number" data-testid="crew-total-count">${roster.length}</div>
           <p class="placeholder">All crew records.</p>
         </div>
       </div>
@@ -57,7 +68,7 @@ function renderCrewCard(member) {
 
       <div class="crew-card-right">
         <span class="status-pill ${statusClass}">${statusText}</span>
-      <button class="small-btn" onclick="openEditCrewDrawer(${member.id})">Edit</button>
+      <button class="small-btn" onclick="openEditCrewDrawer('${member.id}')">Edit</button>
       </div>
     </div>
   `;
@@ -114,6 +125,7 @@ function renderAddCrewDrawerContent() {
 
       <div class="form-group">
         <label>Certification Levels</label>
+        <label class="checkbox-row"><input type="checkbox" data-testid="crew-level-select-all" onchange="toggleCrewLevels(this.checked)" /><span>Select All</span></label>
         <div class="checkbox-list">
           ${settings.levels.map(level => `
             <label class="checkbox-row">
@@ -144,7 +156,23 @@ function renderAddCrewDrawerContent() {
   `;
 }
 
-function saveNewCrewMember() {
+function toggleCrewLevels(checked) {
+  document.querySelectorAll(".crew-level-checkbox").forEach(box => { box.checked = checked; });
+}
+
+function showCrewMutationError(message) {
+  let status = document.querySelector('[data-testid="crew-mutation-error"]');
+  if (!status) {
+    status = document.createElement("p");
+    status.dataset.testid = "crew-mutation-error";
+    status.className = "form-status";
+    status.setAttribute("role", "alert");
+    document.querySelector("#crew-drawer .drawer-footer")?.before(status);
+  }
+  status.textContent = message || "Crew member could not be saved.";
+}
+
+async function saveNewCrewMember() {
   const firstName = document.getElementById("crew-first-name").value.trim();
   const lastName = document.getElementById("crew-last-name").value.trim();
   const email = document.getElementById("crew-email").value.trim();
@@ -161,7 +189,6 @@ function saveNewCrewMember() {
   }
 
   const newMember = {
-    id: Date.now(),
     firstName,
     lastName,
     email,
@@ -171,14 +198,13 @@ function saveNewCrewMember() {
     notes
   };
 
-crew.push(newMember);
-saveCrew();
-
-closeCrewDrawer();
-renderPage("crew");
+  const result = await crewService.create(newMember);
+  if (!result.success) return showCrewMutationError(result.message);
+  closeCrewDrawer();
+  renderPage("crew");
 }
 function openEditCrewDrawer(memberId) {
-  const member = crew.find(item =>
+  const member = crewService.getAll().find(item =>
     String(item.id) === String(memberId)
   );
 
@@ -202,7 +228,7 @@ function renderPreferenceCheckboxList(
     (selectedIds || []).map(id => String(id))
   );
 
-  return crew
+  return crewService.getAll()
     .filter(c => String(c.id) !== String(member.id))
     .sort((a, b) =>
       getCrewFullName(a).localeCompare(getCrewFullName(b))
@@ -267,6 +293,7 @@ function renderEditCrewDrawerContent(member) {
 
       <div class="form-group">
         <label>Certification Levels</label>
+        <label class="checkbox-row"><input type="checkbox" data-testid="crew-level-select-all" onchange="toggleCrewLevels(this.checked)" /><span>Select All</span></label>
         <div class="checkbox-list">
           ${settings.levels.map(level => `
             <label class="checkbox-row">
@@ -342,18 +369,18 @@ function renderEditCrewDrawerContent(member) {
     </div>
 
     <div class="drawer-footer drawer-footer-split">
-      <button class="danger-btn" onclick="deactivateCrewMember(${member.id})">Deactivate</button>
+      <button class="danger-btn" onclick="deactivateCrewMember('${member.id}')">Deactivate</button>
 
       <div>
         <button class="secondary-btn" onclick="closeCrewDrawer()">Cancel</button>
-        <button class="primary-btn" onclick="saveCrewEdits(${member.id})">Save Changes</button>
+        <button class="primary-btn" onclick="saveCrewEdits('${member.id}')">Save Changes</button>
       </div>
     </div>
   `;
 }
 
-function saveCrewEdits(memberId) {
-  const member = crew.find(item => item.id === memberId);
+async function saveCrewEdits(memberId) {
+  const member = crewService.getById(memberId);
 
   if (!member) return;
 
@@ -365,15 +392,16 @@ function saveCrewEdits(memberId) {
     return;
   }
 
-  member.firstName = firstName;
-  member.lastName = lastName;
-  member.email = document.getElementById("crew-email").value.trim();
-  member.phone = document.getElementById("crew-phone").value.trim();
-  member.active = document.getElementById("crew-active").checked;
-  member.notes = document.getElementById("crew-notes").value.trim();
-
-  member.levels = [...document.querySelectorAll(".crew-level-checkbox:checked")]
-    .map(box => box.value);
+  const changes = {
+    firstName,
+    lastName,
+    email: document.getElementById("crew-email").value.trim(),
+    phone: document.getElementById("crew-phone").value.trim(),
+    active: document.getElementById("crew-active").checked,
+    notes: document.getElementById("crew-notes").value.trim(),
+    levels: [...document.querySelectorAll(".crew-level-checkbox:checked")]
+      .map(box => box.value)
+  };
 
     const preferredCrewIds = [
   ...document.querySelectorAll(
@@ -393,33 +421,21 @@ const preferredLevels = [
   )
 ].map(box => box.value);
 
-const preferenceResult =
-  crewService.setPreferences(
-    member.id,
-    {
+  changes.preferences = {
       preferredCrewIds,
       avoidedCrewIds,
       preferredLevels
-    }
-  );
+    };
 
-if (!preferenceResult.success) {
-  alert(
-    preferenceResult.message ||
-    "Crew preferences could not be saved."
-  );
-
-  return;
-}
-
-  saveCrew();
+  const result = await crewService.updateMember(member.id, changes);
+  if (!result.success) return showCrewMutationError(result.message);
 
   closeCrewDrawer();
   renderPage("crew");
 }
 
-function deactivateCrewMember(memberId) {
-  const member = crew.find(item => item.id === memberId);
+async function deactivateCrewMember(memberId) {
+  const member = crewService.getById(memberId);
 
   if (!member) return;
 
@@ -427,9 +443,8 @@ function deactivateCrewMember(memberId) {
 
   if (!confirmed) return;
 
-  member.active = false;
-
-  saveCrew();
+  const result = await crewService.updateMember(member.id, { active: false });
+  if (!result.success) return showCrewMutationError(result.message);
 
   closeCrewDrawer();
   renderPage("crew");

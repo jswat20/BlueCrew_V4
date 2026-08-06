@@ -18,6 +18,23 @@ const supabaseSharedRepository = (() => {
     return db.from("crew_members").select("*").eq("profile_id", profileId).maybeSingle();
   }
 
+  const CREW_COLUMNS = "id,organization_id,profile_id,legacy_crew_id,first_name,last_name,email,phone,active,eligible_levels,preferences,notes";
+
+  async function getCrewMembers() {
+    const db = await client();
+    return db.from("crew_members").select(CREW_COLUMNS).order("last_name").order("first_name").order("id");
+  }
+
+  async function createCrewMember(changes) {
+    const db = await client();
+    return db.from("crew_members").insert(changes).select(CREW_COLUMNS).single();
+  }
+
+  async function updateCrewMember(crewMemberId, changes) {
+    const db = await client();
+    return db.from("crew_members").update(changes).eq("id", crewMemberId).select(CREW_COLUMNS).single();
+  }
+
   async function getAvailability(crewMemberId) {
     const db = await client();
     return db.from("availability").select("*").eq("crew_member_id", crewMemberId).order("availability_date");
@@ -148,6 +165,9 @@ const supabaseSharedRepository = (() => {
     getProfileForAuthUser,
     updateProfile,
     getLinkedCrewMember,
+    getCrewMembers,
+    createCrewMember,
+    updateCrewMember,
     getAvailability,
     upsertOwnAvailability,
     deleteAvailabilityDate,

@@ -30,6 +30,7 @@ export const test = base.extend({
       crewMembers: [],
       initialSession: false,
       deniedTable: "",
+      failedMutationTable: "",
       failedRpc: "",
       deniedReferencedCrew: false,
       ...supabaseScenario
@@ -48,6 +49,7 @@ export const test = base.extend({
         let operation = "select";
         let payload = null;
         let selectedIds = [];
+        const equality = {};
         async function listResult() {
           calls.push({ operation: "select", table });
           if (settings.deniedTable === table || (table === "crew_members" && settings.deniedReferencedCrew && selectedIds.length)) return { data: null, error: { message: "RLS denied" } };
@@ -74,7 +76,8 @@ export const test = base.extend({
         }
         const query = {
           select(columns) { calls.push({ operation: "selectColumns", table, columns }); return query; },
-          eq() { return query; },
+          eq(column, value) { equality[column] = value; return query; },
+          insert(value) { operation = "insert"; payload = value; return query; },
           update(value) { operation = "update"; payload = value; return query; },
           upsert(value) { operation = "upsert"; payload = value; return query; },
           delete() { operation = "delete"; return query; },
@@ -83,6 +86,8 @@ export const test = base.extend({
           then(resolve, reject) { return listResult().then(resolve, reject); },
           async single() {
             calls.push({ operation, table, payload });
+            if (settings.deniedTable === table) return { data: null, error: { message: "RLS denied" } };
+            if (settings.failedMutationTable === table && operation !== "select") return { data: null, error: { message: "RLS denied" } };
             if (table === "profiles" && operation === "update") {
               settings.profile = { ...settings.profile, ...payload };
               return { data: settings.profile, error: null };
@@ -92,6 +97,17 @@ export const test = base.extend({
               settings.availability = settings.availability.filter(item => item.id !== row.id);
               settings.availability.push(row);
               return { data: row, error: null };
+            }
+            if (table === "crew_members" && operation === "insert") {
+              const row = { id: `crew-${settings.crewMembers.length + 1}`, organization_id: settings.profile.organization_id, profile_id: null, legacy_crew_id: null, ...payload };
+              settings.crewMembers.push(row);
+              return { data: row, error: null };
+            }
+            if (table === "crew_members" && operation === "update") {
+              const index = settings.crewMembers.findIndex(item => String(item.id) === String(equality.id));
+              if (index < 0) return { data: null, error: { message: "Crew member not found" } };
+              settings.crewMembers[index] = { ...settings.crewMembers[index], ...payload };
+              return { data: settings.crewMembers[index], error: null };
             }
             return { data: null, error: null };
           },
