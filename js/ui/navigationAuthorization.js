@@ -8,12 +8,19 @@ function refreshNavigationAuthorization() {
     return;
   }
 
+  const authenticated = typeof loginService !== "undefined" && loginService.isLoggedIn();
+  const logout = document.querySelector('[data-testid="nav-logout"]');
+  const login = document.querySelector('[data-testid="nav-login"]');
+  if (logout) logout.hidden = !authenticated;
+  if (login) login.hidden = authenticated;
+
   document
     .querySelectorAll(".nav-link[data-page]")
     .forEach(link => {
       const page = link.dataset.page;
       const crewOnly = link.dataset.crewOnly === "true";
       const isCrewRole = authorizationService.currentRole() === "umpire";
+      if (page === "login") return;
       link.hidden = !authorizationService.canView(page) || (crewOnly && !isCrewRole);
     });
 

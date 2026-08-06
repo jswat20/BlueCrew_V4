@@ -160,7 +160,7 @@ function initializeApp() {
 }
 
 function setupNavigation() {
-  document.querySelectorAll(".nav-link").forEach(button => {
+  document.querySelectorAll(".nav-link[data-page]").forEach(button => {
     button.addEventListener("click", () => {
       navigateTo(button.dataset.page);
     });
@@ -250,6 +250,12 @@ function escapeSharedStateHtml(value) {
 }
 
 function renderPage(page, context = {}) {
+  const hostedMode = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  if (hostedMode && page !== "login" && !loginService.isLoggedIn()) {
+    page = "login";
+    context = {};
+    window.history.replaceState({ blueCrewPage: "login", context: {} }, "", window.location.href);
+  }
   if (typeof refreshNavigationAuthorization === "function") {
     refreshNavigationAuthorization();
   }
@@ -331,6 +337,16 @@ updateNotificationBadge();
 
   runPageSetup(page, context);
 }
+
+async function logoutFromNavigation() {
+  const result = await loginService.logout();
+  window.history.replaceState({ blueCrewPage: "login", context: {} }, "", window.location.href);
+  refreshNavigationAuthorization?.();
+  renderPage("login");
+  return result;
+}
+
+window.logoutFromNavigation = logoutFromNavigation;
 
 function navigateTo(page, context = {}) {
   window.history.pushState(
