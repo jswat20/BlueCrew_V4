@@ -385,9 +385,10 @@ function rejectClaimFromOperations(
   );
 }
 
-function decideAccountFromOperations(
+async function decideAccountFromOperations(
   action,
-  item = {}
+  item = {},
+  sourceButton = null
 ) {
   const accountId =
     item.accountId || item.id || "";
@@ -414,14 +415,45 @@ function decideAccountFromOperations(
     });
   }
 
-  return finishOperationsCenterQuickAction(
-    mutation(accountId)
-  );
+  const result = await mutation(accountId);
+  const dialog = sourceButton?.closest?.("dialog");
+  if (!dialog || dialog.dataset.metricId !== "pending-accounts") {
+    return finishOperationsCenterQuickAction(result);
+  }
+
+  const status = dialog.querySelector('[data-testid="operations-pending-accounts-status"]');
+  if (!result || result.success === false) {
+    if (status) {
+      status.textContent = result?.message || "Unable to process this account.";
+      status.dataset.state = "error";
+    }
+    sourceButton?.focus?.();
+    return result;
+  }
+
+  sourceButton.closest("[data-operations-pending-account]")?.remove();
+  const remaining = dialog.querySelectorAll("[data-operations-pending-account]").length;
+  const count = dialog.querySelector('[data-testid="operations-pending-accounts-remaining"]');
+  if (count) count.textContent = `${remaining} remaining`;
+  if (status) {
+    status.textContent = result.message || "Account processed.";
+    status.dataset.state = "success";
+  }
+  setOperationsCenterActionMessage(result.message || "Account processed.");
+  const list = dialog.querySelector(".operations-detail-list");
+  if (!remaining) {
+    if (list) list.innerHTML = '<div class="operations-work-queue-empty" role="status"><strong>Queue clear</strong><span>All pending accounts have been processed.</span></div>';
+    setTimeout(() => dialog.close(), 0);
+  } else {
+    dialog.querySelector('[data-operations-quick-action="approve-account"], [data-operations-quick-action="reject-account"]')?.focus();
+  }
+  return result;
 }
 
 function handleOperationsCenterQuickAction(
   action,
-  item = {}
+  item = {},
+  sourceButton = null
 ) {
   switch (action) {
     case "assign-recommended":
@@ -443,7 +475,8 @@ function handleOperationsCenterQuickAction(
     case "reject-account":
       return decideAccountFromOperations(
         action,
-        item
+        item,
+        sourceButton
       );
 
     default:
@@ -2098,6 +2131,7 @@ function renderOperationsCenterMetricDialogs(
         id="operations-detail-${escapeOperationsCenterHtml(metric.id)}"
         data-testid="operations-detail-${escapeOperationsCenterHtml(metric.id)}"
         aria-labelledby="operations-detail-${escapeOperationsCenterHtml(metric.id)}-title"
+        data-metric-id="${escapeOperationsCenterHtml(metric.id)}"
       >
         <header class="operations-detail-header">
           <div>
@@ -2114,10 +2148,12 @@ function renderOperationsCenterMetricDialogs(
           >×</button>
         </header>
 
+        ${metric.id === "pending-accounts" ? `<p class="operations-dialog-count" data-testid="operations-pending-accounts-remaining">${metric.detailItems.length} remaining</p><p class="form-status" role="status" aria-live="polite" data-testid="operations-pending-accounts-status"></p>` : ""}
+
         ${metric.detailItems.length ? `
           <div class="operations-detail-list">
             ${metric.detailItems.map(item => `
-              <article class="operations-detail-item">
+              <article class="operations-detail-item" ${metric.id === "pending-accounts" ? `data-operations-pending-account="${escapeOperationsCenterHtml(item.accountId || item.id || "")}"` : ""}>
                 <div>
                   <strong>${escapeOperationsCenterHtml(renderOperationsCenterTaskLabel(item))}</strong>
                   ${renderOperationsCenterTaskDetail(item)
@@ -2667,7 +2703,8 @@ function setupOperationsCenterActions() {
 
           handleOperationsCenterQuickAction(
             action,
-            payload
+            payload,
+            button
           );
         }
       );
