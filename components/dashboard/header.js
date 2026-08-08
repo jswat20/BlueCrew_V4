@@ -103,7 +103,7 @@ function renderDashboardWelcome() {
         <h1
           data-testid="dashboard-welcome-name"
         >
-          ${getDashboardGreeting()}, ${getDashboardUserName()}
+          ${getDashboardGreeting()}
         </h1>
       </div>
 

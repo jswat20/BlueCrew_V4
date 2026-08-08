@@ -59,27 +59,21 @@ function renderMySchedule(context = {}) {
         </div>
       </div>
 
-      <div class="table-wrapper">
+      <div class="table-wrapper my-schedule-table-wrapper presentation-table-wrapper" tabindex="0" role="region" aria-label="My Schedule table">
         <table
-          class="table"
+          class="table presentation-table presentation-table-centered my-schedule-compact-table"
           data-testid="my-schedule-table"
         >
           <thead>
             <tr>
               <th>Date</th>
               <th>Time</th>
-              <th>Game</th>
-              <th>Game Information</th>
               <th>Level</th>
-              <th>Position</th>
-              <th>Crew</th>
-              <th>Arrival</th>
-              <th>Game Day</th>
-              <th>Checklist</th>
-              <th>Timeline</th>
-              <th>Conditions</th>
-              <th>Contacts</th>
+              <th>Complex</th>
+              <th>Field</th>
+              <th>Forecast</th>
               <th>Status</th>
+              <th>Game Hub</th>
             </tr>
           </thead>
 
@@ -618,61 +612,19 @@ const gameDayRenderers = Object.freeze({
 });
 
 function renderMyScheduleRow(game) {
+  const information = game.gameInformation || {};
+  const conditions = game.gameConditions || {};
+  const forecast = [conditions.summary, conditions.temperature].filter(Boolean).join(" · ") || "—";
   return `
     <tr data-testid="my-schedule-row-${game.id}">
       <td>${game.date}</td>
-      <td>${game.time}</td>
-      <td> <button class="button-link" type="button" onclick="renderPage('game-hub', { gameId: '${game.id}' })" data-testid="my-schedule-open-game-${game.id}"> ${game.matchup} </button> </td>
-      <td>
-        ${gameDayRenderers.renderGameInformation(game)}
-      </td>
-
+      <td>${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}</td>
       <td>${levelTerminologyService.format(game.level)}</td>
-
-      ${renderMyScheduleCell(
-        `my-schedule-position-${game.id}`,
-        game.position
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-partners-${game.id}`,
-        gameDayRenderers.renderPartners(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-arrival-${game.id}`,
-        gameDayRenderers.renderArrival(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-game-day-${game.id}`,
-        gameDayRenderers.renderGameDay(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-checklist-${game.id}`,
-        gameDayRenderers.renderChecklist(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-timeline-cell-${game.id}`,
-        gameDayRenderers.renderTimeline(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-conditions-cell-${game.id}`,
-        gameDayRenderers.renderConditions(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-contacts-cell-${game.id}`,
-        gameDayRenderers.renderContacts(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-status-${game.id}`,
-        gameDayRenderers.renderStatus(game)
-      )}
+      <td>${game.locationComplex || game.complex || information.venue || "Complex TBD"}</td>
+      <td>${game.locationField || game.field || "Field TBD"}</td>
+      <td data-testid="my-schedule-forecast-${game.id}">${forecast}</td>
+      <td data-testid="my-schedule-status-${game.id}"><span class="status-badge status-badge-assigned">Assigned</span></td>
+      <td><button class="button button-primary button-compact" type="button" onclick="renderPage('game-hub', { gameId: '${game.id}', origin: 'my-schedule', returnPage: 'my-schedule' })" data-testid="my-schedule-open-game-${game.id}">Open Game Hub</button></td>
     </tr>
   `;
 }

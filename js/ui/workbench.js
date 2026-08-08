@@ -161,6 +161,11 @@ function handleWorkbenchAction(
   }
 }
 
+function formatWorkbenchCompactDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[2]}/${match[3]}/${match[1].slice(-2)}` : String(value || "Date TBD");
+}
+
 function renderWorkbenchItem(
   item,
   action,
@@ -168,9 +173,6 @@ function renderWorkbenchItem(
 ) {
   const label =
     getWorkbenchItemLabel(item);
-
-  const detail =
-    getWorkbenchItemDetail(item);
 
   const payload = {
     id: item?.id || "",
@@ -191,6 +193,12 @@ function renderWorkbenchItem(
 
   const game = item?.game || item;
   const crew = game?.assignments || [];
+  const assignedCount = crew.filter(slot => slot.crewId).length;
+  const staffingTotal = crew.length || 1;
+  const isNeedsAssignment = action === "needs-assignment";
+  const level = levelTerminologyService.format(game?.level) || "Level TBD";
+  const complex = game?.locationComplex || game?.complex || "Complex TBD";
+  const field = game?.locationField || game?.field || "Field TBD";
 
   return `
     <li class="workbench-item workbench-mini-game">
@@ -205,9 +213,16 @@ function renderWorkbenchItem(
           ${JSON.stringify(payload)}
         )'
       >
-        <span class="workbench-mini-game-time">${escapeWorkbenchHtml(game?.time || "Time TBD")}</span>
-        <span class="workbench-mini-game-main"><strong>${escapeWorkbenchHtml(label)}</strong><small>${escapeWorkbenchHtml([game?.level, locationService.getDisplayName(game), game?.date].filter(Boolean).join(" · "))}</small></span>
-        <span class="workbench-mini-game-crew">${action === "pending-claim" ? `<strong>${escapeWorkbenchHtml(item.position || "Position")}</strong><small>Claimed by ${escapeWorkbenchHtml(item.claimedByName || item.claimedBy || "Unknown umpire")}</small>` : `<strong class="workbench-staffing-count" data-incomplete="${crew.filter(slot => slot.crewId).length < crew.length}">${crew.filter(slot => slot.crewId).length}/${crew.length || "—"} staffed</strong>${action === "needs-assignment" ? "" : `<small>${action === "returned-review" ? "Review returned" : "Review submitted"}</small>`}`}</span>
+        ${isNeedsAssignment ? `
+          <span class="workbench-mini-game-date">${escapeWorkbenchHtml(formatWorkbenchCompactDate(game?.date))}</span>
+          <span class="workbench-mini-game-time">${escapeWorkbenchHtml(dateTimeFormattingService.formatTime12Hour(game?.time, "Time TBD"))}</span>
+          <span class="workbench-mini-game-main"><strong>${escapeWorkbenchHtml(`${level} - ${complex} - ${field}`)}</strong><small>${escapeWorkbenchHtml(label)}</small></span>
+          <span class="workbench-mini-game-crew"><strong class="workbench-staffing-count status-badge ${presentationFormattingService.getStatusBadgeClass("Needs Assignment")}" data-incomplete="${assignedCount < staffingTotal}">${assignedCount}/${staffingTotal} Staffed</strong></span>
+        ` : `
+          <span class="workbench-mini-game-time">${escapeWorkbenchHtml(dateTimeFormattingService.formatTime12Hour(game?.time, "Time TBD"))}</span>
+          <span class="workbench-mini-game-main"><strong>${escapeWorkbenchHtml(label)}</strong><small>${escapeWorkbenchHtml([level, locationService.getDisplayName(game), game?.date].filter(Boolean).join(" · "))}</small></span>
+          <span class="workbench-mini-game-crew">${action === "pending-claim" ? `<strong>${escapeWorkbenchHtml(item.position || "Position")}</strong><small>Claimed by ${escapeWorkbenchHtml(item.claimedByName || item.claimedBy || "Unknown umpire")}</small>` : `<strong class="workbench-staffing-count" data-incomplete="${assignedCount < crew.length}">${assignedCount}/${crew.length || "—"} staffed</strong><small>${action === "returned-review" ? "Review returned" : "Review submitted"}</small>`}</span>
+        `}
       </button>
     </li>
   `;
@@ -246,23 +261,11 @@ function renderWorkbenchCard({
             ${items.length}
           </span>
 
-          ${
-            isPriority
-              ? `
-                  <span
-                    class="muted"
-                    data-testid="workbench-next-label"
-                  >
-                    Work next
-                  </span>
-                `
-              : ""
-          }
         </div>
 
         <button
           type="button"
-          class="secondary-button workbench-card-view-all"
+          class="button button-primary button-view-all workbench-card-view-all"
           data-testid="${escapeWorkbenchHtml(testid)}-view-all"
           onclick='handleWorkbenchAction(${JSON.stringify(action)}, {})'
         >
@@ -508,10 +511,10 @@ function renderWorkbenchOpenPositions(games = []) {
               return `
                 <tr data-testid="workbench-open-game-${escapeWorkbenchHtml(game.id)}">
                   <td>${escapeWorkbenchHtml(game.date || "—")}</td>
-                  <td>${escapeWorkbenchHtml(game.time || "TBD")}</td>
+                  <td>${escapeWorkbenchHtml(dateTimeFormattingService.formatTime12Hour(game.time, "TBD"))}</td>
                   <td><strong>${escapeWorkbenchHtml(getWorkbenchItemLabel(game))}</strong><br><span class="muted">${escapeWorkbenchHtml(levelTerminologyService.format(game.level) || "")}</span></td>
                   <td>${escapeWorkbenchHtml(locationService.getDisplayName(game) || "Location TBD")}</td>
-                  <td><div class="workbench-open-position-list">${openAssignments.map(assignment => `<span class="status-badge status-badge-open">${escapeWorkbenchHtml(assignment.position)}</span>`).join("")}</div></td>
+                  <td><div class="workbench-open-position-list">${openAssignments.map(assignment => `<span class="status-badge status-badge-open">${escapeWorkbenchHtml(presentationFormattingService.formatAssignmentPosition(assignment.position))}</span>`).join("")}</div></td>
                   <td><button type="button" class="button button-primary" data-testid="workbench-manage-crew-${escapeWorkbenchHtml(game.id)}" onclick="openAssignmentDrawer('${escapeWorkbenchHtml(game.id)}')">Manage Crew</button></td>
                 </tr>
               `;
@@ -524,7 +527,7 @@ function renderWorkbenchOpenPositions(games = []) {
 }
 
 let workbenchVisibleNotifications = [];
-let workbenchNotificationsCollapsed = false;
+let workbenchNotificationsCollapsed = true;
 
 function getWorkbenchNotifications() {
   const center = notificationService.getNotificationCenter();
@@ -612,6 +615,31 @@ function getWorkbenchNotificationChange(notification) {
   return notification.message || notification.title || "No additional details.";
 }
 
+function getWorkbenchNotificationPresentation(notification) {
+  const game = notification.relatedId ? gameService.getById(notification.relatedId) : null;
+  const isNewGame = ["game-available", "game-created", "game_added", "game-added"].includes(
+    String(notification.type || "").toLowerCase()
+  );
+
+  if (isNewGame && game) {
+    return {
+      title: "New Game Added",
+      detail: [game.date, dateTimeFormattingService.formatTime12Hour(game.time, "Time TBD")]
+        .filter(Boolean)
+        .join(" · "),
+      context: game.locationComplex || game.complex || "Complex TBD"
+    };
+  }
+
+  return {
+    title: game
+      ? `${game.awayTeam} @ ${game.homeTeam}${game.time ? ` · ${dateTimeFormattingService.formatTime12Hour(game.time)}` : ""}`
+      : notification.title || "Application Notification",
+    detail: getWorkbenchNotificationChange(notification),
+    context: game ? (game.locationComplex || game.complex || "") : ""
+  };
+}
+
 function renderWorkbenchNotificationCenter() {
   workbenchVisibleNotifications = getWorkbenchNotifications();
   const summary = dashboardService.getNotificationsSummary();
@@ -624,7 +652,7 @@ function renderWorkbenchNotificationCenter() {
         <div class="workbench-notification-title"><h2>Notifications</h2><span class="workbench-count" data-testid="workbench-notifications-count">${summary.unreadCount}</span></div>
         <div class="workbench-notification-actions">
           <button type="button" class="button button-secondary" data-testid="workbench-toggle-notifications" aria-expanded="${!workbenchNotificationsCollapsed}" onclick="toggleWorkbenchNotifications()">${workbenchNotificationsCollapsed ? "Expand" : "Collapse"}</button>
-          <button type="button" class="button button-secondary" data-testid="workbench-open-notifications" onclick="navigateTo('notifications', {})">View All</button>
+          <button type="button" class="button button-primary button-view-all" data-testid="workbench-open-notifications" onclick="navigateTo('notifications', { origin: 'assigner-workbench', returnPage: 'assigner-workbench' })">View All</button>
         </div>
       </header>
       ${communicationSummary.hasMuted ? `
@@ -636,14 +664,14 @@ function renderWorkbenchNotificationCenter() {
       ` : ""}
       ${workbenchNotificationsCollapsed ? "" : workbenchVisibleNotifications.length ? `
         <div class="workbench-notification-list">
-          ${workbenchVisibleNotifications.map(notification => `
+          ${workbenchVisibleNotifications.map(notification => { const presentation = getWorkbenchNotificationPresentation(notification); return `
             <button type="button" class="workbench-notification-row" data-testid="workbench-notification-item" data-notification-id="${escapeWorkbenchHtml(notification.id)}" data-read="${notification.read === true}" onclick="openWorkbenchNotification('${escapeWorkbenchHtml(notification.id)}')">
               <time><strong>${escapeWorkbenchHtml(formatWorkbenchNotificationTime(notification.createdAt))}</strong></time>
-              ${(() => { const game = notification.relatedId ? gameService.getById(notification.relatedId) : null; return `<span class="workbench-notification-game"><strong>${escapeWorkbenchHtml(game ? `${game.awayTeam} @ ${game.homeTeam}${game.time ? ` · ${game.time}` : ""}` : notification.title || "Application Notification")}</strong></span>`; })()}
-              <span class="workbench-notification-change">${escapeWorkbenchHtml(getWorkbenchNotificationChange(notification))}</span>
+              <span class="workbench-notification-game"><strong>${escapeWorkbenchHtml(presentation.title)}</strong><small>${escapeWorkbenchHtml(presentation.detail)}</small></span>
+              <span class="workbench-notification-change">${escapeWorkbenchHtml(presentation.context)}</span>
               <span class="workbench-notification-state">${notification.read ? "Read" : "New"}</span>
             </button>
-          `).join("")}
+          `; }).join("")}
         </div>
       ` : `<div class="presentation-empty-state" data-testid="workbench-notifications-empty">No notifications require your attention.</div>`}
     </section>
@@ -701,7 +729,8 @@ async function openWorkbenchNotification(notificationId) {
   }
 
   if (notification.type !== "game_completed" && notification.destination?.page) {
-    navigateTo(notification.destination.page, notification.destination.context || {});
+    const destination = authorizationService.resolveNotificationDestination(notification);
+    if (destination) navigateTo(destination.page, destination.context);
     return;
   }
 
@@ -723,7 +752,7 @@ async function openWorkbenchNotification(notificationId) {
       <div class="workbench-final-score"><span>${escapeWorkbenchHtml(game.awayTeam)} <strong>${completion.awayScore ?? "—"}</strong></span><span>${escapeWorkbenchHtml(game.homeTeam)} <strong>${completion.homeScore ?? "—"}</strong></span></div>
       <dl class="workbench-game-facts"><div><dt>Date</dt><dd>${escapeWorkbenchHtml(game.date || "—")}</dd></div><div><dt>Location</dt><dd>${escapeWorkbenchHtml(locationService.getDisplayName(game) || "—")}</dd></div><div><dt>Level</dt><dd>${escapeWorkbenchHtml(levelTerminologyService.format(game.level) || "—")}</dd></div></dl>
       <section><h3>Game Notes</h3><p>${escapeWorkbenchHtml(completion.notes || game.notes || game.gameNotes || "No game notes were entered.")}</p></section>
-      <footer><button type="button" class="button button-primary" onclick="this.closest('dialog').close(); navigateTo('game-hub', { gameId: '${escapeWorkbenchHtml(game.id)}', origin: 'assigner-workbench', returnPage: 'assigner-workbench' })">Open Full Game Hub</button></footer>
+      <footer><button type="button" class="button button-primary" onclick="this.closest('dialog').remove(); navigateTo('game-hub', { gameId: '${escapeWorkbenchHtml(game.id)}', origin: 'assigner-workbench', returnPage: 'assigner-workbench' })">Open Full Game Hub</button></footer>
     </article>
   ` : `
     <article class="workbench-notification-detail">
@@ -781,13 +810,13 @@ function openWorkbenchGameDialog(action, payload = {}) {
   dialog.innerHTML = `
     <article>
       <header class="workbench-game-dialog-header">
-        <div><span class="dashboard-eyebrow">Game Hub</span><h2>${escapeWorkbenchHtml(game.matchup || `${sourceGame.awayTeam} @ ${sourceGame.homeTeam}`)}</h2></div>
+        <div><h2>${escapeWorkbenchHtml(game.matchup || `${sourceGame.awayTeam} @ ${sourceGame.homeTeam}`)}</h2></div>
         <button type="button" class="button button-secondary" onclick="this.closest('dialog').close()">Close</button>
       </header>
       ${claimOnlyContent}
       ${renderAdministrativeGameHub(game)}
       ${showReview ? `<section class="workbench-dialog-review" data-testid="workbench-review-detail">${renderGameHubReview(game, game.completion || {}, true)}</section>` : ""}
-      <footer><button type="button" class="button button-secondary" onclick="this.closest('dialog').close(); navigateTo('game-hub', { gameId: '${escapeWorkbenchHtml(gameId)}', reviewMode: ${action === "awaiting-review"}, origin: 'assigner-workbench', returnPage: 'assigner-workbench' })">Open Full Game Hub</button></footer>
+      <footer><button type="button" class="button button-secondary" onclick="this.closest('dialog').remove(); navigateTo('game-hub', { gameId: '${escapeWorkbenchHtml(gameId)}', reviewMode: ${action === "awaiting-review"}, origin: 'assigner-workbench', returnPage: 'assigner-workbench' })">Open Full Game Hub</button></footer>
     </article>`;
   document.body.appendChild(dialog);
   dialog.addEventListener("close", () => dialog.remove(), { once: true });
@@ -819,7 +848,7 @@ function populateWorkbenchClaimReviewDialog(dialog, claim) {
         </div>
       </section>
       ${renderAdministrativeGameHub(game)}
-      <footer><button type="button" class="button button-secondary" onclick="this.closest('dialog').close(); navigateTo('game-hub', { gameId: '${escapeWorkbenchHtml(claim.gameId)}', origin: 'assigner-workbench', returnPage: 'assigner-workbench' })">Open Full Game Hub</button></footer>
+      <footer><button type="button" class="button button-secondary" onclick="this.closest('dialog').remove(); navigateTo('game-hub', { gameId: '${escapeWorkbenchHtml(claim.gameId)}', origin: 'assigner-workbench', returnPage: 'assigner-workbench' })">Open Full Game Hub</button></footer>
     </article>`;
   return true;
 }

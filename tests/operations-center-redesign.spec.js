@@ -69,7 +69,7 @@ test.describe("Operations Center redesign", () => {
     await expect(strip.locator("small")).toHaveCount(0);
     await expect(strip).not.toContainText("Open work");
     await expect(strip).not.toContainText("Operational context");
-    await expect(page.getByTestId("operations-attention-summary")).toHaveCSS("color", "rgb(180, 35, 24)");
+    await expect(page.getByTestId("operations-attention-summary")).toHaveCSS("color", "rgb(156, 42, 16)");
   });
 
   test("attention summary totals every actionable status metric", async ({ page }) => {
@@ -263,6 +263,9 @@ test.describe("Operations Center redesign", () => {
     await expect(page.locator("body")).toHaveAttribute("data-page", "game-hub");
     await expect(page.getByTestId("game-hub-empty")).toHaveCount(0);
     await expect(page.getByTestId("game-hub-admin-view")).toBeVisible();
+    await expect(page.getByTestId("game-hub-back")).toContainText("Back to Ops Center");
+    await page.getByTestId("game-hub-back").click();
+    await expect(page.locator("body")).toHaveAttribute("data-page", "operations-center");
   });
 
   test("Operations Log is newest first with exact timestamps", async ({ page }) => {

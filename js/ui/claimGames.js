@@ -11,18 +11,19 @@ function renderClaimGames() {
   }
 
   return `
-    <div class="card" data-testid="claim-games">
-      <h3>Available Games</h3>
-
-      <table class="table">
+    <section class="card presentation-card claim-games-compact" data-testid="claim-games">
+      <div class="presentation-card-header-blue"><h2>Available Games</h2></div>
+      <div class="presentation-table-wrapper" tabindex="0" role="region" aria-label="Available games table">
+      <table class="table presentation-table presentation-table-centered claim-games-table">
         <thead>
           <tr>
             <th>Date</th>
             <th>Time</th>
-            <th>Matchup</th>
-            <th>Field</th>
             <th>Level</th>
-            <th></th>
+            <th>Complex</th>
+            <th>Field</th>
+            <th>Status / Availability</th>
+            <th>Claim</th>
           </tr>
         </thead>
 
@@ -30,13 +31,14 @@ function renderClaimGames() {
           ${games.map(game => `
             <tr data-testid="claim-game-row-${game.id}">
               <td>${game.date}</td>
-              <td>${game.time}</td>
-              <td>${game.matchup}</td>
-              <td>${game.field}</td>
+              <td>${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}</td>
               <td>${levelTerminologyService.format(game.level)}</td>
+              <td>${game.locationComplex || game.complex || "Complex TBD"}</td>
+              <td>${game.locationField || game.field || "Field TBD"}</td>
+              <td><span class="status-badge ${presentationFormattingService.getStatusBadgeClass("Needs Assignment")}">Open</span></td>
               <td>
                 <button
-                  class="btn btn-primary"
+                  class="button button-primary"
                   data-testid="claim-game-${game.id}"
                   data-game-id="${game.id}"
                   onclick="claimPortalGameFromButton(this)">
@@ -46,8 +48,8 @@ function renderClaimGames() {
             </tr>
           `).join("")}
         </tbody>
-      </table>
-    </div>
+      </table></div>
+    </section>
   `;
 }
 

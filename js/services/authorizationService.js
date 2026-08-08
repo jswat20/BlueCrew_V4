@@ -231,6 +231,43 @@ const authorizationService = (() => {
       allowedRoles.includes(normalizedRole);
   }
 
+  function resolveNotificationDestination(notification = {}, role = currentRole()) {
+    const normalizedRole = normalizeRole(role);
+    const destination = notification.destination || {};
+    const requestedPage = String(destination.page || "").trim().toLowerCase();
+    const context = destination.context && typeof destination.context === "object"
+      ? { ...destination.context }
+      : {};
+    const authenticatedAccount = typeof loginService !== "undefined" && typeof loginService.getCurrentAccount === "function"
+      ? loginService.getCurrentAccount()
+      : null;
+    const account = authenticatedAccount || (
+      typeof authService !== "undefined" && typeof authService.getCurrentUser === "function"
+        ? authService.getCurrentUser()
+        : null
+    );
+    const notificationOrganizationId = notification.organizationId || notification.organization_id || context.organizationId || "";
+    const accountOrganizationId = account?.organizationId || account?.organization_id || "";
+
+    if (!requestedPage) return null;
+    if (notificationOrganizationId && accountOrganizationId && String(notificationOrganizationId) !== String(accountOrganizationId)) {
+      return null;
+    }
+    if (canView(requestedPage, normalizedRole)) return { page: requestedPage, context };
+
+    const relatedId = notification.relatedId || context.gameId || context.highlightId || "";
+    const isAdministrativeRole = [ROLES.ADMINISTRATOR, ROLES.ASSIGNER].includes(normalizedRole);
+
+    if (isAdministrativeRole && requestedPage === "claim-games" && relatedId && canView("game-hub", normalizedRole)) {
+      return {
+        page: "game-hub",
+        context: { gameId: relatedId, origin: "notifications", returnPage: "notifications" }
+      };
+    }
+
+    return null;
+  }
+
   function canEditSchedule(role) {
     return can("editSchedule", role);
   }
@@ -263,6 +300,7 @@ const authorizationService = (() => {
     currentRole,
     can,
     canView,
+    resolveNotificationDestination,
     canEditSchedule,
     canApproveClaims,
     canManageAccounts,

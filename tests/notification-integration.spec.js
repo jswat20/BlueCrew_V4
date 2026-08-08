@@ -142,7 +142,10 @@ test.describe(
 
         expect(state).toEqual({
           page: "notifications",
-          context: {}
+          context: {
+            origin: "assigner-workbench",
+            returnPage: "assigner-workbench"
+          }
         });
       }
     );

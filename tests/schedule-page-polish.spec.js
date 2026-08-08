@@ -26,11 +26,12 @@ test("All Games defaults to future work and preserves filters across the past to
   await expect(app.page.getByTestId(`game-row-${ids.today}`)).toBeVisible();
   await expect(app.page.getByTestId(`game-row-${ids.future}`)).toBeVisible();
   const toggle = app.page.getByTestId("schedule-include-past");
-  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(toggle).not.toBeChecked();
   await toggle.click();
+  await expect(toggle).toBeChecked();
   await expect(app.page.getByTestId(`game-row-${ids.past}`)).toBeVisible();
   await expect(app.page.getByTestId(`schedule-status-${ids.past}`)).toHaveText("Completed");
-  await expect(app.page.getByTestId(`schedule-status-${ids.past}`)).toHaveClass(/status-badge-approved/);
+  await expect(app.page.getByTestId(`schedule-status-${ids.past}`)).toHaveClass(/status-badge-completed/);
   await app.page.getByTestId("schedule-advanced-field").selectOption("Keep Field");
   await expect(app.page.getByTestId(`game-row-${ids.today}`)).toBeVisible();
   await expect(app.page.getByTestId(`game-row-${ids.future}`)).toHaveCount(0);
@@ -72,7 +73,7 @@ test("quick headers sort underlying values in both directions with accessible st
     currentScheduleView = "all"; renderPage("schedule");
   }, [offsetDate(1), offsetDate(2), offsetDate(3)]);
   await app.page.getByTestId("schedule-advanced-matchup").fill("Sort Polish");
-  await expect(app.page.getByTestId("schedule-status-schedule-polish-sort-C")).toHaveClass(/status-badge-danger/);
+  await expect(app.page.getByTestId("schedule-status-schedule-polish-sort-C")).toHaveClass(/status-badge-cancelled/);
   const names = () => app.page.locator(".schedule-table tbody tr td:nth-child(6)").allTextContents().then(values => values.map(value => value.match(/Sort Polish ([ABC])/)[1]));
   const expectations = {
     date: [["A", "B", "C"], ["C", "B", "A"]],

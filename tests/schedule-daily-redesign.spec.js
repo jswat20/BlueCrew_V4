@@ -61,11 +61,11 @@ test.describe("Schedule Daily View redesign", () => {
     await expect(page.getByTestId("schedule-advanced-filters")).toBeVisible();
   });
 
-  test("advanced filters stay out of Daily View and Today", async ({ page }) => {
+  test("advanced filters stay out of Calendar View", async ({ page }) => {
     await expect(page.getByTestId("schedule-advanced-filters")).toHaveCount(0);
     await page.getByTestId("view-all-games").click();
     await expect(page.getByTestId("schedule-advanced-filters")).toBeVisible();
-    await page.getByTestId("today").click();
+    await page.getByTestId("view-daily").click();
     await expect(page.getByTestId("schedule-advanced-filters")).toHaveCount(0);
     await expect(page.getByTestId("view-daily")).toHaveClass(/active/);
   });
@@ -82,9 +82,9 @@ test.describe("Schedule Daily View redesign", () => {
     );
   });
 
-  test("Today sits beside All Games and date arrows flank the selected date", async ({ page }) => {
+  test("top-level Today is removed while date arrows flank the selected date", async ({ page }) => {
     const tabs = page.getByTestId("schedule-view-tabs");
-    await expect(tabs.getByTestId("today")).toBeVisible();
+    await expect(tabs.getByTestId("today")).toHaveCount(0);
 
     const geometry = await page.locator(".daily-date-heading").evaluate(element => {
       const previous = element.querySelector('[data-testid="previous-date"]').getBoundingClientRect();
@@ -179,10 +179,10 @@ test.describe("Schedule Daily View redesign", () => {
         direction: getComputedStyle(element).flexDirection,
         viewport: window.innerWidth,
         sideBySide: children.length === 2 && Math.abs(children[0].top - children[1].top) < 2,
-        similarWidths: children.length === 2 && Math.abs(children[0].width - children[1].width) < 3
+        calendarIsWider: children.length === 2 && children[1].width > children[0].width
       };
     });
-    expect(layout).toEqual({ display: "flex", direction: "row", viewport: 900, sideBySide: true, similarWidths: true });
+    expect(layout).toEqual({ display: "flex", direction: "row", viewport: 900, sideBySide: true, calendarIsWider: true });
     const workloadSection = page.locator(".crew-workload-section");
     await expect(workloadSection.locator(":scope > .daily-section-heading")).toContainText("Crew Workload");
     await expect(workloadSection.locator(".crew-workload-panel h3")).toHaveCount(0);
@@ -209,7 +209,7 @@ test.describe("Schedule Daily View redesign", () => {
     await expect(card.locator(".game-card-main .workload-badge")).toBeHidden();
     const assignedCrew = card.locator(".game-card-crew span");
     if (await assignedCrew.count()) {
-      await expect(assignedCrew.first().locator("small")).toHaveText(/Solo|Plate|Base/i);
+      await expect(assignedCrew.first().locator("small")).toHaveText(/Solo|U1|U2|U3|U4/i);
       const crewLink = assignedCrew.first().getByRole("button");
       await crewLink.click();
       await expect(page.getByTestId("crew-card-dialog")).toBeVisible();

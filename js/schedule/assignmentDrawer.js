@@ -210,13 +210,10 @@ function renderAssignmentDrawer() {
               Build Crew
             </h2>
 
-            <p data-testid="assignment-game-summary">
-              ${formatDate(game.date)} · ${escapeAssignmentHtml(
-                game.time
-              )}<br>
-              ${escapeAssignmentHtml(
-                game.awayTeam
-              )} @ ${escapeAssignmentHtml(game.homeTeam)}
+            <p class="assignment-game-summary" data-testid="assignment-game-summary">
+              <strong>${escapeAssignmentHtml(game.awayTeam)} @ ${escapeAssignmentHtml(game.homeTeam)}</strong>
+              <span>${formatDate(game.date)} · ${escapeAssignmentHtml(dateTimeFormattingService.formatTime12Hour(game.time, "Time TBD"))}</span>
+              <span>${escapeAssignmentHtml(game.locationComplex || "Complex TBD")} · ${escapeAssignmentHtml(game.locationField || game.field || "Field TBD")} · ${escapeAssignmentHtml(levelTerminologyService.format(game.level) || "Level TBD")}</span>
             </p>
           </div>
 
@@ -350,7 +347,7 @@ function renderCrewBuilderSlot(
         class="crew-builder-slot-info"
         data-testid="assignment-slot-info-${position}"
       >
-        <strong>${position}</strong>
+        <strong>${escapeAssignmentHtml(presentationFormattingService.formatAssignmentPosition(assignment.position))}</strong>
         ${lockedLabel}
       </div>
 

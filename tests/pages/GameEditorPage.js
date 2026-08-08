@@ -122,8 +122,12 @@ export class GameEditorPage {
 
     await expect(row).toBeVisible();
 
+    await row.getByTestId(/^edit-game-/).click();
+    const editor = this.page.getByTestId("game-editor");
+    await expect(editor).toBeVisible();
+
     this.page.once("dialog", dialog => dialog.accept());
 
-    await row.getByTestId(/^delete-game-/).click();
+    await editor.getByTestId("delete-game-button").click();
   }
 }

@@ -196,19 +196,94 @@ function formatNotificationTimestamp(
     return "";
   }
 
-  return timestamp.toLocaleString();
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(timestamp);
+}
+
+function formatNotificationDate(value) {
+  const date = new Date(`${String(value || "").slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return String(value || "");
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
+function formatNotificationPositions(value) {
+  return String(value || "")
+    .replace(/\bPlate\b/g, presentationFormattingService.formatAssignmentPosition("Plate"))
+    .replace(/\bBase\b/g, presentationFormattingService.formatAssignmentPosition("Base"));
+}
+
+function getNotificationGameIdentifier(game, notification) {
+  if (!game) return notification.relatedId || "";
+  const metadata = {
+    year: game.year,
+    seasonCode: game.seasonCode,
+    organizationCode: game.organizationCode,
+    leagueCode: game.leagueCode,
+    canonicalLevel: game.canonicalLevel,
+    level: game.level,
+    sequence: game.sequence,
+    gameNumber: game.gameNumber
+  };
+  const complete = metadata.year && metadata.seasonCode &&
+    (metadata.organizationCode || metadata.leagueCode) &&
+    (metadata.canonicalLevel || metadata.level) &&
+    (metadata.sequence || metadata.gameNumber);
+  return complete
+    ? presentationFormattingService.formatGameIdentifier(metadata)
+    : game.gameIdentifier || game.gameCode || notification.relatedId || game.id || "";
+}
+
+function getNotificationPresentation(notification) {
+  const game = notification.relatedId && typeof gameService !== "undefined"
+    ? gameService.getById(notification.relatedId)
+    : null;
+  const type = String(notification.type || "").toLowerCase();
+  const gameIdentifier = getNotificationGameIdentifier(game, notification);
+  const supporting = gameIdentifier ? `Game: ${gameIdentifier}` : "";
+
+  if (["game-available", "game-added", "game_created", "game-created"].includes(type) && game) {
+    return {
+      title: "Game Added",
+      message: [formatNotificationDate(game.date), dateTimeFormattingService.formatTime12Hour(game.time, "")]
+        .filter(Boolean).join(" • "),
+      supporting: [game.locationComplex || game.complex || "", supporting].filter(Boolean).join(" · ")
+    };
+  }
+
+  if (type.includes("claim")) {
+    return {
+      title: type === "claim-submitted" || type === "claim" ? "Game Claimed" : notification.title,
+      message: formatNotificationPositions(notification.message),
+      supporting
+    };
+  }
+
+  return {
+    title: notification.title,
+    message: formatNotificationPositions(notification.message),
+    supporting
+  };
 }
 
 function getNotificationAction(
   notification
 ) {
   if (notification.destination?.page) {
+    const destination = typeof authorizationService !== "undefined" &&
+      typeof authorizationService.resolveNotificationDestination === "function"
+        ? authorizationService.resolveNotificationDestination(notification)
+        : notification.destination;
+
+    if (!destination) return null;
+
     return {
       label: "Open",
-      page: notification.destination.page,
-      context:
-        notification.destination.context ||
-        {}
+      page: destination.page,
+      context: destination.context || {}
     };
   }
 
@@ -241,7 +316,7 @@ function renderNotificationAction(
   return `
     <button
       type="button"
-      class="secondary-button"
+      class="button button-secondary"
       data-testid="notification-action"
       data-notification-id="${escapeNotificationHtml(
         notification.id
@@ -268,20 +343,8 @@ function renderNotificationAction(
 function renderNotificationCard(
   notification
 ) {
-  return `
-    <article
-      class="dashboard-card notification-card"
-      data-testid="notification-card"
-      data-notification-id="${escapeNotificationHtml(
-        notification.id
-      )}"
-      data-notification-status="${
-        notification.read
-          ? "read"
-          : "unread"
-      }"
-    >
-      ${
+  const presentation = getNotificationPresentation(notification);
+  const selection =
         notification.virtual
           ? ""
           : `
@@ -312,46 +375,8 @@ function renderNotificationCard(
                 >
                 <span>Select</span>
               </label>
-            `
-      }
-
-      <div class="section-header">
-        <span
-          class="status-pill"
-          data-testid="notification-type"
-        >
-          ${escapeNotificationHtml(
-            formatNotificationType(
-              notification.type
-            )
-          )}
-        </span>
-
-        <time
-          class="muted"
-          data-testid="notification-timestamp"
-        >
-          ${escapeNotificationHtml(
-            formatNotificationTimestamp(
-              notification.createdAt
-            )
-          )}
-        </time>
-      </div>
-
-      <h3>
-        ${escapeNotificationHtml(
-          notification.title
-        )}
-      </h3>
-
-      <p>
-        ${escapeNotificationHtml(
-          notification.message
-        )}
-      </p>
-
-      <div class="notification-card-actions">
+            `;
+  const actions = `
         ${renderNotificationAction(
           notification
         )}
@@ -375,9 +400,16 @@ function renderNotificationCard(
               </button>
             `
         }
-      </div>
-    </article>
-  `;
+      `;
+  return renderNotificationRow({
+    notification,
+    title: presentation.title,
+    message: presentation.message,
+    supporting: presentation.supporting,
+    timestamp: formatNotificationTimestamp(notification.createdAt),
+    selection,
+    actions
+  });
 }
 
 function renderNotificationSection(
@@ -533,6 +565,12 @@ function renderNotifications() {
       selectedIds.includes(id)
     ).length;
 
+  const selectedUnreadCount = notifications.filter(notification =>
+    !notification.virtual &&
+    notification.read !== true &&
+    selectedIds.includes(String(notification.id))
+  ).length;
+
   const hasNotifications =
     [
       ...returned,
@@ -673,23 +711,9 @@ function renderNotifications() {
                 class="notification-center-actions responsive-actions"
                 data-testid="notification-bulk-actions"
               >
-                ${
-                  unreadCount
-                    ? `
-                        <button
-                          type="button"
-                          data-testid="notifications-mark-all-read"
-                          onclick="handleMarkAllNotificationsRead()"
-                        >
-                          Mark All Read
-                        </button>
-                      `
-                    : ""
-                }
-
                 <button
                   type="button"
-                  class="secondary-button"
+                  class="button button-secondary"
                   data-testid="notifications-select-visible"
                   ${
                     visibleStoredIds.length
@@ -698,12 +722,22 @@ function renderNotifications() {
                   }
                   onclick="handleSelectVisibleNotifications()"
                 >
-                  Select All Visible
+                  Select All
                 </button>
 
                 <button
                   type="button"
-                  class="secondary-button"
+                  class="button button-primary"
+                  data-testid="notifications-mark-selected-read"
+                  ${selectedUnreadCount ? "" : "disabled"}
+                  onclick="handleMarkSelectedNotificationsRead()"
+                >
+                  Mark as Read
+                </button>
+
+                <button
+                  type="button"
+                  class="button button-secondary"
                   data-testid="notifications-clear-selection"
                   ${
                     selectedIds.length
@@ -717,20 +751,7 @@ function renderNotifications() {
 
                 <button
                   type="button"
-                  data-testid="notifications-mark-selected-read"
-                  ${
-                    selectedIds.length
-                      ? ""
-                      : "disabled"
-                  }
-                  onclick="handleMarkSelectedNotificationsRead()"
-                >
-                  Mark Selected Read
-                </button>
-
-                <button
-                  type="button"
-                  class="secondary-button"
+                  class="button button-danger"
                   data-testid="notifications-delete-selected"
                   ${
                     selectedIds.length

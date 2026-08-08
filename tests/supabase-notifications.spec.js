@@ -96,7 +96,8 @@ test.describe("Supabase notification read persistence", () => {
       await loginService.loginWithPassword("linked@example.com", "password1234");
       renderPage("notifications");
     });
-    await supabaseAuthApp.page.getByTestId("notifications-mark-all-read").click();
+    await supabaseAuthApp.page.getByTestId("notifications-select-visible").click();
+    await supabaseAuthApp.page.getByTestId("notifications-mark-selected-read").click();
     await expect(supabaseAuthApp.page.getByTestId("notifications-badge")).toBeHidden();
     const persisted = await supabaseAuthApp.page.evaluate(() => window.__supabaseFixture.settings.notifications.filter(item => item.read_at).length);
     expect(persisted).toBe(2);

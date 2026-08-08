@@ -39,16 +39,16 @@ function renderClaimHistory(context = {}) {
       ${renderClaimHistorySummary(summary)}
       ${renderClaimHistoryFilters()}
 
-      <details class="claim-history-section" data-testid="claim-history-approved" open>
+      <details class="claim-history-section" data-testid="claim-history-approved" tabindex="0" aria-label="Approved claim history" open>
         <summary><h3>Approved Claims</h3><span>${filteredApprovedClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredApprovedClaims.map(claim => renderClaimHistoryCard(claim, "approved", highlightedId)).join("")}</div>
       </details>
 
-      <details class="claim-history-section" data-testid="claim-history-rejected" open>
+      <details class="claim-history-section" data-testid="claim-history-rejected" tabindex="0" aria-label="Rejected claim history" open>
         <summary><h3>Rejected Claims</h3><span>${filteredRejectedClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredRejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected", highlightedId)).join("")}</div>
       </details>
-      <details class="claim-history-section" data-testid="claim-history-withdrawn" open>
+      <details class="claim-history-section" data-testid="claim-history-withdrawn" tabindex="0" aria-label="Withdrawn claim history" open>
         <summary><h3>Withdrawn Claims</h3><span>${filteredWithdrawnClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredWithdrawnClaims.map(claim => renderClaimHistoryCard(claim, "withdrawn", highlightedId)).join("")}</div>
       </details>
@@ -169,19 +169,18 @@ function renderClaimHistoryCard(claim, status, highlightedId) {
 
   return `
     <article
-      class="claim-history-card ${isHighlighted ? "is-highlighted" : ""}"
+      class="claim-history-card shared-notification-row presentation-card ${isHighlighted ? "is-highlighted" : ""}"
       data-testid="${status}-claim-card"
       ${isHighlighted ? 'data-highlighted="true"' : ""}
     >
-      <div class="claim-history-card-header"><h4>${claim.matchup}</h4><span class="claim-history-status" data-status="${status}">${status}</span></div>
       <div class="claim-history-card-details">
-        <p><strong>Position</strong><span class="claim-data-pill">${claim.position}</span></p>
-        <p><strong>Claimed by</strong><span class="claim-data-pill">${claim.claimedByName}</span></p>
-        <p><strong>Date</strong><span class="claim-data-pill">${claim.date}</span></p>
-        <p><strong>Time</strong><span class="claim-data-pill">${claim.time}</span></p>
-        <p><strong>Field</strong><span class="claim-data-pill">${claim.field}</span></p>
-        <p><strong>Level</strong><span class="claim-data-pill">${levelTerminologyService.format(claim.level)}</span></p>
+        <span class="claim-history-when"><strong>Date / Time</strong><span>${claim.date} · ${dateTimeFormattingService.formatTime12Hour(claim.time, "TBD")}</span></span>
+        <span class="claim-history-game"><strong>Game</strong><span>${claim.matchup}</span></span>
+        <span><strong>Level</strong><span>${levelTerminologyService.format(claim.level)}</span></span>
+        <span><strong>Position</strong><span>${presentationFormattingService.formatAssignmentPosition(claim.position)}</span></span>
+        <span class="claim-history-status status-badge ${presentationFormattingService.getStatusBadgeClass(status)}" data-status="${status}">${status}</span>
       </div>
+      <small class="claim-history-supporting">Claimed by ${claim.claimedByName}${claim.field ? ` · ${claim.field}` : ""}</small>
     </article>
   `;
 }

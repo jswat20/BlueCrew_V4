@@ -62,7 +62,7 @@ test.describe(
         ).toHaveCount(1);
 
         await expect(
-          page.getByText("Newest Claim")
+          page.getByText("Game Claimed")
         ).toBeVisible();
       }
     );

@@ -63,11 +63,11 @@ test.describe("Role-Aware Navigation", () => {
 
     await page.getByTestId("nav-dashboard").click();
     await expect(page.getByTestId("crew-dashboard")).toBeVisible();
-    await expect(page.getByTestId("crew-dashboard-today")).toBeVisible();
+    await expect(page.getByTestId("crew-dashboard-upcoming")).toBeVisible();
     await expect(page.getByTestId("crew-dashboard-actions")).toBeVisible();
-    await expect(page.locator(".crew-stats .stat-card")).toHaveCount(4);
+    await expect(page.getByTestId("crew-dashboard-notifications")).toBeVisible();
     await expect(page.locator(".crew-command-header time strong")).not.toBeEmpty();
-    await expect(page.locator(".crew-stats .stat-label").first()).toHaveCSS("color", "rgb(255, 255, 255)");
+    await expect(page.getByText("Available to Claim")).toHaveCount(0);
   });
 
   test("restores administrator navigation after switching back", async ({

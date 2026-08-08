@@ -16,6 +16,8 @@ const PRESENTATION_BUTTON_VARIANTS =
     primary: "button-primary",
     secondary: "button-secondary",
     destructive: "button-danger",
+    danger: "button-danger",
+    ghost: "button-ghost",
     link: "button-link"
   });
 
@@ -281,6 +283,35 @@ function renderStatusBadge({
     >
       ${escapePresentationHtml(label)}
     </span>
+  `;
+}
+
+function renderNotificationRow({
+  notification,
+  title = "",
+  message = "",
+  supporting = "",
+  timestamp = "",
+  selection = "",
+  actions = ""
+} = {}) {
+  const item = notification || {};
+  return `
+    <article
+      class="notification-card shared-notification-row presentation-card"
+      data-testid="notification-card"
+      data-notification-id="${escapePresentationHtml(item.id || "")}"
+      data-notification-status="${item.read ? "read" : "unread"}"
+    >
+      ${selection}
+      <div class="shared-notification-copy">
+        <h3>${escapePresentationHtml(title || item.title || "Notification")}</h3>
+        <p>${escapePresentationHtml(message || item.message || "")}</p>
+        ${supporting ? `<small class="shared-notification-supporting">${escapePresentationHtml(supporting)}</small>` : ""}
+      </div>
+      <time class="shared-notification-time muted" data-testid="notification-timestamp">${escapePresentationHtml(timestamp)}</time>
+      <div class="shared-notification-actions notification-card-actions">${actions}</div>
+    </article>
   `;
 }
 

@@ -57,11 +57,13 @@ function applyScheduleQuickSort(games = []) {
 
 function getScheduleDisplayStatus(game) {
   const lifecycle = gameService.getStatus(game);
-  if (lifecycle === "completed" || lifecycle === "approved" || lifecycle === "submitted") return { key: "completed", label: "Completed", className: "status-badge-approved" };
-  if (lifecycle === "cancelled") return { key: "cancelled", label: "Cancelled", className: "status-badge-danger" };
+  if (lifecycle === "completed" || lifecycle === "approved" || lifecycle === "submitted") return { key: "completed", label: "Completed", className: presentationFormattingService.getStatusBadgeClass("Completed") };
+  if (lifecycle === "cancelled") return { key: "cancelled", label: "Cancelled", className: presentationFormattingService.getStatusBadgeClass("Cancelled") };
   const assignment = assignmentService.getStatus(game);
-  if (["needs_assignment", "open_for_claim", "pending_approval"].includes(assignment)) return { key: "needs_assignment", label: "Needs Assignment", className: "status-badge-needs-assignment" };
-  return { key: assignment === "assigned" || assignment === "locked" ? "assigned" : "scheduled", label: assignment === "assigned" || assignment === "locked" ? "Assigned" : "Scheduled", className: "status-badge-assigned" };
+  if (assignment === "pending_approval") return { key: "pending_approval", label: "Pending Approval", className: presentationFormattingService.getStatusBadgeClass("Pending Approval") };
+  if (["needs_assignment", "open_for_claim"].includes(assignment)) return { key: "needs_assignment", label: "Needs Assignment", className: presentationFormattingService.getStatusBadgeClass("Needs Assignment") };
+  const label = assignment === "assigned" || assignment === "locked" ? "Assigned" : "Scheduled";
+  return { key: label.toLowerCase(), label, className: presentationFormattingService.getStatusBadgeClass(label) };
 }
 
 function escapeScheduleFilterHtml(value) {
@@ -142,7 +144,7 @@ function renderSchedule() {
             class="button button-secondary"
             data-testid="view-daily"
             onclick="setScheduleView('daily')">
-            Daily View
+            Calendar View
           </button>
 
           <button
@@ -151,13 +153,6 @@ function renderSchedule() {
             data-testid="view-all-games"
             onclick="setScheduleView('all')">
             All Games
-          </button>
-
-          <button
-            class="button button-secondary"
-            data-testid="today"
-            onclick="goToToday()">
-            Today
           </button>
 
         </div>
@@ -202,13 +197,6 @@ function renderSchedule() {
     Export CSV
   </button>
   
-  <button
-    class="button button-secondary schedule-toolbar-date-step"
-    data-testid="toolbar-today"
-    onclick="goToToday()">
-    Today
-  </button>
-
   <button
     class="button button-secondary schedule-toolbar-date-step"
     data-testid="toolbar-next-date"

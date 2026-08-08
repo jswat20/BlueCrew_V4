@@ -51,13 +51,14 @@ const filter =
   };
 
   container.innerHTML = `
-    <section class="all-games-header presentation-page-header presentation-panel">
+    <section class="all-games-card presentation-card" data-testid="all-games-card">
+    <header class="all-games-header presentation-card-header">
       <div>
         <h2>All Games</h2>
         <p>Full schedule table.</p>
       </div>
       <div class="all-games-filters" aria-label="Filter scheduled games">
-        <button type="button" class="button button-secondary ${scheduleIncludePastGames ? "active" : ""}" data-testid="schedule-include-past" aria-pressed="${scheduleIncludePastGames}" onclick="toggleSchedulePastGames()">Include Past Games</button>
+        <label class="schedule-past-toggle"><input type="checkbox" data-testid="schedule-include-past" ${scheduleIncludePastGames ? "checked" : ""} onchange="toggleSchedulePastGames()"><span>Include Past Games</span></label>
         ${[
           ["all", "All Games"],
           ["today", "Games Today"],
@@ -73,10 +74,10 @@ const filter =
           >${label}</button>
         `).join("")}
       </div>
-    </section>
+    </header>
 
     <div class="schedule-table-wrap presentation-table-wrapper">
-      <table class="schedule-table">
+      <table class="schedule-table presentation-table">
         <thead>
           <tr>
             ${sortableHeader("date", "Date")}
@@ -106,6 +107,7 @@ const filter =
         </tbody>
       </table>
     </div>
+    </section>
   `;
 }
 
@@ -118,9 +120,13 @@ function setAllGamesScheduleFilter(filter) {
 function renderAllGamesRow(game, context = {}) {
     const assigned = assignmentService.isAssigned(game);
 
-  const crewName = assigned
-    ? crewService.getDisplayName(game.crewId)
-    : "Needs Crew";
+  const assignedCrew = assignmentService.getAssignments(game).filter(assignment => assignment.crewId);
+  const crewName = assignedCrew.length
+    ? assignedCrew.map(assignment => {
+        const label = presentationFormattingService.formatAssignmentPosition(assignment.position, "");
+        return `${label ? `${label} ` : ""}${crewService.getDisplayName(assignment.crewId)}`;
+      }).join(", ")
+    : (assigned && game.crewId ? crewService.getDisplayName(game.crewId) : "TBD");
 const isHighlighted =
   context.highlightId &&
   String(game.id) === String(context.highlightId);

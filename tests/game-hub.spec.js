@@ -41,8 +41,8 @@ test.describe("Umpire Game Hub", () => {
     await expect(app.page.getByTestId("game-hub-summary-time")).toContainText("6:30 PM");
     await expect(app.page.getByTestId("game-hub-summary-location")).toContainText("BlueCrew Sports Complex");
     await expect(app.page.getByTestId("game-hub-summary-field")).toContainText("Game Hub Field");
-    await expect(app.page.getByTestId("game-hub-assignment-badge")).toHaveText("You’re Assigned");
-    await expect(app.page.getByTestId("game-hub-summary-position")).toContainText("Plate (solo)");
+    await expect(app.page.getByTestId("game-hub-assignment-badge")).toHaveText("Assigned");
+    await expect(app.page.getByTestId("game-hub-summary-position")).toContainText("Solo");
     for (const id of ["game-hub-checklist", "game-hub-section-game-information", "game-hub-section-arrival", "game-hub-section-game-day", "game-hub-section-timeline", "game-hub-section-conditions", "game-hub-section-status"]) await expect(app.page.getByTestId(id)).toHaveCount(0);
     await app.page.getByTestId("game-hub-back").click();
     await expect(app.page.getByTestId(`my-schedule-row-${gameId}`)).toBeVisible();
@@ -74,7 +74,7 @@ test.describe("Umpire Game Hub", () => {
     expect(["needs_assignment", "open_for_claim"]).toContain(state.status);
   });
 
-  for (const [stored, expected, gameType] of [["B1", "B1", "threeMan"], ["B2", "B2", "threeMan"], ["B3", "B3", "fourMan"], ["Plate", "Plate (solo)", "single"], ["Base", "Base (2-man)", "twoMan"], ["Legacy Rover", "Legacy Rover", "threeMan"]]) {
+  for (const [stored, expected, gameType] of [["B1", "B1", "threeMan"], ["B2", "B2", "threeMan"], ["B3", "B3", "fourMan"], ["Plate", "Solo", "single"], ["Base", "U2", "twoMan"], ["Legacy Rover", "Legacy Rover", "threeMan"]]) {
     test(`maps ${stored} safely`, async ({ app }) => {
       await setupGameHub(app, { position: stored, gameType });
       await expect(app.page.getByTestId("game-hub-summary-position")).toContainText(expected);
@@ -146,7 +146,7 @@ test.describe("Umpire Game Hub", () => {
     const dialog = app.page.getByTestId("workbench-game-dialog");
     await expect(dialog.getByRole("heading", { name: "Colt Team D @ Colt Team B", exact: true })).toHaveCount(1);
     await expect(dialog.getByRole("heading", { name: "Game Details" })).toBeVisible();
-    await expect(dialog.getByTestId("game-hub-summary-date")).toContainText("Aug 12, 2030");
+    await expect(dialog.getByTestId("game-hub-summary-date")).toContainText("August 12, 2030");
     await expect(dialog.getByTestId("game-hub-summary-time")).toContainText("6:00 PM");
     await expect(dialog.getByTestId("game-hub-summary-location")).toContainText("Lake Shore Athletic Complex");
     await expect(dialog.getByTestId("game-hub-summary-field")).toContainText("Field 3");
@@ -161,7 +161,6 @@ test.describe("Umpire Game Hub", () => {
     const picker = dialog.locator("dialog.game-hub-crew-picker[open]");
     await expect(picker).not.toContainText("undefined");
     await expect(picker).toContainText("Lake Shore Athletic Complex");
-    await expect(picker).toContainText("Colt Team D @ Colt Team B");
     await expect(picker).toContainText("6:00 PM");
     await picker.getByRole("button", { name: "Close" }).click();
     await dialog.getByRole("button", { name: "Open Full Game Hub" }).click();

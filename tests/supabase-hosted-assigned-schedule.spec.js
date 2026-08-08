@@ -57,7 +57,7 @@ test.describe("Hosted assigned umpire schedule", () => {
     await expect(page.getByTestId(`my-schedule-row-${game.id}`)).toBeVisible();
     await page.getByTestId(`my-schedule-open-game-${game.id}`).click();
     await expect(page.getByTestId("game-hub-summary")).toContainText("Bears @ Hawks");
-    await expect(page.getByTestId("game-hub-summary-position")).toContainText("Plate");
+    await expect(page.getByTestId("game-hub-summary-position")).toContainText("U1");
 
     const queried = (await calls()).filter(call => call.operation === "select").map(call => call.table);
     expect(queried).toContain("games");

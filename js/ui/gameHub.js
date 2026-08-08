@@ -16,11 +16,20 @@ function formatGameHubDate(value) {
   return Number.isNaN(parsed.getTime()) ? "Date unavailable" : parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatGameHubLongDate(value) {
+  if (!value) return "Date unavailable";
+  const parsed = new Date(`${value}T12:00:00`);
+  return Number.isNaN(parsed.getTime())
+    ? "Date unavailable"
+    : parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
 function getGameHubPresentation(game = {}) {
   const information = game.gameInformation || {};
   return {
     matchup: game.matchup || `${game.awayTeam || "Away team unavailable"} @ ${game.homeTeam || "Home team unavailable"}`,
     date: formatGameHubDate(game.date),
+    dateLong: formatGameHubLongDate(game.date),
     time: dateTimeFormattingService.formatTime12Hour(game.time, "Time unavailable"),
     complex: information.locationComplex || information.venue || game.locationComplex || "Complex unavailable",
     field: information.locationField || information.field || game.field || "Field unavailable",
@@ -31,8 +40,12 @@ function getGameHubPresentation(game = {}) {
 
 function renderGameHubAssignmentBadge(game = {}) {
   const status = String(game.assignmentStatus || "").toLowerCase();
-  const label = game.assignmentStatusLabel || (status === "needs_assignment" ? "Needs Assignment" : "Assigned");
-  const semanticClass = ["needs_assignment", "open_for_claim"].includes(status) ? "status-badge-needs-assignment" : "status-badge-assigned";
+  const label = game.assignmentStatusLabel || (status === "pending_approval"
+    ? "Pending Approval"
+    : ["needs_assignment", "open_for_claim"].includes(status)
+      ? "Needs Assignment"
+      : "Assigned");
+  const semanticClass = presentationFormattingService.getStatusBadgeClass(label);
   return `<span class="status-badge ${semanticClass}" data-testid="game-hub-assignment-status">${escapeGameHubText(label)}</span>`;
 }
 
@@ -65,14 +78,20 @@ function getGameHubLifecycleLabel(game) {
 function renderGameHubLifecycleBadge(game) {
   const status =
     game?.lifecycleStatus || "scheduled";
+  const label = getGameHubLifecycleLabel(game);
+  const semanticLabel = ["submitted", "returned"].includes(status)
+    ? "Pending Approval"
+    : status === "postponed"
+      ? "Cancelled"
+      : label;
 
   return `
     <span
-      class="status-badge game-hub-lifecycle-badge ${status === "scheduled" ? "status-badge-assigned" : ""}"
+      class="status-badge game-hub-lifecycle-badge ${presentationFormattingService.getStatusBadgeClass(semanticLabel)}"
       data-testid="game-hub-lifecycle-badge"
       data-status="${status}"
     >
-      ${getGameHubLifecycleLabel(game)}
+      ${label}
     </span>
   `;
 }
@@ -135,10 +154,8 @@ function getUmpireOperationalStatus(game) {
 
 function getUmpirePositionLabel(position, game) {
   const value = String(position || "").trim();
-  if (["B1", "B2", "B3"].includes(value.toUpperCase())) return value.toUpperCase();
-  if (/plate/i.test(value)) return Number(game?.crewSize || 1) === 1 ? "Plate (solo)" : "Plate";
-  if (/base/i.test(value)) return Number(game?.crewSize || 2) === 2 ? "Base (2-man)" : "Base";
-  return value || "Position unavailable";
+  if (/plate/i.test(value) && Number(game?.crewSize || 1) === 1) return "Solo";
+  return presentationFormattingService.formatAssignmentPosition(value, "Position unavailable");
 }
 
 function renderUmpireGameSummary(game) {
@@ -148,19 +165,20 @@ function renderUmpireGameSummary(game) {
   const conditions = game.gameConditions || {};
   const weather = [conditions.summary, conditions.temperature, conditions.fieldStatus].filter(Boolean);
   const canDecline = assigned && !["cancelled", "completed", "submitted", "returned", "approved"].includes(game.lifecycleStatus);
-  return `<section class="card game-hub-summary game-hub-umpire-summary" data-testid="game-hub-summary" data-umpire-summary="true">
-    <div class="game-hub-summary-header"><h2 data-testid="game-hub-matchup">${escapeGameHubText(presentation.matchup)}</h2><div class="game-hub-summary-badges">
-      <span class="game-hub-level-badge" data-testid="game-hub-level-badge">${escapeGameHubText(presentation.level)}</span>
+  return `<section class="card presentation-card game-hub-summary game-hub-umpire-summary" data-testid="game-hub-summary" data-umpire-summary="true">
+    <h2 data-testid="game-hub-matchup">${escapeGameHubText(presentation.matchup)}</h2>
+    <div class="game-hub-umpire-status-row" data-testid="game-hub-umpire-status-row">
+      <span class="game-hub-assignment-badge" data-assigned="${assigned}" data-testid="game-hub-assignment-badge">Assigned</span>
       <span class="game-hub-operational-badge" data-status="${operational.key}" data-testid="game-hub-operational-status">${operational.label}</span>
-      <span class="game-hub-weather" data-testid="game-hub-weather">${weather.length ? escapeGameHubText(weather.join(" · ")) : "Forecast unavailable."}</span>
-      <span class="game-hub-assignment-badge" data-assigned="${assigned}" data-testid="game-hub-assignment-badge">${assigned ? "You’re Assigned" : "Assigned"}</span>
-    </div></div>
-    <div class="game-hub-summary-details">
+      <span class="game-hub-weather" data-testid="game-hub-weather"><small>Forecast</small><strong>${weather.length ? escapeGameHubText(weather.join(" · ")) : "Unavailable"}</strong></span>
+    </div>
+    <div class="game-hub-summary-details game-hub-umpire-details" data-testid="game-hub-umpire-details">
       <div data-testid="game-hub-summary-date"><span>Date</span><strong>${escapeGameHubText(presentation.date)}</strong></div>
       <div data-testid="game-hub-summary-time"><span>Time</span><strong>${escapeGameHubText(presentation.time)}</strong></div>
+      ${assigned ? `<div data-testid="game-hub-summary-position"><span>Position</span><strong class="game-hub-position-badge">${escapeGameHubText(getUmpirePositionLabel(game.positions?.[0], game))}</strong></div>` : `<div><span>Position</span><strong>Position unavailable</strong></div>`}
+      <div data-testid="game-hub-summary-level"><span>Level</span><strong data-testid="game-hub-level-badge">${escapeGameHubText(presentation.level)}</strong></div>
       <div data-testid="game-hub-summary-location"><span>Complex</span><strong>${escapeGameHubText(presentation.complex)}</strong></div>
       <div data-testid="game-hub-summary-field"><span>Field</span><strong>${escapeGameHubText(presentation.field)}</strong></div>
-      ${assigned ? `<div data-testid="game-hub-summary-position"><span>Position</span><strong class="game-hub-position-badge">${escapeGameHubText(getUmpirePositionLabel(game.positions?.[0], game))}</strong></div>` : ""}
     </div>${canDecline ? `<div class="game-hub-summary-actions"><button type="button" class="button button-danger" data-testid="game-hub-decline-assignment" onclick="declineAssignmentFromHub('${escapeGameHubText(game.id)}')">Decline Assignment</button></div>` : ""}
   </section>`;
 }
@@ -1407,7 +1425,7 @@ function renderGameHubCrewPicker(game, assignment) {
     <dialog class="game-hub-crew-picker" data-testid="game-hub-crew-picker-${escapeGameHubText(assignment.id)}">
       <form method="dialog" onsubmit="event.preventDefault(); saveGameHubCrewAssignment('${escapeGameHubText(game.id)}', '${escapeGameHubText(assignment.id)}')">
         <header>
-          <div class="game-hub-picker-heading"><strong>${escapeGameHubText(presentation.complex)}</strong><span>${escapeGameHubText(presentation.matchup)}</span><span>${escapeGameHubText(`${presentation.date} • ${presentation.time} • ${presentation.field} • ${presentation.level}`)}</span><h3>Assign ${escapeGameHubText(assignment.position)}</h3></div>
+          <div class="game-hub-picker-heading"><strong>${escapeGameHubText(presentation.complex)}</strong><span>${escapeGameHubText(`${presentation.date} • ${presentation.time} • ${presentation.field} • ${presentation.level}`)}</span><h3>Assign ${escapeGameHubText(presentationFormattingService.formatAssignmentPosition(assignment.position))}</h3></div>
           <div class="game-hub-picker-actions">
             <button type="submit" class="button button-primary" data-testid="game-hub-crew-save-${escapeGameHubText(assignment.id)}">Save</button>
             <button type="button" class="button button-secondary" onclick="this.closest('dialog').close()" aria-label="Close crew picker">Close</button>
@@ -1470,7 +1488,9 @@ async function removeGameHubCrewAssignment(gameId, assignmentId) {
 }
 
 function renderAdministrativeGameHubCrew(game, sourceGame) {
-  const assignments = assignmentService.getAssignments(sourceGame);
+  const allAssignments = assignmentService.getAssignments(sourceGame);
+  const requiredOfficialCount = Math.min(4, Math.max(1, Number(game.crewSize) || allAssignments.length || 1));
+  const assignments = allAssignments.slice(0, requiredOfficialCount);
 
   return `
     <section class="game-hub-command-card game-hub-command-crew" data-testid="game-hub-admin-crew">
@@ -1481,7 +1501,7 @@ function renderAdministrativeGameHubCrew(game, sourceGame) {
       <div class="game-hub-command-slots">
         ${assignments.map(assignment => `
           <div class="game-hub-command-slot" data-testid="game-hub-crew-slot-${escapeGameHubText(assignment.position)}">
-            <span>${escapeGameHubText(assignment.position)}</span>
+            <span>${escapeGameHubText(presentationFormattingService.formatAssignmentPosition(assignment.position))}</span>
             ${assignment.crewId
               ? `<strong>${escapeGameHubText(crewService.getDisplayName(assignment.crewId))}</strong><button type="button" class="button button-danger" data-testid="game-hub-remove-${escapeGameHubText(assignment.id)}" onclick="removeGameHubCrewAssignment('${escapeGameHubText(sourceGame.id)}','${escapeGameHubText(assignment.id)}')">Remove Crew Member</button><span class="form-status" role="alert" data-testid="game-hub-remove-status-${escapeGameHubText(assignment.id)}"></span>`
               : `<button type="button" class="button button-primary" data-testid="game-hub-assign-${escapeGameHubText(assignment.position)}" onclick="openGameHubCrewPicker('${escapeGameHubText(assignment.id)}')">Assign Crew</button>`}
@@ -1489,9 +1509,9 @@ function renderAdministrativeGameHubCrew(game, sourceGame) {
           ${renderGameHubCrewPicker(sourceGame, assignment)}
         `).join("")}
       </div>
-      <dialog class="game-hub-crew-picker game-hub-notes-dialog" data-testid="game-hub-crew-notes-dialog">
-        <header><h3>Crew Notes</h3><button type="button" class="button button-secondary" onclick="this.closest('dialog').close()">Close</button></header>
-        <div class="game-hub-admin-notes">${assignments.filter(item => item.crewId).map(item => `<p><strong>${escapeGameHubText(item.position)} — ${escapeGameHubText(crewService.getDisplayName(item.crewId))}</strong><br>${escapeGameHubText(sourceGame.crewNotesByCrewId?.[String(item.crewId)] || "No crew notes entered.")}</p>`).join("") || "No assigned crew notes are available."}</div>
+      <dialog class="game-hub-crew-picker game-hub-notes-dialog" data-testid="game-hub-crew-notes-dialog" aria-labelledby="game-hub-admin-notes-title">
+        <header><h3 id="game-hub-admin-notes-title">Crew Notes</h3><button type="button" class="button button-secondary" onclick="this.closest('dialog').close()">Close</button></header>
+        <div class="game-hub-admin-notes">${assignments.filter(item => item.crewId).map(item => `<p><strong>${escapeGameHubText(presentationFormattingService.formatAssignmentPosition(item.position))} — ${escapeGameHubText(crewService.getDisplayName(item.crewId))}</strong><br>${escapeGameHubText(sourceGame.crewNotesByCrewId?.[String(item.crewId)] || "No crew notes entered.")}</p>`).join("") || `<div class="presentation-empty-state presentation-empty-state-compact" role="status">No assigned crew notes are available.</div>`}</div>
       </dialog>
     </section>
   `;
@@ -1505,17 +1525,21 @@ function renderAdministrativeGameHub(game) {
 
   return `
     <div class="game-hub-command-layout" data-testid="game-hub-admin-view">
-      <section class="game-hub-command-card game-hub-command-summary">
-        <div class="game-hub-command-title"><h3>Game Details</h3></div>
+      <section class="game-hub-command-card presentation-card game-hub-command-summary" data-testid="game-hub-admin-details">
+        <header class="game-hub-command-summary-header" data-testid="game-hub-admin-statuses">
+          <div class="game-hub-command-title"><h3>Game Details</h3></div>
+          <div class="game-hub-command-lifecycle" data-testid="game-hub-admin-lifecycle-status">${renderGameHubLifecycleBadge(game)}</div>
+          <div class="game-hub-command-assignment" data-testid="game-hub-admin-assignment-status">${renderGameHubAssignmentBadge(game)}</div>
+        </header>
         ${gameHasStarted && !game.completion?.completed
           ? `<button type="button" class="button button-primary game-hub-command-complete" data-testid="game-hub-complete-game" onclick="completeGameFromHub('${escapeGameHubText(game.id)}')">Complete Game</button>`
-          : `<div class="game-hub-command-status">${renderGameHubLifecycleBadge(game)} ${renderGameHubAssignmentBadge(game)}</div>`}
+          : ""}
         <dl>
-          <div data-testid="game-hub-summary-date"><dt>Date</dt><dd>${escapeGameHubText(presentation.date)}</dd></div>
-          <div data-testid="game-hub-summary-time"><dt>Time</dt><dd>${escapeGameHubText(presentation.time)}</dd></div>
+          <div data-testid="game-hub-summary-level"><dt>Level</dt><dd>${escapeGameHubText(presentation.level)}</dd></div>
+          <div data-testid="game-hub-summary-date"><dt>Date</dt><dd>${escapeGameHubText(presentation.dateLong)}</dd></div>
           <div data-testid="game-hub-summary-location"><dt>Complex</dt><dd>${escapeGameHubText(presentation.complex)}</dd></div>
           <div data-testid="game-hub-summary-field"><dt>Field</dt><dd>${escapeGameHubText(presentation.field)}</dd></div>
-          <div data-testid="game-hub-summary-level"><dt>Level</dt><dd>${escapeGameHubText(presentation.level)}</dd></div>
+          <div data-testid="game-hub-summary-time"><dt>Time</dt><dd>${escapeGameHubText(presentation.time)}</dd></div>
         </dl>
       </section>
       ${renderAdministrativeGameHubCrew(game, sourceGame)}
@@ -1670,13 +1694,14 @@ function renderGameHub(context = {}) {
 
   if (isGameHubAdministrativeView() && !reviewMode) {
     const returnToWorkbench = context.returnPage === "assigner-workbench" || context.origin === "assigner-workbench";
-    const backPage = returnToWorkbench ? "assigner-workbench" : "dashboard";
-    const backLabel = returnToWorkbench ? "Back to Assigner Workbench" : "Back to Dashboard";
+    const returnToOperations = context.returnPage === "operations-center" || context.origin === "operations-center";
+    const backPage = returnToOperations ? "operations-center" : returnToWorkbench ? "assigner-workbench" : context.returnPage || "dashboard";
+    const backLabel = returnToOperations ? "Back to Ops Center" : returnToWorkbench ? "Back to Assigner Workbench" : backPage === "dashboard" ? "Back to Dashboard" : "Back to Previous Page";
     const presentation = getGameHubPresentation(game);
     return `
       <section class="page-section game-hub game-hub-admin" data-testid="game-hub" data-game-id="${game.id}" data-review-mode="false" data-lifecycle-status="${game.lifecycleStatus}" data-read-only="${isGameHubReadOnly(game)}">
         <div class="game-hub-admin-nav"><button class="button button-secondary" type="button" onclick="renderPage('${backPage}')" data-testid="game-hub-back">← ${backLabel}</button></div>
-        <header class="game-hub-admin-heading"><span class="dashboard-eyebrow">Game Hub</span><h2 data-testid="game-hub-matchup">${escapeGameHubText(presentation.matchup)}</h2></header>
+        <header class="game-hub-admin-heading"><h1 data-testid="game-hub-matchup">${escapeGameHubText(presentation.matchup)}</h1></header>
         ${renderGameHubLifecycleBanner(game)}
         ${renderAdministrativeGameHub(game)}
       </section>
@@ -1716,7 +1741,7 @@ function renderGameHub(context = {}) {
               class="game-hub-summary-date"
               data-testid="game-hub-date-time"
             >
-              ${game.date} • ${game.time}
+              ${game.date} • ${dateTimeFormattingService.formatTime12Hour(game.time, "Time unavailable")}
             </div>
           </div>
 

@@ -29,7 +29,7 @@ test.describe("Notifications UI", () => {
     await app.page.evaluate(() => renderPage("notifications"));
 
     await expect(app.page.getByTestId("notification-card")).toHaveCount(1);
-    await expect(app.page.getByText("New claim submitted")).toBeVisible();
+    await expect(app.page.getByText("Game Claimed")).toBeVisible();
     await expect(
       app.page.getByText("Pending Away @ Pending Home has been claimed.")
     ).toBeVisible();
@@ -101,11 +101,12 @@ test.describe("Notifications UI", () => {
     await expect(app.page.getByTestId("notifications-badge")).toHaveText("2");
 
     await app.page.evaluate(() => renderPage("notifications"));
-    await app.page.getByTestId("notifications-mark-all-read").click();
+    await app.page.getByTestId("notifications-select-visible").click();
+    await app.page.getByTestId("notifications-mark-selected-read").click();
 
     await expect(app.page.getByTestId("notifications-badge")).toBeHidden();
     await expect(app.page.getByTestId("notification-mark-read")).toHaveCount(0);
-    await expect(app.page.getByTestId("notifications-mark-all-read")).toHaveCount(0);
+    await expect(app.page.getByTestId("notifications-mark-selected-read")).toBeDisabled();
   });
 
   test("filters notifications by unread status", async ({ app }) => {

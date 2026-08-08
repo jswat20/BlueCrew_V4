@@ -39,7 +39,6 @@ function renderCrewDashboard() {
   const upcomingAssignments = assignmentService
     .getUpcomingAssignmentsForCrew(crewId)
     .slice(0, 10);
-  const todaysGame = todaysAssignments[0];
   const now = new Date();
   const greeting = now.getHours() < 12 ? "Morning" : now.getHours() < 17 ? "Afternoon" : "Evening";
   const todayLabel = now.toLocaleDateString("en-US", {
@@ -56,48 +55,64 @@ function renderCrewDashboard() {
         <time><span>${todayLabel}</span><strong>${timeLabel}</strong></time>
       </header>
 
-      ${renderCrewStats(
-        todaysAssignments.length,
-        upcomingAssignments.length,
-        pendingApprovals.length,
-        claimableGames.length
-      )}
-
-      <div class="crew-command-grid">
-        <section class="crew-command-panel crew-command-today" data-testid="crew-dashboard-today">
-          <header><h2>Today's Assignment</h2><button type="button" class="button button-secondary" onclick="renderPage('my-schedule')">View My Schedule</button></header>
-          ${renderCrewHero(todaysGame)}
-        </section>
-
-        <aside class="crew-command-panel crew-command-actions" data-testid="crew-dashboard-actions">
+      <div class="crew-command-grid crew-command-grid-polished">
+        <section class="crew-command-panel crew-command-actions crew-action-center-primary" data-testid="crew-dashboard-actions">
           <header><h2>Action Center</h2></header>
           ${renderReturnedReviewDashboardCard()}
           ${renderCrewActionSummary("Pending Claims", pendingApprovals.length, "Claims awaiting assignor approval.", "renderPage('my-claims')")}
           ${renderCrewActionSummary("Available Games", claimableGames.length, "Games currently open for claims.", "renderPage('claim-games')")}
-        </aside>
+          ${renderCrewActionSummary("Today's Assignments", todaysAssignments.length, "Open today's game-day details.", "renderPage('my-schedule')")}
+        </section>
       </div>
 
-      <div class="crew-command-lists">
-        ${renderCrewSection("Upcoming Schedule", upcomingAssignments, renderCrewAssignmentCard)}
-        ${renderCrewSection("Available to Claim", claimableGames.slice(0, 4), renderCrewClaimCard)}
+      <div class="crew-command-lists crew-command-lists-polished">
+        ${renderCrewSection("Upcoming Schedule", upcomingAssignments, renderCrewAssignmentCard, "crew-dashboard-upcoming")}
+        ${renderCrewRecentNotifications()}
       </div>
     </div>
   `;
 }
 
 function renderCrewActionSummary(title, count, detail, action) {
-  return `<button type="button" class="crew-action-row" onclick="${action}"><span><strong>${title}</strong><small>${detail}</small></span><b data-attention="${count > 0}">${count}</b></button>`;
+  return `<button type="button" class="crew-action-row crew-action-cell" data-testid="crew-action-cell" onclick="${action}"><span><strong>${title}</strong><small>${detail}</small></span><b data-attention="${count > 0}">${count}</b></button>`;
 }
 
-function renderCrewSection(title, games, renderer) {
+function renderCrewSection(title, games, renderer, testId = "") {
   return `
-    <section class="crew-dashboard-section crew-command-panel">
+    <section class="crew-dashboard-section crew-command-panel" ${testId ? `data-testid="${testId}"` : ""}>
       <header><h2>${title}</h2></header>
       <div class="crew-command-list">
         ${games.length ? games.map(renderer).join("") : `<div class="crew-command-empty">Nothing to show right now.</div>`}
       </div>
     </section>
   `;
+}
+
+function renderCrewRecentNotifications() {
+  const notifications = notificationService.getNotifications().slice(0, 5);
+  return `
+    <section class="crew-dashboard-section crew-command-panel crew-recent-notifications" data-testid="crew-dashboard-notifications">
+      <header><h2>Recent Notifications</h2><button type="button" class="button button-primary button-view-all" onclick="renderPage('notifications')">View All</button></header>
+      <div class="crew-command-list">
+        ${notifications.length ? notifications.map(notification => {
+          const presentation = getNotificationPresentation(notification);
+          const game = notification.relatedId ? gameService.getById(notification.relatedId) : null;
+          const alias = game ? levelTerminologyService.aliasFor(game.level) : "";
+          const compactLevel = alias || (game ? levelTerminologyService.canonicalize(game.level) : "");
+          const compactMessage = game
+            ? `${compactLevel || "Game"} game - ${formatNotificationDate(game.date)} at ${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}`
+            : presentation.message;
+          return renderNotificationRow({
+            notification,
+            title: presentation.title,
+            message: compactMessage,
+            supporting: "",
+            timestamp: "",
+            actions: renderNotificationAction(notification)
+          });
+        }).join("") : `<div class="crew-command-empty">No recent notifications.</div>`}
+      </div>
+    </section>`;
 }
 
 function renderCrewHero(game) {
@@ -129,9 +144,10 @@ function renderCrewStats(today, upcoming, pending, available) {
 function renderCrewAssignmentCard(game) {
   return `
     <button type="button" class="schedule-game-card crew-command-game-row" onclick="renderPage('game-hub', { gameId: '${game.id}' })">
-      <strong>${game.time}</strong>
-      <span><b>${game.awayTeam} @ ${game.homeTeam}</b><small>${formatDate(game.date)}</small></span>
-      <span><b>${levelTerminologyService.format(game.level)}</b><small>${locationService.getDisplayName(game)}</small></span>
+      <span><small>Date</small><b>${formatDate(game.date)}</b></span>
+      <span><small>Time</small><b>${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}</b></span>
+      <span><small>Level</small><b>${levelTerminologyService.format(game.level)}</b></span>
+      <span class="crew-upcoming-location"><small>Location</small><b>${locationService.getDisplayName(game)}</b></span>
       ${renderAssignmentStatusBadge(game)}
     </button>
   `;

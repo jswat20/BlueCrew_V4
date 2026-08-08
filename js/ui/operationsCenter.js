@@ -2314,6 +2314,15 @@ function formatOperationsWorkDate(dateValue, today) {
       }).format(date);
 }
 
+function formatOperationsHeaderDate(dateValue) {
+  const date = new Date(`${dateValue}T12:00:00`);
+  return Number.isNaN(date.getTime())
+    ? String(dateValue || "Date unavailable")
+    : date.toLocaleDateString("en-US", {
+        weekday: "long", month: "long", day: "numeric", year: "numeric"
+      });
+}
+
 function renderOperationsStaffingBoard(events = [], today = "") {
   const groups = [];
   events.forEach(event => {
@@ -2326,10 +2335,6 @@ function renderOperationsStaffingBoard(events = [], today = "") {
     group.events.push(event);
   });
 
-  const positions = [...new Set(events.flatMap(event =>
-    (event.assignments || []).map(assignment => assignment.position)
-  ))];
-
   return `
     <section class="operations-panel operations-upcoming" data-testid="operations-upcoming-work" aria-labelledby="operations-upcoming-title">
       <div class="operations-section-heading"><h2 id="operations-upcoming-title">Today & Upcoming Work</h2></div>
@@ -2338,7 +2343,8 @@ function renderOperationsStaffingBoard(events = [], today = "") {
           <h3>${escapeOperationsCenterHtml(group.label)}</h3>
           <div class="operations-staffing-table-wrap">
             <table class="operations-staffing-table">
-              <thead><tr><th class="operations-column-time">Time</th><th class="operations-column-level">Level</th><th class="operations-column-matchup">Matchup</th><th class="operations-column-location">Location</th>${positions.map(position => `<th>${escapeOperationsCenterHtml(position)}</th>`).join("")}</tr></thead>
+              <colgroup><col class="operations-col-time"><col class="operations-col-level"><col class="operations-col-matchup"><col class="operations-col-location"><col class="operations-col-umpires"></colgroup>
+              <thead><tr><th class="operations-column-time">Time</th><th class="operations-column-level">Level</th><th class="operations-column-matchup">Matchup</th><th class="operations-column-location">Location</th><th class="operations-column-umpires">Umpire(s)</th></tr></thead>
               <tbody>${group.events.map(event => `
                 <tr
                   class="operations-staffing-row"
@@ -2353,10 +2359,14 @@ function renderOperationsStaffingBoard(events = [], today = "") {
                   <td class="operations-column-level">${escapeOperationsCenterHtml(event.level ? levelTerminologyService.format(event.level) : "Level unavailable")}</td>
                   <td class="operations-column-matchup"><strong class="operations-staffing-matchup">${escapeOperationsCenterHtml(event.matchup)}</strong></td>
                   <td class="operations-column-location">${escapeOperationsCenterHtml(event.locationComplex || locationService.getDisplayName(event) || "Location unavailable")}</td>
-                  ${positions.map(position => {
-                    const assignment = (event.assignments || []).find(item => item.position === position);
-                    return `<td class="operations-staffing-assignment" data-status="${assignment?.crewId ? "assigned" : "open"}">${escapeOperationsCenterHtml(assignment?.crewName || "OPEN")}</td>`;
-                  }).join("")}
+                  <td class="operations-column-umpires"><div class="operations-umpire-list" data-testid="operations-umpires-${escapeOperationsCenterHtml(event.id)}">
+                    ${(event.assignments || []).map(assignment => {
+                      const displayPosition = presentationFormattingService.formatAssignmentPosition(assignment.position);
+                      const isAssigned = Boolean(assignment.crewId);
+                      const displayName = isAssigned ? assignment.crewName : "OPEN";
+                      return `<span class="operations-umpire-entry operations-staffing-assignment" data-status="${isAssigned ? "assigned" : "open"}" data-position="${escapeOperationsCenterHtml(displayPosition)}"><strong>${escapeOperationsCenterHtml(displayPosition)}:</strong> <span>${escapeOperationsCenterHtml(displayName)}</span><span class="visually-hidden">${isAssigned ? "Assigned" : "Open assignment"}</span></span>`;
+                    }).join("")}
+                  </div></td>
                 </tr>
               `).join("")}</tbody>
             </table>
@@ -2507,13 +2517,16 @@ function renderOperationsCenter(context = {}) {
         )}
       </div>
 
+      <div class="operations-page-meta" data-testid="operations-page-meta">
+        <time datetime="${escapeOperationsCenterHtml(operations.operationalDate)}" data-testid="operations-operational-date">${escapeOperationsCenterHtml(formatOperationsHeaderDate(operations.operationalDate))}</time>
+        <p class="operations-attention-summary" data-testid="operations-attention-summary" role="status">
+          ${actionableOutstandingCount} operational ${actionableOutstandingCount === 1 ? "item requires" : "items require"} attention.
+        </p>
+      </div>
+
       ${renderOperationsCenterStatusStrip(
         operations.statusMetrics
       )}
-
-      <p class="operations-attention-summary" data-testid="operations-attention-summary" role="status">
-        ${actionableOutstandingCount} operational ${actionableOutstandingCount === 1 ? "item requires" : "items require"} attention.
-      </p>
 
       ${renderOperationsCenterMetricDialogs(
         operations.statusMetrics

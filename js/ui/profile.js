@@ -186,16 +186,18 @@ function renderProfileForm(profile) {
       }
 
       <div class="profile-crew-card-preview" data-testid="profile-crew-card-front">
-        ${typeof renderCrewCardFront === "function" ? renderCrewCardFront(accountService.getById(profile.id), { testId: "profile-crew-card" }) : ""}
+        ${typeof renderCrewCardFront === "function" ? renderCrewCardFront(accountService.getById(profile.id), { testId: "profile-crew-card", hideLevels: true }) : ""}
       </div>
 
       <form
-        class="form-card"
+        class="form-card profile-form-card"
         data-testid="profile-form"
         novalidate
         onsubmit="handleSaveProfile(event)"
       >
-        <div class="form-grid">
+        <section class="profile-details-section" aria-labelledby="profile-details-title">
+          <div class="profile-section-heading"><div><h3 id="profile-details-title">Profile Details</h3><p>Account identity, contact, and emergency information.</p></div></div>
+        <div class="form-grid profile-details-grid">
           <label>
             Crew ID
             <input type="text" data-testid="profile-crew-id" value="${escapeProfileHtml(profile.crewCode || "Not issued")}" disabled>
@@ -322,13 +324,13 @@ function renderProfileForm(profile) {
               )}"
             >
           </label>
-        </div>
+        </div></section>
 
         <section class="profile-credentials" data-testid="profile-credentials">
           <div class="section-header">
             <div>
-              <h3>Crew Credentials</h3>
-              <p class="muted">The verified information shown on your Crew Card.</p>
+              <h3>Crew Information</h3>
+              <p class="muted">Verified crew and service information.</p>
             </div>
           </div>
           <div class="profile-credential-grid">
@@ -340,21 +342,9 @@ function renderProfileForm(profile) {
               <span>Years of Service</span>
               <strong>${escapeProfileHtml(crewCard?.yearsOfService ?? profile.yearsOfService ?? 0)}</strong>
             </div>
-            <div class="profile-credential-levels">
-              <span>Age Eligibility</span>
-              <div>
-                ${(crewCard?.levels || []).length
-                  ? crewCard.levels.map(level => `<span class="settings-pill">${escapeProfileHtml(level)}</span>`).join("")
-                  : `<span class="muted">No eligible age ranges recorded.</span>`}
-              </div>
-            </div>
-            <div class="profile-credential-history">
-              <span>Official History</span>
-              <ul>
-                ${(crewCard?.officialHistory || []).length
-                  ? crewCard.officialHistory.map(item => `<li>${escapeProfileHtml(item.year)} — ${escapeProfileHtml(item.label)}</li>`).join("")
-                  : `<li>No official history recorded.</li>`}
-              </ul>
+            <div>
+              <span>Crew Assignment</span>
+              <strong>${escapeProfileHtml(profile.crewName || "Not assigned")}</strong>
             </div>
           </div>
         </section>
@@ -396,6 +386,7 @@ function renderProfileForm(profile) {
         <div class="form-actions responsive-actions">
           <button
             type="submit"
+            class="button button-primary"
             data-testid="profile-save"
           >
             Save
@@ -403,7 +394,7 @@ function renderProfileForm(profile) {
 
           <button
             type="button"
-            class="secondary"
+            class="button button-secondary"
             data-testid="profile-cancel"
             onclick="handleCancelProfileEdit()"
           >

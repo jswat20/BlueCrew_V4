@@ -352,7 +352,7 @@ test.describe("Dashboard Entry Experience", () => {
       renderPage("dashboard");
     });
 
-    await expect(app.page.getByTestId("dashboard-welcome-name")).toContainText(/Good (morning|afternoon|evening), Administrator/);
+    await expect(app.page.getByTestId("dashboard-welcome-name")).toContainText(/Good (Morning|Afternoon|Evening), Administrator \(Admin\)/);
     await expect(app.page.getByRole("heading", { name: "The Daily Brief - Today At A Glance" })).toBeVisible();
     await expect(app.page.getByTestId("dashboard-open-operations")).toHaveCount(0);
     await expect(app.page.getByTestId("dashboard-summary-today-games")).toContainText("Games Today");

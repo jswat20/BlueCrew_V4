@@ -85,9 +85,8 @@ await app.page.evaluate(() => {
       app.page.getByTestId("claim-games")
     ).toBeVisible();
 
-    await expect(
-      app.page.getByText("Away Team @ Home Team")
-    ).toBeVisible();
+    await expect(app.page.getByRole("columnheader", { name: "Teams" })).toHaveCount(0);
+    await expect(app.page.getByText("Away Team @ Home Team")).toHaveCount(0);
 
     await expect(
 app.page.locator('button[data-testid^="claim-game-"]')

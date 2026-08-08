@@ -1,12 +1,15 @@
 // js/schedule/gameEditor.js
 
+let gameEditorReturnFocus = null;
+
 function openGameEditor(gameId = null) {
   const isEditing = gameId !== null && gameId !== undefined;
   const game = isEditing ? gameService.getById(gameId) : createBlankGame();
 
   if (!game) return;
 
-  closeGameEditor();
+  closeGameEditor(false);
+  gameEditorReturnFocus = document.activeElement;
 
   const overlay = document.createElement("div");
   overlay.id = "game-editor-overlay";
@@ -14,9 +17,9 @@ function openGameEditor(gameId = null) {
   overlay.innerHTML = `
     <div class="assign-drawer-backdrop" onclick="closeGameEditor()"></div>
 
-<aside class="assign-drawer" data-testid="game-editor">
+<aside class="assign-drawer game-editor-modal" data-testid="game-editor" role="dialog" aria-modal="true" aria-labelledby="game-editor-title" tabindex="-1">
       <div class="assign-drawer-header">
-        <h2>${isEditing ? "Edit Game" : "Add Game"}</h2>
+        <h2 id="game-editor-title">${isEditing ? "Edit Game" : "Add Game"}</h2>
         <button
           class="button button-link button-compact"
           aria-label="Close game editor"
@@ -29,6 +32,10 @@ function openGameEditor(gameId = null) {
   `;
 
   document.body.appendChild(overlay);
+  overlay.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeGameEditor();
+  });
+  overlay.querySelector(".game-editor-modal")?.focus();
 }
 
 function editGame(gameId) {
@@ -60,7 +67,7 @@ function createBlankGame() {
 function renderGameEditorForm(game, isEditing) {
   const selectedComplex = game.locationComplex || (game.locationField || game.field ? locationService.LEGACY_COMPLEX : locationService.getComplexes()[0] || "");
   const selectedField = game.locationField || game.field || locationService.getFields(selectedComplex)[0] || "";
-  return `
+  return `<div class="game-editor-form">
     <label>Date</label>
     <input id="edit-date" data-testid="game-date-input" type="date" value="${game.date || ""}" />
 
@@ -159,12 +166,12 @@ function renderGameEditorForm(game, isEditing) {
                 data-testid="delete-game-button"
                 onclick="deleteGame('${game.id}')"
               >
-                Delete
+                Delete Game
               </button>
             `
           : ""
       }
-    </div>
+    </div></div>
   `;
 }
 function renderExistingGameAssignmentSection(game) {
@@ -343,9 +350,13 @@ function refreshAfterGameEditorSave() {
   }
 }
 
-function closeGameEditor() {
+function closeGameEditor(restoreFocus = true) {
   const existing = document.getElementById("game-editor-overlay");
   if (existing) existing.remove();
+  if (restoreFocus && gameEditorReturnFocus && document.contains(gameEditorReturnFocus)) {
+    gameEditorReturnFocus.focus();
+  }
+  gameEditorReturnFocus = null;
 }
 
 function renderGameTypeOptions(selectedType) {

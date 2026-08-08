@@ -20,17 +20,14 @@ function getDashboardUserName() {
 }
 
 function getDashboardGreeting() {
-  const hour = new Date().getHours();
-
-  if (hour < 12) {
-    return "Good morning";
-  }
-
-  if (hour < 18) {
-    return "Good afternoon";
-  }
-
-  return "Good evening";
+  const role = typeof authorizationService !== "undefined"
+    ? authorizationService.currentRole()
+    : "";
+  return presentationFormattingService.formatGreeting({
+    name: getDashboardUserName(),
+    role,
+    date: new Date()
+  });
 }
 
 function formatDashboardCurrentDate() {

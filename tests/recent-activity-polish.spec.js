@@ -22,7 +22,7 @@ test("Recent Activity presents a concise attributed audit table", async ({ app }
   await expect(rows.nth(0).getByTestId("dashboard-assignment-activity-action")).toHaveText("Lake Shore Athletic Complex • 8U - Pinto • Aug 12, 2026 • 6:00 PM");
   await expect(rows.nth(1).locator(".operations-log-actor")).toHaveText("Assigner - Jane Smith");
   await expect(rows.nth(1).locator(".operations-log-actor")).not.toContainText("Plate");
-  await expect(rows.nth(1).getByTestId("dashboard-assignment-activity-action")).toContainText("assigned to Plate");
+  await expect(rows.nth(1).getByTestId("dashboard-assignment-activity-action")).toContainText("assigned to U1");
   await expect(rows.nth(2).locator(".operations-log-actor")).toHaveText("Umpire - Test UmpireOne");
   await expect(rows.nth(3).locator(".operations-log-actor")).toHaveText("System");
   await expect(rows.nth(3).getByTestId("dashboard-assignment-activity-matchup")).toHaveText("—");
@@ -44,5 +44,5 @@ test("removed and cancelled games retain context and crew removal stays useful",
   await expect(rows.nth(0).getByTestId("dashboard-assignment-activity-action")).toHaveText("Lake Shore Athletic Complex • 12U - Bronco • Aug 13, 2026 • 7:30 PM");
   await expect(rows.nth(1).getByTestId("dashboard-activity-category")).toContainText("Game Cancelled");
   await expect(rows.nth(1).getByTestId("dashboard-assignment-activity-action")).toHaveText("Lake Shore Athletic Complex • 12U - Bronco • Aug 13, 2026 • 7:30 PM");
-  await expect(rows.nth(2).getByTestId("dashboard-assignment-activity-action")).toHaveText("Test UmpireOne removed from Plate");
+  await expect(rows.nth(2).getByTestId("dashboard-assignment-activity-action")).toHaveText("Test UmpireOne removed from U1");
 });

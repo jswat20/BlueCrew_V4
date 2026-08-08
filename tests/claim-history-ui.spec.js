@@ -138,9 +138,7 @@ async function createApprovedAndRejectedClaims(
     await app.page.getByTestId("nav-claim-history").click();
 
     await expect(app.page.getByTestId("approved-claim-card")).toHaveCount(1);
-    await expect(
-      app.page.getByTestId("approved-claim-card").locator(".claim-data-pill")
-    ).toHaveCount(6);
+    await expect(app.page.getByTestId("approved-claim-card").locator(".claim-history-card-details > span")).toHaveCount(5);
     await expect(
       app.page.getByText("Pending Away @ Pending Home")
     ).toBeVisible();

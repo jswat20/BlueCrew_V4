@@ -404,10 +404,31 @@ function getRoleSummary() {
           : "";
 
       if (position && crewName) {
+        const displayPosition = presentationFormattingService.formatAssignmentPosition(position);
+        const gameContext = relatedGame
+          ? ` for ${relatedGame.awayTeam || "Away"} @ ${relatedGame.homeTeam || "Home"}`
+          : "";
         activityMessage =
-          `${position} assigned to ${crewName}.`;
+          `${crewName} assigned to ${displayPosition}${gameContext}.`;
       }
     }
+
+    if (type === "assignment" && ["cleared", "assignment_removed"].includes(action)) {
+      const position = metadata.position || activity.subject || "";
+      const removedName = metadata.previousCrewName || metadata.crewName ||
+        String(activity.message || "").match(/:\s*([^:]+?)\s+removed from/i)?.[1] || "Crew member";
+      const displayPosition = presentationFormattingService.formatAssignmentPosition(position, "position");
+      const gameContext = relatedGame
+        ? ` for ${relatedGame.awayTeam || "Away"} @ ${relatedGame.homeTeam || "Home"}`
+        : "";
+      activityMessage = `${removedName} removed from ${displayPosition}${gameContext}.`;
+    }
+
+    const locationComplex = metadata.locationComplex || relatedGame?.locationComplex || relatedGame?.venue || "";
+    const locationField = metadata.locationField || metadata.field || relatedGame?.locationField || relatedGame?.field || "";
+    const activityLocation = [locationComplex, locationField]
+      .filter((value, index, values) => value && values.indexOf(value) === index)
+      .join(" • ");
 
     return {
       id:
@@ -445,13 +466,7 @@ function getRoleSummary() {
 
       level: level ? levelTerminologyService.format(level) : "—",
 
-      location:
-        activity.location ||
-        activity.metadata?.field ||
-        activity.metadata?.venue ||
-        relatedGame?.field ||
-        relatedGame?.venue ||
-        "",
+      location: activityLocation || activity.location || metadata.venue || "",
 
       details: getOperationalActivityDetails(type, action, activity, relatedGame),
 
@@ -803,10 +818,14 @@ function getRoleSummary() {
     }
     const position = metadata.position || activity.subject || "";
     const crewName = activity.crewId && crewService?.getDisplayName?.(activity.crewId) || metadata.crewName || "";
-    if (type === "assignment" && action === "assigned" && position && crewName) return `${crewName} assigned to ${position}`;
+    const displayPosition = presentationFormattingService.formatAssignmentPosition(position, "position");
+    const gameContext = relatedGame
+      ? ` for ${relatedGame.awayTeam || "Away"} @ ${relatedGame.homeTeam || "Home"}`
+      : "";
+    if (type === "assignment" && action === "assigned" && position && crewName) return `${crewName} assigned to ${displayPosition}${gameContext}`;
     if (type === "assignment" && ["cleared", "assignment_removed"].includes(action) && position) {
       const removed = metadata.previousCrewName || String(activity.message || "").match(/:\s*([^:]+?)\s+removed from/i)?.[1] || "Crew member";
-      return `${removed} removed from ${position}`;
+      return `${removed} removed from ${displayPosition}${gameContext}`;
     }
     return getOperationalActivityMessage(type, action, activity).replace(/^([^:]+):\s*/, "").replace(/\.$/, "");
   }

@@ -99,6 +99,7 @@ test.describe(
           );
         });
 
+        await page.getByTestId("workbench-toggle-notifications").click();
         await expect(page.getByTestId("workbench-notification-item")).toHaveCount(2);
         await expect(page.getByTestId("workbench-newest-notification")).toHaveCount(0);
         await expect(page.getByTestId("workbench-unread-by-category")).toHaveCount(0);

@@ -17,7 +17,7 @@ test.describe("Claim Notifications", () => {
 
     await expect(app.page.getByTestId("notification-card")).toHaveCount(1);
     await expect(
-      app.page.getByText("New Claim Submitted")
+      app.page.getByText("Game Claimed")
     ).toBeVisible();
   });
   test("approving a claim creates an approval notification", async ({ app }) => {

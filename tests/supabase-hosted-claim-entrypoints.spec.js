@@ -15,7 +15,8 @@ test.describe("Hosted claim entry points", () => {
   test("Dashboard Claim awaits the shared hosted command and refreshes", async ({ supabaseAuthApp }) => {
     const { page, calls } = supabaseAuthApp;
     await page.evaluate(async () => { await loginService.loginWithPassword("claim-ui@example.com", "password"); renderPage("dashboard"); });
-    await page.getByTestId(`dashboard-claim-${game.id}`).click();
+    await page.getByRole("button", { name: /Available Games/ }).click();
+    await page.getByTestId(`claim-game-${game.id}`).click();
     await expect.poll(() => page.evaluate(() => window.__supabaseFixture.settings.assignments[0].status)).toBe("pending_approval");
     expect((await calls()).filter(call => call.name === "submit_assignment_claim")).toHaveLength(1);
   });
@@ -73,7 +74,8 @@ test.describe("Hosted claim errors", () => {
   test("Dashboard shows the hosted error and retains the claimable state", async ({ supabaseAuthApp }) => {
     const { page } = supabaseAuthApp;
     await page.evaluate(async () => { await loginService.loginWithPassword("claim-ui@example.com", "password"); renderPage("dashboard"); });
-    await page.getByTestId(`dashboard-claim-${game.id}`).click();
+    await page.getByRole("button", { name: /Available Games/ }).click();
+    await page.getByTestId(`claim-game-${game.id}`).click();
     await expect(page.getByText("The claim could not be submitted. Please try again.")).toBeVisible();
     expect(await page.evaluate(() => window.__supabaseFixture.settings.assignments[0].status)).toBe("needs_assignment");
     expect(await page.evaluate(() => window.__supabaseFixture.settings.claims.filter(claim => claim.status === "pending").length)).toBe(0);
