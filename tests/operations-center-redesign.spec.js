@@ -62,7 +62,7 @@ test.describe("Operations Center redesign", () => {
 
   test("uses title-case labels, an explicit staffing ratio, and no context captions", async ({ page }) => {
     const strip = page.getByTestId("operations-status-strip");
-    await expect(page.getByTestId("operations-metric-events-today")).toContainText("Events Today");
+    await expect(page.getByTestId("operations-metric-events-today").locator("span")).toHaveText("Games");
     const fullyStaffed = page.getByTestId("operations-metric-fully-staffed");
     await expect(fullyStaffed.locator("span")).toHaveText("Fully Staffed");
     await expect(fullyStaffed.locator("strong")).toHaveText(/\d+ of \d+/);

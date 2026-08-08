@@ -90,7 +90,17 @@ test.describe("administrator backend mutations", () => {
         role: "administrator",
         status: "approved",
         communication_preferences: {}
-      }
+      },
+      pendingProfiles: [{
+        id: "profile-umpire-1", auth_user_id: "auth-umpire-pending", organization_id: "organization-1",
+        first_name: "Pending", last_name: "Umpire", email: "pending@example.com", phone: "",
+        role: "umpire", status: "pending", communication_preferences: {}, created_at: "2026-08-01T00:00:00.000Z"
+      }],
+      crewMembers: [{
+        id: "crew-umpire-1", organization_id: "organization-1", profile_id: null,
+        first_name: "Pending", last_name: "Umpire", email: "pending@example.com", phone: "",
+        active: true, eligible_levels: ["12U"], preferences: {}, notes: ""
+      }]
     }
   });
 
@@ -106,6 +116,8 @@ test("accountService owns invitation creation and transactional approval calls",
 
   expect(results.invitation.success).toBe(true);
   expect(results.approval.success).toBe(true);
+  expect(results.approval.data).toMatchObject({ id: "profile-umpire-1", status: "approved" });
+  expect(await supabaseAuthApp.page.evaluate(() => window.__supabaseFixture.settings.crewMembers.find(member => member.id === "crew-umpire-1")?.profile_id)).toBe("profile-umpire-1");
   const calls = await supabaseAuthApp.calls();
   expect(calls.some(call => call.name === "create_umpire_invitation")).toBe(true);
   expect(calls.some(call => call.name === "approve_umpire_profile")).toBe(true);

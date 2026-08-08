@@ -18,6 +18,48 @@ const supabaseSharedRepository = (() => {
     return db.from("crew_members").select("*").eq("profile_id", profileId).maybeSingle();
   }
 
+  async function getCurrentOrganization(organizationId) {
+    const db = await client();
+    return db.from("organizations").select("id,name,slug,timezone,settings").eq("id", organizationId).maybeSingle();
+  }
+
+  const ACTIVITY_COLUMNS = "id,organization_id,actor_profile_id,type,action,subject,object,message,related_legacy_id,metadata,created_at";
+  const ACTIVITY_ACTOR_COLUMNS = "id,role,first_name,last_name,email";
+
+  async function getRecentActivities() {
+    const db = await client();
+    const activityResult = await db.from("activities").select(ACTIVITY_COLUMNS).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(50);
+    if (activityResult.error) return { activities: null, profiles: null, error: activityResult.error };
+    const actorIds = [...new Set((activityResult.data || []).map(row => row.actor_profile_id).filter(Boolean))];
+    if (!actorIds.length) return { activities: activityResult.data || [], profiles: [], error: null };
+    const profileResult = await db.from("profiles").select(ACTIVITY_ACTOR_COLUMNS).in("id", actorIds);
+    return { activities: activityResult.data || [], profiles: profileResult.data || [], error: profileResult.error || null };
+  }
+
+  const PENDING_PROFILE_COLUMNS = "id,organization_id,role,status,first_name,last_name,email,phone,created_at";
+
+  async function getPendingUmpireProfiles() {
+    const db = await client();
+    return db.from("profiles").select(PENDING_PROFILE_COLUMNS)
+      .eq("role", "umpire").eq("status", "pending")
+      .order("created_at").order("last_name").order("first_name").order("id");
+  }
+
+  async function approveUmpireProfile(profileId, crewMemberId) {
+    const db = await client();
+    return db.rpc("approve_umpire_profile", { p_target_profile_id: profileId, p_target_crew_member_id: crewMemberId });
+  }
+
+  async function rejectUmpireProfile(profileId, reason = "") {
+    const db = await client();
+    return db.rpc("reject_umpire_profile", { p_target_profile_id: profileId, p_reason: reason || null });
+  }
+
+  async function removeGameAssignmentCrew(assignmentId) {
+    const db = await client();
+    return db.rpc("remove_game_assignment_crew", { p_assignment_id: assignmentId });
+  }
+
   const CREW_COLUMNS = "id,organization_id,profile_id,legacy_crew_id,first_name,last_name,email,phone,active,eligible_levels,preferences,notes";
 
   async function getCrewMembers() {
@@ -150,6 +192,11 @@ const supabaseSharedRepository = (() => {
     });
   }
 
+  async function importScheduleGames(games) {
+    const db = await client();
+    return db.rpc("import_schedule_games", { p_games: games });
+  }
+
   async function getCrewMembersByIds(crewMemberIds = []) {
     if (!crewMemberIds.length) return { data: [], error: null };
     const db = await client();
@@ -163,7 +210,13 @@ const supabaseSharedRepository = (() => {
 
   return {
     getProfileForAuthUser,
+    getCurrentOrganization,
+    getRecentActivities,
     updateProfile,
+    getPendingUmpireProfiles,
+    approveUmpireProfile,
+    rejectUmpireProfile,
+    removeGameAssignmentCrew,
     getLinkedCrewMember,
     getCrewMembers,
     createCrewMember,
@@ -182,6 +235,7 @@ const supabaseSharedRepository = (() => {
     submitAssignmentClaim,
     decideAssignmentClaim,
     saveOwnGameCompletion,
+    importScheduleGames,
     getCrewMembersByIds
   };
 })();

@@ -33,7 +33,7 @@ function renderClaimGames() {
               <td>${game.time}</td>
               <td>${game.matchup}</td>
               <td>${game.field}</td>
-              <td>${game.level}</td>
+              <td>${levelTerminologyService.format(game.level)}</td>
               <td>
                 <button
                   class="btn btn-primary"
@@ -59,8 +59,9 @@ async function claimPortalGame(gameId) {
   const result = await portalService.claimGame(gameId);
 
   if (result.success) {
+    toastService.success(result.message);
     renderPage("claim-games");
   } else {
-    alert(result.message);
+    toastService.error(result.message);
   }
 }

@@ -6,6 +6,63 @@ let currentScheduleContext = {};
 const scheduleAdvancedFilters = {
   date: "", time: "", locationComplex: "", field: "", level: "", matchup: "", crew: "", status: "", sort: "date", direction: "asc"
 };
+let scheduleIncludePastGames = false;
+let scheduleQuickSort = { field: "", direction: "asc" };
+
+function getLocalScheduleDate() {
+  const value = new Date();
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
+
+function getScheduleTimeMinutes(value) {
+  const text = String(value || "").trim();
+  const twelve = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (twelve) { let hour = Number(twelve[1]) % 12; if (twelve[3].toUpperCase() === "PM") hour += 12; return hour * 60 + Number(twelve[2]); }
+  const canonical = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  return canonical ? Number(canonical[1]) * 60 + Number(canonical[2]) : -1;
+}
+
+function setScheduleQuickSort(field) {
+  scheduleQuickSort = scheduleQuickSort.field === field
+    ? { field, direction: scheduleQuickSort.direction === "asc" ? "desc" : "asc" }
+    : { field, direction: "asc" };
+  renderScheduleContent();
+}
+
+function toggleSchedulePastGames() {
+  scheduleIncludePastGames = !scheduleIncludePastGames;
+  renderScheduleContent();
+}
+
+function applyScheduleQuickSort(games = []) {
+  if (!scheduleQuickSort.field) return games;
+  const field = scheduleQuickSort.field;
+  const direction = scheduleQuickSort.direction === "desc" ? -1 : 1;
+  const levelOrder = Array.isArray(settings?.levels) ? settings.levels : [];
+  const value = game => {
+    if (field === "time") return getScheduleTimeMinutes(game.time);
+    if (field === "field") return game.locationField || game.field || "";
+    if (field === "complex") return game.locationComplex || "";
+    if (field === "level") { const canonical = levelTerminologyService.canonicalize(game.level); const index = levelOrder.indexOf(canonical); return index >= 0 ? index : `z-${levelTerminologyService.format(canonical)}`; }
+    if (field === "status") return getScheduleDisplayStatus(game).key;
+    return game[field] || "";
+  };
+  return games.map((game, index) => ({ game, index })).sort((left, right) => {
+    const primary = String(value(left.game)).localeCompare(String(value(right.game)), undefined, { numeric: true, sensitivity: "base" });
+    if (primary) return primary * direction;
+    const tie = `${left.game.date || ""}\0${String(getScheduleTimeMinutes(left.game.time)).padStart(4, "0")}\0${left.game.id || left.index}`.localeCompare(`${right.game.date || ""}\0${String(getScheduleTimeMinutes(right.game.time)).padStart(4, "0")}\0${right.game.id || right.index}`);
+    return tie;
+  }).map(item => item.game);
+}
+
+function getScheduleDisplayStatus(game) {
+  const lifecycle = gameService.getStatus(game);
+  if (lifecycle === "completed" || lifecycle === "approved" || lifecycle === "submitted") return { key: "completed", label: "Completed", className: "status-badge-approved" };
+  if (lifecycle === "cancelled") return { key: "cancelled", label: "Cancelled", className: "status-badge-danger" };
+  const assignment = assignmentService.getStatus(game);
+  if (["needs_assignment", "open_for_claim", "pending_approval"].includes(assignment)) return { key: "needs_assignment", label: "Needs Assignment", className: "status-badge-needs-assignment" };
+  return { key: assignment === "assigned" || assignment === "locked" ? "assigned" : "scheduled", label: assignment === "assigned" || assignment === "locked" ? "Assigned" : "Scheduled", className: "status-badge-assigned" };
+}
 
 function escapeScheduleFilterHtml(value) {
   return String(value ?? "").replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -49,25 +106,20 @@ function applyScheduleAdvancedFilters(games = []) {
   );
   const direction = scheduleAdvancedFilters.direction === "desc" ? -1 : 1;
   const crewName = game => getScheduleGameCrewIds(game).map(id => crewService.getDisplayName(id)).sort()[0] || "";
-  const timeValue = value => {
-    const match = String(value || "").match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (!match) return -1;
-    let hour = Number(match[1]) % 12;
-    if (match[3].toUpperCase() === "PM") hour += 12;
-    return hour * 60 + Number(match[2]);
-  };
-  const value = game => scheduleAdvancedFilters.sort === "crew" ? crewName(game) : scheduleAdvancedFilters.sort === "status" ? assignmentService.getStatus(game) : scheduleAdvancedFilters.sort === "time" ? timeValue(game.time) : game[scheduleAdvancedFilters.sort] || "";
+  const value = game => scheduleAdvancedFilters.sort === "crew" ? crewName(game) : scheduleAdvancedFilters.sort === "status" ? assignmentService.getStatus(game) : scheduleAdvancedFilters.sort === "time" ? getScheduleTimeMinutes(game.time) : game[scheduleAdvancedFilters.sort] || "";
   return filtered.sort((a, b) => String(value(a)).localeCompare(String(value(b)), undefined, { numeric: true }) * direction);
 }
 
 function setScheduleAdvancedFilter(key, value) {
   scheduleAdvancedFilters[key] = String(value || "");
+  if (["sort", "direction"].includes(key)) scheduleQuickSort = { field: "", direction: "asc" };
   if (key === "date" && value) currentScheduleDate = value;
   renderScheduleContent();
 }
 
 function clearScheduleAdvancedFilters() {
   Object.assign(scheduleAdvancedFilters, { date: "", time: "", locationComplex: "", field: "", level: "", matchup: "", crew: "", status: "", sort: "date", direction: "asc" });
+  scheduleQuickSort = { field: "", direction: "asc" };
   renderPage("schedule", currentScheduleContext);
 }
 
@@ -233,7 +285,7 @@ function updateScheduleTabState() {
 function goToToday() {
   currentScheduleView = "daily";
   currentScheduleDate =
-    new Date().toISOString().split("T")[0];
+    getLocalScheduleDate();
 
   renderScheduleContent();
 }

@@ -278,9 +278,14 @@ body {
 }
 
 .operations-staffing-table th:nth-child(1) { width: 82px; }
-.operations-staffing-table th:nth-child(2) { width: 68px; }
-.operations-staffing-table th:nth-child(3) { width: 190px; }
+.operations-staffing-table th:nth-child(2) { width: 130px; }
+.operations-staffing-table th:nth-child(3) { width: 260px; }
 .operations-staffing-table th:nth-child(4) { width: 165px; }
+.operations-staffing-table .operations-column-time,
+.operations-staffing-table .operations-column-level,
+.operations-staffing-table .operations-column-location { text-align: center; }
+.operations-staffing-table th.operations-column-matchup { text-align: center; }
+.operations-staffing-table td.operations-column-matchup { text-align: left; }
 
 .operations-staffing-table td,
 .operations-staffing-table th {
@@ -2416,13 +2421,14 @@ body[data-page="game-hub"] .game-hub-admin {
   border-top-color: var(--game-hub-teal);
 }
 
-.game-hub-command-title h2 { margin: 2px 0 0; color: #13283f; }
+.game-hub-command-title h2,
+.game-hub-command-title h3 { margin: 2px 0 0; color: #13283f; }
 .game-hub-command-status { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
 .game-hub-command-summary dl {
   display: grid;
   margin: 4px 0 0;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
 }
 .game-hub-command-summary dl > div {
@@ -2443,6 +2449,10 @@ body[data-page="game-hub"] .game-hub-admin {
   justify-content: space-between;
 }
 .game-hub-command-crew h3, .game-hub-command-contact h3, .game-hub-crew-picker h3 { margin: 2px 0 0; }
+.game-hub-picker-heading { display: grid; gap: 3px; }
+.game-hub-picker-heading > span { color: #526779; font-weight: 700; }
+.game-hub-admin-heading { margin: 12px 0; }
+.game-hub-admin-heading h2 { margin: 2px 0 0; }
 .game-hub-command-slots { display: grid; margin-top: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .game-hub-command-slot {
   display: flex;
@@ -2551,6 +2561,18 @@ body[data-page="game-hub"] .game-hub-admin {
   background: #eff8ff;
   border-color: #b2ddff;
   color: #175cd3;
+}
+
+.status-badge-needs-assignment {
+  background: #c7372f;
+  border-color: #a92b25;
+  color: #fff;
+}
+
+.status-badge-assigned {
+  background: #278a55;
+  border-color: #1f7045;
+  color: #fff;
 }
 
 /* ======================================================
@@ -5357,6 +5379,47 @@ body[data-page="operations-center"] .nav-link[aria-current="page"] {
 .operations-staffing-matchup {
   color: #076b7d;
 }
+
+.dashboard-activity-header,
+.dashboard-activity-feed .operations-log-row {
+  grid-template-columns: 86px 145px 130px 190px minmax(280px, 1fr);
+}
+
+.dashboard-activity-header {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 7px;
+  color: var(--slate-muted, #526779);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dashboard-activity-header > :first-child,
+.dashboard-activity-header > :nth-child(3),
+.dashboard-activity-feed .operations-log-time,
+.dashboard-activity-feed .operations-log-location { text-align: center; }
+
+.schedule-header-sort {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: inherit;
+  gap: 5px;
+  justify-content: center;
+  min-height: 32px;
+  padding: 2px 4px;
+}
+
+.schedule-header-sort:focus-visible { outline: 3px solid var(--slate-cyan, #22b8cf); outline-offset: 2px; }
+.schedule-table .schedule-column-time,
+.schedule-table th.schedule-column-time { text-align: center; }
+.schedule-table th.schedule-column-complex { min-width: 180px; }
+.schedule-table th:nth-child(6) { min-width: 220px; }
 
 /* ======================================================
    The Slate shared Sky Teal theme

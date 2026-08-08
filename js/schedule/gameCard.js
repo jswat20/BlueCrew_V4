@@ -40,7 +40,7 @@ const myCrewId = authService.currentCrewId();
     class="game-meta"
     data-testid="game-meta-${game.id}">
           <span>${locationService.getDisplayName(game) || "Location TBD"}</span>
-          ${game.level ? `<span>${game.level}</span>` : ""}
+          ${game.level ? `<span>${levelTerminologyService.format(game.level)}</span>` : ""}
         </div>
 
         <h3 data-testid="game-title-${game.id}">${game.awayTeam || "Away"} @ ${game.homeTeam || "Home"}</h3>

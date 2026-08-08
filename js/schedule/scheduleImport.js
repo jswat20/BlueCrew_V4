@@ -99,9 +99,11 @@ function renderScheduleImportPreview(preview) {
   container.innerHTML = `
     <hr>
 
-    <p><strong>Rows:</strong> ${preview.totalRows}</p>
-    <p><strong>Valid:</strong> ${preview.validRows}</p>
-    <p><strong>Invalid:</strong> ${preview.invalidRows}</p>
+    <div class="import-summary" data-testid="schedule-import-summary">
+      <strong>${preview.validRows} Games Ready</strong>
+      <span>${preview.invalidRows} Skipped</span>
+      <span>${preview.errors.length} Errors</span>
+    </div>
 
     <h3>Errors</h3>
 
@@ -120,17 +122,6 @@ function renderScheduleImportPreview(preview) {
         : "<p>No errors.</p>"
     }
 
-    <h3>Preview</h3>
-
-    ${
-      preview.games.length
-        ? preview.games.map(game => `
-            <div class="import-preview-row">
-              ${game.awayTeam} @ ${game.homeTeam}
-            </div>
-          `).join("")
-        : "<p>No valid games.</p>"
-    }
   `;
 
   updateScheduleImportButton();
@@ -145,10 +136,10 @@ function updateScheduleImportButton() {
   if (!importButton) return;
 
   importButton.disabled =
-    !currentScheduleImportPreview?.games?.length;
+    !currentScheduleImportPreview?.games?.length || Boolean(currentScheduleImportPreview?.errors?.length);
 }
 
-function importSchedulePreview() {
+async function importSchedulePreview() {
   const games =
     currentScheduleImportPreview?.games || [];
 
@@ -163,19 +154,20 @@ function importSchedulePreview() {
     importButton.disabled = true;
   }
 
-  games.forEach(game => {
-    gameService.create(game);
-  });
-
-  const importedCount = games.length;
+  const result = await gameService.importSchedule(games);
+  if (!result.success) {
+    renderScheduleImportPreview({ ...currentScheduleImportPreview, errors: [{ row: 0, message: result.message }] });
+    return;
+  }
+  const importedCount = result.data?.importedCount ?? games.length;
 
   closeScheduleImport();
 
   renderScheduleContent();
 
   toastService.success(
-    `Imported ${importedCount} ${
+    `${importedCount} ${
       importedCount === 1 ? "game" : "games"
-    }.`
+    } imported.`
   );
 }

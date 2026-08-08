@@ -627,7 +627,7 @@ function renderMyScheduleRow(game) {
         ${gameDayRenderers.renderGameInformation(game)}
       </td>
 
-      <td>${game.level}</td>
+      <td>${levelTerminologyService.format(game.level)}</td>
 
       ${renderMyScheduleCell(
         `my-schedule-position-${game.id}`,

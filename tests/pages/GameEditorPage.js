@@ -52,9 +52,15 @@ export class GameEditorPage {
     await this.page.getByTestId("view-all-games").click();
   }
 
-  async openCurrentScheduleCards() {
+  async openCurrentScheduleCards(date) {
     await this.page.getByTestId("nav-schedule").click();
-    await this.page.getByTestId("today").click();
+    await this.page.getByTestId("view-daily").click();
+
+    if (date) {
+      await this.page.evaluate(selectedDate => {
+        selectScheduleCalendarDate(selectedDate);
+      }, date);
+    }
   }
 
   gameRow({ homeTeam, awayTeam }) {
@@ -65,7 +71,9 @@ export class GameEditorPage {
   }
 
   async openEditForGame(gameOrId) {
-    await this.openCurrentScheduleCards();
+    await this.openCurrentScheduleCards(
+      typeof gameOrId === "object" ? gameOrId.date : undefined
+    );
 
     if (typeof gameOrId === "object") {
       const row = this.gameRow(gameOrId);
@@ -83,8 +91,8 @@ export class GameEditorPage {
     await this.openEditForGame(game);
   }
 
-  async expectGameVisible({ homeTeam, awayTeam, field }) {
-    await this.openCurrentScheduleCards();
+  async expectGameVisible({ homeTeam, awayTeam, field, date }) {
+    await this.openCurrentScheduleCards(date);
 
     const row = this.gameRow({ homeTeam, awayTeam });
 
@@ -95,8 +103,8 @@ export class GameEditorPage {
     }
   }
 
-  async expectGameNotVisible({ homeTeam, awayTeam }) {
-    await this.openCurrentScheduleCards();
+  async expectGameNotVisible({ homeTeam, awayTeam, date }) {
+    await this.openCurrentScheduleCards(date);
 
     const row = this.gameRow({ homeTeam, awayTeam });
 
@@ -107,8 +115,8 @@ export class GameEditorPage {
     await this.deleteGameByMatchup(game);
   }
 
-  async deleteGameByMatchup({ homeTeam, awayTeam }) {
-    await this.openCurrentScheduleCards();
+  async deleteGameByMatchup({ homeTeam, awayTeam, date }) {
+    await this.openCurrentScheduleCards(date);
 
     const row = this.gameRow({ homeTeam, awayTeam });
 

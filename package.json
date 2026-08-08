@@ -5,7 +5,9 @@
   "main": "app.js",
   "scripts": {
     "generate:supabase-config": "node scripts/generate-supabase-config.cjs",
-    "start": "node scripts/generate-supabase-config.cjs --optional && http-server . -p 5500",
+    "start": "npm run start:hosted",
+    "start:hosted": "node scripts/generate-supabase-config.cjs --mode=hosted && http-server . -a 127.0.0.1 -p 5500",
+    "start:local": "node scripts/generate-supabase-config.cjs --mode=local && http-server . -a 127.0.0.1 -p 5500",
     "test": "playwright test"
   },
   "keywords": [],

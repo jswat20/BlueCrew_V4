@@ -28,6 +28,10 @@ export const test = base.extend({
       claims: [],
       notifications: [],
       crewMembers: [],
+      pendingProfiles: [],
+      activities: [],
+      activityActors: [],
+      organization: null,
       initialSession: false,
       deniedTable: "",
       failedMutationTable: "",
@@ -37,6 +41,7 @@ export const test = base.extend({
     };
 
     const installFixture = (settings) => {
+      window.BLUECREW_RUNTIME_CONFIG = Object.freeze({ mode: "hosted" });
       window.BLUECREW_SUPABASE_CONFIG = Object.freeze({
         url: "https://fixture.supabase.co",
         publishableKey: "sb_publishable_fixture"
@@ -60,8 +65,10 @@ export const test = base.extend({
             games: settings.games,
             game_assignments: settings.assignments,
             assignment_claims: settings.claims,
+            activities: settings.activities,
             notifications: settings.notifications,
             crew_members: settings.crewMembers.filter(member => !selectedIds.length || selectedIds.map(String).includes(String(member.id)))
+            ,profiles: [settings.profile, ...settings.pendingProfiles, ...settings.activityActors].filter((row, index, all) => row && all.findIndex(candidate => String(candidate?.id) === String(row.id)) === index).filter(row => String(row.organization_id) === String(settings.profile.organization_id) && (!selectedIds.length || selectedIds.map(String).includes(String(row.id))) && Object.entries(equality).every(([column, value]) => String(row[column]) === String(value)))
           };
           if (table === "notifications") {
             rows.notifications = settings.notifications.filter(notification =>
@@ -82,6 +89,7 @@ export const test = base.extend({
           upsert(value) { operation = "upsert"; payload = value; return query; },
           delete() { operation = "delete"; return query; },
           in(column, ids) { selectedIds = ids || []; return query; },
+          limit() { return query; },
           order(column) { calls.push({ operation: "order", table, column }); return query; },
           then(resolve, reject) { return listResult().then(resolve, reject); },
           async single() {
@@ -115,8 +123,10 @@ export const test = base.extend({
             calls.push({ operation: "select", table });
             if (settings.deniedTable === table) return { data: null, error: { message: "RLS denied" } };
             if (table === "profiles") return { data: settings.profile, error: null };
+            if (table === "organizations") return { data: settings.organization || { id: settings.profile.organization_id, name: "Fixture Organization", slug: "fixture-organization", timezone: "America/New_York", settings: {} }, error: null };
             if (table === "crew_members") {
-              return { data: settings.crewId ? { id: settings.crewId, organization_id: settings.profile.organization_id, profile_id: settings.profile.id, first_name: settings.profile.first_name, last_name: settings.profile.last_name, email: settings.profile.email, phone: settings.profile.phone, active: true, eligible_levels: ["12U"], preferences: {} } : null, error: null };
+              const configuredCrew = settings.crewMembers.find(member => String(member.id) === String(settings.crewId));
+              return { data: settings.crewId ? configuredCrew || { id: settings.crewId, organization_id: settings.profile.organization_id, profile_id: settings.profile.id, first_name: settings.profile.first_name, last_name: settings.profile.last_name, email: settings.profile.email, phone: settings.profile.phone, active: true, eligible_levels: ["12U"], preferences: {} } : null, error: null };
             }
             return { data: null, error: null };
           }
@@ -189,7 +199,13 @@ export const test = base.extend({
           }
           if (name === "submit_assignment_claim") {
             const assignment = settings.assignments.find(item => String(item.id) === String(args.p_assignment_id));
-            if (!assignment || assignment.status !== "open_for_claim" || assignment.locked) {
+            const game = assignment && settings.games.find(item => String(item.id) === String(assignment.game_id));
+            const claimant = settings.crewMembers.find(item => String(item.id) === String(settings.crewId)) ||
+              (settings.crewId ? { active: true, eligible_levels: ["12U"] } : null);
+            if (!claimant?.active || !claimant.eligible_levels?.includes(game?.level)) {
+              return { data: null, error: { message: "claim_level_ineligible" } };
+            }
+            if (!assignment || !["open_for_claim", "needs_assignment"].includes(assignment.status) || assignment.assigned_crew_member_id || assignment.locked) {
               return { data: null, error: { message: "assignment_already_claimed" } };
             }
             const claim = {
@@ -348,7 +364,52 @@ export const test = base.extend({
             return { data: { ...settings.profile, status: "pending" }, error: null };
           }
           if (name === "approve_umpire_profile") {
-            return { data: { ...settings.profile, status: "approved" }, error: null };
+            const target = settings.pendingProfiles.find(row => String(row.id) === String(args.p_target_profile_id));
+            const crew = settings.crewMembers.find(row => String(row.id) === String(args.p_target_crew_member_id));
+            if (!target || !crew) return { data: null, error: { message: "Pending profile or crew member not found" } };
+            target.status = "approved"; crew.profile_id = target.id;
+            settings.notifications.push({ id: `notification-${settings.notifications.length + 1}`, organization_id: settings.profile.organization_id, type: "account-approved", audience: "account", recipient_profile_id: target.id, title: "Account Approved", message: "Approved", created_at: new Date().toISOString() });
+            settings.activities.push({ action: "account_approved", metadata: { profileId: target.id, crewMemberId: crew.id } });
+            return { data: { ...target }, error: null };
+          }
+          if (name === "import_schedule_games") {
+            const invalid = (args.p_games || []).some(item => {
+              const positions = item.positions || ["Plate"];
+              return new Set(positions).size !== positions.length || positions.some(position => !["Plate","Base","U3","U4","Observer","Mentor"].includes(position));
+            });
+            if (invalid) return { data: null, error: { message: "schedule_import_invalid_positions" } };
+            for (const item of args.p_games || []) {
+              const row = { id: `imported-${settings.games.length + 1}`, organization_id: settings.profile.organization_id, season_id: "season-1", location_id: settings.locations.find(location => location.name === item.location)?.id, field_id: settings.fields.find(field => field.name === item.field)?.id, game_date: item.date, game_time: item.time, timezone: item.timezone, home_team: item.homeTeam, away_team: item.awayTeam, level: item.level, game_type: item.gameType, lifecycle_status: item.lifecycleStatus, review: {}, report: {}, source_metadata: {} };
+              settings.games.push(row);
+              const positions = item.positions || ["Plate"];
+              positions.forEach(position => settings.assignments.push({ id: `assignment-${row.id}-${position}`, organization_id: row.organization_id, game_id: row.id, position, status: item.assignmentStatus, assigned_crew_member_id: null, locked: false }));
+            }
+            return { data: { importedCount: args.p_games.length, skippedCount: 0, errorCount: 0 }, error: null };
+          }
+          if (name === "reject_umpire_profile") {
+            if (settings.profile.role !== "administrator") return { data: null, error: { message: "account_rejection_unauthorized" } };
+            const target = settings.pendingProfiles.find(row => String(row.id) === String(args.p_target_profile_id));
+            if (!target) return { data: null, error: { message: "Pending profile not found" } };
+            target.status = "rejected";
+            settings.notifications.push({ id: `notification-${settings.notifications.length + 1}`, organization_id: settings.profile.organization_id, type: "account-rejected", audience: "account", recipient_profile_id: target.id, title: "Account Rejected", message: "Rejected", created_at: new Date().toISOString() });
+            settings.activities.push({ action: "account_rejected", metadata: { profileId: target.id } });
+            return { data: { ...target }, error: null };
+          }
+          if (name === "remove_game_assignment_crew") {
+            if (!["administrator","assigner"].includes(settings.profile.role)) return { data: null, error: { message: "assignment_removal_unauthorized" } };
+            const assignment = settings.assignments.find(row => String(row.id) === String(args.p_assignment_id));
+            const game = assignment && settings.games.find(row => String(row.id) === String(assignment.game_id));
+            if (!assignment || !game) return { data: null, error: { message: "assignment_removal_not_found" } };
+            if (assignment.locked || assignment.status === "locked") return { data: null, error: { message: "assignment_removal_locked" } };
+            if (["completed","submitted","approved","cancelled"].includes(game.lifecycle_status)) return { data: null, error: { message: "assignment_removal_finalized" } };
+            const removed = assignment.assigned_crew_member_id;
+            const approvedClaim = settings.claims.find(row => String(row.assignment_id) === String(assignment.id) && row.status === "approved");
+            if (approvedClaim) { approvedClaim.status = "withdrawn"; approvedClaim.decision_by_profile_id = settings.profile.id; approvedClaim.decision_reason = "Administrative assignment removal"; approvedClaim.decided_at = new Date().toISOString(); }
+            assignment.assigned_crew_member_id = null; assignment.status = "needs_assignment"; assignment.locked = false;
+            const crew = settings.crewMembers.find(row => String(row.id) === String(removed));
+            if (crew?.profile_id) settings.notifications.push({ id: `notification-${settings.notifications.length + 1}`, organization_id: settings.profile.organization_id, type: "assignment-removed", audience: "account", recipient_profile_id: crew.profile_id, title: "Assignment Removed", message: "Removed", created_at: new Date().toISOString() });
+            settings.activities.push({ action: "assignment_removed", metadata: { gameId: game.id, assignmentId: assignment.id } });
+            return { data: { ...assignment }, error: null };
           }
           if (name === "create_umpire_invitation") {
             return { data: "invitation-1", error: null };

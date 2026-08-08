@@ -11,9 +11,16 @@ const supabaseClientService = (() => {
     };
   }
 
+  function getRuntimeMode() {
+    return String(window.BLUECREW_RUNTIME_CONFIG?.mode || window.BLUECREW_SUPABASE_CONFIG?.mode || "hosted").trim().toLowerCase();
+  }
+
   function validateConfig(config = getConfig()) {
+    const mode = getRuntimeMode();
+    if (mode === "local") return { mode, configured: false, valid: true, message: "" };
+    if (mode !== "hosted") return { mode, configured: false, valid: false, message: "The Slate runtime mode is invalid." };
     if (!config.url && !config.publishableKey) {
-      return { configured: false, valid: true, message: "" };
+      return { mode, configured: false, valid: false, message: "The Slate could not connect to its hosted configuration." };
     }
 
     if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(config.url)) {
@@ -34,6 +41,11 @@ const supabaseClientService = (() => {
   function isConfigured() {
     const validation = validateConfig();
     return validation.configured && validation.valid;
+  }
+
+  function hasConfigurationError() {
+    const validation = validateConfig();
+    return validation.mode === "hosted" && (!validation.configured || !validation.valid);
   }
 
   async function getClient() {
@@ -84,8 +96,10 @@ const supabaseClientService = (() => {
 
   return {
     getConfig,
+    getRuntimeMode,
     validateConfig,
     isConfigured,
+    hasConfigurationError,
     getClient,
     useClientFactory,
     reset

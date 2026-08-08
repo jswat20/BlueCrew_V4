@@ -328,6 +328,7 @@ function approveClaimFromOperations(
     item.assignmentId ||
     item.assignment?.id ||
     "";
+  const claimId = item.claimId || item.assignment?.claimId || "";
 
   if (
     typeof claimsQueueService ===
@@ -345,7 +346,8 @@ function approveClaimFromOperations(
   return finishOperationsCenterQuickAction(
     claimsQueueService.approveClaim(
       gameId,
-      assignmentId
+      assignmentId,
+      claimId
     )
   );
 }
@@ -363,6 +365,7 @@ function rejectClaimFromOperations(
     item.assignmentId ||
     item.assignment?.id ||
     "";
+  const claimId = item.claimId || item.assignment?.claimId || "";
 
   if (
     typeof claimsQueueService ===
@@ -380,7 +383,8 @@ function rejectClaimFromOperations(
   return finishOperationsCenterQuickAction(
     claimsQueueService.rejectClaim(
       gameId,
-      assignmentId
+      assignmentId,
+      claimId
     )
   );
 }
@@ -415,7 +419,9 @@ async function decideAccountFromOperations(
     });
   }
 
-  const result = await mutation(accountId);
+  const crewMemberId = sourceButton?.closest?.("[data-operations-pending-account]")
+    ?.querySelector?.('[data-testid="operations-pending-account-crew"]')?.value || "";
+  const result = await mutation(accountId, action === "approve-account" ? crewMemberId : undefined);
   const dialog = sourceButton?.closest?.("dialog");
   if (!dialog || dialog.dataset.metricId !== "pending-accounts") {
     return finishOperationsCenterQuickAction(result);
@@ -432,6 +438,11 @@ async function decideAccountFromOperations(
   }
 
   sourceButton.closest("[data-operations-pending-account]")?.remove();
+  if (action === "approve-account" && crewMemberId) {
+    dialog.querySelectorAll('[data-testid="operations-pending-account-crew"] option').forEach(option => {
+      if (String(option.value) === String(crewMemberId)) option.remove();
+    });
+  }
   const remaining = dialog.querySelectorAll("[data-operations-pending-account]").length;
   const count = dialog.querySelector('[data-testid="operations-pending-accounts-remaining"]');
   if (count) count.textContent = `${remaining} remaining`;
@@ -1823,9 +1834,12 @@ function renderOperationsCenterActivityItem(
     );
 
   const timestamp =
-    formatOperationsActivityTimestamp(
-      activity.createdAt
-    );
+    dashboardFeed
+      ? (() => {
+          const date = new Date(activity.createdAt || "");
+          return Number.isNaN(date.getTime()) ? "Time unavailable" : dateTimeFormattingService.formatTime12Hour(`${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`, "Time unavailable");
+        })()
+      : formatOperationsActivityTimestamp(activity.createdAt);
 
   const exactDate =
     new Date(activity.createdAt || "");
@@ -1888,7 +1902,7 @@ function renderOperationsCenterActivityItem(
 
       <span class="operations-log-location" ${dashboardFeed ? 'data-testid="dashboard-assignment-activity-matchup"' : ""}>
         ${escapeOperationsCenterHtml(
-          activity.location || "—"
+          dashboardFeed ? activity.level || "—" : activity.location || "—"
         )}
       </span>
 
@@ -1902,7 +1916,7 @@ function renderOperationsCenterActivityItem(
 
       <span class="operations-log-action" ${dashboardFeed ? 'data-testid="dashboard-assignment-activity-action"' : ""}>
         ${escapeOperationsCenterHtml(
-          message
+          dashboardFeed ? activity.details || message : message
         )}
       </span>
     </button>
@@ -2167,6 +2181,7 @@ function renderOperationsCenterMetricDialogs(
                     <button type="button" class="button button-secondary" data-operations-quick-action="reject-claim" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Deny</button>
                   ` : ""}
                   ${metric.id === "pending-accounts" ? `
+                    <label class="operations-account-crew-link"><span class="sr-only">Crew member for ${escapeOperationsCenterHtml(renderOperationsCenterTaskLabel(item))}</span><select data-testid="operations-pending-account-crew"><option value="">Select crew member</option>${crewService.getAll().filter(member => !member.profileId).map(member => `<option value="${escapeOperationsCenterHtml(member.id)}">${escapeOperationsCenterHtml(crewService.getName(member))}</option>`).join("")}</select></label>
                     <button type="button" class="button button-primary" data-operations-quick-action="approve-account" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Approve</button>
                     <button type="button" class="button button-secondary" data-operations-quick-action="reject-account" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Deny</button>
                   ` : ""}
@@ -2323,7 +2338,7 @@ function renderOperationsStaffingBoard(events = [], today = "") {
           <h3>${escapeOperationsCenterHtml(group.label)}</h3>
           <div class="operations-staffing-table-wrap">
             <table class="operations-staffing-table">
-              <thead><tr><th>Time</th><th>Age</th><th>Matchup</th><th>Location</th>${positions.map(position => `<th>${escapeOperationsCenterHtml(position)}</th>`).join("")}</tr></thead>
+              <thead><tr><th class="operations-column-time">Time</th><th class="operations-column-level">Level</th><th class="operations-column-matchup">Matchup</th><th class="operations-column-location">Location</th>${positions.map(position => `<th>${escapeOperationsCenterHtml(position)}</th>`).join("")}</tr></thead>
               <tbody>${group.events.map(event => `
                 <tr
                   class="operations-staffing-row"
@@ -2334,10 +2349,10 @@ function renderOperationsStaffingBoard(events = [], today = "") {
                   data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(event))}"
                   aria-label="Open ${escapeOperationsCenterHtml(event.matchup)} in Game Hub"
                 >
-                  <td><time datetime="${escapeOperationsCenterHtml(`${event.date} ${event.time || ""}`)}">${escapeOperationsCenterHtml(event.time || "—")}</time></td>
-                  <td>${escapeOperationsCenterHtml(event.level || "—")}</td>
-                  <td><strong class="operations-staffing-matchup">${escapeOperationsCenterHtml(event.matchup)}</strong></td>
-                  <td>${escapeOperationsCenterHtml(locationService.getDisplayName(event) || "—")}</td>
+                  <td class="operations-column-time"><time datetime="${escapeOperationsCenterHtml(`${event.date} ${event.time || ""}`)}">${escapeOperationsCenterHtml(dateTimeFormattingService.formatTime12Hour(event.time))}</time></td>
+                  <td class="operations-column-level">${escapeOperationsCenterHtml(event.level ? levelTerminologyService.format(event.level) : "Level unavailable")}</td>
+                  <td class="operations-column-matchup"><strong class="operations-staffing-matchup">${escapeOperationsCenterHtml(event.matchup)}</strong></td>
+                  <td class="operations-column-location">${escapeOperationsCenterHtml(event.locationComplex || locationService.getDisplayName(event) || "Location unavailable")}</td>
                   ${positions.map(position => {
                     const assignment = (event.assignments || []).find(item => item.position === position);
                     return `<td class="operations-staffing-assignment" data-status="${assignment?.crewId ? "assigned" : "open"}">${escapeOperationsCenterHtml(assignment?.crewName || "OPEN")}</td>`;

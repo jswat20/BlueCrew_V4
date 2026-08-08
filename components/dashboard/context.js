@@ -16,11 +16,7 @@ function getDashboardAccount() {
 function getDashboardUserName() {
   const account = getDashboardAccount();
 
-  return (
-    account?.firstName ||
-    account?.name ||
-    "Administrator"
-  );
+  return authenticatedIdentityService.displayName(account);
 }
 
 function getDashboardGreeting() {

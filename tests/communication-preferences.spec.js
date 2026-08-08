@@ -11,7 +11,6 @@ test.describe(
 
       await page.evaluate(() => {
         authService.loginAsAdmin();
-        loginService.logout();
         notificationService.clearAll();
 
         const email =
@@ -37,6 +36,8 @@ test.describe(
         if (!approved.success) {
           throw new Error(approved.message);
         }
+
+        loginService.logout();
 
         const login =
           loginService.login(email);

@@ -50,17 +50,9 @@ test.describe("Schedule Import UI", () => {
     const preview =
       app.page.getByTestId("schedule-import-preview");
 
-    await expect(preview).toContainText("Rows: 2");
-    await expect(preview).toContainText("Valid: 2");
-    await expect(preview).toContainText("Invalid: 0");
-
-    await expect(preview).toContainText(
-      "Tigers @ Bears"
-    );
-
-    await expect(preview).toContainText(
-      "Hawks @ Eagles"
-    );
+    await expect(preview).toContainText("2 Games Ready");
+    await expect(preview).toContainText("0 Skipped");
+    await expect(preview).toContainText("0 Errors");
 
     await expect(preview).toContainText(
       "No errors."
@@ -85,9 +77,8 @@ test.describe("Schedule Import UI", () => {
     const preview =
       app.page.getByTestId("schedule-import-preview");
 
-    await expect(preview).toContainText("Rows: 2");
-    await expect(preview).toContainText("Valid: 0");
-    await expect(preview).toContainText("Invalid: 2");
+    await expect(preview).toContainText("0 Games Ready");
+    await expect(preview).toContainText("2 Skipped");
 
     await expect(preview).toContainText("Row 2");
 
@@ -120,11 +111,7 @@ test.describe("Schedule Import UI", () => {
       "schedule-preview-only.csv"
     );
 
-    await expect(
-      app.page.getByTestId("schedule-import-preview")
-    ).toContainText(
-      "Preview Away @ Preview Home"
-    );
+    await expect(app.page.getByTestId("schedule-import-summary")).toContainText("1 Games Ready");
 
     const gamesAfter = await app.page.evaluate(() => {
       return gameService.getAll().length;
@@ -241,13 +228,9 @@ test.describe("Schedule Import UI", () => {
     const preview =
       app.page.getByTestId("schedule-import-preview");
 
-    await expect(preview).toContainText("Rows: 3");
-    await expect(preview).toContainText("Valid: 1");
-    await expect(preview).toContainText("Invalid: 2");
-
-    await app.page
-      .getByTestId("schedule-import-submit")
-      .click();
+    await expect(preview).toContainText("1 Games Ready");
+    await expect(preview).toContainText("2 Skipped");
+    await expect(app.page.getByTestId("schedule-import-submit")).toBeDisabled();
 
     const result =
       await app.page.evaluate(() => {
@@ -270,7 +253,7 @@ test.describe("Schedule Import UI", () => {
         };
       });
 
-    expect(result.validGameCount).toBe(1);
+    expect(result.validGameCount).toBe(0);
     expect(result.missingHomeCount).toBe(0);
     expect(result.duplicateTeamCount).toBe(0);
   });
@@ -309,9 +292,13 @@ test.describe("Schedule Import UI", () => {
       .getByTestId("import-schedule")
       .click();
 
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 30);
+    const csvDate = futureDate.toISOString().slice(0, 10);
+
     const csvText = [
       "date,time,awayTeam,homeTeam",
-      "2026-07-23,6:00 PM,Refresh Away,Refresh Home"
+      `${csvDate},6:00 PM,Refresh Away,Refresh Home`
     ].join("\n");
 
     await uploadCsv(
@@ -354,7 +341,7 @@ test.describe("Schedule Import UI", () => {
 
     await expect(
       app.page.locator(".toast.success")
-    ).toContainText("Imported 2 games.");
+    ).toContainText("2 games imported.");
   });
 
   test("uses singular wording when one game is imported", async ({ app }) => {
@@ -377,7 +364,7 @@ test.describe("Schedule Import UI", () => {
 
     await expect(
       app.page.locator(".toast.success")
-    ).toContainText("Imported 1 game.");
+    ).toContainText("1 game imported.");
   });
 
   test("imported games survive a page reload", async ({ app }) => {

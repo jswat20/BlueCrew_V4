@@ -361,6 +361,12 @@ function getRoleSummary() {
           )
         : null;
 
+    const metadata = activity.metadata || {};
+    const level = metadata.level || relatedGame?.level || "";
+    const actor = typeof activityService?.formatActor === "function"
+      ? activityService.formatActor(activity)
+      : activity.actor || "System";
+
     let activityMessage =
       getOperationalActivityMessage(
         type,
@@ -435,8 +441,9 @@ function getRoleSummary() {
       accountId:
         activity.accountId || "",
 
-      actor:
-        activity.actor || "",
+      actor,
+
+      level: level ? levelTerminologyService.format(level) : "—",
 
       location:
         activity.location ||
@@ -445,6 +452,8 @@ function getRoleSummary() {
         relatedGame?.field ||
         relatedGame?.venue ||
         "",
+
+      details: getOperationalActivityDetails(type, action, activity, relatedGame),
 
       subject:
         activity.subject || "",
@@ -517,7 +526,8 @@ function getRoleSummary() {
       game_created: "Game Added",
       game_updated: "Game Updated",
       game_cancelled: "Game Cancelled",
-      game_deleted: "Game Deleted",
+      game_deleted: "Game Removed",
+      assignment_removed: "Crew Removed",
       conflict_detected:
         "Conflict Detected",
       conflict_resolved:
@@ -764,6 +774,41 @@ function getRoleSummary() {
           ? crewNames.join(", ")
           : "No umpire assigned"
     };
+  }
+
+  function getStaffingSummary(scope = {}) {
+    const startDate = String(scope.startDate || "");
+    const endDate = String(scope.endDate || "");
+    if (!startDate || !endDate) throw new Error("Staffing scope requires startDate and endDate.");
+    const games = gameService.getAll()
+      .filter(game => game.date >= startDate && game.date <= endDate && gameService.getStatus(game) !== "cancelled")
+      .map(toDashboardGame);
+    return {
+      gameCount: games.length,
+      openPositionCount: games.reduce((total, game) => total + game.openAssignmentCount, 0),
+      fullyStaffedGameCount: games.filter(game => game.fullyStaffed).length
+    };
+  }
+
+  function getOperationalActivityDetails(type, action, activity = {}, relatedGame = null) {
+    const metadata = activity.metadata || {};
+    const level = metadata.level || relatedGame?.level || "";
+    const complex = metadata.locationComplex || relatedGame?.locationComplex || relatedGame?.venue || "Complex unavailable";
+    const dateValue = metadata.date || relatedGame?.date || "";
+    const timeValue = metadata.time || relatedGame?.time || "";
+    if (type === "game" && ["game_created", "game_deleted", "game_cancelled"].includes(action)) {
+      const date = dateValue ? new Date(`${dateValue}T12:00:00`) : null;
+      const formattedDate = date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Date unavailable";
+      return `${complex} • ${level ? levelTerminologyService.format(level) : "Level unavailable"} • ${formattedDate} • ${dateTimeFormattingService.formatTime12Hour(timeValue, "Time unavailable")}`;
+    }
+    const position = metadata.position || activity.subject || "";
+    const crewName = activity.crewId && crewService?.getDisplayName?.(activity.crewId) || metadata.crewName || "";
+    if (type === "assignment" && action === "assigned" && position && crewName) return `${crewName} assigned to ${position}`;
+    if (type === "assignment" && ["cleared", "assignment_removed"].includes(action) && position) {
+      const removed = metadata.previousCrewName || String(activity.message || "").match(/:\s*([^:]+?)\s+removed from/i)?.[1] || "Crew member";
+      return `${removed} removed from ${position}`;
+    }
+    return getOperationalActivityMessage(type, action, activity).replace(/^([^:]+):\s*/, "").replace(/\.$/, "");
   }
 
   function getSeasonDashboard() {
@@ -1395,17 +1440,21 @@ function getOperationsCenter(
   const todaysEvents =
     getTodaysSchedule();
 
-  const upcomingWork =
-    getUpcomingGames();
+  const horizonEndDate = new Date(`${today}T12:00:00`);
+  horizonEndDate.setDate(horizonEndDate.getDate() + 28);
+  const horizonEnd = horizonEndDate.toISOString().split("T")[0];
+  const upcomingWork = gameService.getAll()
+    .filter(game => game.date >= today && game.date <= horizonEnd && gameService.getStatus(game) !== "cancelled")
+    .map(toDashboardGame)
+    .sort(compareGames);
 
-  const openPositions =
-    getOpenAssignments();
+  const todayStaffing = getStaffingSummary({ startDate: today, endDate: horizonEnd });
 
   const statusMetrics = [
     {
       id: "events-today",
-      label: "Events Today",
-      value: todaysEvents.length,
+      label: "Games",
+      value: todayStaffing.gameCount,
       action: "schedule-today",
       item: {}
     },
@@ -1413,20 +1462,18 @@ function getOperationsCenter(
       id: "fully-staffed",
       label: "Fully Staffed",
       value:
-        todaysEvents.filter(
-          event => event.fullyStaffed
-        ).length,
+        todayStaffing.fullyStaffedGameCount,
       displayValue:
-        `${todaysEvents.filter(event => event.fullyStaffed).length} of ${todaysEvents.length}`,
+        `${todayStaffing.fullyStaffedGameCount} of ${todayStaffing.gameCount}`,
       needsAttention:
-        todaysEvents.some(event => !event.fullyStaffed),
+        todayStaffing.fullyStaffedGameCount < todayStaffing.gameCount,
       action: "assigner-workbench",
       item: { staffing: "fully-staffed" }
     },
     {
       id: "open-positions",
       label: "Open Positions",
-      value: openPositions.length,
+      value: todayStaffing.openPositionCount,
       requiresAction: true,
       action: "assigner-workbench",
       item: { staffing: "open" }
@@ -1518,11 +1565,8 @@ function getOperationsCenter(
       )
       .map(toDashboardGame);
 
-    const openPositions = games.reduce(
-      (total, game) =>
-        total + game.openAssignmentCount,
-      0
-    );
+    const staffingSummary = getStaffingSummary({ startDate, endDate });
+    const openPositions = staffingSummary.openPositionCount;
     const hasTodayGap = games.some(
       game =>
         game.date === today &&
@@ -1571,9 +1615,8 @@ function getOperationsCenter(
     return {
       id,
       label,
-      eventCount: games.length,
-      fullyStaffedCount:
-        games.filter(game => game.fullyStaffed).length,
+      eventCount: staffingSummary.gameCount,
+      fullyStaffedCount: staffingSummary.fullyStaffedGameCount,
       openPositions,
       signals: [
         {
@@ -1800,19 +1843,11 @@ function getOperationsCenter(
       typeof notificationService !==
         "undefined";
 
-    const notifications =
-      hasNotificationService &&
-      typeof notificationService
-        .getNotifications === "function"
-        ? notificationService
-            .getNotifications()
-        : [];
-
-    const unread =
-      notifications.filter(
-        notification =>
-          !notification.read
-      );
+    const center = hasNotificationService && typeof notificationService.getNotificationCenter === "function"
+      ? notificationService.getNotificationCenter()
+      : { unread: [], read: [] };
+    const unread = center.unread;
+    const notifications = [...center.unread, ...center.read];
 
     const unreadByCategory =
       hasNotificationService &&
@@ -1934,6 +1969,7 @@ function getOperationsCenter(
   getPendingAccounts,
   getRoleSummary,
   getNotificationsSummary,
+  getStaffingSummary,
   getCommunicationPreferencesSummary,
   getTodaysSchedule,
   getOperationsCenter,

@@ -3,6 +3,7 @@
 const accountService = (() => {
   const STORAGE_KEY = "bluecrew_accounts";
   let authenticatedProfileSnapshot = null;
+  let pendingProfileSnapshot = [];
   function isSharedMode() {
     return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   }
@@ -77,14 +78,27 @@ function isValidRole(role) {
     const authorization = requireManageAccounts();
     if (authorization) return authorization;
 
-    const client = await supabaseClientService.getClient();
-    const { data, error } = await client.rpc("approve_umpire_profile", {
-      p_target_profile_id: profileId,
-      p_target_crew_member_id: crewMemberId
-    });
+    if (!crewMemberId) return mutationResult(false, "Select a crew member before approving.");
+    const { data, error } = await supabaseSharedRepository.approveUmpireProfile(profileId, crewMemberId);
     return error
       ? mutationResult(false, error.message)
-      : mutationResult(true, "Account approved and linked to crew.", data);
+      : mutationResult(true, "Account approved and linked to crew.", sharedDomainMappingService.mapProfile(data, crewMemberId));
+  }
+
+  async function loadPendingAuthenticatedAccounts() {
+    if (!isSharedMode()) return mutationResult(true, "Local pending accounts ready.", getPendingAccounts());
+    const { data, error } = await supabaseSharedRepository.getPendingUmpireProfiles();
+    if (error) return mutationResult(false, error.message || "Pending accounts could not be loaded.");
+    pendingProfileSnapshot = (data || []).map(row => sharedDomainMappingService.mapProfile(row)).filter(Boolean)
+      .sort((left, right) => `${left.createdAt || ""}\u0000${left.lastName}\u0000${left.firstName}\u0000${left.id}`.localeCompare(`${right.createdAt || ""}\u0000${right.lastName}\u0000${right.firstName}\u0000${right.id}`));
+    return mutationResult(true, "Pending accounts loaded.", structuredClone(pendingProfileSnapshot));
+  }
+
+  async function rejectAuthenticatedAccount(profileId, reason = "") {
+    const authorization = requireManageAccounts();
+    if (authorization) return authorization;
+    const { data, error } = await supabaseSharedRepository.rejectUmpireProfile(profileId, reason);
+    return error ? mutationResult(false, error.message) : mutationResult(true, "Account rejected.", sharedDomainMappingService.mapProfile(data));
   }
 
   function profileMutationResult(success, message, data = null, errors = {}) {
@@ -97,7 +111,7 @@ function isValidRole(role) {
   }
 
   function getAll() {
-    if (isSharedMode()) return authenticatedProfileSnapshot ? [authenticatedProfileSnapshot] : [];
+    if (isSharedMode()) return structuredClone([authenticatedProfileSnapshot, ...pendingProfileSnapshot].filter(Boolean));
     return migrateCrewCodes(readAll());
   }
 
@@ -121,6 +135,7 @@ function isValidRole(role) {
 
   function clearAuthenticatedProfile() {
     authenticatedProfileSnapshot = null;
+    pendingProfileSnapshot = [];
   }
 
   function getAuthenticatedProfile() {
@@ -342,6 +357,13 @@ role: normalizeRole(account.role),
       return authorization;
     }
 
+  if (isSharedMode()) {
+    return approveAuthenticatedAccount(accountId, crewId).then(async result => {
+      if (result.success) await Promise.all([loadPendingAuthenticatedAccounts(), crewService.loadAdministrativeCrew()]);
+      return result;
+    });
+  }
+
   const accounts = getAll();
   const account = accounts.find(account => account.id === accountId);
 
@@ -431,6 +453,13 @@ function rejectAccount(accountId) {
     if (authorization) {
       return authorization;
     }
+
+  if (isSharedMode()) {
+    return rejectAuthenticatedAccount(accountId).then(async result => {
+      if (result.success) await loadPendingAuthenticatedAccounts();
+      return result;
+    });
+  }
 
   const accounts = getAll();
   const account = accounts.find(account => account.id === accountId);
@@ -1066,6 +1095,8 @@ function getRoleSummary() {
     registerAuthenticatedAccount,
     createRegistrationInvitation,
     approveAuthenticatedAccount,
+    rejectAuthenticatedAccount,
+    loadPendingAuthenticatedAccounts,
     approveAccount,
     approveAccounts,
     rejectAccount,

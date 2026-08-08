@@ -37,7 +37,8 @@ test("administrator and umpire hydrate the same RLS-scoped shared schedule", asy
     const page = await context.newPage();
     await page.exposeFunction("__scheduleRead", ({ table, mode, ids }) => {
       operations.push({ table, mode, authUserId });
-      if (table === "profiles") return { data: profile, error: null };
+      if (table === "profiles") return { data: mode === "single" ? profile : [], error: null };
+      if (table === "organizations") return { data: { id: profile.organization_id, name: "Shared Organization", slug: "shared-organization", timezone: "America/New_York", settings: {} }, error: null };
       if (table === "crew_members" && mode === "single") return { data: crews.find(item => item.profile_id === profile.id) || null, error: null };
       if (table === "crew_members") return { data: crews.filter(item => item.organization_id === profile.organization_id && ids.includes(item.id)), error: null };
       const source = { locations, fields, games, game_assignments: assignments, availability: [] }[table] || [];
@@ -55,7 +56,7 @@ test("administrator and umpire hydrate the same RLS-scoped shared schedule", asy
         const builder = {
           select() { return builder; }, eq() { return builder; },
           maybeSingle() { return window.__scheduleRead({ table, mode: "single", ids: [] }); },
-          order() { return builder; },
+          order() { return builder; }, limit() { return builder; },
           in(column, ids) { selectedIds = ids || []; return builder; },
           then(resolve, reject) { return window.__scheduleRead({ table, mode: "list", ids: selectedIds }).then(resolve, reject); }
         };
@@ -91,7 +92,7 @@ test("administrator and umpire hydrate the same RLS-scoped shared schedule", asy
   expect(umpireState.locations).toEqual(adminState.locations);
   expect(adminState.games).toEqual(["assigned-a", "open-a"]);
   expect(umpireState.games).toEqual(adminState.games);
-  expect(adminState.open).toEqual(["open-a"]);
+  expect(adminState.open).toEqual([]);
   expect(umpireState.open).toEqual(["open-a"]);
   expect(adminState.mine).toEqual([]);
   expect(umpireState.mine).toEqual(["assigned-a"]);

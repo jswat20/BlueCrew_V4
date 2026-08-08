@@ -37,7 +37,7 @@ test.describe("Umpire Game Hub", () => {
     await expect(app.page.getByTestId("game-hub-level-badge")).toHaveText("12U");
     await expect(app.page.getByTestId("game-hub-operational-status")).toHaveText("On Time");
     await expect(app.page.getByTestId("game-hub-weather")).toContainText("Sunny · 82° / 64° · Playable");
-    await expect(app.page.getByTestId("game-hub-summary-date")).toContainText("2030-03-15");
+    await expect(app.page.getByTestId("game-hub-summary-date")).toContainText("Mar 15, 2030");
     await expect(app.page.getByTestId("game-hub-summary-time")).toContainText("6:30 PM");
     await expect(app.page.getByTestId("game-hub-summary-location")).toContainText("BlueCrew Sports Complex");
     await expect(app.page.getByTestId("game-hub-summary-field")).toContainText("Game Hub Field");
@@ -131,6 +131,62 @@ test.describe("Umpire Game Hub", () => {
     await app.page.evaluate(id => { authService.loginAsAdmin(); document.body.dataset.role = "admin"; renderPage("game-hub", { gameId: id }); }, gameId);
     await expect(app.page.getByTestId("game-hub-admin-view")).toBeVisible();
     await expect(app.page.locator('[data-umpire-summary="true"]')).toHaveCount(0);
+  });
+
+  test("administrator popup and full Game Hub share polished core details", async ({ app }) => {
+    const gameId = await app.page.evaluate(() => {
+      authService.loginAsAdmin();
+      document.body.dataset.role = "admin";
+      levelTerminologyService.configure({ level_aliases: { "16U": "Colt" } });
+      organizationContactService.configure({}, { name: "Lake Shore Baseball" });
+      const game = gameService.create({ date: "2030-08-12", time: "18:00", locationComplex: "Lake Shore Athletic Complex", locationField: "Field 3", field: "Field 3", level: "16U", homeTeam: "Colt Team B", awayTeam: "Colt Team D", gameType: "single" }).data;
+      openWorkbenchGameDialog("open-position", { gameId: game.id });
+      return game.id;
+    });
+    const dialog = app.page.getByTestId("workbench-game-dialog");
+    await expect(dialog.getByRole("heading", { name: "Colt Team D @ Colt Team B", exact: true })).toHaveCount(1);
+    await expect(dialog.getByRole("heading", { name: "Game Details" })).toBeVisible();
+    await expect(dialog.getByTestId("game-hub-summary-date")).toContainText("Aug 12, 2030");
+    await expect(dialog.getByTestId("game-hub-summary-time")).toContainText("6:00 PM");
+    await expect(dialog.getByTestId("game-hub-summary-location")).toContainText("Lake Shore Athletic Complex");
+    await expect(dialog.getByTestId("game-hub-summary-field")).toContainText("Field 3");
+    await expect(dialog.getByTestId("game-hub-summary-level")).toContainText("16U - Colt");
+    await expect(dialog.getByRole("heading", { name: "Officials" })).toBeVisible();
+    await expect(dialog.getByText("Requested Officials", { exact: true })).toHaveCount(0);
+    await expect(dialog.getByTestId("game-hub-section-contacts")).toContainText("John Switala");
+    await expect(dialog.getByTestId("game-hub-section-contacts")).toContainText("(410) 627-6250");
+    await expect(dialog.getByTestId("game-hub-section-contacts")).toContainText("juniorumps@gmail.com");
+    await expect(dialog.getByTestId("game-hub-assignment-status")).toHaveClass(/status-badge-needs-assignment/);
+    await dialog.getByTestId("game-hub-assign-Plate").click();
+    const picker = dialog.locator("dialog.game-hub-crew-picker[open]");
+    await expect(picker).not.toContainText("undefined");
+    await expect(picker).toContainText("Lake Shore Athletic Complex");
+    await expect(picker).toContainText("Colt Team D @ Colt Team B");
+    await expect(picker).toContainText("6:00 PM");
+    await picker.getByRole("button", { name: "Close" }).click();
+    await dialog.getByRole("button", { name: "Open Full Game Hub" }).click();
+    await expect(app.page.getByTestId("game-hub-matchup")).toHaveText("Colt Team D @ Colt Team B");
+    await expect(app.page.getByTestId("game-hub-summary-time")).toContainText("6:00 PM");
+    await expect(app.page.getByTestId("game-hub-summary-level")).toContainText("16U - Colt");
+    await expect(app.page.getByTestId("game-hub-back")).toContainText("Back to Assigner Workbench");
+    expect(gameId).toBeTruthy();
+  });
+
+  test("administrative removal remains destructive and rerenders Needs Assignment", async ({ app }) => {
+    await app.page.evaluate(() => {
+      authService.loginAsAdmin(); document.body.dataset.role = "admin";
+      const game = gameService.create({ date: "2030-08-12", time: "18:00", locationComplex: "Lake Shore Athletic Complex", locationField: "Field 3", field: "Field 3", level: "16U", homeTeam: "Home", awayTeam: "Away", gameType: "single" }).data;
+      const assignment = assignmentService.getAssignments(game)[0];
+      assignmentService.assignToAssignment(game.id, assignment.id, crewService.getAll()[0].id);
+      renderPage("game-hub", { gameId: game.id });
+    });
+    const remove = app.page.getByRole("button", { name: "Remove Crew Member" });
+    await expect(remove).toHaveClass(/button-danger/);
+    await expect(app.page.getByTestId("game-hub-assignment-status")).toHaveClass(/status-badge-assigned/);
+    await remove.click();
+    await expect(app.page.getByTestId("game-hub-assignment-status")).toHaveText("Needs Assignment");
+    await expect(app.page.getByTestId("game-hub-assignment-status")).toHaveClass(/status-badge-needs-assignment/);
+    await expect(app.page.getByText("Decline Assignment", { exact: true })).toHaveCount(0);
   });
 
   test("summary remains usable at mobile width", async ({ app }) => {

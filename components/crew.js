@@ -127,10 +127,10 @@ function renderAddCrewDrawerContent() {
         <label>Certification Levels</label>
         <label class="checkbox-row"><input type="checkbox" data-testid="crew-level-select-all" onchange="toggleCrewLevels(this.checked)" /><span>Select All</span></label>
         <div class="checkbox-list">
-          ${settings.levels.map(level => `
+          ${levelTerminologyService.checkboxOptions(settings.levels).map(option => `
             <label class="checkbox-row">
-              <input type="checkbox" value="${level}" class="crew-level-checkbox" />
-              <span>${level}</span>
+              <input type="checkbox" value="${option.value}" data-canonical="${option.canonical}" data-level-kind="${option.kind}" class="crew-level-checkbox" onchange="levelTerminologyService.synchronizeCheckbox(this)" />
+              <span>${option.label}</span>
             </label>
           `).join("")}
         </div>
@@ -180,8 +180,7 @@ async function saveNewCrewMember() {
   const active = document.getElementById("crew-active").checked;
   const notes = document.getElementById("crew-notes").value.trim();
 
-  const levels = [...document.querySelectorAll(".crew-level-checkbox:checked")]
-    .map(box => box.value);
+  const levels = levelTerminologyService.normalizeLevels([...document.querySelectorAll(".crew-level-checkbox:checked")].map(box => box.value));
 
   if (!firstName || !lastName) {
     alert("Please enter a first and last name.");
@@ -295,15 +294,18 @@ function renderEditCrewDrawerContent(member) {
         <label>Certification Levels</label>
         <label class="checkbox-row"><input type="checkbox" data-testid="crew-level-select-all" onchange="toggleCrewLevels(this.checked)" /><span>Select All</span></label>
         <div class="checkbox-list">
-          ${settings.levels.map(level => `
+          ${levelTerminologyService.checkboxOptions(settings.levels).map(option => `
             <label class="checkbox-row">
               <input
                 type="checkbox"
-                value="${level}"
+                value="${option.value}"
+                data-canonical="${option.canonical}"
+                data-level-kind="${option.kind}"
                 class="crew-level-checkbox"
-                ${member.levels.includes(level) ? "checked" : ""}
+                ${member.levels.includes(option.canonical) ? "checked" : ""}
+                onchange="levelTerminologyService.synchronizeCheckbox(this)"
               />
-              <span>${level}</span>
+              <span>${option.label}</span>
             </label>
           `).join("")}
         </div>
@@ -399,8 +401,7 @@ async function saveCrewEdits(memberId) {
     phone: document.getElementById("crew-phone").value.trim(),
     active: document.getElementById("crew-active").checked,
     notes: document.getElementById("crew-notes").value.trim(),
-    levels: [...document.querySelectorAll(".crew-level-checkbox:checked")]
-      .map(box => box.value)
+    levels: levelTerminologyService.normalizeLevels([...document.querySelectorAll(".crew-level-checkbox:checked")].map(box => box.value))
   };
 
     const preferredCrewIds = [

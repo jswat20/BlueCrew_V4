@@ -68,6 +68,7 @@ const loginService = (() => {
     getRepository().remove();
     if (typeof authService !== "undefined") authService.clearAuthenticatedAccount?.();
     if (typeof uiStateService !== "undefined") uiStateService.clearSelections?.();
+    authenticatedIdentityService?.updateDocumentTitle?.(null);
 
     return mutationResult(true, "Logged out.");
   }

@@ -87,6 +87,7 @@ function renderRecentAssignmentActivity() {
                 tabindex="0"
                 aria-label="Recent operational activity"
               >
+                <div class="dashboard-activity-header" aria-hidden="true"><span>Time</span><span>Activity</span><span>Level</span><span>Performed By</span><span>Details</span></div>
                 ${activities
                   .map((activity, index) =>
                     renderOperationsCenterActivityItem(

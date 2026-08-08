@@ -52,7 +52,7 @@ function renderCrewDashboard() {
   return `
     <div class="crew-dashboard crew-command-dashboard" data-testid="crew-dashboard">
       <header class="crew-command-header">
-        <div><h1>Good ${greeting}, ${member?.name || "Crew Member"}</h1><p>Your assignments, claims, and game-day work at a glance.</p></div>
+        <div><h1>Good ${greeting}, ${authenticatedIdentityService.displayName(loginService.getCurrentAccount())}</h1><p>Your assignments, claims, and game-day work at a glance.</p></div>
         <time><span>${todayLabel}</span><strong>${timeLabel}</strong></time>
       </header>
 
@@ -109,7 +109,7 @@ function renderCrewHero(game) {
     <button type="button" class="crew-hero" onclick="renderPage('game-hub', { gameId: '${game.id}' })">
       <span class="crew-hero-time">${game.time}</span>
       <span class="crew-hero-matchup"><strong>${game.awayTeam} @ ${game.homeTeam}</strong><small>${formatDate(game.date)}</small></span>
-      <span class="crew-hero-detail"><b>${game.level}</b><small>${locationService.getDisplayName(game)}</small></span>
+      <span class="crew-hero-detail"><b>${levelTerminologyService.format(game.level)}</b><small>${locationService.getDisplayName(game)}</small></span>
       <span class="crew-hero-status">${renderAssignmentStatusBadge(game)}</span>
     </button>
   `;
@@ -131,7 +131,7 @@ function renderCrewAssignmentCard(game) {
     <button type="button" class="schedule-game-card crew-command-game-row" onclick="renderPage('game-hub', { gameId: '${game.id}' })">
       <strong>${game.time}</strong>
       <span><b>${game.awayTeam} @ ${game.homeTeam}</b><small>${formatDate(game.date)}</small></span>
-      <span><b>${game.level}</b><small>${locationService.getDisplayName(game)}</small></span>
+      <span><b>${levelTerminologyService.format(game.level)}</b><small>${locationService.getDisplayName(game)}</small></span>
       ${renderAssignmentStatusBadge(game)}
     </button>
   `;
@@ -152,18 +152,18 @@ function renderCrewClaimCard(game) {
 
   return `
     <article class="schedule-game-card crew-command-claim-row">
-      <div class="crew-claim-summary"><strong>${game.time}</strong><span><b>${game.awayTeam} @ ${game.homeTeam}</b><small>${formatDate(game.date)} · ${game.level} · ${locationService.getDisplayName(game)}</small></span><em data-status="${availability}">${availabilityText[availability] || availabilityText.unknown}</em></div>
+      <div class="crew-claim-summary"><strong>${game.time}</strong><span><b>${game.awayTeam} @ ${game.homeTeam}</b><small>${formatDate(game.date)} · ${levelTerminologyService.format(game.level)} · ${locationService.getDisplayName(game)}</small></span><em data-status="${availability}">${availabilityText[availability] || availabilityText.unknown}</em></div>
       <div class="crew-availability-buttons">
         <button type="button" class="button button-secondary" onclick="setCrewAvailability('${game.id}', 'available')">Available</button>
         <button type="button" class="button button-secondary" onclick="setCrewAvailability('${game.id}', 'unavailable')">Can't Work</button>
-        <button type="button" class="button button-primary" onclick="claimCrewGame('${game.id}')">Claim</button>
+        <button type="button" class="button button-primary" data-testid="dashboard-claim-${game.id}" onclick="claimCrewGame('${game.id}')">Claim</button>
       </div>
     </article>
   `;
 }
 
-function claimCrewGame(gameId) {
-  const result = assignmentService.claimGame(gameId, authService.currentCrewId());
+async function claimCrewGame(gameId) {
+  const result = await portalService.claimGame(gameId);
   if (result.success) {
     toastService.success(result.message);
     uiService.refreshCrewPortal();

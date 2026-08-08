@@ -21,7 +21,7 @@ function renderMyClaims() {
           <div class="card" data-testid="my-claim-card">
             <h3>${game.homeTeam} vs ${game.awayTeam}</h3>
             <p>${game.date} at ${game.time}</p>
-            <p>${game.field} • ${game.level}</p>
+            <p>${game.field} • ${levelTerminologyService.format(game.level)}</p>
             <p>Position: ${assignment.position}</p>
             <p>Status: Pending Approval</p>
           </div>

@@ -40,7 +40,7 @@ test.describe("Claims Queue UI", () => {
     await expect(app.page.getByTestId("claim-claimed-by").locator("strong")).toHaveText("Claimed by");
   });
 
-  test("workbench pending claim popup accepts the claimant without crew reassignment controls", async ({ app }) => {
+  test("workbench pending claim popup accepts the claimant", async ({ app }) => {
     await app.createPendingClaim();
     await app.page.evaluate(() => {
       authService.loginAsAdmin();
@@ -55,8 +55,6 @@ test.describe("Claims Queue UI", () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByTestId("workbench-accept-claim")).toBeVisible();
     await expect(dialog.getByTestId("workbench-reject-claim")).toBeVisible();
-    await expect(dialog.getByText("Assign Crew")).toHaveCount(0);
-
     await dialog.getByTestId("workbench-accept-claim").click();
     await expect(app.page.getByTestId("workbench-pending-claims-count")).toHaveText("0");
   });

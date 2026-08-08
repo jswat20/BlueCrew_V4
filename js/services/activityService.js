@@ -3,8 +3,10 @@
 const activityService = (() => {
   const STORAGE_KEY = "bluecrew_activity";
   const getRepository = () => repositoryProvider.get("activity");
+  let hostedActivities = null;
 
   function getAll() {
+    if (supabaseClientService?.isConfigured?.()) return Array.isArray(hostedActivities) ? hostedActivities : [];
     return getRepository().read() || [];
   }
 
@@ -25,6 +27,7 @@ const activityService = (() => {
             message
           };
 
+    const identity = source.systemGenerated === true ? { profileId: "", role: "", name: "" } : getCurrentActorDetails();
     const activity = {
       id:
         source.id ||
@@ -38,7 +41,11 @@ const activityService = (() => {
         source.action || "",
 
       actor:
-        source.actor || "",
+        source.actorName || identity.name || source.actor || "",
+
+      actorProfileId: source.actorProfileId || identity.profileId || "",
+
+      actorRole: source.actorRole || identity.role || "",
 
       subject:
         source.subject || "",
@@ -97,7 +104,7 @@ const activityService = (() => {
   }
 
   function getRecent(limit = 10) {
-    return getAll().slice(0, limit);
+    return [...getAll()].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))).slice(0, limit);
   }
 
   function getCurrentActor() {
@@ -125,6 +132,53 @@ const activityService = (() => {
       ""
     );
   }
+
+  function getCurrentActorDetails() {
+    const account = typeof loginService !== "undefined" ? loginService.getCurrentAccount?.() : null;
+    if (!account) return { profileId: "", role: "", name: "" };
+    return {
+      profileId: account.profileId || account.id || "",
+      role: authService?.getCurrentUser?.()?.role || account.role || "",
+      name: authenticatedIdentityService?.displayName?.(account) || getCurrentActor()
+    };
+  }
+
+  function formatActor(activity = {}) {
+    const name = String(activity.actorName || activity.actor || "").trim();
+    const role = String(activity.actorRole || "").toLowerCase();
+    const label = role === "administrator" || role === "admin" ? "Admin" : role === "assigner" ? "Assigner" : role === "umpire" ? "Umpire" : "";
+    return name ? `${label ? `${label} - ` : ""}${name}` : "System";
+  }
+
+  async function hydrateAuthenticatedActivities() {
+    if (!supabaseClientService?.isConfigured?.()) { hostedActivities = null; return getAll(); }
+    const result = await supabaseSharedRepository.getRecentActivities();
+    if (result.error) throw result.error;
+    const profiles = new Map((result.profiles || []).map(profile => [String(profile.id), profile]));
+    hostedActivities = (result.activities || []).map(row => {
+      const profile = profiles.get(String(row.actor_profile_id || ""));
+      return {
+        id: row.id,
+        type: row.type,
+        action: row.action,
+        actorProfileId: row.actor_profile_id || "",
+        actorRole: profile?.role || row.metadata?.actorRole || "",
+        actor: `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || profile?.email || row.metadata?.actorName || "",
+        subject: row.subject || "",
+        object: row.object || "",
+        message: row.message || "",
+        gameId: row.metadata?.gameId || row.related_legacy_id || "",
+        accountId: row.metadata?.profileId || "",
+        crewId: row.metadata?.crewMemberId || row.metadata?.crewId || "",
+        matchup: row.metadata?.matchup || row.object || "",
+        metadata: row.metadata || {},
+        createdAt: row.created_at || ""
+      };
+    }).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)) || String(b.id).localeCompare(String(a.id)));
+    return hostedActivities;
+  }
+
+  function clearAuthenticatedActivities() { hostedActivities = null; }
 
   function getCrewActor(crewId) {
     if (
@@ -195,6 +249,10 @@ const activityService = (() => {
     getRecent,
     getSince,
     getCurrentActor,
+    getCurrentActorDetails,
+    formatActor,
+    hydrateAuthenticatedActivities,
+    clearAuthenticatedActivities,
     getCrewActor,
     getGameMatchup
   };

@@ -105,6 +105,21 @@ const pages = {
 };
 
 function initializeApp() {
+  if (typeof supabaseClientService === "undefined" || supabaseClientService.hasConfigurationError()) {
+    games = [];
+    crew = [];
+    authService.clearAuthenticatedAccount?.();
+    document.body.dataset.page = "configuration-error";
+    document.body.dataset.role = "none";
+    document.querySelector(".sidebar")?.setAttribute("hidden", "");
+    document.querySelector(".topbar")?.setAttribute("hidden", "");
+    const content = document.getElementById("app-content");
+    if (content) content.innerHTML = `<div class="page-wrapper" data-testid="hosted-configuration-error"><section class="page-section"><h2>The Slate could not connect to its hosted configuration.</h2><p>Do not continue with schedule or account changes. Restart the hosted application or contact the administrator.</p></section></div>`;
+    window.BlueCrew.test.currentPage = "configuration-error";
+    window.BlueCrew.test.currentRole = "none";
+    window.BlueCrew.test.initialized = true;
+    return;
+  }
   const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   games = usesSupabaseAuth ? [] : loadGames();
   crew = usesSupabaseAuth ? [] : loadCrew();
@@ -256,6 +271,7 @@ function renderPage(page, context = {}) {
     context = {};
     window.history.replaceState({ blueCrewPage: "login", context: {} }, "", window.location.href);
   }
+  authenticatedIdentityService.updateDocumentTitle(page === "login" ? null : loginService.getCurrentAccount());
   if (typeof refreshNavigationAuthorization === "function") {
     refreshNavigationAuthorization();
   }

@@ -1945,6 +1945,21 @@ const portalService = (() => {
       } has been cancelled.`
     );
 
+    activityService?.log?.({
+      type: "game",
+      action: "game_cancelled",
+      gameId: result.game.id,
+      object: activityService.getGameMatchup?.(result.game) || "",
+      metadata: {
+        date: result.game.date || "",
+        time: result.game.time || "",
+        level: result.game.level || "",
+        locationComplex: result.game.locationComplex || result.game.venue || "",
+        locationField: result.game.locationField || "",
+        field: result.game.field || ""
+      }
+    });
+
     return {
       success: true,
       message: "Game cancelled.",

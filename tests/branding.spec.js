@@ -56,7 +56,7 @@ test.describe("The Slate Branding", () => {
         "button.nav-link"
       );
 
-    await expect(links).toHaveCount(19);
+    await expect(links).toHaveCount(20);
 
     const names =
       await links.evaluateAll(buttons =>

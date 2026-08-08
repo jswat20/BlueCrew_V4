@@ -58,7 +58,7 @@ const crewService = {
       email: String(member.email || "").trim(),
       phone: String(member.phone || "").trim(),
       active: member.active !== false,
-      eligible_levels: Array.isArray(member.levels) ? [...member.levels] : [],
+      eligible_levels: levelTerminologyService.normalizeLevels(member.levels),
       preferences: member.preferences && typeof member.preferences === "object" ? structuredClone(member.preferences) : {},
       notes: String(member.notes || "").trim()
     };
@@ -188,7 +188,7 @@ const crewService = {
     if (!member || !level) return true;
     if (!Array.isArray(member.levels)) return true;
 
-    return member.levels.includes(level);
+    return levelTerminologyService.normalizeLevels(member.levels).includes(levelTerminologyService.canonicalize(level));
   },
 
   normalizePreferenceArray(values) {

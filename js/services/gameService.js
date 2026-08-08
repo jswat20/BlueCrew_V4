@@ -519,7 +519,15 @@ game.assignments =
             : `${game.awayTeam || "Away"} @ ${
                 game.homeTeam || "Home"
               }`,
-        gameId: game.id
+        gameId: game.id,
+        metadata: {
+          date: game.date || "",
+          time: game.time || "",
+          level: game.level || "",
+          locationComplex: game.locationComplex || game.venue || "",
+          locationField: game.locationField || "",
+          field: game.field || ""
+        }
       });
     }
 
@@ -543,6 +551,26 @@ game.assignments =
     return dates.length
       ? dates[0]
       : new Date().toISOString().split("T")[0];
+  },
+
+  async importSchedule(gamesToImport = []) {
+    if (!isSharedGameMode()) {
+      gamesToImport.forEach(game => this.create(game));
+      return { success: true, message: "Schedule imported.", data: { importedCount: gamesToImport.length, skippedCount: 0 } };
+    }
+    const payload = gamesToImport.map(game => ({
+      externalGameId: game.externalGameId || "", date: game.date, time: game.time,
+      timezone: game.timezone || "America/New_York", level: levelTerminologyService.canonicalize(game.level),
+      homeTeam: game.homeTeam, awayTeam: game.awayTeam,
+      location: game.locationComplex || game.location || "", field: game.locationField || game.field || "",
+      gameType: game.gameType || "single", lifecycleStatus: game.lifecycleStatus || "scheduled",
+      assignmentStatus: game.assignmentStatus || "needs_assignment", notes: game.notes || ""
+      ,positions: crewConfigurationService.getPositionsForGame(game)
+    }));
+    const { data, error } = await supabaseSharedRepository.importScheduleGames(payload);
+    if (error) return { success: false, message: error.message || "Schedule import failed." };
+    const refresh = await supabaseAuthService.refreshScheduling();
+    return refresh.success ? { success: true, message: "Schedule imported.", data } : { success: false, message: "Schedule imported but refresh failed.", data: { persisted: true, result: data } };
   },
 
 create(game) {
@@ -597,6 +625,7 @@ create(game) {
       metadata: {
         date: game.date || "",
         time: game.time || "",
+        level: game.level || "",
         locationComplex: game.locationComplex || "",
         locationField: game.locationField || "",
         field: game.field || ""

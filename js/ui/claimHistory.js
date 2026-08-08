@@ -18,6 +18,7 @@ function renderClaimHistory(context = {}) {
   const filteredRejectedClaims = claims.filter(
     claim => claim.assignment.claimStatus === "rejected"
   );
+  const filteredWithdrawnClaims = claims.filter(claim => claim.assignment.claimStatus === "withdrawn");
 
   if (!claims.length) {
     return `
@@ -46,6 +47,10 @@ function renderClaimHistory(context = {}) {
       <details class="claim-history-section" data-testid="claim-history-rejected" open>
         <summary><h3>Rejected Claims</h3><span>${filteredRejectedClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredRejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected", highlightedId)).join("")}</div>
+      </details>
+      <details class="claim-history-section" data-testid="claim-history-withdrawn" open>
+        <summary><h3>Withdrawn Claims</h3><span>${filteredWithdrawnClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
+        <div class="claim-history-list">${filteredWithdrawnClaims.map(claim => renderClaimHistoryCard(claim, "withdrawn", highlightedId)).join("")}</div>
       </details>
     </section>
   `;
@@ -175,7 +180,7 @@ function renderClaimHistoryCard(claim, status, highlightedId) {
         <p><strong>Date</strong><span class="claim-data-pill">${claim.date}</span></p>
         <p><strong>Time</strong><span class="claim-data-pill">${claim.time}</span></p>
         <p><strong>Field</strong><span class="claim-data-pill">${claim.field}</span></p>
-        <p><strong>Level</strong><span class="claim-data-pill">${claim.level}</span></p>
+        <p><strong>Level</strong><span class="claim-data-pill">${levelTerminologyService.format(claim.level)}</span></p>
       </div>
     </article>
   `;

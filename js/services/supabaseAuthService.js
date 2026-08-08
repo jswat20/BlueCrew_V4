@@ -24,11 +24,25 @@ const supabaseAuthService = (() => {
       hydrationState = { status: "ready", message: "" };
       return profile;
     }
+    const { data: organization, error: organizationError } = await supabaseSharedRepository.getCurrentOrganization(profile.organizationId);
+    if (organizationError) throw organizationError;
+    levelTerminologyService.configure(organization?.settings || {});
+    organizationContactService.configure(organization?.settings || {}, organization || {});
     const crewMember = await crewService.loadAuthenticatedCrewMember(profile.id);
     accountService.setAuthenticatedCrewId(crewMember?.id || null);
     if (profile.role === "umpire" && !crewMember) throw new Error("Approved umpire has no linked crew member.");
     if (crewMember) await availabilityService.loadAuthenticatedAvailability(crewMember.id);
+    if (profile.role === "administrator") {
+      await Promise.all([
+        accountService.loadPendingAuthenticatedAccounts(),
+        crewService.loadAdministrativeCrew()
+      ]);
+    }
     await notificationService?.hydrateAuthenticatedNotifications?.();
+    if (["administrator", "assigner"].includes(profile.role)) {
+      try { await activityService?.hydrateAuthenticatedActivities?.(); }
+      catch (_) { activityService?.clearAuthenticatedActivities?.(); }
+    } else activityService?.clearAuthenticatedActivities?.();
     try {
       const preparedLocations = await locationService.prepareSharedLocations();
       const preparedSchedule = await gameService.prepareSharedGames(preparedLocations);
@@ -52,10 +66,13 @@ const supabaseAuthService = (() => {
   }
 
   function clearSharedState() {
+    levelTerminologyService?.clear?.();
+    organizationContactService?.clear?.();
     accountService?.clearAuthenticatedProfile?.();
     crewService?.clearAllSharedCrew?.();
     availabilityService?.clearAuthenticatedAvailability?.();
     notificationService?.clearAuthenticatedNotifications?.();
+    activityService?.clearAuthenticatedActivities?.();
     clearSchedulingState();
     if (typeof uiStateService !== "undefined") uiStateService.clearSelections?.();
   }
@@ -99,6 +116,7 @@ const supabaseAuthService = (() => {
   function failHydration(error) {
     clearSharedState();
     applyIdentity(null);
+    authenticatedIdentityService?.updateDocumentTitle?.(null);
     hydrationState = { status: "error", message: error?.message || "Shared account data could not be loaded." };
   }
 

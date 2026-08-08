@@ -13,19 +13,19 @@ const authService = (() => {
   }
 
   function isAdmin() {
-    return currentUser.role === "administrator";
+    return currentUser?.role === "administrator";
   }
 
   function isUmpire() {
-    return currentUser.role === "umpire";
+    return currentUser?.role === "umpire";
   }
 
   function currentCrewId() {
-    return currentUser.crewId;
+    return currentUser?.crewId || null;
   }
 
   function currentUserName() {
-    return currentUser.name;
+    return currentUser?.name || "";
   }
 
   function loginAsAdmin() {
@@ -85,12 +85,7 @@ const authService = (() => {
   }
 
   function clearAuthenticatedAccount() {
-    currentUser = {
-      id: null,
-      role: "umpire",
-      crewId: null,
-      name: "User"
-    };
+    currentUser = null;
     return currentUser;
   }
 

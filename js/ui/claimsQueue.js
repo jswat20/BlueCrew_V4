@@ -84,7 +84,7 @@ function renderClaimQueueCard(claim, highlightedId) {
           <button
             type="button"
             data-testid="approve-claim-${claim.assignmentId}"
-            onclick="handleApproveClaim('${claim.gameId}', '${claim.assignmentId}')"
+            onclick="handleApproveClaim('${claim.gameId}', '${claim.assignmentId}', '${claim.claimId}')"
           >
             Approve
           </button>
@@ -92,7 +92,7 @@ function renderClaimQueueCard(claim, highlightedId) {
           <button
             type="button"
             data-testid="reject-claim-${claim.assignmentId}"
-            onclick="handleRejectClaim('${claim.gameId}', '${claim.assignmentId}')"
+            onclick="handleRejectClaim('${claim.gameId}', '${claim.assignmentId}', '${claim.claimId}')"
           >
             Reject
           </button>
@@ -103,7 +103,7 @@ function renderClaimQueueCard(claim, highlightedId) {
         <p data-testid="claim-date"><strong>Date</strong><span>${claim.date}</span></p>
         <p data-testid="claim-time"><strong>Time</strong><span>${claim.time}</span></p>
         <p data-testid="claim-field"><strong>Field</strong><span>${claim.field}</span></p>
-        <p data-testid="claim-level"><strong>Level</strong><span>${claim.level}</span></p>
+        <p data-testid="claim-level"><strong>Level</strong><span>${levelTerminologyService.format(claim.level)}</span></p>
         <p data-testid="claim-position"><strong>Position</strong><span>${claim.position}</span></p>
         <p data-testid="claim-claimed-by"><strong>Claimed by</strong><span>${claim.claimedByName}</span></p>
       </div>
@@ -134,11 +134,12 @@ function handleClearSelectedClaims() {
   renderPage("claims-queue");
 }
 
-async function handleApproveClaim(gameId, assignmentId) {
+async function handleApproveClaim(gameId, assignmentId, claimId) {
   const result =
     await claimsQueueService.approveClaim(
       gameId,
-      assignmentId
+      assignmentId,
+      claimId
     );
 
   if (result?.success === false) {
@@ -158,11 +159,12 @@ async function handleApproveClaim(gameId, assignmentId) {
   return result;
 }
 
-async function handleRejectClaim(gameId, assignmentId) {
+async function handleRejectClaim(gameId, assignmentId, claimId) {
   const result =
     await claimsQueueService.rejectClaim(
       gameId,
-      assignmentId
+      assignmentId,
+      claimId
     );
 
   if (result?.success === false) {
@@ -196,7 +198,8 @@ async function handleBulkApproveClaims() {
       const result =
         await claimsQueueService.approveClaim(
           claim.gameId,
-          claim.assignmentId
+          claim.assignmentId,
+          claim.claimId
         );
 
       if (result?.success !== false) {
@@ -230,7 +233,8 @@ async function handleBulkRejectClaims() {
       const result =
         await claimsQueueService.rejectClaim(
           claim.gameId,
-          claim.assignmentId
+          claim.assignmentId,
+          claim.claimId
         );
 
       if (result?.success !== false) {

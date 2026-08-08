@@ -43,7 +43,7 @@ const sharedDomainMappingService = (() => {
       email: row.email || "",
       phone: row.phone || "",
       active: row.active !== false,
-      levels: Array.isArray(row.eligible_levels) ? [...row.eligible_levels] : [],
+      levels: levelTerminologyService.normalizeLevels(row.eligible_levels),
       preferences: row.preferences || {},
       notes: row.notes || ""
     };
@@ -92,7 +92,7 @@ const sharedDomainMappingService = (() => {
       `${left.claimed_at || ""}\u0000${left.id}`.localeCompare(`${right.claimed_at || ""}\u0000${right.id}`)
     );
     const pendingClaim = orderedClaims.find(claim => claim.status === "pending") || null;
-    const processedClaim = [...orderedClaims].reverse().find(claim => ["approved", "rejected"].includes(claim.status)) || null;
+    const processedClaim = [...orderedClaims].reverse().find(claim => ["approved", "rejected", "withdrawn"].includes(claim.status)) || null;
     return {
       id: row.id,
       gameId: row.game_id,

@@ -31,7 +31,8 @@ async function openSharedSession(browser, rows, authUserId) {
   const page = await context.newPage();
 
   await page.exposeFunction("__claimRead", ({ table, mode, ids }) => {
-    if (table === "profiles") return { data: profile, error: null };
+    if (table === "profiles" && mode === "single") return { data: profile, error: null };
+    if (table === "profiles") return { data: rows.profiles.filter(item => item.status === "pending"), error: null };
     if (table === "crew_members" && mode === "single") return { data: crew, error: null };
     if (table === "crew_members") return { data: rows.crews.filter(item => ids.includes(item.id)), error: null };
     if (table === "availability") return { data: [], error: null };
@@ -183,8 +184,8 @@ for (const decision of ["approved", "rejected"]) {
         await loginService.loginWithPassword("admin@example.com", "password1234");
         const before = gameService.getAll();
         const mutation = decision === "approved"
-          ? await claimsQueueService.approveClaim("game-1", "assignment-1")
-          : await claimsQueueService.rejectClaim("game-1", "assignment-1");
+          ? await claimsQueueService.approveClaim("game-1", "assignment-1", "claim-1")
+          : await claimsQueueService.rejectClaim("game-1", "assignment-1", "claim-1");
         return { mutation, before, after: gameService.getAll(), account: loginService.getCurrentAccount() };
       }, { decision });
       fixtureExpect(result.mutation.success).toBe(false);
