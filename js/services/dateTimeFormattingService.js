@@ -1,4 +1,11 @@
 const dateTimeFormattingService = (() => {
+  function formatDateShort(value, fallback = "—") {
+    const text = String(value || "").trim();
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return fallback;
+    return `${match[2]}/${match[3]}/${match[1].slice(-2)}`;
+  }
+
   function formatTime12Hour(value, fallback = "—") {
     const text = String(value || "").trim();
     if (!text) return fallback;
@@ -9,5 +16,5 @@ const dateTimeFormattingService = (() => {
     const hour = Number(twentyFour[1]);
     return `${hour % 12 || 12}:${twentyFour[2]} ${hour >= 12 ? "PM" : "AM"}`;
   }
-  return { formatTime12Hour };
+  return { formatDateShort, formatTime12Hour };
 })();

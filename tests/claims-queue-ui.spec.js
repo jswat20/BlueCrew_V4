@@ -34,10 +34,9 @@ test.describe("Claims Queue UI", () => {
     await openClaimsQueue(app);
 
     await expect(app.page.getByTestId("claim-queue-card")).toHaveCount(1);
-    await expect(app.page.getByText("Pending Away @ Pending Home")).toBeVisible();
-    await expect(app.page.getByTestId("claim-position").locator("strong")).toHaveText("Position");
-    await expect(app.page.getByTestId("claim-position").locator("span")).toHaveText("Plate");
-    await expect(app.page.getByTestId("claim-claimed-by").locator("strong")).toHaveText("Claimed by");
+    await expect(app.page.getByTestId("claims-pending-count")).toHaveText("1 Pending");
+    await expect(app.page.getByTestId("claim-position")).toHaveText("U1");
+    await expect(app.page.getByTestId("claim-claimed-by")).not.toBeEmpty();
   });
 
   test("workbench pending claim popup accepts the claimant", async ({ app }) => {
