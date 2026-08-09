@@ -64,10 +64,11 @@ test.describe("Umpire Game Hub", () => {
     await expect(app.page.getByTestId("game-hub-decline-assignment")).toHaveCount(0);
   });
 
-  test("assigned umpire can decline with the existing required-reason workflow", async ({ app }) => {
+  test("assigned umpire can decline with the in-app required-reason workflow", async ({ app }) => {
     const { gameId } = await setupGameHub(app);
-    app.page.once("dialog", dialog => dialog.accept("Pilot conflict"));
     await app.page.getByTestId("game-hub-decline-assignment").click();
+    await app.page.getByTestId("game-hub-decline-reason").fill("Pilot conflict");
+    await app.page.getByTestId("game-hub-decline-submit").click();
     await expect(app.page.getByTestId("my-schedule")).toBeVisible();
     const state = await app.page.evaluate(id => { const game = gameService.getById(id); const assignment = assignmentService.getAssignments(game)[0]; return { crewId: assignment.crewId, status: assignment.status, reason: assignment.declineReason }; }, gameId);
     expect(state).toMatchObject({ crewId: "", reason: "Pilot conflict" });

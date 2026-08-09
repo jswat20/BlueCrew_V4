@@ -1,6 +1,6 @@
 const TITLES = Object.freeze({
-  "account-approved": "Account Approved", "account-rejected": "Account Update", "claim-submitted": "Claim Submitted", "claim-approved": "Claim Approved",
-  "claim-rejected": "Claim Rejected", "claim-withdrawn": "Claim Withdrawn", "assignment-created": "Assignment Created", "assignment-removed": "Assignment Removed",
+  "account-approved": "Account Approved", "account-rejected": "Account Update", "claim-submitted": "New Game Claim", "claim-approved": "Claim Approved",
+  "claim-rejected": "Claim Rejected", "claim-withdrawn": "Claim Withdrawn", "assignment-created": "Assignment Confirmed", "assignment-removed": "Assignment Removed",
   "assignment-declined": "Assignment Declined", "game-cancelled": "Game Cancelled", "game-date-changed": "Game Date Changed", "game-time-changed": "Game Time Changed",
   "game-location-changed": "Game Location Changed", "game-field-changed": "Game Field Changed", "game-reminder": "Game Reminder", "availability-reminder": "Availability Reminder"
 });
@@ -13,7 +13,7 @@ function actionUrl(baseUrl, path) { if (!baseUrl || /localhost|127\.0\.0\.1/i.te
 
 export function renderCommunicationEmail(row, { appUrl = "" } = {}) {
   const metadata = row.metadata || {}; const title = TITLES[row.event_type] || "The Slate Update";
-  const lead = row.event_type === "claim-approved" ? "Your claim has been approved." : row.event_type === "claim-rejected" ? "Your claim was not approved." : row.event_type === "assignment-created" ? "You have a new assignment." : `${title}.`;
+  const lead = row.event_type === "claim-approved" ? "Your claim has been approved." : row.event_type === "claim-rejected" ? "Your claim was not approved." : row.event_type === "assignment-created" ? "You have been assigned a game." : row.event_type === "assignment-removed" ? "You have been removed from a game." : row.event_type === "claim-submitted" ? "A new game claim was submitted." : row.event_type === "assignment-declined" ? "An assignment was declined." : `${title}.`;
   const aliases = row.organization_settings?.level_aliases || {}; const level = metadata.canonicalLevel || metadata.level || "";
   const facts = [["Game", gameId(metadata, row.game_id)], ["Division", aliases[level] || level], ["Date", metadata.date ? longDate(metadata.date) : ""], ["Time", metadata.time ? time12(metadata.time) : ""], ["Location", metadata.location], ["Field", metadata.field], ["Assignment", metadata.position ? POSITION[metadata.position] || metadata.position : ""]].filter(([, value]) => value);
   const link = actionUrl(appUrl, metadata.actionPath); const textFacts = facts.map(([label, value]) => `${label}: ${value}`).join("\n");

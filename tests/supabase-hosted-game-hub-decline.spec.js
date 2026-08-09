@@ -33,8 +33,9 @@ test.describe("Hosted umpire Game Hub decline regression", () => {
     });
     await expect(page.getByTestId("game-hub-summary-position")).toContainText("U1");
     await expect(page.getByTestId("game-hub-summary-time")).toContainText("6:30 PM");
-    page.once("dialog", dialog => dialog.accept("Hosted schedule conflict"));
     await page.getByTestId("game-hub-decline-assignment").click();
+    await page.getByTestId("game-hub-decline-reason").fill("Hosted schedule conflict");
+    await page.getByTestId("game-hub-decline-submit").click();
     await expect(page.locator("body")).toHaveAttribute("data-page", "my-schedule");
     const state = await page.evaluate(() => {
       const assignment = assignmentService.getAssignments(gameService.getById("game-decline"))[0];

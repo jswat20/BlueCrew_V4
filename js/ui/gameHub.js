@@ -9,6 +9,9 @@ function escapeGameHubText(value) {
 }
 
 let gameHubNavigationContext = {};
+const pendingGameHubCrewAssignments = new Set();
+const pendingGameHubDeclines = new Set();
+let gameHubDeclineTrigger = null;
 
 function formatGameHubDate(value) {
   if (!value) return "Date unavailable";
@@ -179,17 +182,78 @@ function renderUmpireGameSummary(game) {
       <div data-testid="game-hub-summary-level"><span>Level</span><strong data-testid="game-hub-level-badge">${escapeGameHubText(presentation.level)}</strong></div>
       <div data-testid="game-hub-summary-location"><span>Complex</span><strong>${escapeGameHubText(presentation.complex)}</strong></div>
       <div data-testid="game-hub-summary-field"><span>Field</span><strong>${escapeGameHubText(presentation.field)}</strong></div>
-    </div>${canDecline ? `<div class="game-hub-summary-actions"><button type="button" class="button button-danger" data-testid="game-hub-decline-assignment" onclick="declineAssignmentFromHub('${escapeGameHubText(game.id)}')">Decline Assignment</button></div>` : ""}
+    </div>${canDecline ? `<div class="game-hub-summary-actions"><button type="button" class="button button-danger" data-testid="game-hub-decline-assignment" aria-haspopup="dialog" onclick="openGameHubDeclineDialog('${escapeGameHubText(game.id)}', this)">Decline Assignment</button></div>${renderGameHubDeclineDialog(game)}` : ""}
   </section>`;
 }
 
-function declineAssignmentFromHub(gameId) {
-  const reason = window.prompt("Why are you declining this assignment? A reason is required.");
-  if (reason === null) return;
-  const result = portalService.declineAssignment(gameId, reason);
-  if (!result.success) return toastService?.error?.(result.message);
-  toastService?.success?.("Assignment declined. The assigner has been notified.");
-  renderPage("my-schedule");
+function renderGameHubDeclineDialog(game) {
+  const titleId = `game-hub-decline-title-${escapeGameHubText(game.id)}`;
+  return `<dialog class="game-hub-crew-picker game-hub-decline-dialog" data-testid="game-hub-decline-dialog" aria-labelledby="${titleId}" onclose="restoreGameHubDeclineFocus()">
+    <form method="dialog" novalidate onsubmit="event.preventDefault(); submitGameHubDecline('${escapeGameHubText(game.id)}')">
+      <header><h3 id="${titleId}">Decline Assignment</h3></header>
+      <div class="game-hub-decline-content">
+        <label for="game-hub-decline-reason">Reason for declining</label>
+        <textarea id="game-hub-decline-reason" data-testid="game-hub-decline-reason" rows="4" required aria-describedby="game-hub-decline-status"></textarea>
+        <p id="game-hub-decline-status" class="form-status" data-testid="game-hub-decline-status" role="alert" aria-live="polite"></p>
+      </div>
+      <footer class="game-hub-picker-actions">
+        <button type="button" class="button button-secondary" data-testid="game-hub-decline-cancel" onclick="this.closest('dialog').close()">Cancel</button>
+        <button type="submit" class="button button-danger" data-testid="game-hub-decline-submit">Decline Assignment</button>
+      </footer>
+    </form>
+  </dialog>`;
+}
+
+function openGameHubDeclineDialog(gameId, trigger) {
+  const dialog = document.querySelector('[data-testid="game-hub-decline-dialog"]');
+  if (!dialog) return;
+  gameHubDeclineTrigger = trigger || document.activeElement;
+  const reason = dialog.querySelector('[data-testid="game-hub-decline-reason"]');
+  const status = dialog.querySelector('[data-testid="game-hub-decline-status"]');
+  if (reason) reason.value = "";
+  if (status) status.textContent = "";
+  dialog.dataset.gameId = gameId;
+  dialog.showModal();
+  reason?.focus();
+}
+
+function restoreGameHubDeclineFocus() {
+  gameHubDeclineTrigger?.focus?.();
+  gameHubDeclineTrigger = null;
+}
+
+async function submitGameHubDecline(gameId) {
+  const dialog = document.querySelector('[data-testid="game-hub-decline-dialog"]');
+  const reasonInput = dialog?.querySelector('[data-testid="game-hub-decline-reason"]');
+  const status = dialog?.querySelector('[data-testid="game-hub-decline-status"]');
+  const submit = dialog?.querySelector('[data-testid="game-hub-decline-submit"]');
+  const reason = String(reasonInput?.value || "").trim();
+  if (!reason) {
+    if (status) status.textContent = "Enter a reason for declining the assignment.";
+    reasonInput?.focus();
+    return;
+  }
+  if (pendingGameHubDeclines.has(gameId)) return;
+  pendingGameHubDeclines.add(gameId);
+  if (submit) { submit.disabled = true; submit.setAttribute("aria-busy", "true"); }
+  if (status) status.textContent = "Declining assignment...";
+  try {
+    const result = await portalService.declineAssignment(gameId, reason);
+    if (!result.success) {
+      if (status) status.textContent = result.message;
+      reasonInput?.focus();
+      return;
+    }
+    dialog?.close();
+    toastService?.success?.("Assignment declined. The assigner has been notified.");
+    renderPage("my-schedule");
+  } catch (error) {
+    if (status) status.textContent = error?.message || "Assignment could not be declined.";
+    reasonInput?.focus();
+  } finally {
+    pendingGameHubDeclines.delete(gameId);
+    if (submit) { submit.disabled = false; submit.removeAttribute("aria-busy"); }
+  }
 }
 
 function renderGameHubCrewNotes(game) {
@@ -1450,30 +1514,36 @@ function openGameHubCrewPicker(assignmentId) {
   document.querySelector(`[data-testid="game-hub-crew-picker-${assignmentId}"]`)?.showModal();
 }
 
-function saveGameHubCrewAssignment(gameId, assignmentId) {
+async function saveGameHubCrewAssignment(gameId, assignmentId) {
   const dialog = document.querySelector(`[data-testid="game-hub-crew-picker-${assignmentId}"]`);
   const selected = dialog?.querySelector(`input[name="crew-${assignmentId}"]:checked`);
   const status = dialog?.querySelector('[data-testid="game-hub-crew-picker-status"]');
+  const submit = dialog?.querySelector(`[data-testid="game-hub-crew-save-${assignmentId}"]`);
 
   if (!selected) {
     if (status) status.textContent = "Select a crew member before saving.";
     return;
   }
 
-  const result = assignmentService.assignToAssignment(gameId, assignmentId, selected.value);
-  if (!result.success) {
-    if (status) status.textContent = result.message;
-    return;
+  if (pendingGameHubCrewAssignments.has(assignmentId)) return;
+  pendingGameHubCrewAssignments.add(assignmentId);
+  if (submit) { submit.disabled = true; submit.setAttribute("aria-busy", "true"); }
+  if (status) status.textContent = "Saving assignment...";
+  try {
+    const result = await assignmentService.assignToAssignment(gameId, assignmentId, selected.value);
+    if (!result.success) {
+      if (status) status.textContent = result.message;
+      return;
+    }
+    dialog?.close();
+    if (typeof refreshWorkbenchGameDialog === "function" && refreshWorkbenchGameDialog(gameId)) return;
+    renderPage("game-hub", { ...gameHubNavigationContext, gameId });
+  } catch (error) {
+    if (status) status.textContent = error?.message || "Crew member could not be assigned.";
+  } finally {
+    pendingGameHubCrewAssignments.delete(assignmentId);
+    if (submit) { submit.disabled = false; submit.removeAttribute("aria-busy"); }
   }
-
-  dialog?.close();
-  if (
-    typeof refreshWorkbenchGameDialog === "function" &&
-    refreshWorkbenchGameDialog(gameId)
-  ) {
-    return;
-  }
-  renderPage("game-hub", { ...gameHubNavigationContext, gameId });
 }
 
 async function removeGameHubCrewAssignment(gameId, assignmentId) {

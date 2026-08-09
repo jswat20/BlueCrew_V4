@@ -2472,6 +2472,10 @@ body[data-page="game-hub"] .game-hub-admin {
 .game-hub-crew-picker { width: min(720px, calc(100vw - 32px)); max-height: min(680px, calc(100vh - 32px)); padding: 0; border: 1px solid #75aeba; border-radius: 10px; }
 .game-hub-crew-picker::backdrop { background: rgba(7, 37, 57, 0.62); }
 .game-hub-crew-picker form { display: grid; }
+.game-hub-decline-dialog { width: min(520px, calc(100vw - 32px)); }
+.game-hub-decline-dialog .game-hub-decline-content { display: grid; gap: 8px; padding: 16px; }
+.game-hub-decline-dialog textarea { box-sizing: border-box; width: 100%; min-height: 112px; resize: vertical; }
+.game-hub-decline-dialog footer { justify-content: flex-end; padding: 0 16px 16px; }
 .game-hub-crew-picker header { position: sticky; top: 0; z-index: 1; padding: 14px 16px; border-bottom: 1px solid #b8d6de; background: #fff; }
 .game-hub-picker-actions { display: flex; gap: 6px; }
 .game-hub-crew-search { padding: 10px 16px 0; }

@@ -1,8 +1,8 @@
 const communicationTemplateService = (() => {
   const labels = Object.freeze({
-    "account-approved": "Account Approved", "account-rejected": "Account Update", "claim-submitted": "Claim Submitted",
+    "account-approved": "Account Approved", "account-rejected": "Account Update", "claim-submitted": "New Game Claim",
     "claim-approved": "Claim Approved", "claim-rejected": "Claim Rejected", "claim-withdrawn": "Claim Withdrawn",
-    "assignment-created": "Assignment Created", "assignment-removed": "Assignment Removed", "assignment-declined": "Assignment Declined",
+    "assignment-created": "Assignment Confirmed", "assignment-removed": "Assignment Removed", "assignment-declined": "Assignment Declined",
     "game-cancelled": "Game Cancelled", "game-date-changed": "Game Date Changed", "game-time-changed": "Game Time Changed",
     "game-location-changed": "Game Location Changed", "game-field-changed": "Game Field Changed", "game-reminder": "Game Reminder",
     "availability-reminder": "Availability Reminder"
@@ -24,7 +24,10 @@ const communicationTemplateService = (() => {
     const approved = event.type === "claim-approved";
     const rejected = event.type === "claim-rejected";
     const assignment = event.type === "assignment-created";
-    const lead = approved ? "Your claim has been approved." : rejected ? "Your claim was not approved." : assignment ? "You have a new assignment." : `${title}.`;
+    const removed = event.type === "assignment-removed";
+    const submitted = event.type === "claim-submitted";
+    const declined = event.type === "assignment-declined";
+    const lead = approved ? "Your claim has been approved." : rejected ? "Your claim was not approved." : assignment ? "You have been assigned a game." : removed ? "You have been removed from a game." : submitted ? "A new game claim was submitted." : declined ? "An assignment was declined." : `${title}.`;
     const facts = [
       metadata.gameId || metadata.gameIdentifier ? ["Game", gameIdentifier(metadata)] : null,
       metadata.level ? ["Division", division(metadata)] : null,

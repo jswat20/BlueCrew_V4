@@ -60,6 +60,16 @@ const supabaseSharedRepository = (() => {
     return db.rpc("remove_game_assignment_crew", { p_assignment_id: assignmentId });
   }
 
+  async function assignGameAssignmentCrew(assignmentId, crewMemberId) {
+    const db = await client();
+    return db.rpc("assign_game_assignment_crew", { p_assignment_id: assignmentId, p_crew_member_id: crewMemberId });
+  }
+
+  async function declineOwnGameAssignment(assignmentId, reason) {
+    const db = await client();
+    return db.rpc("decline_own_game_assignment", { p_assignment_id: assignmentId, p_reason: reason });
+  }
+
   const CREW_COLUMNS = "id,organization_id,profile_id,legacy_crew_id,first_name,last_name,email,phone,active,eligible_levels,preferences,notes";
 
   async function getCrewMembers() {
@@ -217,6 +227,8 @@ const supabaseSharedRepository = (() => {
     approveUmpireProfile,
     rejectUmpireProfile,
     removeGameAssignmentCrew,
+    assignGameAssignmentCrew,
+    declineOwnGameAssignment,
     getLinkedCrewMember,
     getCrewMembers,
     createCrewMember,

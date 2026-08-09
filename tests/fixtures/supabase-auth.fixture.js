@@ -411,6 +411,43 @@ export const test = base.extend({
             settings.activities.push({ action: "assignment_removed", metadata: { gameId: game.id, assignmentId: assignment.id } });
             return { data: { ...assignment }, error: null };
           }
+          if (name === "assign_game_assignment_crew") {
+            if (!["administrator", "assigner"].includes(settings.profile.role)) return { data: null, error: { message: "assignment_direct_forbidden" } };
+            const assignment = settings.assignments.find(row => String(row.id) === String(args.p_assignment_id));
+            const game = assignment && settings.games.find(row => String(row.id) === String(assignment.game_id));
+            const crew = settings.crewMembers.find(row => String(row.id) === String(args.p_crew_member_id) && String(row.organization_id) === String(settings.profile.organization_id) && row.active !== false);
+            if (!assignment || !game) return { data: null, error: { message: "assignment_direct_not_found" } };
+            if (!crew) return { data: null, error: { message: "assignment_direct_crew_not_found" } };
+            if (assignment.locked || assignment.status === "locked") return { data: null, error: { message: "assignment_direct_locked" } };
+            if (["completed", "submitted", "approved", "cancelled"].includes(game.lifecycle_status)) return { data: null, error: { message: "assignment_direct_finalized" } };
+            if (String(assignment.assigned_crew_member_id || "") === String(crew.id) && assignment.status === "assigned") return { data: { ...assignment }, error: null };
+            if (assignment.assigned_crew_member_id) return { data: null, error: { message: "assignment_direct_already_assigned" } };
+            assignment.assigned_crew_member_id = crew.id;
+            assignment.status = "assigned";
+            assignment.locked = false;
+            assignment.declined_at = null;
+            assignment.decline_reason = null;
+            settings.activities.push({ action: "assignment_assigned", metadata: { gameId: game.id, assignmentId: assignment.id, crewMemberId: crew.id } });
+            if (crew.profile_id) settings.notifications.push({ id: `notification-${settings.notifications.length + 1}`, organization_id: settings.profile.organization_id, type: "assignment-created", audience: "account", recipient_profile_id: crew.profile_id, title: "Assignment Created", message: "Assigned", created_at: new Date().toISOString() });
+            return { data: { ...assignment }, error: null };
+          }
+          if (name === "decline_own_game_assignment") {
+            if (settings.profile.role !== "umpire" || !settings.crewId) return { data: null, error: { message: "assignment_decline_identity_required" } };
+            const reason = String(args.p_reason || "").trim();
+            if (!reason) return { data: null, error: { message: "assignment_decline_reason_required" } };
+            const assignment = settings.assignments.find(row => String(row.id) === String(args.p_assignment_id));
+            const game = assignment && settings.games.find(row => String(row.id) === String(assignment.game_id));
+            if (!assignment || !game || String(assignment.assigned_crew_member_id) !== String(settings.crewId) || !["assigned", "locked"].includes(assignment.status)) return { data: null, error: { message: "assignment_decline_not_assigned" } };
+            if (["completed", "submitted", "approved", "cancelled"].includes(game.lifecycle_status)) return { data: null, error: { message: "assignment_decline_finalized" } };
+            assignment.assigned_crew_member_id = null;
+            assignment.status = settings.claims.some(row => String(row.assignment_id) === String(assignment.id)) ? "open_for_claim" : "needs_assignment";
+            assignment.locked = false;
+            assignment.declined_at = new Date().toISOString();
+            assignment.decline_reason = reason;
+            settings.activities.push({ action: "assignment_declined", metadata: { gameId: game.id, assignmentId: assignment.id, reason } });
+            settings.notifications.push({ id: `notification-${settings.notifications.length + 1}`, organization_id: settings.profile.organization_id, type: "assignment-declined", audience: "admin", recipient_profile_id: null, title: "Assignment Declined", message: reason, created_at: new Date().toISOString() });
+            return { data: { ...assignment }, error: null };
+          }
           if (name === "create_umpire_invitation") {
             return { data: "invitation-1", error: null };
           }
