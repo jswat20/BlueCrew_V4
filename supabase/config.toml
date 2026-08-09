@@ -1,0 +1,4 @@
+[functions.process-communication-emails]
+# Invocation is authenticated inside the function with a dedicated worker
+# secret so pg_cron/Vault can call it without creating a public mail relay.
+verify_jwt = false

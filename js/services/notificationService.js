@@ -128,6 +128,11 @@ const notificationService = (() => {
       return isCurrentNotificationAdmin();
     }
 
+    if (audience === "account") {
+      const recipientAccountId = notification.recipientAccountId || notification.recipientProfileId || "";
+      return Boolean(account && recipientAccountId && String(account.id) === String(recipientAccountId));
+    }
+
     if (audience !== "umpire") {
       return true;
     }

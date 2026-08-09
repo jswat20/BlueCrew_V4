@@ -223,6 +223,7 @@ function generateId() {
   function normalizeAccount(account) {
     const normalized = {
       id: account.id || generateId(),
+      organizationId: account.organizationId || "local",
       firstName: account.firstName || "",
       lastName: account.lastName || "",
       email: account.email || "",
