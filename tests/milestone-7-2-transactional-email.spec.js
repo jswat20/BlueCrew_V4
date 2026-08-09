@@ -22,12 +22,20 @@ function fakeStore(row = delivery()) {
 
 test("Resend adapter sends the trusted model and stable idempotency key", async () => {
   const calls = []; const { createResendAdapter } = await shared("resend-adapter");
-  const adapter = createResendAdapter({ apiKey: "server-test-key", from: "The Slate <verified@example.com>", fetchImpl: async (url, init) => { calls.push({ url, init }); return { ok: true, status: 200, json: async () => ({ id: "resend-message-1" }) }; } });
+  const adapter = createResendAdapter({ apiKey: "server-test-key", from: "The Slate <notifications@worktheslate.com>", fetchImpl: async (url, init) => { calls.push({ url, init }); return { ok: true, status: 200, json: async () => ({ id: "resend-message-1" }) }; } });
   const result = await adapter.sendEmail({ to: "umpire@example.com", subject: "The Slate — Claim Approved", text: "Text", html: "<p>HTML</p>", idempotencyKey: "stable-key" });
   expect(result).toEqual({ success: true, providerMessageId: "resend-message-1" });
   expect(calls[0].url).toBe("https://api.resend.com/emails");
   expect(calls[0].init.headers["Idempotency-Key"]).toBe("stable-key");
-  expect(JSON.parse(calls[0].init.body).to).toEqual(["umpire@example.com"]);
+  expect(JSON.parse(calls[0].init.body)).toMatchObject({ from: "The Slate <notifications@worktheslate.com>", to: ["umpire@example.com"] });
+});
+
+test("worker configuration requires the verified production sender", async () => {
+  const { SLATE_PRODUCTION_EMAIL_FROM, resolveSlateEmailFrom } = await shared("email-worker-config");
+  expect(SLATE_PRODUCTION_EMAIL_FROM).toBe("The Slate <notifications@worktheslate.com>");
+  expect(resolveSlateEmailFrom(SLATE_PRODUCTION_EMAIL_FROM)).toBe(SLATE_PRODUCTION_EMAIL_FROM);
+  expect(() => resolveSlateEmailFrom("")).toThrow(/SLATE_EMAIL_FROM is required/);
+  expect(() => resolveSlateEmailFrom("The Slate <onboarding@resend.dev>")).toThrow(/notifications@worktheslate\.com/);
 });
 
 test("provider classifies transient and permanent failures safely", async () => {
@@ -101,6 +109,9 @@ test("SQL lease and Edge entrypoint enforce trusted server processing", () => {
   expect(migration).not.toMatch(/grant execute on function public\.(claim|begin|complete)_communication_email[\s\S]*to authenticated/);
   expect(edge).toContain('request.headers.get("Authorization")');
   expect(edge).toContain('Deno.env.get("RESEND_API_KEY")');
+  expect(edge).toContain('Deno.env.get("SLATE_EMAIL_FROM")');
+  expect(edge).toContain("resolveSlateEmailFrom");
+  expect(edge).toContain("worker_sender_not_configured");
   expect(edge).not.toMatch(/recipient_email|subject\s*:\s*body|request\.json\(/);
   expect(edge).not.toContain("console.log");
   const browserFiles = ["index.html", "config/supabase.js", ...readdirSync("js/services").filter(file => file.endsWith(".js")).map(file => `js/services/${file}`)];

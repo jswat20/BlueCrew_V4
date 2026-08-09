@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createResendAdapter } from "../_shared/resend-adapter.mjs";
 import { processCommunicationEmails } from "../_shared/email-processor.mjs";
+import { resolveSlateEmailFrom } from "../_shared/email-worker-config.mjs";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
@@ -9,8 +10,11 @@ Deno.serve(async request => {
   const workerSecret = Deno.env.get("COMMUNICATION_WORKER_SECRET") || "";
   if (!workerSecret || request.headers.get("Authorization") !== `Bearer ${workerSecret}`) return json({ error: "unauthorized" }, 401);
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || ""; const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const resendKey = Deno.env.get("RESEND_API_KEY") || ""; const from = Deno.env.get("SLATE_EMAIL_FROM") || "";
-  if (!supabaseUrl || !serviceKey || !resendKey || !from) return json({ error: "worker_not_configured" }, 503);
+  const resendKey = Deno.env.get("RESEND_API_KEY") || "";
+  if (!supabaseUrl || !serviceKey || !resendKey) return json({ error: "worker_not_configured" }, 503);
+  let from = "";
+  try { from = resolveSlateEmailFrom(Deno.env.get("SLATE_EMAIL_FROM")); }
+  catch { return json({ error: "worker_sender_not_configured" }, 503); }
   const client = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const store = {
     async claim(limit: number) { const { data, error } = await client.rpc("claim_communication_email_deliveries", { p_limit: limit, p_lease_seconds: 120 }); if (error) throw error; return data || []; },
