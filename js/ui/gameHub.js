@@ -42,6 +42,9 @@ function getGameHubPresentation(game = {}) {
 }
 
 function renderGameHubAssignmentBadge(game = {}) {
+  if (game.lifecycleStatus === "cancelled") {
+    return `<span class="status-badge ${presentationFormattingService.getStatusBadgeClass("Cancelled")}" data-testid="game-hub-assignment-status" data-status="cancelled">Cancelled</span>`;
+  }
   const status = String(game.assignmentStatus || "").toLowerCase();
   const label = game.assignmentStatusLabel || (status === "pending_approval"
     ? "Pending Approval"
@@ -165,13 +168,14 @@ function renderUmpireGameSummary(game) {
   const presentation = getGameHubPresentation(game);
   const operational = getUmpireOperationalStatus(game);
   const assigned = ["assigned", "locked"].includes(game.assignmentStatus);
+  const primaryStatus = game.lifecycleStatus === "cancelled" ? "Cancelled" : "Assigned";
   const conditions = game.gameConditions || {};
   const weather = [conditions.summary, conditions.temperature, conditions.fieldStatus].filter(Boolean);
   const canDecline = assigned && !["cancelled", "completed", "submitted", "returned", "approved"].includes(game.lifecycleStatus);
   return `<section class="card presentation-card game-hub-summary game-hub-umpire-summary" data-testid="game-hub-summary" data-umpire-summary="true">
     <h2 data-testid="game-hub-matchup">${escapeGameHubText(presentation.matchup)}</h2>
     <div class="game-hub-umpire-status-row" data-testid="game-hub-umpire-status-row">
-      <span class="game-hub-assignment-badge" data-assigned="${assigned}" data-testid="game-hub-assignment-badge">Assigned</span>
+      <span class="game-hub-assignment-badge" data-assigned="${assigned}" data-status="${game.lifecycleStatus === "cancelled" ? "cancelled" : "assigned"}" data-testid="game-hub-assignment-badge">${primaryStatus}</span>
       <span class="game-hub-operational-badge" data-status="${operational.key}" data-testid="game-hub-operational-status">${operational.label}</span>
       <span class="game-hub-weather" data-testid="game-hub-weather"><small>Forecast</small><strong>${weather.length ? escapeGameHubText(weather.join(" · ")) : "Unavailable"}</strong></span>
     </div>

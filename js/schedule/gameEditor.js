@@ -160,6 +160,12 @@ function renderGameEditorForm(game, isEditing) {
                   : ""
               }
 
+              ${gameService.getStatus(game) === "cancelled" ? `
+                <button class="button button-primary" type="button" data-testid="restore-game-button" onclick="restoreGameFromEditor('${game.id}')">
+                  Restore Game
+                </button>
+              ` : ""}
+
               <button
                 class="button button-danger danger-btn"
                 type="button"
@@ -203,14 +209,14 @@ function renderNewGameAssignmentNote() {
   `;
 }
 
-function saveGameEditor(gameId, isEditing) {
+async function saveGameEditor(gameId, isEditing) {
   const updates = readGameEditorValues();
 
   if (!validateGameEditorValues(updates)) return;
 
-  const result = isEditing
+  const result = await (isEditing
     ? updateExistingGame(gameId, updates)
-    : createNewGame(updates);
+    : createNewGame(updates));
 
   if (!result || !result.success) {
     toastService.error(result?.message || "Unable to save game.");
@@ -301,6 +307,9 @@ function createNewGame(values) {
 }
 
 function updateExistingGame(gameId, updates) {
+  if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+    return gameService.updateHostedOperationalDetails(gameId, updates);
+  }
   if (typeof gameService.update !== "function") {
     return {
       success: false,
@@ -485,7 +494,7 @@ function refreshScheduleAfterLifecycleAction() {
   }
 }
 
-function cancelGameFromEditor(gameId) {
+async function cancelGameFromEditor(gameId) {
   const confirmed =
     window.confirm(
       "Cancel this game? Assigned umpires will be notified."
@@ -495,8 +504,9 @@ function cancelGameFromEditor(gameId) {
     return;
   }
 
-  const result =
-    portalService.cancelGame(gameId);
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await gameService.updateHostedOperationalDetails(gameId, { lifecycleStatus: "cancelled" })
+    : portalService.cancelGame(gameId);
 
   if (!result.success) {
     window.alert(
@@ -506,6 +516,19 @@ function cancelGameFromEditor(gameId) {
     return;
   }
 
+  refreshScheduleAfterLifecycleAction();
+}
+
+async function restoreGameFromEditor(gameId) {
+  const confirmed = window.confirm("Restore this game? Assigned umpires will be notified.");
+  if (!confirmed) return;
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await gameService.updateHostedOperationalDetails(gameId, { lifecycleStatus: "scheduled" })
+    : gameService.transitionStatus(gameId, "scheduled");
+  if (!result.success) {
+    window.alert(result.message || "Unable to restore game.");
+    return;
+  }
   refreshScheduleAfterLifecycleAction();
 }
 

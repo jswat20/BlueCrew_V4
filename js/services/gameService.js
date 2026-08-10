@@ -31,7 +31,9 @@ const GAME_LIFECYCLE_TRANSITIONS = Object.freeze({
     "scheduled",
     "cancelled"
   ],
-  cancelled: []
+  cancelled: [
+    "scheduled"
+  ]
 });
 
 function inferGameLifecycleStatus(game) {
@@ -551,6 +553,32 @@ game.assignments =
     return dates.length
       ? dates[0]
       : new Date().toISOString().split("T")[0];
+  },
+
+  async updateHostedOperationalDetails(gameId, updates = {}) {
+    if (!isSharedGameMode()) return this.update(gameId, updates);
+    const game = this.getById(gameId);
+    if (!game) return { success: false, message: "Game not found." };
+    let locationId = game.locationId;
+    let fieldId = game.fieldId;
+    if (Object.hasOwn(updates, "locationComplex") || Object.hasOwn(updates, "locationField") || Object.hasOwn(updates, "field")) {
+      const location = locationService.findSharedLocationRecord(updates.locationComplex || game.locationComplex);
+      const field = location && locationService.findSharedFieldRecord(location.id, updates.locationField || updates.field || game.locationField);
+      if (!location || !field) return { success: false, message: "Choose a valid complex and field." };
+      locationId = location.id;
+      fieldId = field.id;
+    }
+    const response = await supabaseSharedRepository.updateGameOperationalDetails(gameId, {
+      gameDate: updates.date || null,
+      gameTime: updates.time || null,
+      locationId,
+      fieldId,
+      lifecycleStatus: updates.lifecycleStatus || updates.status || null
+    });
+    if (response.error) return { success: false, message: response.error.message || "Game update failed.", error: response.error };
+    const refresh = await supabaseAuthService.refreshScheduling();
+    if (!refresh.success) return { success: false, message: "Game updated, but schedule refresh failed.", data: { persisted: true, result: response.data } };
+    return { success: true, message: "Game updated.", game: this.getById(gameId), data: response.data };
   },
 
   async importSchedule(gamesToImport = []) {

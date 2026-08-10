@@ -60,6 +60,14 @@ const locationService = (() => {
     const record = sharedFieldRecords.find(field => String(field.id) === String(id)) || null;
     return record ? structuredClone(record) : null;
   }
+  function findSharedLocationRecord(name) {
+    const record = sharedLocationRecords.find(location => clean(location.name) === clean(name)) || null;
+    return record ? structuredClone(record) : null;
+  }
+  function findSharedFieldRecord(locationId, name) {
+    const record = sharedFieldRecords.find(field => String(field.locationId) === String(locationId) && clean(field.name) === clean(name)) || null;
+    return record ? structuredClone(record) : null;
+  }
 
   function getConfiguredLocations() {
     if (isSharedMode()) return sharedLocationsSnapshot || [];
@@ -137,5 +145,5 @@ const locationService = (() => {
     saveConfiguredLocations(locations);
     return { success: true, message: "Location field added." };
   }
-  return { LEGACY_COMPLEX, getLocations, getComplexes, getFields, normalizeGame, getDisplayName, isValidPair, addComplex, addField, prepareSharedLocations, publishSharedLocations, loadSharedLocations, clearSharedLocations, getSharedLocationsSnapshot, getSharedLocationRecord, getSharedFieldRecord };
+  return { LEGACY_COMPLEX, getLocations, getComplexes, getFields, normalizeGame, getDisplayName, isValidPair, addComplex, addField, prepareSharedLocations, publishSharedLocations, loadSharedLocations, clearSharedLocations, getSharedLocationsSnapshot, getSharedLocationRecord, getSharedFieldRecord, findSharedLocationRecord, findSharedFieldRecord };
 })();

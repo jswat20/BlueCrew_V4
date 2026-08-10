@@ -13,6 +13,7 @@ const communicationEventCatalog = (() => {
     "assignment-removed": ["assignments", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
     "assignment-declined": ["assignments", false, [CHANNELS.IN_APP]],
     "game-cancelled": ["game_changes", true, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
+    "game-restored": ["game_changes", true, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
     "game-date-changed": ["game_changes", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
     "game-time-changed": ["game_changes", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
     "game-location-changed": ["game_changes", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],

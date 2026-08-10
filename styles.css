@@ -7226,6 +7226,7 @@ body[data-page="notifications"] .page-section .dashboard-grid { display: grid; p
 body[data-page="notifications"] .notification-card { display: grid; min-height: 92px; margin: 0; padding: 11px 14px; border: 0; border-bottom: 1px solid #d7e6ea; border-left: 4px solid transparent; border-radius: 0; background: #fff; grid-template-columns: auto minmax(0,1fr) auto; grid-template-rows: auto auto auto; gap: 3px 12px; box-shadow: none; }
 body[data-page="notifications"] .notification-card[data-notification-status="unread"] { border-left-color: #18a7b8; background: #f0fbfc; }
 body[data-page="notifications"] .notification-card[data-notification-status="read"] { color: #526b7a; }
+.shared-notification-message-rich { white-space: pre-line; }
 body[data-page="notifications"] .notification-selection { grid-column: 1; grid-row: 1 / -1; align-self: center; }
 body[data-page="notifications"] .notification-selection span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
 body[data-page="notifications"] .notification-card > .section-header { display: flex; margin: 0; padding: 0; border: 0; background: transparent; grid-column: 2; grid-row: 1; justify-content: flex-start; gap: 8px; }

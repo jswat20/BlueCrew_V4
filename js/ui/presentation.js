@@ -296,6 +296,10 @@ function renderNotificationRow({
   actions = ""
 } = {}) {
   const item = notification || {};
+  const displayedMessage = message || item.message || "";
+  const richMessageClass = String(displayedMessage).includes("\n")
+    ? " shared-notification-message-rich"
+    : "";
   return `
     <article
       class="notification-card shared-notification-row presentation-card"
@@ -306,7 +310,7 @@ function renderNotificationRow({
       ${selection}
       <div class="shared-notification-copy">
         <h3>${escapePresentationHtml(title || item.title || "Notification")}</h3>
-        <p>${escapePresentationHtml(message || item.message || "")}</p>
+        <p class="shared-notification-message${richMessageClass}">${escapePresentationHtml(displayedMessage)}</p>
         ${supporting ? `<small class="shared-notification-supporting">${escapePresentationHtml(supporting)}</small>` : ""}
       </div>
       <time class="shared-notification-time muted" data-testid="notification-timestamp">${escapePresentationHtml(timestamp)}</time>

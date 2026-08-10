@@ -2,6 +2,7 @@
 
 function renderGameCard(game) {
   const assigned = assignmentService.isAssigned(game);
+  const displayStatus = getScheduleDisplayStatus(game);
   const isAdmin = authService.isAdmin();
 const isUmpire = authService.isUmpire();
 const isOpenForClaim = assignmentService.isOpenForClaim(game);
@@ -15,14 +16,14 @@ const myCrewId = authService.currentCrewId();
 
   return `
     <article
-    class="schedule-game-card presentation-card ${assigned ? "assigned" : "open"}"
+    class="schedule-game-card presentation-card ${displayStatus.key === "cancelled" ? "cancelled" : assigned ? "assigned" : "open"}"
     data-testid="game-card-${game.id}">
       <div class="game-card-left">
         <div class="game-date">${formatShortDate(game.date)}</div>
         <div class="game-time" data-testid="game-time-${game.id}">${dateTimeFormattingService.formatTime12Hour(game.time, "Time TBD")}</div>
 
         <div
-    class="game-status status-badge ${assigned ? "status-badge-approved" : "status-badge-open"}"
+    class="game-status status-badge ${displayStatus.className}"
     data-testid="game-status-${game.id}">
   ${
     typeof renderAssignmentStatusBadge === "function"

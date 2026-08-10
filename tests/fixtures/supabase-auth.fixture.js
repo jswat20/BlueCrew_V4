@@ -372,6 +372,21 @@ export const test = base.extend({
             settings.activities.push({ action: "account_approved", metadata: { profileId: target.id, crewMemberId: crew.id } });
             return { data: { ...target }, error: null };
           }
+          if (name === "update_game_operational_details") {
+            const game = settings.games.find(item => String(item.id) === String(args.p_game_id));
+            if (!game) return { data: null, error: { message: "game_update_not_found" } };
+            const before = [game.game_date, game.game_time, game.location_id, game.field_id, game.lifecycle_status];
+            if (args.p_game_date) game.game_date = args.p_game_date;
+            if (args.p_game_time) game.game_time = args.p_game_time;
+            if (args.p_location_id) game.location_id = args.p_location_id;
+            if (args.p_field_id) game.field_id = args.p_field_id;
+            if (args.p_lifecycle_status) game.lifecycle_status = args.p_lifecycle_status;
+            const after = [game.game_date, game.game_time, game.location_id, game.field_id, game.lifecycle_status];
+            if (before.some((value, index) => String(value ?? "") !== String(after[index] ?? ""))) {
+              game.updated_at = new Date().toISOString();
+            }
+            return { data: game, error: null };
+          }
           if (name === "import_schedule_games") {
             const invalid = (args.p_games || []).some(item => {
               const positions = item.positions || ["Plate"];

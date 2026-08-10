@@ -115,7 +115,10 @@ function renderMySchedulePartners(game) {
 }
 
 function renderMyScheduleBadges(game) {
-  return game.statusBadges
+  const badges = game.lifecycleStatus === "cancelled"
+    ? [{ key: "cancelled", label: "Cancelled" }]
+    : game.statusBadges;
+  return badges
     .map(
       badge => `
         <span
@@ -623,7 +626,7 @@ function renderMyScheduleRow(game) {
       <td>${game.locationComplex || game.complex || information.venue || "Complex TBD"}</td>
       <td>${game.locationField || game.field || "Field TBD"}</td>
       <td data-testid="my-schedule-forecast-${game.id}">${forecast}</td>
-      <td data-testid="my-schedule-status-${game.id}"><span class="status-badge status-badge-assigned">Assigned</span></td>
+      <td data-testid="my-schedule-status-${game.id}">${renderMyScheduleBadges(game)}</td>
       <td><button class="button button-primary button-compact" type="button" onclick="renderPage('game-hub', { gameId: '${game.id}', origin: 'my-schedule', returnPage: 'my-schedule' })" data-testid="my-schedule-open-game-${game.id}">Open Game Hub</button></td>
     </tr>
   `;

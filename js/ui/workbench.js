@@ -196,6 +196,7 @@ function renderWorkbenchItem(
   const assignedCount = crew.filter(slot => slot.crewId).length;
   const staffingTotal = crew.length || 1;
   const isNeedsAssignment = action === "needs-assignment";
+  const isCancelled = typeof gameService !== "undefined" && gameService.getStatus(game) === "cancelled";
   const level = levelTerminologyService.format(game?.level) || "Level TBD";
   const complex = game?.locationComplex || game?.complex || "Complex TBD";
   const field = game?.locationField || game?.field || "Field TBD";
@@ -217,11 +218,15 @@ function renderWorkbenchItem(
           <span class="workbench-mini-game-date">${escapeWorkbenchHtml(formatWorkbenchCompactDate(game?.date))}</span>
           <span class="workbench-mini-game-time">${escapeWorkbenchHtml(dateTimeFormattingService.formatTime12Hour(game?.time, "Time TBD"))}</span>
           <span class="workbench-mini-game-main"><strong>${escapeWorkbenchHtml(`${level} - ${complex} - ${field}`)}</strong><small>${escapeWorkbenchHtml(label)}</small></span>
-          <span class="workbench-mini-game-crew"><strong class="workbench-staffing-count status-badge ${presentationFormattingService.getStatusBadgeClass("Needs Assignment")}" data-incomplete="${assignedCount < staffingTotal}">${assignedCount}/${staffingTotal} Staffed</strong></span>
+          <span class="workbench-mini-game-crew">${isCancelled
+            ? `<strong class="workbench-staffing-count status-badge ${presentationFormattingService.getStatusBadgeClass("Cancelled")}" data-status="cancelled">Cancelled</strong>`
+            : `<strong class="workbench-staffing-count status-badge ${presentationFormattingService.getStatusBadgeClass("Needs Assignment")}" data-incomplete="${assignedCount < staffingTotal}">${assignedCount}/${staffingTotal} Staffed</strong>`}</span>
         ` : `
           <span class="workbench-mini-game-time">${escapeWorkbenchHtml(dateTimeFormattingService.formatTime12Hour(game?.time, "Time TBD"))}</span>
           <span class="workbench-mini-game-main"><strong>${escapeWorkbenchHtml(label)}</strong><small>${escapeWorkbenchHtml([level, locationService.getDisplayName(game), game?.date].filter(Boolean).join(" · "))}</small></span>
-          <span class="workbench-mini-game-crew">${action === "pending-claim" ? `<strong>${escapeWorkbenchHtml(item.position || "Position")}</strong><small>Claimed by ${escapeWorkbenchHtml(item.claimedByName || item.claimedBy || "Unknown umpire")}</small>` : `<strong class="workbench-staffing-count" data-incomplete="${assignedCount < crew.length}">${assignedCount}/${crew.length || "—"} staffed</strong><small>${action === "returned-review" ? "Review returned" : "Review submitted"}</small>`}</span>
+          <span class="workbench-mini-game-crew">${isCancelled
+            ? `<strong class="workbench-staffing-count status-badge ${presentationFormattingService.getStatusBadgeClass("Cancelled")}" data-status="cancelled">Cancelled</strong>`
+            : action === "pending-claim" ? `<strong>${escapeWorkbenchHtml(item.position || "Position")}</strong><small>Claimed by ${escapeWorkbenchHtml(item.claimedByName || item.claimedBy || "Unknown umpire")}</small>` : `<strong class="workbench-staffing-count" data-incomplete="${assignedCount < crew.length}">${assignedCount}/${crew.length || "—"} staffed</strong><small>${action === "returned-review" ? "Review returned" : "Review submitted"}</small>`}</span>
         `}
       </button>
     </li>

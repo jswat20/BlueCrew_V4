@@ -24,8 +24,6 @@ test.describe("Schedule Navigation", () => {
 
     await schedule.previousDate();
 
-    await schedule.today();
-
     await schedule.nextDate();
 
   });

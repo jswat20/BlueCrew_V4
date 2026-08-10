@@ -2360,7 +2360,9 @@ function renderOperationsStaffingBoard(events = [], today = "") {
                   <td class="operations-column-matchup"><strong class="operations-staffing-matchup">${escapeOperationsCenterHtml(event.matchup)}</strong></td>
                   <td class="operations-column-location">${escapeOperationsCenterHtml(event.locationComplex || locationService.getDisplayName(event) || "Location unavailable")}</td>
                   <td class="operations-column-umpires"><div class="operations-umpire-list" data-testid="operations-umpires-${escapeOperationsCenterHtml(event.id)}">
-                    ${(event.assignments || []).map(assignment => {
+                    ${gameService.getStatus(event) === "cancelled"
+                      ? `<span class="status-badge ${presentationFormattingService.getStatusBadgeClass("Cancelled")}" data-status="cancelled">Cancelled</span>`
+                      : (event.assignments || []).map(assignment => {
                       const displayPosition = presentationFormattingService.formatAssignmentPosition(assignment.position);
                       const isAssigned = Boolean(assignment.crewId);
                       const displayName = isAssigned ? assignment.crewName : "OPEN";

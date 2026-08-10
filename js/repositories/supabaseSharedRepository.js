@@ -207,6 +207,18 @@ const supabaseSharedRepository = (() => {
     return db.rpc("import_schedule_games", { p_games: games });
   }
 
+  async function updateGameOperationalDetails(gameId, changes = {}) {
+    const db = await client();
+    return db.rpc("update_game_operational_details", {
+      p_game_id: gameId,
+      p_game_date: changes.gameDate || null,
+      p_game_time: changes.gameTime || null,
+      p_location_id: changes.locationId || null,
+      p_field_id: changes.fieldId || null,
+      p_lifecycle_status: changes.lifecycleStatus || null
+    });
+  }
+
   async function getCrewMembersByIds(crewMemberIds = []) {
     if (!crewMemberIds.length) return { data: [], error: null };
     const db = await client();
@@ -247,6 +259,7 @@ const supabaseSharedRepository = (() => {
     submitAssignmentClaim,
     decideAssignmentClaim,
     saveOwnGameCompletion,
+    updateGameOperationalDetails,
     importScheduleGames,
     getCrewMembersByIds
   };
