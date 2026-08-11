@@ -4,6 +4,8 @@
   "description": "",
   "main": "app.js",
   "scripts": {
+    "build:production": "node scripts/build-production.cjs",
+    "verify:production-artifact": "node scripts/verify-production-artifact.cjs",
     "generate:supabase-config": "node scripts/generate-supabase-config.cjs",
     "start": "npm run start:hosted",
     "start:hosted": "node scripts/generate-supabase-config.cjs --mode=hosted && http-server . -a 127.0.0.1 -p 5500",

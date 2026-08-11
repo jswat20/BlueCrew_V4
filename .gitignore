@@ -14,3 +14,4 @@ node_modules/
 /config/supabase.js
 /supabase/.temp/
 /.npm-cache/
+/dist/

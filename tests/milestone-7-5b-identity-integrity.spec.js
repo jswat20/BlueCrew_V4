@@ -9,7 +9,7 @@ test.describe("Milestone 7.5B identity integrity", () => {
 
   test("roster presents a trusted role conflict and separates Login Email from Contact Email", async ({ supabaseAuthApp }) => {
     await supabaseAuthApp.page.goto("/");
-    await expect(supabaseAuthApp.page.getByRole("heading", { name: /Good Morning, Admin User/ })).toBeVisible();
+    await expect(supabaseAuthApp.page.getByRole("heading", { name: /Good (?:Morning|Afternoon|Evening), Admin User/ })).toBeVisible();
     const model = await supabaseAuthApp.page.evaluate(() => getCrewCardModel("crew-1"));
     expect(model.identityStatus).toBe("conflict");
     expect(model.loginEmail).toBe("admin@example.com");
@@ -44,7 +44,7 @@ test.describe("Milestone 7.5B identity integrity", () => {
 
   test("administrator invitation UI uses the trusted one-use registration service", async ({ supabaseAuthApp }) => {
     await supabaseAuthApp.page.goto("/");
-    await expect(supabaseAuthApp.page.getByRole("heading", { name: /Good Morning, Admin User/ })).toBeVisible();
+    await expect(supabaseAuthApp.page.getByRole("heading", { name: /Good (?:Morning|Afternoon|Evening), Admin User/ })).toBeVisible();
     await supabaseAuthApp.page.getByTestId("nav-accounts").click();
     await supabaseAuthApp.page.getByTestId("create-registration-invitation").click();
     await expect(supabaseAuthApp.page.getByTestId("registration-invitation-code")).toBeVisible();
