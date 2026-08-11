@@ -1,6 +1,6 @@
 // js/ui/login.js
 
-function renderLogin() {
+function renderLogin(context = {}) {
   const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   return `
     <section class="panel" data-testid="login-page">
@@ -37,13 +37,14 @@ function renderLogin() {
         <button type="submit" data-testid="login-submit">
           Log In
         </button>
+        ${usesSupabaseAuth ? `<button type="button" class="button button-link" data-testid="forgot-password-link" onclick="renderPage('forgot-password')">Forgot Password?</button>` : ""}
       </form>
 
       <div
         class="form-message"
         data-testid="login-message"
         aria-live="polite"
-      ></div>
+      >${context.passwordMessage ? escapeSharedStateHtml(context.passwordMessage) : ""}</div>
     </section>
     ${usesSupabaseAuth && typeof renderAccountRegistration === "function"
       ? renderAccountRegistration()

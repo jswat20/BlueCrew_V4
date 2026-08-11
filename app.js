@@ -25,6 +25,8 @@ const pages = {
     title: "Login",
     subtitle: "Access your umpire portal."
   },
+  "forgot-password": { title: "Forgot Password", subtitle: "Request a secure password reset link." },
+  "password-recovery": { title: "Set New Password", subtitle: "Finish your secure password recovery." },
   "my-schedule": {
     title: "My Schedule",
     subtitle: "Your assigned games."
@@ -150,6 +152,10 @@ function initializeApp() {
     window.BlueCrew.test.initialized = true;
 
     loginService.initializeAuthenticatedIdentity().then(result => {
+      if (result.data?.recovery || supabaseAuthService.isRecoveringPassword?.()) {
+        renderPage("password-recovery");
+        return;
+      }
       if (!result.data) return;
       document.body.dataset.role = result.data.role;
       window.BlueCrew.test.currentRole = result.data.role;
@@ -266,7 +272,9 @@ function escapeSharedStateHtml(value) {
 
 function renderPage(page, context = {}) {
   const hostedMode = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
-  if (hostedMode && page !== "login" && !loginService.isLoggedIn()) {
+  const publicAuthPage = ["login", "forgot-password", "password-recovery"].includes(page);
+  if (supabaseAuthService?.isRecoveringPassword?.() && page !== "password-recovery") page = "password-recovery";
+  if (hostedMode && !publicAuthPage && !loginService.isLoggedIn()) {
     page = "login";
     context = {};
     window.history.replaceState({ blueCrewPage: "login", context: {} }, "", window.location.href);
@@ -302,13 +310,13 @@ function renderPage(page, context = {}) {
     : { status: "ready" };
   const requiresSharedHydration = sharedHydrationState.status === "error"
     || (["profile", "availability"].includes(page) && sharedHydrationState.status !== "ready");
-  if (page !== "login" && requiresSharedHydration && typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+  if (!publicAuthPage && requiresSharedHydration && typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
     const state = sharedHydrationState;
     content.innerHTML = `<div class="page-wrapper" data-testid="shared-hydration-error"><section class="page-section"><h2>Account data unavailable</h2><p>${escapeSharedStateHtml(state.message || "Your shared account data has not finished loading.")}</p><button type="button" data-testid="shared-hydration-retry" onclick="retrySharedHydration()">Retry</button><button type="button" class="secondary" data-testid="shared-hydration-logout" onclick="loginService.logoutAuthenticated().then(() => renderPage('login'))">Log out</button></section></div>`;
     return;
   }
 
-  const isAuthorized =
+  const isAuthorized = publicAuthPage ||
     typeof authorizationService === "undefined" ||
     typeof authorizationService.canView !== "function" ||
     authorizationService.canView(page);
@@ -413,6 +421,8 @@ function renderAdminView(page, context = {}) {
         ? renderProfile
         : null,
     login: typeof renderLogin === "function" ? renderLogin : null,
+    "forgot-password": typeof renderForgotPassword === "function" ? renderForgotPassword : null,
+    "password-recovery": typeof renderPasswordRecovery === "function" ? renderPasswordRecovery : null,
     schedule: typeof renderSchedule === "function" ? renderSchedule : null,
     crew: typeof renderCrew === "function" ? renderCrew : null,
     reports: typeof renderReports === "function" ? renderReports : null,
@@ -452,6 +462,8 @@ function renderUmpireView(page, context = {}) {
       return typeof renderLogin === "function"
         ? renderLogin(context)
         : placeholderPage("Login", "Login is unavailable.");
+    case "forgot-password": return renderForgotPassword();
+    case "password-recovery": return renderPasswordRecovery();
 
     case "dashboard":
       return typeof renderCrewDashboard === "function"

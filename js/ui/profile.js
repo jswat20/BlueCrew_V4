@@ -250,7 +250,7 @@ function renderProfileForm(profile) {
           </label>
 
           <label>
-            Email
+            Login Email
             <input
               type="email"
               id="profile-email"
@@ -258,6 +258,7 @@ function renderProfileForm(profile) {
               value="${escapeProfileHtml(
                 profile.email
               )}"
+              ${typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured() ? "disabled" : ""}
               required
             >
           </label>
@@ -381,6 +382,12 @@ function renderProfileForm(profile) {
               )
               .join("")}
           </div>
+        </section>
+
+        <section class="settings-section" data-testid="profile-account-security" aria-labelledby="profile-account-security-title">
+          <div class="section-header"><div><h3 id="profile-account-security-title">Account Security</h3><p>Manage the password for your verified login identity.</p></div></div>
+          <dl><dt>Login Email</dt><dd data-testid="profile-login-email">${escapeProfileHtml(profile.email)}</dd></dl>
+          <button type="button" class="button button-secondary" data-testid="profile-change-password" onclick="openChangePasswordDialog()">Change Password</button>
         </section>
 
         <div class="form-actions responsive-actions">

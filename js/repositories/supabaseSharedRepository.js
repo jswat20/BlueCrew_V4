@@ -77,6 +77,21 @@ const supabaseSharedRepository = (() => {
     return db.from("crew_members").select(CREW_COLUMNS).order("last_name").order("first_name").order("id");
   }
 
+  async function getCrewIdentityDiagnostics() {
+    const db = await client();
+    return db.rpc("list_crew_identity_diagnostics");
+  }
+
+  async function getLinkableUmpireProfiles() {
+    const db = await client();
+    return db.rpc("list_linkable_umpire_profiles");
+  }
+
+  async function manageCrewLoginIdentity(crewMemberId, action, profileId = null) {
+    const db = await client();
+    return db.rpc("manage_crew_login_identity", { p_crew_member_id: crewMemberId, p_action: action, p_target_profile_id: profileId });
+  }
+
   async function createCrewMember(changes) {
     const db = await client();
     return db.from("crew_members").insert(changes).select(CREW_COLUMNS).single();
@@ -243,6 +258,9 @@ const supabaseSharedRepository = (() => {
     declineOwnGameAssignment,
     getLinkedCrewMember,
     getCrewMembers,
+    getCrewIdentityDiagnostics,
+    getLinkableUmpireProfiles,
+    manageCrewLoginIdentity,
     createCrewMember,
     updateCrewMember,
     getAvailability,

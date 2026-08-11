@@ -31,6 +31,8 @@ export const test = base.extend({
       pendingProfiles: [],
       activities: [],
       activityActors: [],
+      identityDiagnostics: [],
+      linkableProfiles: [],
       organization: null,
       initialSession: false,
       deniedTable: "",
@@ -135,6 +137,13 @@ export const test = base.extend({
       }
 
       const client = {
+        functions: {
+          async invoke(name, options) {
+            calls.push({ operation: "functions.invoke", name, options });
+            if (settings.failedFunction === name) return { data: null, error: { message: "Function failed" } };
+            return { data: { message: "If an account exists for that email, a password reset link has been sent." }, error: null };
+          }
+        },
         auth: {
           async getSession() {
             calls.push({ operation: "getSession" });
@@ -145,7 +154,16 @@ export const test = base.extend({
           },
           async signInWithPassword(credentials) {
             calls.push({ operation: "signInWithPassword", credentials });
+            if (settings.signInError || credentials.password === "wrong-password") return { data: { user: null, session: null }, error: { message: settings.signInError || "Invalid login credentials" } };
             return { data: { user, session: { user } }, error: null };
+          },
+          async resetPasswordForEmail(email, options) {
+            calls.push({ operation: "resetPasswordForEmail", email, options });
+            return settings.resetPasswordError ? { data: null, error: { message: settings.resetPasswordError, status: settings.resetPasswordErrorStatus || 500 } } : { data: {}, error: null };
+          },
+          async updateUser(attributes) {
+            calls.push({ operation: "updateUser", attributes });
+            return settings.updateUserError ? { data: null, error: { message: settings.updateUserError } } : { data: { user: { ...user } }, error: null };
           },
           async signUp(credentials) {
             calls.push({ operation: "signUp", credentials });
@@ -167,6 +185,15 @@ export const test = base.extend({
         async rpc(name, args) {
           calls.push({ operation: "rpc", name, args });
           if (settings.failedRpc === name) return { data: null, error: { message: "Transactional write failed" } };
+          if (name === "list_crew_identity_diagnostics") return { data: settings.identityDiagnostics, error: null };
+          if (name === "list_linkable_umpire_profiles") return { data: settings.linkableProfiles, error: null };
+          if (name === "manage_crew_login_identity") {
+            const crew = settings.crewMembers.find(item => String(item.id) === String(args.p_crew_member_id));
+            if (!crew) return { data: null, error: { message: "crew_member_not_found" } };
+            if (args.p_action === "unlink") crew.profile_id = null;
+            else crew.profile_id = args.p_target_profile_id;
+            return { data: null, error: null };
+          }
           if (name === "upsert_own_availability") {
             const row = { id: args.p_availability_id || `availability-${settings.availability.length + 1}`, organization_id: settings.profile.organization_id, crew_member_id: settings.crewId, availability_date: args.p_availability_date, status: args.p_status, starts_at: args.p_starts_at, ends_at: args.p_ends_at };
             settings.availability = settings.availability.filter(item => item.id !== row.id && !(item.crew_member_id === row.crew_member_id && item.availability_date === row.availability_date && item.starts_at === row.starts_at && item.ends_at === row.ends_at));

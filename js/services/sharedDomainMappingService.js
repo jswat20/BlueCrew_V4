@@ -46,6 +46,11 @@ const sharedDomainMappingService = (() => {
       levels: levelTerminologyService.normalizeLevels(row.eligible_levels),
       preferences: row.preferences || {},
       notes: row.notes || ""
+      ,identityStatus: row.identity_status || row.linkage_status || (row.profile_id ? "unknown" : "unlinked")
+      ,identityConflictCode: row.identity_conflict_code || row.conflict_code || ""
+      ,loginEmail: row.login_email || ""
+      ,linkedRole: row.linked_role || ""
+      ,linkedStatus: row.linked_status || ""
     };
   }
 

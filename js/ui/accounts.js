@@ -28,7 +28,7 @@ function renderAccounts(context = {}) {
     accountService.getApprovedAccounts(roleOptions);
 
   const unlinkedAccounts =
-    accountService.getUnlinkedApprovedAccounts(roleOptions);
+    accountService.getUnlinkedApprovedAccounts(roleOptions).filter(account => account.role === "umpire");
 
   const linkedAccounts =
     approvedAccounts.filter(account => account.crewId !== null);
@@ -46,6 +46,8 @@ function renderAccounts(context = {}) {
       <p class="muted">
         Review and manage umpire registrations.
       </p>
+
+      ${crewService.isSharedMode() ? `<section class="card account-invitation-card" data-testid="account-invitation-admin"><h3>Umpire Registration Invitation</h3><p class="muted">Create a one-use registration code. The umpire chooses their own Login Email and password; Contact Email is not changed.</p><button type="button" class="button button-secondary" data-testid="create-registration-invitation" onclick="createRegistrationInvitation()">Create One-Use Code</button><div id="registration-invitation-result" role="status" aria-live="polite"></div></section>` : ""}
 
 ${renderAccountFilters(selectedFilter)}
 ${renderRoleFilters()}
@@ -509,8 +511,21 @@ function renderApprovedAccount(account, crewMembers) {
     String(member.id) === String(account.crewId)
   );
 
-  if (account.role === "umpire" && typeof renderCrewCardFront === "function") return renderCrewCardFront(account, { testId: `approved-account-${account.id}`, className: "account-crew-card", roleTestId: `account-role-display-${account.id}` });
-  return `<div class="card" data-testid="approved-account-${account.id}"><strong>${account.firstName} ${account.lastName}</strong><div>${account.email}</div><div data-testid="account-role-display-${account.id}">Role: ${formatAccountRole(account.role)}</div><small>${crewMember ? `Linked to ${crewMember.firstName} ${crewMember.lastName}` : "Not linked to a crew member"}</small></div>`;
+  const resetAction = authService.isAdmin?.() ? `<button type="button" class="button button-secondary" data-testid="send-password-reset-${account.id}" onclick="sendAdministrativePasswordReset('${account.id}')">Send Password Reset</button>` : "";
+  if (account.role === "umpire" && typeof renderCrewCardFront === "function") return `<div class="account-security-admin-row">${renderCrewCardFront(account, { testId: `approved-account-${account.id}`, className: "account-crew-card", roleTestId: `account-role-display-${account.id}` })}${resetAction}</div>`;
+  return `<div class="card" data-testid="approved-account-${account.id}"><strong>${account.firstName} ${account.lastName}</strong><div>Login Email: ${account.email}</div><div data-testid="account-role-display-${account.id}">Role: ${formatAccountRole(account.role)}</div><small>${crewMember ? `Linked to ${crewMember.firstName} ${crewMember.lastName}` : "Not linked to a crew member"}</small>${resetAction}</div>`;
+}
+
+async function createRegistrationInvitation() {
+  const output = document.getElementById("registration-invitation-result");
+  const code = `${crypto.randomUUID()}${crypto.randomUUID()}`.replaceAll("-", "");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const result = await accountService.createRegistrationInvitation(code, expiresAt, 1);
+  if (!result.success) {
+    if (output) output.textContent = result.message;
+    return;
+  }
+  if (output) output.innerHTML = `<label>One-use Registration Code<input type="text" readonly value="${code}" data-testid="registration-invitation-code" aria-describedby="registration-code-expiry"></label><small id="registration-code-expiry">Expires in 24 hours. Share only with the intended adult.</small>`;
 }
 
 function changePendingAccountRole(accountId, role) {
@@ -606,7 +621,7 @@ function renderUnlinkedAccount(account, crewMembers) {
   `;
 }
 
-function linkCrewAccount(accountId) {
+async function linkCrewAccount(accountId) {
   const select = document.getElementById(
     `crew-select-${accountId}`
   );
@@ -620,10 +635,14 @@ function linkCrewAccount(accountId) {
     return;
   }
 
-  const result = accountService.linkCrew(
-    accountId,
-    crewId
-  );
+  const account = accountService.getById(accountId);
+  if (!account || account.role !== "umpire" || account.status !== "approved") {
+    toastService?.show?.("Only an approved umpire Login Account may be linked to crew.");
+    return;
+  }
+  const result = crewService.isSharedMode()
+    ? await crewService.manageLoginIdentity(crewId, "link", account.id)
+    : accountService.linkCrew(accountId, crewId);
 
   toastService?.show?.(result.message);
 

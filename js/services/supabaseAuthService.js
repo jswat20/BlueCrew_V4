@@ -2,6 +2,7 @@ const supabaseAuthService = (() => {
   let currentAccount = null;
   let authSubscription = null;
   let hydrationState = { status: "idle", message: "" };
+  let recoveryState = false;
 
   function mutationResult(success, message, data = null) {
     return { success, message, data };
@@ -131,6 +132,14 @@ const supabaseAuthService = (() => {
       return mutationResult(true, "No active session.");
     }
 
+    if (recoveryState || /(?:^|[&#?])type=recovery(?:&|$)/.test(window.location.hash + window.location.search)) {
+      recoveryState = true;
+      clearSharedState();
+      applyIdentity(null);
+      hydrationState = { status: "recovery", message: "" };
+      return mutationResult(true, "Password recovery session ready.", { recovery: true });
+    }
+
     try {
       const account = await loadAccountForUser(data.session.user);
       if (!account || account.status !== "approved") {
@@ -237,6 +246,14 @@ const supabaseAuthService = (() => {
     if (authSubscription) return;
     const client = await supabaseClientService.getClient();
     const { data } = client.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" && session?.user) {
+        recoveryState = true;
+        clearSharedState();
+        applyIdentity(null);
+        hydrationState = { status: "recovery", message: "" };
+        setTimeout(() => renderPage?.("password-recovery"), 0);
+        return;
+      }
       setTimeout(async () => {
         if (event === "SIGNED_OUT" || !session?.user) {
           clearSharedState();
@@ -244,7 +261,7 @@ const supabaseAuthService = (() => {
           hydrationState = { status: "idle", message: "" };
           return;
         }
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        if (!recoveryState && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED")) {
           try {
             const account = await loadAccountForUser(session.user);
             if (account?.status === "approved") applyIdentity(account);
@@ -278,7 +295,10 @@ const supabaseAuthService = (() => {
     currentAccount = null;
     clearSharedState();
     hydrationState = { status: "idle", message: "" };
+    recoveryState = false;
   }
+
+  function clearRecoveryState() { recoveryState = false; hydrationState = { status: "idle", message: "" }; }
 
   return {
     login,
@@ -292,6 +312,8 @@ const supabaseAuthService = (() => {
     getCurrentAccount,
     getCurrentSession,
     getHydrationState: () => ({ ...hydrationState }),
+    isRecoveringPassword: () => recoveryState,
+    clearRecoveryState,
     refreshAuthenticatedAccount,
     clearForTests
   };

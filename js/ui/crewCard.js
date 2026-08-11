@@ -15,8 +15,10 @@ function getCrewCardModel(crewOrId) {
   const firstName = account?.firstName || linkedCrew?.firstName || "";
   const lastName = account?.lastName || linkedCrew?.lastName || "";
   const history = account?.officialHistory || [];
+  const identityStatus = linkedCrew?.identityStatus || (account?.id && linkedCrew ? "linked" : linkedCrew?.profileId ? "unknown" : "unlinked");
   return {
     accountId: account?.id || "",
+    profileId: account?.id || linkedCrew?.profileId || "",
     crewRecordId: linkedCrew?.id || "",
     crewCode: account?.crewCode || "Not issued",
     issuedAt: account?.crewCodeIssuedAt || "",
@@ -25,7 +27,10 @@ function getCrewCardModel(crewOrId) {
     fullName: `${firstName} ${lastName}`.trim() || "Unnamed Crew Member",
     role: account?.role === "assigner" ? "Assigner" : "Baseball Umpire",
     status: linkedCrew?.active === false || account?.status === "rejected" ? "Inactive" : account?.status === "pending" ? "Pending" : "Active",
-    email: account?.email || linkedCrew?.email || "",
+    email: linkedCrew?.email || "",
+    loginEmail: linkedCrew?.loginEmail || (identityStatus === "linked" ? account?.email || "" : ""),
+    identityStatus,
+    identityConflictCode: linkedCrew?.identityConflictCode || "",
     phone: account?.phone || linkedCrew?.phone || "",
     homePhone: account?.homePhone || "",
     address: account?.address || "",
@@ -39,7 +44,7 @@ function getCrewCardModel(crewOrId) {
       ? account.yearsOfServiceOverride
       : accountService.deriveYearsOfService(history),
     adminNotes: account?.adminNotes || linkedCrew?.notes || "",
-    accountStatus: account?.status || "Unlinked roster record"
+    accountStatus: account?.status || (identityStatus === "conflict" ? "Identity Conflict" : identityStatus === "linked" ? "Linked" : "Unlinked roster record")
     ,dailyWorkload: linkedCrew ? workloadService.getCrewWorkloadForDate(linkedCrew.id, new Date().toISOString().split("T")[0]).count : 0
     ,seasonWorkload: linkedCrew ? workloadService.getSeasonAssignments(linkedCrew.id) : 0
   };
@@ -96,7 +101,7 @@ function renderCrewCredentialBackFace(model) {
       <div><h2 id="crew-card-title">${escapeCrewCardHtml(model.fullName)}</h2><h3>${escapeCrewCardHtml(model.role)}</h3><dl class="crew-credential-age"><div><dt>Age</dt><dd>${model.age ?? "—"}</dd></div><div><dt>Birthdate</dt><dd>${formatCrewCardDate(model.birthdate)}</dd></div><div><dt>Today</dt><dd>${model.dailyWorkload}</dd></div><div><dt>Season</dt><dd>${model.seasonWorkload}</dd></div></dl></div>
     </div>
     <section class="crew-credential-panel crew-credential-contact"><h3>Contact Information</h3><dl>
-      <div><dt>Phone (Cell)</dt><dd>${model.phone ? `<button type="button" class="crew-contact-action" data-testid="crew-card-call-phone" onclick="confirmCrewPhoneCall('${escapeCrewCardHtml(model.phone)}')">${escapeCrewCardHtml(model.phone)}</button>` : "Not recorded"}</dd></div><div><dt>Phone (Home)</dt><dd>${escapeCrewCardHtml(model.homePhone || "Not recorded")}</dd></div><div><dt>Email</dt><dd>${model.email ? `<button type="button" class="crew-contact-action" data-testid="crew-card-copy-email" onclick="copyCrewEmail('${escapeCrewCardHtml(model.email)}', this)">${escapeCrewCardHtml(model.email)}</button>` : "Not recorded"}</dd></div><div><dt>Address</dt><dd>${escapeCrewCardHtml(model.address || "Not recorded")}</dd></div><div><dt>Preferred Contact</dt><dd>${model.contactPreference === "call" ? "Call" : "Text"}</dd></div><div><dt>Account Status</dt><dd>${escapeCrewCardHtml(model.accountStatus)}</dd></div>
+      <div><dt>Phone (Cell)</dt><dd>${model.phone ? `<button type="button" class="crew-contact-action" data-testid="crew-card-call-phone" onclick="confirmCrewPhoneCall('${escapeCrewCardHtml(model.phone)}')">${escapeCrewCardHtml(model.phone)}</button>` : "Not recorded"}</dd></div><div><dt>Phone (Home)</dt><dd>${escapeCrewCardHtml(model.homePhone || "Not recorded")}</dd></div><div><dt>Login Identity</dt><dd data-testid="crew-card-identity-status">${model.identityStatus === "conflict" ? "Identity Conflict" : model.identityStatus === "linked" ? "Linked" : "Unlinked"}</dd></div><div><dt>Login Email</dt><dd data-testid="crew-card-login-email">${escapeCrewCardHtml(model.loginEmail || (model.identityStatus === "conflict" ? "Needs identity review" : "No login account linked"))}</dd></div><div><dt>Contact Email</dt><dd>${model.email ? `<button type="button" class="crew-contact-action" data-testid="crew-card-copy-email" onclick="copyCrewEmail('${escapeCrewCardHtml(model.email)}', this)">${escapeCrewCardHtml(model.email)}</button>` : "Not recorded"}</dd></div><div><dt>Address</dt><dd>${escapeCrewCardHtml(model.address || "Not recorded")}</dd></div><div><dt>Preferred Contact</dt><dd>${model.contactPreference === "call" ? "Call" : "Text"}</dd></div><div><dt>Account Status</dt><dd>${escapeCrewCardHtml(model.accountStatus)}</dd></div>
     </dl></section>
     <section class="crew-credential-panel crew-credential-eligibility"><h3>Age Eligibility</h3><div>${model.levels.length ? model.levels.map(level => `<span class="settings-pill">${escapeCrewCardHtml(formatCrewCardLevel(level))}</span>`).join("") : "No eligibility recorded"}</div></section>
     <section class="crew-credential-panel crew-credential-history"><h3>Official History</h3><div class="crew-credential-service"><span>Years of Service</span><b>${model.yearsOfService}</b></div><ul>${model.officialHistory.length ? [...model.officialHistory].sort((a,b) => b.year-a.year).map(entry => `<li><b>${entry.year}</b><span>${escapeCrewCardHtml(entry.label)}</span>${entry.note ? `<small>${escapeCrewCardHtml(entry.note)}</small>` : ""}</li>`).join("") : `<li>No official history recorded.</li>`}</ul></section>
@@ -114,7 +119,9 @@ function openCrewCredentialCard(memberId) {
   dialog.className = "crew-credential-dialog";
   dialog.dataset.testid = "crew-card-dialog";
   dialog.setAttribute("aria-labelledby", "crew-card-title");
-  dialog.innerHTML = `<article class="crew-credential-modal"><div class="crew-credential-dialog-actions"><button type="button" class="button button-secondary" onclick="closeCrewCard()">Close</button></div><div class="crew-credential-flipper" data-testid="crew-card-flipper">${renderCrewCredentialFrontFace(model)}${renderCrewCredentialBackFace(model)}</div><footer class="crew-credential-modal-footer">${authService.isAdmin?.() && model.accountId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="openCrewCardAdminEditor('${escapeCrewCardHtml(model.accountId)}')">Edit Crew Profile</button>` : authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="closeCrewCard(); openEditCrewDrawer('${escapeCrewCardHtml(model.crewRecordId)}')">Edit Crew Profile</button>` : ""}</footer></article>`;
+  const resetDisabled = model.identityStatus !== "linked";
+  const identityAction = model.identityStatus === "unlinked" ? "link" : "relink";
+  dialog.innerHTML = `<article class="crew-credential-modal"><div class="crew-credential-dialog-actions"><button type="button" class="button button-secondary" onclick="closeCrewCard()">Close</button></div><div class="crew-credential-flipper" data-testid="crew-card-flipper">${renderCrewCredentialFrontFace(model)}${renderCrewCredentialBackFace(model)}</div><footer class="crew-credential-modal-footer">${authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-secondary" data-testid="crew-card-password-reset" ${resetDisabled ? `disabled title="This crew member's login identity needs review before a password reset can be sent."` : `onclick="sendAdministrativePasswordReset('${escapeCrewCardHtml(model.profileId)}','${escapeCrewCardHtml(model.crewRecordId)}')"`}>Send Password Reset</button><button type="button" class="button button-secondary" data-testid="crew-card-${identityAction}-identity" onclick="openCrewIdentityManager('${escapeCrewCardHtml(model.crewRecordId)}','${identityAction}')">${identityAction === "link" ? "Link" : "Relink"} Login Account</button>${model.profileId ? `<button type="button" class="button button-secondary" data-testid="crew-card-unlink-identity" onclick="manageCrewIdentity('${escapeCrewCardHtml(model.crewRecordId)}','unlink')">Unlink Login Account</button>` : ""}` : ""}${authService.isAdmin?.() && model.accountId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="openCrewCardAdminEditor('${escapeCrewCardHtml(model.accountId)}')">Edit Crew Profile</button>` : authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="closeCrewCard(); openEditCrewDrawer('${escapeCrewCardHtml(model.crewRecordId)}')">Edit Crew Profile</button>` : ""}</footer></article>`;
   dialog.addEventListener("click", event => { if (event.target === dialog) closeCrewCard(); });
   dialog.addEventListener("keydown", handleCrewCardDialogKeydown);
   dialog.addEventListener("close", () => { dialog.remove(); crewCardOrigin?.focus?.(); crewCardOrigin = null; }, { once: true });
@@ -122,6 +129,26 @@ function openCrewCredentialCard(memberId) {
   dialog.showModal();
   dialog.querySelector("button")?.focus();
   requestAnimationFrame(() => dialog.querySelector(".crew-credential-flipper")?.classList.add("is-flipped"));
+}
+
+async function openCrewIdentityManager(crewMemberId, action) {
+  const choices = await crewService.getLinkableLoginProfiles();
+  if (!choices.success) return showToast(choices.message, "error");
+  const available = choices.data.filter(item => String(item.profile_id) !== String(loginService.getCurrentAccount()?.id));
+  if (!available.length) return showToast("No compatible approved umpire login account is available.", "error");
+  const selected = window.prompt(`Enter the exact Login Email to ${action}:\n${available.map(item => item.login_email).join("\n")}`);
+  if (!selected) return;
+  const target = available.find(item => String(item.login_email).toLowerCase() === String(selected).trim().toLowerCase());
+  if (!target) return showToast("Select an available Login Email exactly as shown.", "error");
+  if (!window.confirm(`${action === "relink" ? "Relink" : "Link"} this crew record to ${target.login_email}? Contact Email will not change.`)) return;
+  await manageCrewIdentity(crewMemberId, action, target.profile_id);
+}
+
+async function manageCrewIdentity(crewMemberId, action, profileId = null) {
+  if (action === "unlink" && !window.confirm("Unlink this login account? The Auth user and Contact Email will not be deleted or changed.")) return;
+  const result = await crewService.manageLoginIdentity(crewMemberId, action, profileId);
+  showToast(result.message, result.success ? "success" : "error");
+  if (result.success) { closeCrewCard(); renderPage(currentPage); }
 }
 
 // Preserve every existing call site while ensuring it resolves to this credential modal,
@@ -151,7 +178,7 @@ function openCrewCardAdminEditor(accountId) {
   const historyText = (account.officialHistory || []).map(entry => `${entry.year}|${entry.label}|${entry.note || ""}`).join("\n");
   dialog.innerHTML = `<form method="dialog" class="crew-card-admin-form" onsubmit="saveCrewCardAdminProfile(event, '${escapeCrewCardHtml(account.id)}')"><header><div><span>Administrator Edit</span><h2>Edit ${escapeCrewCardHtml(model.fullName)}</h2></div><button type="button" class="button button-secondary" onclick="this.closest('dialog').close()">Close</button></header><div class="crew-card-admin-grid">
     <label>Crew ID<input value="${escapeCrewCardHtml(account.crewCode)}" readonly data-testid="crew-admin-id"></label><label>Photo<input type="file" accept="image/jpeg,image/png,image/webp" data-testid="crew-admin-photo" onchange="handleCrewAdminPhotoSelected(this)"><span class="crew-admin-photo-preview" data-testid="crew-admin-photo-preview">${renderCrewCardPhoto(model)}</span></label>
-    <label>First Name<input id="crew-admin-first" value="${escapeCrewCardHtml(account.firstName)}" required></label><label>Last Name<input id="crew-admin-last" value="${escapeCrewCardHtml(account.lastName)}" required></label><label>Birthdate<input id="crew-admin-birthdate" type="date" value="${escapeCrewCardHtml(account.birthdate || "")}"></label><label>Email<input id="crew-admin-email" type="email" value="${escapeCrewCardHtml(account.email)}" required></label><label>Cell Phone<input id="crew-admin-phone" value="${escapeCrewCardHtml(account.phone || "")}"></label><label>Home Phone<input id="crew-admin-home-phone" value="${escapeCrewCardHtml(account.homePhone || "")}"></label><label class="crew-admin-address">Home Address<input id="crew-admin-address" value="${escapeCrewCardHtml(account.address || "")}"></label><label>Contact Preference<select id="crew-admin-contact"><option value="text" ${account.contactPreference !== "call" ? "selected" : ""}>Text</option><option value="call" ${account.contactPreference === "call" ? "selected" : ""}>Call</option></select></label>
+    <label>First Name<input id="crew-admin-first" value="${escapeCrewCardHtml(account.firstName)}" required></label><label>Last Name<input id="crew-admin-last" value="${escapeCrewCardHtml(account.lastName)}" required></label><label>Birthdate<input id="crew-admin-birthdate" type="date" value="${escapeCrewCardHtml(account.birthdate || "")}"></label><label>Contact Email<input id="crew-admin-email" type="email" value="${escapeCrewCardHtml(account.email)}" required></label><label>Cell Phone<input id="crew-admin-phone" value="${escapeCrewCardHtml(account.phone || "")}"></label><label>Home Phone<input id="crew-admin-home-phone" value="${escapeCrewCardHtml(account.homePhone || "")}"></label><label class="crew-admin-address">Home Address<input id="crew-admin-address" value="${escapeCrewCardHtml(account.address || "")}"></label><label>Contact Preference<select id="crew-admin-contact"><option value="text" ${account.contactPreference !== "call" ? "selected" : ""}>Text</option><option value="call" ${account.contactPreference === "call" ? "selected" : ""}>Call</option></select></label>
     <fieldset class="crew-admin-eligibility"><legend>Age Eligibility</legend><label class="crew-admin-select-all"><input type="checkbox" data-testid="crew-admin-level-select-all" onchange="toggleCrewAdminLevels(this.checked)">Select All</label>${levelTerminologyService.checkboxOptions(settings.levels).map(option => `<label><input type="checkbox" class="crew-admin-level" value="${escapeCrewCardHtml(option.value)}" data-canonical="${escapeCrewCardHtml(option.canonical)}" ${model.levels.includes(option.canonical) ? "checked" : ""} onchange="levelTerminologyService.synchronizeCheckbox(this, '.crew-admin-level')">${escapeCrewCardHtml(option.label)}</label>`).join("")}</fieldset><label>Years of Service<input id="crew-admin-years" type="number" min="0" max="80" step="1" value="${model.yearsOfService}" data-testid="crew-admin-years"></label><label class="crew-admin-history">Official History <small>One per line: year|label|note</small><textarea id="crew-admin-history">${escapeCrewCardHtml(historyText)}</textarea></label><label class="crew-admin-notes">Administrator Notes<textarea id="crew-admin-notes">${escapeCrewCardHtml(account.adminNotes || "")}</textarea></label><label class="crew-admin-active"><input type="checkbox" id="crew-admin-active" ${model.status === "Active" ? "checked" : ""}> Active for assignments</label>
   </div><div class="validation-message" data-testid="crew-admin-error" hidden></div><footer><button type="submit" class="button button-primary" data-testid="crew-admin-save">Save Crew Profile</button></footer></form>`;
   document.body.appendChild(dialog); dialog.addEventListener("close", () => dialog.remove(), { once: true }); dialog.showModal(); dialog.querySelector("input:not([readonly])")?.focus();

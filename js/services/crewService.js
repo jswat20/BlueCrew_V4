@@ -40,12 +40,23 @@ const crewService = {
   async loadAdministrativeCrew() {
     if (!this.isSharedMode()) return { success: true, data: this.getAll() };
     administrativeCrewState = { status: "loading", message: "" };
-    const { data, error } = await supabaseSharedRepository.getCrewMembers();
+    const [{ data, error }, diagnostics] = await Promise.all([
+      supabaseSharedRepository.getCrewMembers(),
+      supabaseSharedRepository.getCrewIdentityDiagnostics()
+    ]);
     if (error) {
       administrativeCrewState = { status: "error", message: error.message || "Crew roster could not be loaded." };
       return { success: false, message: administrativeCrewState.message };
     }
-    administrativeCrewSnapshot = (data || []).map(sharedDomainMappingService.mapCrewMember).filter(Boolean)
+    if (diagnostics.error) {
+      administrativeCrewState = { status: "error", message: diagnostics.error.message || "Crew identity status could not be loaded." };
+      return { success: false, message: administrativeCrewState.message };
+    }
+    const identityByCrew = new Map((diagnostics.data || []).map(item => [String(item.crew_member_id), item]));
+    administrativeCrewSnapshot = (data || []).map(row => {
+      const identity = identityByCrew.get(String(row.id)) || {};
+      return sharedDomainMappingService.mapCrewMember({ ...row, ...identity });
+    }).filter(Boolean)
       .sort((left, right) => `${left.lastName}\u0000${left.firstName}\u0000${left.id}`.localeCompare(`${right.lastName}\u0000${right.firstName}\u0000${right.id}`));
     administrativeCrewState = { status: "ready", message: "" };
     return { success: true, data: structuredClone(administrativeCrewSnapshot) };
@@ -91,6 +102,20 @@ const crewService = {
     if (error) return { success: false, message: error.message || "Crew member could not be updated." };
     const refresh = await this.loadAdministrativeCrew();
     return refresh.success ? { success: true, data: sharedDomainMappingService.mapCrewMember(data) } : refresh;
+  },
+
+  async getLinkableLoginProfiles() {
+    if (!this.isSharedMode()) return { success: true, data: [] };
+    const { data, error } = await supabaseSharedRepository.getLinkableUmpireProfiles();
+    return error ? { success: false, message: error.message || "Login accounts could not be loaded." } : { success: true, data: data || [] };
+  },
+
+  async manageLoginIdentity(crewMemberId, action, profileId = null) {
+    if (!this.isSharedMode()) return { success: false, message: "Trusted identity linking requires hosted mode." };
+    const { error } = await supabaseSharedRepository.manageCrewLoginIdentity(crewMemberId, action, profileId);
+    if (error) return { success: false, message: error.message || "Login identity could not be updated." };
+    const refresh = await this.loadAdministrativeCrew();
+    return refresh.success ? { success: true, message: `Login identity ${action} completed.` } : refresh;
   },
 
   getAuthenticatedCrewMember() {
