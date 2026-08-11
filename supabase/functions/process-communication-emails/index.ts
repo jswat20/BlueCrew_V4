@@ -22,8 +22,10 @@ Deno.serve(async request => {
     async complete(id: string, token: string, result: Record<string, unknown>) { const { error } = await client.rpc("complete_communication_email_delivery", { p_delivery_id: id, p_lease_token: token, p_sent: result.success === true, p_provider_message_id: result.providerMessageId || null, p_retryable: result.retryable === true, p_failure_code: result.failureCode || null, p_failure_message: result.failureMessage || null }); if (error) throw error; }
   };
   try {
+    const { data: reminders, error: reminderError } = await client.rpc("enqueue_due_game_reminders");
+    if (reminderError) throw reminderError;
     const provider = createResendAdapter({ apiKey: resendKey, from, replyTo: Deno.env.get("SLATE_EMAIL_REPLY_TO") || "" });
     const summary = await processCommunicationEmails({ store, provider, appUrl: Deno.env.get("SLATE_APP_URL") || "" });
-    return json(summary);
+    return json({ reminders: reminders || { created: 0, duplicates: 0 }, ...summary });
   } catch { return json({ error: "worker_failed" }, 500); }
 });

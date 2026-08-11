@@ -360,6 +360,26 @@ function renderPage(page, context = {}) {
 updateNotificationBadge();
 
   runPageSetup(page, context);
+  requestAnimationFrame(() => enhanceResponsiveSurfaces(content, page));
+}
+
+function enhanceResponsiveSurfaces(root, page) {
+  if (!root) return;
+  const scrollRegions = root.querySelectorAll([
+    ".table-wrapper", ".responsive-table", ".table-container",
+    ".presentation-table-wrapper", ".schedule-table-wrap", ".schedule-table-wrapper",
+    ".my-schedule-table-wrapper", ".claims-queue-table-wrapper", ".claim-history-section",
+    ".review-queue-table-wrapper", ".report-table-wrapper", ".report-detail-table-wrapper",
+    ".operations-staffing-table-wrap", ".workbench-open-table-wrap"
+  ].join(","));
+  scrollRegions.forEach((region, index) => {
+    if (!region.hasAttribute("tabindex")) region.tabIndex = 0;
+    if (!region.hasAttribute("role")) region.setAttribute("role", "region");
+    if (!region.hasAttribute("aria-label")) {
+      const heading = region.closest("section, article, .card")?.querySelector("h1, h2, h3, h4");
+      region.setAttribute("aria-label", `${heading?.textContent?.trim() || pages[page]?.title || "Data"} table ${index + 1}`);
+    }
+  });
 }
 
 async function logoutFromNavigation() {

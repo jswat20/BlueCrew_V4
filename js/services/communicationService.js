@@ -1,5 +1,5 @@
 const communicationService = (() => {
-  const metadataKeys = new Set(["year", "seasonCode", "organizationCode", "leagueCode", "level", "canonicalLevel", "sequence", "gameNumber", "gameIdentifier", "gameDisplay", "date", "time", "location", "field", "position", "actionPath"]);
+  const metadataKeys = new Set(["year", "seasonCode", "organizationCode", "leagueCode", "level", "canonicalLevel", "divisionAlias", "sequence", "gameNumber", "gameIdentifier", "gameDisplay", "date", "time", "location", "field", "position", "actionPath", "reminderWindow", "weather"]);
   const deliveries = new Map();
   function normalizeMetadata(source = {}) { return Object.fromEntries(Object.entries(source).filter(([key, value]) => metadataKeys.has(key) && ["string", "number", "boolean"].includes(typeof value))); }
   function normalizeEvent(input = {}) {

@@ -844,26 +844,29 @@ const notificationService = (() => {
       (60 * 60 * 1000);
 
     if (
-      hoursUntilGame < 0 ||
+      hoursUntilGame <= 0 ||
       hoursUntilGame > 24
     ) {
       return null;
     }
 
+    if (hoursUntilGame <= 0.5) {
+      return {
+        key: "30-minute",
+        type: "game-reminder-30-minute"
+      };
+    }
+
     if (hoursUntilGame <= 2) {
       return {
-        key: "2h",
-        title: "Game Starting Soon",
-        messagePrefix:
-          "Your game starts within 2 hours:"
+        key: "2-hour",
+        type: "game-reminder-2-hour"
       };
     }
 
     return {
-      key: "24h",
-      title: "Upcoming Game Reminder",
-      messagePrefix:
-        "You have a game within 24 hours:"
+      key: "24-hour",
+      type: "game-reminder-24-hour"
     };
   }
 
@@ -958,41 +961,23 @@ const notificationService = (() => {
           return;
         }
 
-        const reminderKey = [
-          "assignment-reminder",
-          account.id,
-          game.id,
-          window.key
-        ].join(":");
-
-        const result = create({
-          type:
-            `assignment-reminder-${window.key}`,
-          title: window.title,
-          message:
-            `${window.messagePrefix} ` +
-            `${game.awayTeam || "Away"} @ ` +
-            `${game.homeTeam || "Home"} on ` +
-            `${game.date} at ${game.time}.`,
-          relatedId: game.id,
-          audience: "umpire",
-          recipientAccountId:
-            account.id,
-          reminderKey,
-          destination: {
-            page: "game-hub",
-            context: {
-              gameId: game.id
-            }
-          }
+        const assignment = assignmentService.getAssignments(game).find(item =>
+          String(item.crewId || "") === String(account.crewId) && ["assigned", "locked"].includes(item.status));
+        const reminderKey = [window.type, game.id, assignment?.id || account.crewId, account.id].join(":");
+        const result = communicationService.publish({
+          type: window.type, organizationId: account.organizationId || "local", recipientProfileId: account.id,
+          subjectEntityType: "assignment", subjectEntityId: assignment?.id || game.id, gameId: game.id,
+          assignmentId: assignment?.id || "", occurredAt: now.toISOString(), idempotencyKey: reminderKey,
+          metadata: { gameDisplay: presentationFormattingService.formatGameIdentifier(game), level: game.level,
+            divisionAlias: levelTerminologyService.aliasFor(game.level), date: game.date, time: game.time,
+            location: game.locationComplex, field: game.locationField || game.field, position: assignment?.position || "",
+            actionPath: "my-schedule", reminderWindow: window.key }
         });
+        const inApp = result.data?.deliveries?.find(delivery => delivery.channel === "in_app");
 
-        if (result.duplicate) {
+        if (inApp?.duplicate) {
           duplicateCount += 1;
-        } else if (
-          result.success &&
-          !result.suppressed
-        ) {
+        } else if (result.success && inApp?.status === "sent") {
           createdCount += 1;
         }
       });

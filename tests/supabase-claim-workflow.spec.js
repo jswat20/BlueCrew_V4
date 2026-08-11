@@ -91,13 +91,18 @@ async function openSharedSession(browser, rows, authUserId) {
         onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } })
       },
       from: query,
-      rpc: (name, args) => window.__claimRpc({ name, args })
+      rpc: (name, args) => {
+        if (name === "list_crew_identity_diagnostics" || name === "list_linkable_umpire_profiles") {
+          return Promise.resolve({ data: [], error: null });
+        }
+        return window.__claimRpc({ name, args });
+      }
     });
+    localStorage.setItem(sessionKey, "authenticated-fixture-session");
   }, { user: { id: profile.auth_user_id, email: profile.email }, sessionKey: `claim-session-${profile.id}` });
 
   await page.goto("/");
-  const login = await page.evaluate(({ email }) => loginService.loginWithPassword(email, "password1234"), { email: profile.email });
-  expect(login.success).toBe(true);
+  await expect.poll(() => page.evaluate(() => supabaseAuthService.getHydrationState().status)).toBe("ready");
   return { context, page };
 }
 

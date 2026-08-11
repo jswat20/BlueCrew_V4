@@ -4,7 +4,8 @@ const communicationTemplateService = (() => {
     "claim-approved": "Claim Approved", "claim-rejected": "Claim Rejected", "claim-withdrawn": "Claim Withdrawn",
     "assignment-created": "Assignment Confirmed", "assignment-removed": "Assignment Removed", "assignment-declined": "Assignment Declined",
     "game-cancelled": "Game Cancelled", "game-restored": "Game Restored", "game-date-changed": "Game Date Changed", "game-time-changed": "Game Time Changed",
-    "game-location-changed": "Location Changed", "game-field-changed": "Field Changed", "game-reminder": "Game Reminder",
+    "game-location-changed": "Location Changed", "game-field-changed": "Field Changed", "game-reminder-24-hour": "Game Tomorrow",
+    "game-reminder-2-hour": "Game in 2 Hours", "game-reminder-30-minute": "Game Starts Soon",
     "availability-reminder": "Availability Reminder"
   });
   function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]); }
@@ -29,7 +30,8 @@ const communicationTemplateService = (() => {
     const submitted = event.type === "claim-submitted";
     const declined = event.type === "assignment-declined";
     const gameChange = ["game-cancelled", "game-restored", "game-date-changed", "game-time-changed", "game-location-changed", "game-field-changed"].includes(event.type);
-    const lead = approved ? "Your claim has been approved." : rejected ? "Your claim was not approved." : assignment ? "You have been assigned a game." : removed ? "You have been removed from a game." : submitted ? "A new game claim was submitted." : declined ? "An assignment was declined." : event.type === "game-cancelled" ? "Your assigned game has been cancelled." : event.type === "game-restored" ? "Your assigned game has been restored." : gameChange ? "The game below has been updated." : `${title}.`;
+    const reminderLead = { "game-reminder-24-hour": "Your game begins in approximately 24 hours.", "game-reminder-2-hour": "Your game begins in approximately two hours.", "game-reminder-30-minute": "Your game begins in approximately 30 minutes." }[event.type];
+    const lead = approved ? "Your claim has been approved." : rejected ? "Your claim was not approved." : assignment ? "You have been assigned a game." : removed ? "You have been removed from a game." : submitted ? "A new game claim was submitted." : declined ? "An assignment was declined." : event.type === "game-cancelled" ? "Your assigned game has been cancelled." : event.type === "game-restored" ? "Your assigned game has been restored." : reminderLead || (gameChange ? "The game below has been updated." : `${title}.`);
     const facts = [
       metadata.gameId || metadata.gameIdentifier ? ["Game", gameIdentifier(metadata)] : null,
       metadata.level ? ["Division", division(metadata)] : null,
@@ -49,7 +51,7 @@ const communicationTemplateService = (() => {
     const inAppChange = metadata.changeLabel && (metadata.oldValue !== undefined || metadata.newValue !== undefined)
       ? `${metadata.changeLabel} changed\n${metadata.oldValue || "not set"} → ${metadata.newValue || "not set"}`
       : "";
-    const inAppSummary = gameChange
+    const inAppSummary = gameChange || reminderLead
       ? [lead, inAppFacts, inAppChange].filter(Boolean).join("\n\n")
       : lead;
     return Object.freeze({ inAppTitle: title, inAppSummary, emailSubject: `The Slate — ${title}`, emailTextBody: textBody,

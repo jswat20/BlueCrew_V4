@@ -19,7 +19,7 @@ test("catalog is the canonical source for pilot events and channels", async ({ p
     channels: communicationEventCatalog.supportedChannels,
     cancelled: communicationEventCatalog.get("game-cancelled")
   }));
-  expect(result.types).toEqual(expect.arrayContaining(["account-approved", "claim-submitted", "claim-approved", "assignment-created", "game-cancelled", "game-reminder", "availability-reminder"]));
+  expect(result.types).toEqual(expect.arrayContaining(["account-approved", "claim-submitted", "claim-approved", "assignment-created", "game-cancelled", "game-reminder-24-hour", "game-reminder-2-hour", "game-reminder-30-minute", "availability-reminder"]));
   expect(result.channels).toEqual(["in_app", "email", "sms", "push"]);
   expect(result.cancelled).toMatchObject({ category: "game_changes", critical: true, defaultChannels: ["in_app", "email"] });
 });

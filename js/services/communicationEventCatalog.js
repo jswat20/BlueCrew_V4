@@ -18,7 +18,9 @@ const communicationEventCatalog = (() => {
     "game-time-changed": ["game_changes", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
     "game-location-changed": ["game_changes", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
     "game-field-changed": ["game_changes", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
-    "game-reminder": ["reminders", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
+    "game-reminder-24-hour": ["reminders", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
+    "game-reminder-2-hour": ["reminders", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
+    "game-reminder-30-minute": ["reminders", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]],
     "availability-reminder": ["reminders", false, [CHANNELS.IN_APP, CHANNELS.EMAIL]]
   };
   const catalog = Object.freeze(Object.fromEntries(Object.entries(definitions).map(([type, value]) => [type, Object.freeze({

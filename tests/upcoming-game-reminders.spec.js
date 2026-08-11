@@ -94,8 +94,8 @@ test.describe(
                   .getAll()
                   .filter(
                     notification =>
-                      notification.relatedId ===
-                      game.id
+                      String(notification.relatedId) ===
+                      String(game.id)
                   )
             };
           }, account);
@@ -109,18 +109,18 @@ test.describe(
         expect(result.second.duplicateCount)
           .toBe(1);
 
-        expect(result.notifications)
+        expect(result.notifications, JSON.stringify(result))
           .toHaveLength(1);
 
         expect(result.notifications[0])
           .toEqual(
             expect.objectContaining({
               type:
-                "assignment-reminder-24h",
+                "game-reminder-24-hour",
               audience: "umpire",
               reminderKey:
                 expect.stringContaining(
-                  ":24h"
+                  "game-reminder-24-hour"
                 )
             })
           );
@@ -128,7 +128,7 @@ test.describe(
     );
 
     test(
-      "creates a separate two-hour reminder",
+      "creates separate two-hour and thirty-minute reminders",
       async ({ app }) => {
         const account =
           await app.loginAsApprovedUmpire();
@@ -177,16 +177,19 @@ test.describe(
                 )
               );
 
+            notificationService
+              .generateUpcomingGameReminders(
+                new Date(
+                  "2099-11-15T17:31:00"
+                )
+              );
+
             return notificationService
               .getAll()
-              .filter(
-                notification =>
-                  notification.relatedId ===
-                  game.id
-              );
+              .filter(notification => String(notification.relatedId) === String(game.id));
           }, account);
 
-        expect(result).toHaveLength(2);
+        expect(result).toHaveLength(3);
 
         expect(
           result.map(
@@ -195,8 +198,9 @@ test.describe(
           )
         ).toEqual(
           expect.arrayContaining([
-            "assignment-reminder-24h",
-            "assignment-reminder-2h"
+            "game-reminder-24-hour",
+            "game-reminder-2-hour",
+            "game-reminder-30-minute"
           ])
         );
       }

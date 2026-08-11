@@ -3,7 +3,7 @@ const TITLES = Object.freeze({
   "claim-rejected": "Claim Rejected", "claim-withdrawn": "Claim Withdrawn", "assignment-created": "Assignment Confirmed", "assignment-removed": "Assignment Removed",
   "assignment-declined": "Assignment Declined", "game-cancelled": "Game Cancelled", "game-restored": "Game Restored", "game-date-changed": "Game Date Changed",
   "game-time-changed": "Game Time Changed", "game-location-changed": "Location Changed", "game-field-changed": "Field Changed",
-  "game-reminder": "Game Reminder", "availability-reminder": "Availability Reminder"
+  "game-reminder-24-hour": "Game Tomorrow", "game-reminder-2-hour": "Game in 2 Hours", "game-reminder-30-minute": "Game Starts Soon", "availability-reminder": "Availability Reminder"
 });
 const GAME_CHANGES = new Set(["game-cancelled", "game-restored", "game-date-changed", "game-time-changed", "game-location-changed", "game-field-changed"]);
 const POSITION = Object.freeze({ Plate: "U1", Base: "U2", U3: "U3", U4: "U4" });
@@ -21,6 +21,9 @@ function leadFor(type, title) {
   if (type === "assignment-declined") return "An assignment was declined.";
   if (type === "game-cancelled") return "Your assigned game has been cancelled.";
   if (type === "game-restored") return "Your assigned game has been restored.";
+  if (type === "game-reminder-24-hour") return "Your game begins in approximately 24 hours.";
+  if (type === "game-reminder-2-hour") return "Your game begins in approximately two hours.";
+  if (type === "game-reminder-30-minute") return "Your game begins in approximately 30 minutes.";
   return GAME_CHANGES.has(type) ? "The game below has been updated." : `${title}.`;
 }
 

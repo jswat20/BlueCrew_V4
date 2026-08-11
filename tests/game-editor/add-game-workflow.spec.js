@@ -19,9 +19,10 @@ test.describe("Game Editor Workflow", () => {
 
     await editor.openFromSchedule();
     await editor.expectOpen();
+    const selectedScheduleDate = await page.evaluate(() => currentScheduleDate);
 
     await editor.fillGame({
-      date: new Date().toISOString().split("T")[0],
+      date: selectedScheduleDate,
       time: "6:00 PM",
       field: "Field 1",
       level: "12U",
@@ -35,7 +36,8 @@ test.describe("Game Editor Workflow", () => {
     await editor.expectGameVisible({
       homeTeam: "QA Home",
       awayTeam: "QA Away",
-      field: "Field 1"
+      field: "Field 1",
+      date: selectedScheduleDate
     });
 
     expect(errors).toEqual([]);

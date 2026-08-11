@@ -62,7 +62,7 @@ test("fall-season umpire workflow persists across roles and refresh", async ({ a
 
     const preview = scheduleImportService.preview(csv);
     const importedGames = preview.games.map(
-      game => gameService.create(game).data
+      (game, index) => gameService.create({ ...game, id: `fall-release-game-${index + 1}` }).data
     );
     const claimGame = importedGames[0];
     const declineGame = importedGames[1];
@@ -237,7 +237,7 @@ test("fall-season umpire workflow persists across roles and refresh", async ({ a
       reminders: notificationService.getAll().filter(
         notification =>
           String(notification.relatedId) === String(claimGameId) &&
-          String(notification.reminderKey || "").endsWith(":24h")
+          String(notification.reminderKey || "").startsWith("game-reminder-24-hour:")
       )
     };
   }, seeded);

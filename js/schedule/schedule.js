@@ -248,10 +248,10 @@ function renderScheduleContent(context = currentScheduleContext) {
   updateScheduleTabState();
   if (currentScheduleView === "daily") {
     renderDailySchedule(container);
-    return;
+  } else {
+    renderAllGamesTable(container, currentScheduleContext);
   }
-
-  renderAllGamesTable(container, currentScheduleContext);
+  requestAnimationFrame(() => enhanceResponsiveSurfaces?.(container, "schedule"));
 }
 
 function updateScheduleTabState() {

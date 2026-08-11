@@ -8174,3 +8174,90 @@ body[data-page="notifications"] .notification-center-actions {
 .account-security-dialog { width: min(520px, calc(100vw - 28px)); border: 0; border-radius: 14px; padding: 24px; box-shadow: 0 24px 60px rgba(15,39,66,.28); }
 .account-security-dialog::backdrop { background: rgba(15,23,42,.58); }
 .account-security-admin-row { display: grid; gap: 10px; }
+
+/* Milestone 7.6: shared responsive and mobile readiness guardrails. */
+@media (max-width: 1000px) {
+  html { font-size: 16px; }
+  .app-shell, .main-content, .content-area, .page-wrapper, .panel, .card { min-width: 0; }
+  .sidebar { padding: 12px 14px; }
+  .sidebar .brand { margin-bottom: 12px; }
+  .nav-menu { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+  .nav-group { min-width: 0; }
+  .nav-group-toggle, .nav-link { width: 100%; min-height: 44px; }
+  .topbar { padding: 14px 18px; }
+  .content-area { width: 100%; padding: 18px; }
+  .card-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+  .operations-detail-dialog, .workbench-game-dialog, .workbench-notification-dialog,
+  .game-hub-crew-picker, .game-hub-completion-dialog, .game-hub-decline-dialog,
+  .account-security-dialog, .crew-card-admin-dialog {
+    max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px);
+    overflow: auto; overscroll-behavior: contain;
+  }
+  .table-wrapper, .responsive-table, .table-container, .presentation-table-wrapper,
+  .schedule-table-wrap, .schedule-table-wrapper, .my-schedule-table-wrapper,
+  .claims-queue-table-wrapper, .claim-history-section, .review-queue-table-wrapper,
+  .report-table-wrapper, .report-detail-table-wrapper, .operations-staffing-table-wrap,
+  .workbench-open-table-wrap {
+    max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable; -webkit-overflow-scrolling: touch;
+  }
+  .table-wrapper:focus-visible, .responsive-table:focus-visible, .table-container:focus-visible,
+  .presentation-table-wrapper:focus-visible, .schedule-table-wrap:focus-visible,
+  .report-table-wrapper:focus-visible, .operations-staffing-table-wrap:focus-visible {
+    outline: 3px solid #147d92; outline-offset: 2px;
+  }
+  table th { text-align: center; }
+  table th, table td { min-height: 48px; vertical-align: middle; }
+}
+
+@media (max-width: 600px) {
+  body { overflow-x: hidden; }
+  .sidebar { padding: 10px 12px; }
+  .sidebar .brand { gap: 10px; }
+  .sidebar .brand-icon { width: 40px; height: 40px; }
+  .sidebar .brand h1 { font-size: 1.2rem; }
+  .sidebar .brand p { margin-block: 0; font-size: .75rem; }
+  .nav-menu { grid-template-columns: 1fr; gap: 6px; }
+  .nav-group-toggle { padding: 8px 10px; }
+  .nav-group-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 6px; }
+  .nav-link { padding: 9px 10px; overflow-wrap: anywhere; font-size: .9rem; }
+  .topbar { gap: 8px; padding: 12px 14px; }
+  .topbar #page-title { font-size: 1.35rem; line-height: 1.2; overflow-wrap: anywhere; }
+  .topbar p { font-size: .875rem; }
+  .content-area { padding: 12px; }
+  .page-wrapper > section, .panel, .card { max-width: 100%; }
+  .card { padding: 14px; }
+  .card > header, .panel > header, .presentation-card > header,
+  .form-actions, .dialog-actions, dialog footer { align-items: stretch; flex-wrap: wrap; }
+  button, .button, .primary, .secondary, .primary-btn, .secondary-btn,
+  .primary-button, .secondary-button, input, select, textarea { max-width: 100%; }
+  button, .button, .primary, .secondary, .primary-btn, .secondary-btn,
+  .primary-button, .secondary-button, input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
+  input[type="checkbox"], input[type="radio"] { min-width: 22px; min-height: 22px; }
+  dialog:not(.crew-credential-dialog) {
+    width: calc(100vw - 16px); max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px); margin: auto; padding: 16px;
+  }
+  dialog .form-actions, dialog footer { display: flex; gap: 8px; }
+  dialog .form-actions > button, dialog footer > button { flex: 1 1 150px; }
+  .status-pill, .status-badge, [class*="status-badge"], [class*="status-pill"] {
+    max-width: 100%; line-height: 1.25; text-align: center; white-space: normal;
+  }
+  .account-registration .card, .account-security-page { width: 100%; max-width: 100%; }
+  .account-registration .form-actions, .account-security-page .form-actions { display: grid; grid-template-columns: 1fr; }
+  .operations-status-strip, .workbench-status-strip { overflow-x: auto; scroll-snap-type: x proximity; }
+  .operations-status-metric, .workbench-status-strip > * { scroll-snap-align: start; }
+}
+
+@media (max-width: 360px) {
+  .nav-group-items { grid-template-columns: 1fr; }
+  .content-area { padding: 10px; }
+  .card { padding: 12px; }
+  .operations-status-strip { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .sidebar .brand { display: none; }
+  .sidebar { max-height: 46dvh; overflow-y: auto; }
+  dialog { max-height: calc(100dvh - 12px) !important; }
+}

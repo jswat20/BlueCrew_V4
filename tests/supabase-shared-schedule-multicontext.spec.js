@@ -68,7 +68,13 @@ test("administrator and umpire hydrate the same RLS-scoped shared schedule", asy
           signOut: async () => ({ error: null }),
           onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } })
         },
-        from: query
+        from: query,
+        rpc: async name => {
+          if (name === "list_crew_identity_diagnostics" || name === "list_linkable_umpire_profiles") {
+            return { data: [], error: null };
+          }
+          return { data: null, error: { message: `Unexpected fixture RPC: ${name}` } };
+        }
       });
     }, { authUserId, email: profile.email });
     await page.goto("/");
