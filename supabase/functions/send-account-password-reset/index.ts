@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.3";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 function response(status: number, body: Record<string, unknown>) { return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } }); }
@@ -17,7 +17,8 @@ Deno.serve(async request => {
   if (userError || !userData.user) return response(401, { error: "Unauthorized." });
   const { profileId, crewMemberId, redirectTo } = await request.json().catch(() => ({}));
   if ((!profileId && !crewMemberId) || !redirectTo || !/^https?:\/\//i.test(String(redirectTo))) return response(400, { error: "Invalid reset request." });
-  const { data: actor } = await admin.from("profiles").select("id,organization_id,role,status").eq("auth_user_id", userData.user.id).maybeSingle();
+  const { data: actor, error: actorError } = await admin.from("profiles").select("id,organization_id,role,status").eq("auth_user_id", userData.user.id).maybeSingle();
+  if (actorError) return response(500, { error: "Administrator profile lookup failed." });
   if (!actor || actor.role !== "administrator" || actor.status !== "approved") return response(403, { error: "Administrator access is required." });
   let resolvedProfileId = profileId;
   let resolvedCrewMemberId = crewMemberId || null;

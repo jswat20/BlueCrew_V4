@@ -8,7 +8,7 @@ These settings apply to the staging project first. Production remains out of sco
 2. Require email confirmation. Do not enable anonymous sign-ins.
 3. Set the staging Site URL to the eventual Cloudflare staging origin.
 4. Add only controlled local and Cloudflare staging callback URLs to the redirect allow list.
-5. Keep user self-registration enabled; profile provisioning remains blocked until the authenticated user calls `provision_pending_umpire` with a valid invitation.
+5. Keep user self-registration enabled; profile provisioning remains blocked until the verified authenticated user calls `provision_public_pending_umpire`. The RPC selects the sole active pilot organization and creates only a pending umpire profile.
 6. Configure an application-specific SMTP provider before pilot invitations. Default development email delivery is not a pilot dependency.
 7. Keep leaked-password protection and the strongest available password policy enabled.
 
@@ -32,10 +32,10 @@ Never call bootstrap from browser JavaScript. A duplicate slug, Auth profile, ac
 
 ## Registration and approval
 
-1. An approved administrator creates a high-entropy invitation through `accountService.createRegistrationInvitation`.
-2. The umpire signs up with email/password and verifies that email.
-3. `accountService.registerAuthenticatedAccount` calls the controlled provisioning RPC. The server derives email and organization and forces role `umpire`, status `pending`.
-4. An administrator calls `accountService.approveAuthenticatedAccount`, which atomically approves the profile, links the selected crew member, creates the notification, and appends activity.
+1. The umpire signs up with name, email, phone, and password and verifies that email.
+2. `accountService.registerAuthenticatedAccount` calls the controlled public provisioning RPC. The server derives verified email and the sole active organization and forces role `umpire`, status `pending`.
+3. An administrator calls `accountService.approveAuthenticatedAccount` once. The database atomically matches or creates Crew, links it, approves the profile, creates the notification, enqueues the Account Approved communication, and appends activity.
+4. Exact-email Crew ambiguity, inactivity, or an existing link fails closed for administrator resolution.
 5. Only an approved profile can establish an application login.
 
 One Auth account maps to one umpire profile. A parent may control those credentials for a junior umpire, but no parent or guardian authorization role exists.

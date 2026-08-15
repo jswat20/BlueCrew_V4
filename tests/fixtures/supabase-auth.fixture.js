@@ -29,12 +29,18 @@ export const test = base.extend({
       notifications: [],
       crewMembers: [],
       pendingProfiles: [],
+      manageableAccounts: null,
       activities: [],
+      communicationEvents: [],
+      communicationDeliveries: [],
+      organizationProfiles: [],
       activityActors: [],
       identityDiagnostics: [],
       linkableProfiles: [],
       organization: null,
       initialSession: false,
+      signUpRequiresConfirmation: false,
+      profileMissingUntilProvision: false,
       deniedTable: "",
       failedMutationTable: "",
       failedRpc: "",
@@ -50,7 +56,7 @@ export const test = base.extend({
       });
 
       const calls = [];
-      const user = { id: settings.profile.auth_user_id, email: settings.profile.email };
+      const user = { id: settings.profile.auth_user_id, email: settings.profile.email, user_metadata: {} };
 
       function queryFor(table) {
         let operation = "select";
@@ -58,6 +64,21 @@ export const test = base.extend({
         let selectedIds = [];
         const equality = {};
         async function listResult() {
+          if (operation === "delete") {
+            calls.push({ operation, table, ids: [...selectedIds] });
+            if (settings.failedMutationTable === table) return { data: null, error: { message: "RLS denied" } };
+            if (table === "notifications") {
+              const manager = ["administrator", "assigner"].includes(settings.profile.role);
+              const selected = new Set(selectedIds.map(String));
+              settings.notifications = settings.notifications.filter(notification => {
+                if (!selected.has(String(notification.id))) return true;
+                if (String(notification.organization_id) !== String(settings.profile.organization_id)) return true;
+                if (manager) return false;
+                return String(notification.recipient_profile_id || "") !== String(settings.profile.id);
+              });
+            }
+            return { data: null, error: null };
+          }
           calls.push({ operation: "select", table });
           if (settings.deniedTable === table || (table === "crew_members" && settings.deniedReferencedCrew && selectedIds.length)) return { data: null, error: { message: "RLS denied" } };
           const rows = {
@@ -70,7 +91,7 @@ export const test = base.extend({
             activities: settings.activities,
             notifications: settings.notifications,
             crew_members: settings.crewMembers.filter(member => !selectedIds.length || selectedIds.map(String).includes(String(member.id)))
-            ,profiles: [settings.profile, ...settings.pendingProfiles, ...settings.activityActors].filter((row, index, all) => row && all.findIndex(candidate => String(candidate?.id) === String(row.id)) === index).filter(row => String(row.organization_id) === String(settings.profile.organization_id) && (!selectedIds.length || selectedIds.map(String).includes(String(row.id))) && Object.entries(equality).every(([column, value]) => String(row[column]) === String(value)))
+            ,profiles: [settings.profile, ...settings.pendingProfiles, ...settings.organizationProfiles, ...settings.activityActors].filter((row, index, all) => row && all.findIndex(candidate => String(candidate?.id) === String(row.id)) === index).filter(row => String(row.organization_id) === String(settings.profile.organization_id) && (!selectedIds.length || selectedIds.map(String).includes(String(row.id))) && Object.entries(equality).every(([column, value]) => String(row[column]) === String(value)))
           };
           if (table === "notifications") {
             rows.notifications = settings.notifications.filter(notification =>
@@ -124,7 +145,7 @@ export const test = base.extend({
           async maybeSingle() {
             calls.push({ operation: "select", table });
             if (settings.deniedTable === table) return { data: null, error: { message: "RLS denied" } };
-            if (table === "profiles") return { data: settings.profile, error: null };
+            if (table === "profiles") return { data: settings.profileMissingUntilProvision ? null : settings.profile, error: null };
             if (table === "organizations") return { data: settings.organization || { id: settings.profile.organization_id, name: "Fixture Organization", slug: "fixture-organization", timezone: "America/New_York", settings: {} }, error: null };
             if (table === "crew_members") {
               const configuredCrew = settings.crewMembers.find(member => String(member.id) === String(settings.crewId));
@@ -167,7 +188,8 @@ export const test = base.extend({
           },
           async signUp(credentials) {
             calls.push({ operation: "signUp", credentials });
-            return { data: { user, session: { user } }, error: null };
+            user.user_metadata = { ...(credentials.options?.data || {}) };
+            return { data: { user, session: settings.signUpRequiresConfirmation ? null : { user } }, error: null };
           },
           async signOut() {
             calls.push({ operation: "signOut" });
@@ -187,6 +209,21 @@ export const test = base.extend({
           if (settings.failedRpc === name) return { data: null, error: { message: "Transactional write failed" } };
           if (name === "list_crew_identity_diagnostics") return { data: settings.identityDiagnostics, error: null };
           if (name === "list_linkable_umpire_profiles") return { data: settings.linkableProfiles, error: null };
+          if (name === "list_manageable_accounts") {
+            const rows = (settings.manageableAccounts || [settings.profile, ...settings.pendingProfiles])
+              .filter(profile => profile.organization_id === settings.profile.organization_id);
+            return { data: rows.map(profile => {
+              const crew = settings.crewMembers.find(item => String(item.profile_id) === String(profile.id));
+              return {
+                ...profile,
+                email: profile.login_email || profile.email,
+                login_email: profile.login_email || profile.email,
+                contact_email: crew?.email || null,
+                crew_member_id: crew?.id || null,
+                identity_status: profile.role === "umpire" ? (crew ? "linked" : "unlinked") : "not_applicable"
+              };
+            }), error: null };
+          }
           if (name === "manage_crew_login_identity") {
             const crew = settings.crewMembers.find(item => String(item.id) === String(args.p_crew_member_id));
             if (!crew) return { data: null, error: { message: "crew_member_not_found" } };
@@ -387,15 +424,109 @@ export const test = base.extend({
               error: null
             };
           }
-          if (name === "provision_pending_umpire") {
+          if (name === "provision_pending_umpire" || name === "provision_public_pending_umpire") {
+            settings.profileMissingUntilProvision = false;
+            if (!args.p_birthdate) return { data: null, error: { message: "date_of_birth_required" } };
+            const today = new Date();
+            const birthdate = new Date(`${args.p_birthdate}T12:00:00`);
+            let age = today.getFullYear() - birthdate.getFullYear();
+            if (today.getMonth() < birthdate.getMonth() || (today.getMonth() === birthdate.getMonth() && today.getDate() < birthdate.getDate())) age -= 1;
+            if (age < 13) return { data: null, error: { message: "minimum_age_13_required" } };
+            settings.profile = { ...settings.profile, first_name: args.p_first_name, last_name: args.p_last_name, phone: args.p_phone, birthdate: args.p_birthdate, status: "pending" };
+            if (name === "provision_public_pending_umpire") {
+              for (const administrator of settings.organizationProfiles.filter(candidate =>
+                candidate.organization_id === settings.profile.organization_id &&
+                candidate.role === "administrator" && candidate.status === "approved" && candidate.email
+              )) {
+                const businessKey = `account-pending-approval:${settings.profile.id}:${administrator.id}`;
+                if (!settings.communicationEvents.some(event => event.business_idempotency_key === businessKey)) {
+                  const event = {
+                    id: `communication-${settings.communicationEvents.length + 1}`,
+                    organization_id: settings.profile.organization_id,
+                    event_type: "account-pending-approval",
+                    recipient_profile_id: administrator.id,
+                    subject_entity_id: settings.profile.id,
+                    business_idempotency_key: businessKey,
+                    metadata: {
+                      pendingName: `${settings.profile.first_name} ${settings.profile.last_name}`.trim(),
+                      pendingEmail: settings.profile.email,
+                      actionPath: "accounts"
+                    }
+                  };
+                  settings.communicationEvents.push(event);
+                  settings.communicationDeliveries.push({
+                    communication_event_id: event.id,
+                    recipient_profile_id: administrator.id,
+                    channel: "email",
+                    status: "pending",
+                    idempotency_key: `${settings.profile.organization_id}:${businessKey}:${administrator.id}:email`
+                  });
+                }
+              }
+            }
             return { data: { ...settings.profile, status: "pending" }, error: null };
           }
-          if (name === "approve_umpire_profile") {
+          if (name === "update_crew_member" || name === "update_crew_member_with_personnel") {
+            const crew = settings.crewMembers.find(item => String(item.id) === String(args.p_crew_member_id));
+            if (!crew || String(crew.organization_id) !== String(settings.profile.organization_id)) return { data: null, error: { message: "crew_member_not_found" } };
+            const linkedProfile = [settings.profile, ...settings.pendingProfiles, ...settings.organizationProfiles].find(item => String(item.id) === String(crew.profile_id));
+            if (crew.profile_id && !linkedProfile) return { data: null, error: { message: "linked_profile_not_found" } };
+            if (linkedProfile) linkedProfile.phone = args.p_primary_phone;
+            else crew.phone = args.p_primary_phone;
+            if (linkedProfile && name === "update_crew_member_with_personnel") {
+              linkedProfile.birthdate = args.p_birthdate || null;
+              linkedProfile.official_history = args.p_service_history || [];
+            }
+            Object.assign(crew, { first_name: args.p_first_name, last_name: args.p_last_name, email: args.p_contact_email, active: args.p_active, eligible_levels: args.p_eligible_levels, preferences: args.p_preferences, notes: args.p_notes });
+            return { data: { ...crew }, error: null };
+          }
+          if (name === "create_crew_member") {
+            const row = {
+              id: `crew-${settings.crewMembers.length + 1}`,
+              organization_id: settings.profile.organization_id,
+              profile_id: null,
+              legacy_crew_id: null,
+              first_name: args.p_first_name,
+              last_name: args.p_last_name,
+              email: args.p_email,
+              phone: args.p_phone,
+              active: args.p_active,
+              eligible_levels: args.p_eligible_levels,
+              preferences: args.p_preferences,
+              notes: args.p_notes
+            };
+            settings.crewMembers.push(row);
+            return { data: row, error: null };
+          }
+          if (name === "create_location_complex") {
+            const row = { id: `location-${settings.locations.length + 1}`, organization_id: settings.profile.organization_id, name: args.p_name, active: true };
+            settings.locations.push(row);
+            return { data: row, error: null };
+          }
+          if (name === "create_location_field") {
+            const row = { id: `field-${settings.fields.length + 1}`, organization_id: settings.profile.organization_id, location_id: args.p_location_id, name: args.p_name, active: true };
+            settings.fields.push(row);
+            return { data: row, error: null };
+          }
+          if (name === "approve_umpire_profile" || name === "approve_pending_umpire") {
             const target = settings.pendingProfiles.find(row => String(row.id) === String(args.p_target_profile_id));
-            const crew = settings.crewMembers.find(row => String(row.id) === String(args.p_target_crew_member_id));
-            if (!target || !crew) return { data: null, error: { message: "Pending profile or crew member not found" } };
+            if (!target) {
+              const approved = settings.pendingProfiles.find(row => String(row.id) === String(args.p_target_profile_id) && row.status === "approved");
+              return approved ? { data: { ...approved }, error: null } : { data: null, error: { message: "pending_profile_not_found" } };
+            }
+            if (target.status === "approved") return { data: { ...target }, error: null };
+            const matches = settings.crewMembers.filter(row => String(row.organization_id) === String(target.organization_id) && String(row.email || "").trim() && String(row.email).trim().toLowerCase() === String(target.email).trim().toLowerCase());
+            if (matches.length > 1) return { data: null, error: { message: "crew_email_match_ambiguous" } };
+            let crew = matches[0];
+            if (crew?.profile_id && String(crew.profile_id) !== String(target.id)) return { data: null, error: { message: "crew_email_match_already_linked" } };
+            if (crew?.active === false) return { data: null, error: { message: "crew_email_match_inactive" } };
+            if (!crew) {
+              crew = { id: `crew-${settings.crewMembers.length + 1}`, organization_id: target.organization_id, profile_id: target.id, legacy_crew_id: null, first_name: target.first_name, last_name: target.last_name, email: target.email, phone: target.phone, active: true, eligible_levels: [], preferences: {}, notes: "" };
+              settings.crewMembers.push(crew);
+            }
             target.status = "approved"; crew.profile_id = target.id;
             settings.notifications.push({ id: `notification-${settings.notifications.length + 1}`, organization_id: settings.profile.organization_id, type: "account-approved", audience: "account", recipient_profile_id: target.id, title: "Account Approved", message: "Approved", created_at: new Date().toISOString() });
+            settings.communicationEvents.push({ event_type: "account-approved", recipient_profile_id: target.id });
             settings.activities.push({ action: "account_approved", metadata: { profileId: target.id, crewMemberId: crew.id } });
             return { data: { ...target }, error: null };
           }
@@ -434,6 +565,7 @@ export const test = base.extend({
             if (!target) return { data: null, error: { message: "Pending profile not found" } };
             target.status = "rejected";
             settings.notifications.push({ id: `notification-${settings.notifications.length + 1}`, organization_id: settings.profile.organization_id, type: "account-rejected", audience: "account", recipient_profile_id: target.id, title: "Account Rejected", message: "Rejected", created_at: new Date().toISOString() });
+            settings.communicationEvents.push({ event_type: "account-rejected", recipient_profile_id: target.id });
             settings.activities.push({ action: "account_rejected", metadata: { profileId: target.id } });
             return { data: { ...target }, error: null };
           }

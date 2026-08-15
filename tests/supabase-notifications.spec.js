@@ -116,6 +116,78 @@ test.describe("Supabase notification read persistence", () => {
   });
 });
 
+test.describe("Supabase notification deletion", () => {
+  const admin = { id: "profile-admin-1", auth_user_id: "auth-admin-1", organization_id: "organization-1", first_name: "Ada", last_name: "Admin", email: "admin@example.com", role: "administrator", status: "approved", communication_preferences: {} };
+  const adminNotifications = [
+    { ...ownNotification, id: "notification-admin-1", audience: "admin", recipient_profile_id: null, title: "First Admin" },
+    { ...ownNotification, id: "notification-admin-2", audience: "admin", recipient_profile_id: null, title: "Second Admin" }
+  ];
+
+  test.describe("administrator", () => {
+    test.use({ supabaseScenario: { profile: admin, crewId: null, notifications: adminNotifications } });
+
+    test("deletes one selected notification and refreshes authoritative state", async ({ supabaseAuthApp }) => {
+      const { page, calls } = supabaseAuthApp;
+      await page.evaluate(async () => { await loginService.loginWithPassword("admin@example.com", "password1234"); renderPage("notifications"); });
+      await page.getByTestId("notification-select").first().check();
+      await page.getByTestId("notifications-delete-selected").click();
+      await expect(page.getByTestId("notification-card")).toHaveCount(1);
+      await expect(page.locator(".toast.success")).toContainText("Selected notifications deleted.");
+      expect((await calls()).some(call => call.operation === "delete" && call.table === "notifications" && call.ids.length === 1)).toBe(true);
+    });
+
+    test("Select All, Clear Selection, and multi-delete remain functional", async ({ supabaseAuthApp }) => {
+      const { page } = supabaseAuthApp;
+      await page.evaluate(async () => { await loginService.loginWithPassword("admin@example.com", "password1234"); renderPage("notifications"); });
+      await page.getByTestId("notifications-select-visible").click();
+      await expect(page.getByTestId("notification-select").first()).toBeChecked();
+      await page.getByTestId("notifications-clear-selection").click();
+      await expect(page.getByTestId("notification-select").first()).not.toBeChecked();
+      await page.getByTestId("notifications-select-visible").click();
+      await page.getByTestId("notifications-delete-selected").click();
+      await expect(page.getByTestId("notification-card")).toHaveCount(0);
+    });
+  });
+
+  test.describe("umpire", () => {
+    test.use({ supabaseScenario: { notifications: [ownNotification, { ...ownNotification, id: "notification-other", recipient_profile_id: "profile-other", title: "Other User" }] } });
+
+    test("deletes an own private notification without deleting another user's notification", async ({ supabaseAuthApp }) => {
+      const { page } = supabaseAuthApp;
+      const result = await page.evaluate(async () => {
+        await loginService.loginWithPassword("linked@example.com", "password1234");
+        const mutation = await notificationService.deleteBulk(["notification-own-1", "notification-other"]);
+        return { mutation, rows: window.__supabaseFixture.settings.notifications, snapshot: notificationService.getAll() };
+      });
+      expect(result.mutation).toMatchObject({ success: true, data: { deletedCount: 1 } });
+      expect(result.rows.map(item => item.id)).toEqual(["notification-other"]);
+      expect(result.snapshot).toEqual([]);
+    });
+  });
+
+  test.describe("failure feedback", () => {
+    test.use({ supabaseScenario: { notifications: [ownNotification], failedMutationTable: "notifications" } });
+
+    test("shows a useful error and preserves the notification when deletion fails", async ({ supabaseAuthApp }) => {
+      const { page } = supabaseAuthApp;
+      await page.evaluate(async () => { await loginService.loginWithPassword("linked@example.com", "password1234"); renderPage("notifications"); });
+      await page.getByTestId("notification-select").check();
+      await page.getByTestId("notifications-delete-selected").click();
+      await expect(page.locator(".toast.error")).toContainText("RLS denied");
+      await expect(page.getByTestId("notification-card")).toHaveCount(1);
+    });
+  });
+
+  test("forward-only policy preserves organization scope and limits non-managers to their own recipient rows", async () => {
+    const fs = await import("node:fs");
+    const migration = fs.readFileSync("supabase/migrations/202608140001_notification_recipient_delete.sql", "utf8");
+    expect(migration).toContain("organization_id = public.current_organization_id()");
+    expect(migration).toContain("public.is_approved_account()");
+    expect(migration).toContain("public.is_assigner_or_administrator()");
+    expect(migration).toContain("recipient_profile_id = public.current_profile_id()");
+  });
+});
+
 test.describe("Supabase notification lifecycle isolation", () => {
   test.use({ supabaseScenario: {
     notifications: [ownNotification],

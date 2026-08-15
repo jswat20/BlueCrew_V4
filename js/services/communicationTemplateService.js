@@ -6,7 +6,7 @@ const communicationTemplateService = (() => {
     "game-cancelled": "Game Cancelled", "game-restored": "Game Restored", "game-date-changed": "Game Date Changed", "game-time-changed": "Game Time Changed",
     "game-location-changed": "Location Changed", "game-field-changed": "Field Changed", "game-reminder-24-hour": "Game Tomorrow",
     "game-reminder-2-hour": "Game in 2 Hours", "game-reminder-30-minute": "Game Starts Soon",
-    "availability-reminder": "Availability Reminder"
+    "availability-reminder": "Availability Reminder", "birthday": "Happy Birthday"
   });
   function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]); }
   function formatDate(value) {
@@ -31,7 +31,7 @@ const communicationTemplateService = (() => {
     const declined = event.type === "assignment-declined";
     const gameChange = ["game-cancelled", "game-restored", "game-date-changed", "game-time-changed", "game-location-changed", "game-field-changed"].includes(event.type);
     const reminderLead = { "game-reminder-24-hour": "Your game begins in approximately 24 hours.", "game-reminder-2-hour": "Your game begins in approximately two hours.", "game-reminder-30-minute": "Your game begins in approximately 30 minutes." }[event.type];
-    const lead = approved ? "Your claim has been approved." : rejected ? "Your claim was not approved." : assignment ? "You have been assigned a game." : removed ? "You have been removed from a game." : submitted ? "A new game claim was submitted." : declined ? "An assignment was declined." : event.type === "game-cancelled" ? "Your assigned game has been cancelled." : event.type === "game-restored" ? "Your assigned game has been restored." : reminderLead || (gameChange ? "The game below has been updated." : `${title}.`);
+    const lead = event.type === "birthday" ? "Happy birthday from everyone at The Slate!" : event.type === "account-rejected" ? "Your Slate account registration was not approved." : approved ? "Your claim has been approved." : rejected ? "Your claim was not approved." : assignment ? "You have been assigned a game." : removed ? "You have been removed from a game." : submitted ? "A new game claim was submitted." : declined ? "An assignment was declined." : event.type === "game-cancelled" ? "Your assigned game has been cancelled." : event.type === "game-restored" ? "Your assigned game has been restored." : reminderLead || (gameChange ? "The game below has been updated." : `${title}.`);
     const facts = [
       metadata.gameId || metadata.gameIdentifier ? ["Game", gameIdentifier(metadata)] : null,
       metadata.level ? ["Division", division(metadata)] : null,

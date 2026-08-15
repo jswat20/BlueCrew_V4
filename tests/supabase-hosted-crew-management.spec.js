@@ -58,7 +58,7 @@ test.describe("Hosted crew management", () => {
     await expect(page.getByText("Casey Official", { exact: true })).toBeVisible();
     await page.evaluate(async () => { crewService.clearAllSharedCrew(); await crewService.loadAdministrativeCrew(); renderPage("crew"); });
     await expect(page.getByText("Casey Official", { exact: true })).toBeVisible();
-    expect((await calls()).some(call => call.table === "crew_members" && call.operation === "insert")).toBe(true);
+    expect((await calls()).some(call => call.operation === "rpc" && call.name === "create_crew_member")).toBe(true);
   });
 
   test("updates and deactivates through the hosted repository", async ({ supabaseAuthApp }) => {
@@ -73,13 +73,105 @@ test.describe("Hosted crew management", () => {
     await expect(page.getByText("Updated Umpire", { exact: true })).toBeVisible();
     await expect(page.getByTestId("crew-active-count")).toHaveText("0");
     await expect(page.getByTestId("crew-inactive-count")).toHaveText("1");
-    expect((await calls()).some(call => call.table === "crew_members" && call.operation === "update")).toBe(true);
+    expect((await calls()).some(call => call.operation === "rpc" && call.name === "update_crew_member_with_personnel")).toBe(true);
+  });
+
+  test("legacy Crew-card Edit activation opens one hosted editor before closing its dialog", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await openCrew(page);
+    await page.evaluate(() => {
+      const dialog = document.createElement("dialog");
+      dialog.id = "crew-card-dialog";
+      dialog.innerHTML = '<button type="button" data-testid="crew-card-edit" data-crew-id="crew-existing">Edit Crew Member</button>';
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+    await page.getByRole("button", { name: "Edit Crew Member" }).click();
+    await expect(page.locator("#crew-drawer")).toBeVisible();
+    await expect(page.locator("#crew-drawer")).toHaveCount(1);
+    await expect(page.locator("#crew-card-dialog")).not.toHaveAttribute("open", "");
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.locator("#crew-drawer")).toHaveCount(0);
+  });
+
+  test("accepts the production side-effect-only editor factory contract", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await openCrew(page);
+    await page.evaluate(() => {
+      const actualFactory = window.openEditCrewDrawer;
+      window.openEditCrewDrawer = crewMemberId => { actualFactory(crewMemberId); };
+      const dialog = document.createElement("dialog");
+      dialog.id = "crew-card-dialog";
+      dialog.innerHTML = '<button type="button" data-testid="crew-card-edit" data-crew-id="crew-existing">Edit Crew Member</button>';
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+    await page.getByRole("button", { name: "Edit Crew Member" }).click();
+    await expect(page.locator("#crew-drawer")).toBeVisible();
+    await expect(page.locator("#crew-card-dialog")).not.toHaveAttribute("open", "");
+    await expect(page.getByText(/Unable to open Crew editor/)).toHaveCount(0);
+  });
+
+  test("opens and persists from the E3 production shape with absent mapped eligibility", async ({ supabaseAuthApp }) => {
+    const { page, calls } = supabaseAuthApp;
+    await openCrew(page);
+    await page.evaluate(() => {
+      const actualGetAll = crewService.getAll.bind(crewService);
+      crewService.getAll = () => actualGetAll().map(member => String(member.id) === "crew-existing"
+        ? { ...member, levels: undefined, eligible_levels: [] }
+        : member);
+      const dialog = document.createElement("dialog");
+      dialog.id = "crew-card-dialog";
+      dialog.innerHTML = '<button type="button" data-testid="crew-card-edit" data-crew-id="crew-existing">Edit Crew Member</button>';
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+    await page.getByRole("button", { name: "Edit Crew Member" }).click();
+    await expect(page.locator("#crew-drawer")).toBeVisible();
+    await expect(page.locator(".crew-level-checkbox:checked")).toHaveCount(0);
+    await page.locator("#crew-notes").fill("E3 normalized and persisted");
+    await page.getByRole("button", { name: "Save Changes" }).click();
+    await expect(page.getByText("Crew member saved.")).toBeVisible();
+    expect((await calls()).some(call => call.operation === "rpc" && call.name === "update_crew_member_with_personnel" && call.args.p_notes === "E3 normalized and persisted")).toBe(true);
+  });
+
+  test("opens the production editor when the local-only Crew name helper is absent", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await openCrew(page);
+    await page.evaluate(() => {
+      window.getCrewFullName = undefined;
+      const dialog = document.createElement("dialog");
+      dialog.id = "crew-card-dialog";
+      dialog.innerHTML = '<button type="button" data-testid="crew-card-edit" data-crew-id="crew-existing">Edit Crew Member</button>';
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+    await page.getByRole("button", { name: "Edit Crew Member" }).click();
+    await expect(page.locator("#crew-drawer")).toBeVisible();
+    await expect(page.locator("#crew-drawer .drawer-header p")).toHaveText("Jordan Umpire");
+    await expect(page.getByText(/CREW-EDIT-E3/)).toHaveCount(0);
+  });
+
+  test("live delegated handler leaves the detail card open and reports editor-launch failure", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await openCrew(page);
+    await page.evaluate(() => {
+      const dialog = document.createElement("dialog");
+      dialog.id = "crew-card-dialog";
+      dialog.innerHTML = '<article><button type="button" data-testid="crew-card-edit" data-crew-id="missing-crew">Edit Crew Member</button><footer></footer></article>';
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+    await page.getByRole("button", { name: "Edit Crew Member" }).click();
+    await expect(page.locator("#crew-card-dialog")).toHaveAttribute("open", "");
+    await expect(page.getByText("Unable to open Crew editor. Please try again. [CREW-EDIT-E1]")).toBeVisible();
+    await expect(page.locator("#crew-drawer")).toHaveCount(0);
   });
 
 });
 
 test.describe("Hosted crew management failures", () => {
-  test.use({ supabaseScenario: { profile: administrator, crewId: null, crewMembers: [existingCrew], failedMutationTable: "crew_members" } });
+  test.use({ supabaseScenario: { profile: administrator, crewId: null, crewMembers: [existingCrew], failedRpc: "create_crew_member" } });
 
   test("shows save failures without optimistic roster changes", async ({ supabaseAuthApp }) => {
     const { page } = supabaseAuthApp;
@@ -88,8 +180,61 @@ test.describe("Hosted crew management failures", () => {
     await page.locator("#crew-first-name").fill("Not");
     await page.locator("#crew-last-name").fill("Saved");
     await page.getByRole("button", { name: "Save Crew Member" }).click();
-    await expect(page.getByTestId("crew-mutation-error")).toContainText("RLS denied");
+    await expect(page.getByTestId("crew-mutation-error")).toContainText("Transactional write failed");
     await expect(page.getByTestId("crew-roster-count")).toHaveText("1 crew members");
     await expect(page.getByText("Not Saved", { exact: true })).toHaveCount(0);
+  });
+});
+
+test.describe("Hosted linked Crew card editing", () => {
+  const linkedProfile = {
+    id: "profile-linked-1", auth_user_id: "auth-linked-1", organization_id: "organization-1",
+    first_name: "Linked", last_name: "Official", email: "linked@example.com", phone: "5550103000",
+    role: "umpire", status: "approved", communication_preferences: {}
+  };
+  const linkedCrew = {
+    ...existingCrew, id: "crew-linked", profile_id: linkedProfile.id, first_name: "Linked",
+    last_name: "Official", email: linkedProfile.email, phone: linkedProfile.phone
+  };
+
+  test.use({ supabaseScenario: { profile: administrator, crewId: null, pendingProfiles: [linkedProfile], crewMembers: [linkedCrew] } });
+
+  test("persists a linked Crew edit through the hosted repository and retains identity linkage", async ({ supabaseAuthApp }) => {
+    const { page, calls } = supabaseAuthApp;
+    await openCrew(page);
+    await page.getByRole("button", { name: "Open Crew Card for Linked Official" }).click();
+    await page.getByTestId("crew-card-edit").press("Enter");
+    await expect(page.locator("#crew-first-name")).toBeVisible();
+    await expect(page.getByTestId("crew-card-admin-edit-mode")).toBeVisible();
+    await expect(page.locator("#crew-drawer")).toHaveCount(0);
+    await expect(page.getByTestId("crew-card-dialog")).toBeVisible();
+    await page.locator("#crew-first-name").fill("Persisted");
+    await page.locator("#crew-notes").fill("Hosted linked edit");
+    await page.getByRole("button", { name: "Save Changes" }).click();
+
+    await expect(page.getByText("Crew member saved.")).toBeVisible();
+    await page.evaluate(async () => { crewService.clearAllSharedCrew(); await crewService.loadAdministrativeCrew(); renderPage("crew"); });
+    await expect(page.getByTestId("crew-roster-member").getByText("Persisted Official", { exact: true })).toBeVisible();
+    const update = (await calls()).find(call => call.operation === "rpc" && call.name === "update_crew_member_with_personnel");
+    expect(update).toBeTruthy();
+    expect(update.args).not.toHaveProperty("p_profile_id");
+    expect(linkedCrew.profile_id).toBe(linkedProfile.id);
+  });
+});
+
+test.describe("Hosted linked Crew edit failures", () => {
+  const linkedProfile = { ...administrator, id: "profile-linked-failure", auth_user_id: "auth-linked-failure", role: "umpire", email: "failure@example.com" };
+  const linkedCrew = { ...existingCrew, id: "crew-linked-failure", profile_id: linkedProfile.id, email: linkedProfile.email };
+  test.use({ supabaseScenario: { profile: administrator, crewId: null, pendingProfiles: [linkedProfile], crewMembers: [linkedCrew], failedRpc: "update_crew_member_with_personnel" } });
+
+  test("surfaces a rejected linked Crew update without changing the roster", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await openCrew(page);
+    await page.getByRole("button", { name: /Open Crew Card/ }).click();
+    await page.getByTestId("crew-card-edit").click();
+    await page.locator("#crew-first-name").fill("Not Persisted");
+    await page.getByRole("button", { name: "Save Changes" }).click();
+    await expect(page.getByTestId("crew-mutation-error")).toContainText("Transactional write failed");
+    await expect(page.locator("#crew-first-name")).toBeVisible();
   });
 });

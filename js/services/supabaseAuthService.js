@@ -3,6 +3,7 @@ const supabaseAuthService = (() => {
   let authSubscription = null;
   let hydrationState = { status: "idle", message: "" };
   let recoveryState = false;
+  const PENDING_APPROVAL_MESSAGE = "Your account has been created and is awaiting administrator approval. You do not need to register again. You will receive an email when your account is approved.";
 
   function mutationResult(success, message, data = null) {
     return { success, message, data };
@@ -15,7 +16,20 @@ const supabaseAuthService = (() => {
   async function loadAccountForUser(user) {
     if (!user?.id) return null;
     hydrationState = { status: "loading", message: "" };
-    const profile = await accountService.loadAuthenticatedProfile(user);
+    let profile = await accountService.loadAuthenticatedProfile(user);
+    const pendingRegistration = user.user_metadata?.slate_pending_registration;
+    if (!profile && pendingRegistration) {
+      const client = await supabaseClientService.getClient();
+      const { error: provisionError } = await client.rpc("provision_public_pending_umpire", {
+        p_first_name: pendingRegistration.firstName || "",
+        p_last_name: pendingRegistration.lastName || "",
+        p_phone: pendingRegistration.phone || "",
+        p_birthdate: pendingRegistration.birthdate || null
+      });
+      if (provisionError) throw provisionError;
+      await client.auth.updateUser({ data: { slate_pending_registration: null } });
+      profile = await accountService.loadAuthenticatedProfile(user);
+    }
     if (!profile) throw new Error("Account profile was not found.");
     if (profile.status !== "approved") {
       crewService?.clearAllSharedCrew?.();
@@ -144,7 +158,7 @@ const supabaseAuthService = (() => {
       const account = await loadAccountForUser(data.session.user);
       if (!account || account.status !== "approved") {
         applyIdentity(null);
-        return mutationResult(false, "Account not found or awaiting approval.", account);
+        return mutationResult(false, account?.status === "pending" ? PENDING_APPROVAL_MESSAGE : "Account not found or unavailable.", account);
       }
       applyIdentity(account);
       return mutationResult(true, "Session restored.", account);
@@ -167,7 +181,7 @@ const supabaseAuthService = (() => {
       if (!account || account.status !== "approved") {
         await client.auth.signOut();
         applyIdentity(null);
-        return mutationResult(false, "Account not found or awaiting approval.");
+        return mutationResult(false, account?.status === "pending" ? PENDING_APPROVAL_MESSAGE : "Account not found or unavailable.");
       }
       applyIdentity(account);
       return mutationResult(true, "Login successful.", account);
@@ -181,54 +195,63 @@ const supabaseAuthService = (() => {
     }
   }
 
-  async function signUpAndProvision({ email, password, invitationCode, firstName, lastName, phone = "" }) {
+  async function signUpAndProvision({ email, password, firstName, lastName, phone = "", birthdate = "" }) {
     const client = await supabaseClientService.getClient();
     const { data: existingSessionData, error: sessionError } = await client.auth.getSession();
     if (sessionError) return mutationResult(false, sessionError.message);
 
     if (existingSessionData.session?.user) {
-      return completeVerifiedRegistration({ invitationCode, firstName, lastName, phone });
+      return completeVerifiedRegistration({ firstName, lastName, phone, birthdate });
     }
 
-    const { data, error } = await client.auth.signUp({ email, password });
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+        data: {
+          slate_pending_registration: { firstName, lastName, phone, birthdate }
+        }
+      }
+    });
     if (error) return mutationResult(false, error.message);
 
     if (!data.session) {
       return mutationResult(
         true,
-        "Check your email to verify the account, then return to complete registration.",
+        "Check your email to verify your account, then return to the login page and sign in.",
         { verificationRequired: true }
       );
     }
 
     const { data: profile, error: provisionError } = await client.rpc(
-      "provision_pending_umpire",
+      "provision_public_pending_umpire",
       {
-        p_invitation_code: invitationCode,
         p_first_name: firstName,
         p_last_name: lastName,
-        p_phone: phone
+        p_phone: phone,
+        p_birthdate: birthdate
       }
     );
 
     if (provisionError) return mutationResult(false, provisionError.message);
     await client.auth.signOut();
     applyIdentity(null);
-    return mutationResult(true, "Account created and pending approval.", mapProfile(profile));
+    return mutationResult(true, PENDING_APPROVAL_MESSAGE, mapProfile(profile));
   }
 
-  async function completeVerifiedRegistration({ invitationCode, firstName, lastName, phone = "" }) {
+  async function completeVerifiedRegistration({ firstName, lastName, phone = "", birthdate = "" }) {
     const client = await supabaseClientService.getClient();
-    const { data: profile, error } = await client.rpc("provision_pending_umpire", {
-      p_invitation_code: invitationCode,
+    const { data: profile, error } = await client.rpc("provision_public_pending_umpire", {
       p_first_name: firstName,
       p_last_name: lastName,
-      p_phone: phone
+      p_phone: phone,
+      p_birthdate: birthdate
     });
     if (error) return mutationResult(false, error.message);
     await client.auth.signOut();
     applyIdentity(null);
-    return mutationResult(true, "Account created and pending approval.", mapProfile(profile));
+    return mutationResult(true, PENDING_APPROVAL_MESSAGE, mapProfile(profile));
   }
 
   async function logout() {

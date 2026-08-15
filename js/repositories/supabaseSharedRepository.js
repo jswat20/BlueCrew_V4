@@ -36,7 +36,7 @@ const supabaseSharedRepository = (() => {
     return { activities: activityResult.data || [], profiles: profileResult.data || [], error: profileResult.error || null };
   }
 
-  const PENDING_PROFILE_COLUMNS = "id,organization_id,role,status,first_name,last_name,email,phone,created_at";
+  const PENDING_PROFILE_COLUMNS = "id,organization_id,role,status,first_name,last_name,email,phone,birthdate,personnel_id,created_at";
 
   async function getPendingUmpireProfiles() {
     const db = await client();
@@ -45,9 +45,14 @@ const supabaseSharedRepository = (() => {
       .order("created_at").order("last_name").order("first_name").order("id");
   }
 
-  async function approveUmpireProfile(profileId, crewMemberId) {
+  async function getManageableAccounts() {
     const db = await client();
-    return db.rpc("approve_umpire_profile", { p_target_profile_id: profileId, p_target_crew_member_id: crewMemberId });
+    return db.rpc("list_manageable_accounts");
+  }
+
+  async function approveUmpireProfile(profileId) {
+    const db = await client();
+    return db.rpc("approve_pending_umpire", { p_target_profile_id: profileId });
   }
 
   async function rejectUmpireProfile(profileId, reason = "") {
@@ -77,6 +82,15 @@ const supabaseSharedRepository = (() => {
     return db.from("crew_members").select(CREW_COLUMNS).order("last_name").order("first_name").order("id");
   }
 
+  const CREW_PROFILE_COLUMNS = "id,organization_id,role,email,phone,home_phone,address,contact_preference,birthdate,emergency_contact,emergency_contact_phone,personnel_id,personnel_id_issued_at,official_history";
+
+  async function getCrewProfiles(profileIds = []) {
+    const ids = [...new Set(profileIds.filter(Boolean).map(String))];
+    if (!ids.length) return { data: [], error: null };
+    const db = await client();
+    return db.from("profiles").select(CREW_PROFILE_COLUMNS).in("id", ids);
+  }
+
   async function getCrewIdentityDiagnostics() {
     const db = await client();
     return db.rpc("list_crew_identity_diagnostics");
@@ -94,12 +108,33 @@ const supabaseSharedRepository = (() => {
 
   async function createCrewMember(changes) {
     const db = await client();
-    return db.from("crew_members").insert(changes).select(CREW_COLUMNS).single();
+    return db.rpc("create_crew_member", {
+      p_first_name: changes.first_name,
+      p_last_name: changes.last_name,
+      p_email: changes.email,
+      p_phone: changes.phone,
+      p_active: changes.active,
+      p_eligible_levels: changes.eligible_levels,
+      p_preferences: changes.preferences,
+      p_notes: changes.notes
+    });
   }
 
   async function updateCrewMember(crewMemberId, changes) {
     const db = await client();
-    return db.from("crew_members").update(changes).eq("id", crewMemberId).select(CREW_COLUMNS).single();
+    return db.rpc("update_crew_member_with_personnel", {
+      p_crew_member_id: crewMemberId,
+      p_first_name: changes.first_name,
+      p_last_name: changes.last_name,
+      p_contact_email: changes.email,
+      p_primary_phone: changes.phone,
+      p_active: changes.active,
+      p_eligible_levels: changes.eligible_levels,
+      p_preferences: changes.preferences,
+      p_notes: changes.notes,
+      p_birthdate: changes.birthdate || null,
+      p_service_history: changes.official_history || []
+    });
   }
 
   async function getAvailability(crewMemberId) {
@@ -217,6 +252,16 @@ const supabaseSharedRepository = (() => {
     });
   }
 
+  async function createLocationComplex(name) {
+    const db = await client();
+    return db.rpc("create_location_complex", { p_name: name });
+  }
+
+  async function createLocationField(locationId, name) {
+    const db = await client();
+    return db.rpc("create_location_field", { p_location_id: locationId, p_name: name });
+  }
+
   async function importScheduleGames(games) {
     const db = await client();
     return db.rpc("import_schedule_games", { p_games: games });
@@ -251,6 +296,7 @@ const supabaseSharedRepository = (() => {
     getRecentActivities,
     updateProfile,
     getPendingUmpireProfiles,
+    getManageableAccounts,
     approveUmpireProfile,
     rejectUmpireProfile,
     removeGameAssignmentCrew,
@@ -258,10 +304,13 @@ const supabaseSharedRepository = (() => {
     declineOwnGameAssignment,
     getLinkedCrewMember,
     getCrewMembers,
+    getCrewProfiles,
     getCrewIdentityDiagnostics,
     getLinkableUmpireProfiles,
     manageCrewLoginIdentity,
     createCrewMember,
+    createLocationComplex,
+    createLocationField,
     updateCrewMember,
     getAvailability,
     upsertOwnAvailability,

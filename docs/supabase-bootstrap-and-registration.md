@@ -15,9 +15,9 @@ The bootstrap operation must run as one transaction and:
 
 It must abort on an existing organization slug, an Auth user already attached to another profile, or an email collision within the organization. Re-running against the same organization/user may report the existing completed bootstrap, but must not create a second administrator silently.
 
-## Controlled umpire registration
+## Public umpire registration with controlled approval
 
-`provision_pending_umpire` is the single authenticated, `security definer` provisioning RPC used after Supabase Auth signup and email verification. It validates an organization-issued, expiring invitation code; derives the organization on the server; forces role `umpire` and status `pending`; and creates only the caller's profile. Raw anonymous or authenticated profile inserts remain unavailable.
+`provision_public_pending_umpire` is the authenticated, `security definer` provisioning RPC used by ordinary umpire registration after Supabase Auth signup and email verification. The server selects the sole active pilot organization and fails closed unless exactly one exists. It forces role `umpire` and status `pending` and creates only the caller's profile. Raw anonymous or authenticated profile inserts remain unavailable. The browser cannot submit organization, role, status, or Crew identity.
 
 Duplicate behavior is explicit:
 
@@ -26,7 +26,9 @@ Duplicate behavior is explicit:
 - A retry for the same Auth user and organization returns the existing pending profile.
 - A request that would attach the Auth user to a different organization or elevated role is rejected.
 
-`approve_umpire_profile` changes the profile to `approved`, links it to the intended crew member, creates the notification, and appends activity in one transaction. Invitation codes are stored only as SHA-256 digests and are consumed under a row lock.
+`approve_pending_umpire` requires a same-organization administrator and performs Crew matching/creation, profile linkage, approval, notification, communication enqueue, and audit activity in one transaction. It matches only one active, unlinked Crew record with the exact normalized verified email. Ambiguous, inactive, or already-linked matches fail closed. With no match, it creates a Crew record from the pending profile.
+
+The earlier invitation functions and digest-backed invitation table remain available for compatibility, but ordinary public umpire registration no longer requests or consumes an invitation code.
 
 ## Parent-managed credentials
 

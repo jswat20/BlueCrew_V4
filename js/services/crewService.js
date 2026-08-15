@@ -52,10 +52,17 @@ const crewService = {
       administrativeCrewState = { status: "error", message: diagnostics.error.message || "Crew identity status could not be loaded." };
       return { success: false, message: administrativeCrewState.message };
     }
+    const profiles = await supabaseSharedRepository.getCrewProfiles((data || []).map(row => row.profile_id));
+    if (profiles.error) {
+      administrativeCrewState = { status: "error", message: profiles.error.message || "Linked Crew profiles could not be loaded." };
+      return { success: false, message: administrativeCrewState.message };
+    }
+    const profileById = new Map((profiles.data || []).map(item => [String(item.id), item]));
     const identityByCrew = new Map((diagnostics.data || []).map(item => [String(item.crew_member_id), item]));
     administrativeCrewSnapshot = (data || []).map(row => {
       const identity = identityByCrew.get(String(row.id)) || {};
-      return sharedDomainMappingService.mapCrewMember({ ...row, ...identity });
+      const profile = row.profile_id ? profileById.get(String(row.profile_id)) || {} : {};
+      return sharedDomainMappingService.mapCrewMember({ ...row, ...identity, linked_profile: profile });
     }).filter(Boolean)
       .sort((left, right) => `${left.lastName}\u0000${left.firstName}\u0000${left.id}`.localeCompare(`${right.lastName}\u0000${right.firstName}\u0000${right.id}`));
     administrativeCrewState = { status: "ready", message: "" };
@@ -71,7 +78,9 @@ const crewService = {
       active: member.active !== false,
       eligible_levels: levelTerminologyService.normalizeLevels(member.levels),
       preferences: member.preferences && typeof member.preferences === "object" ? structuredClone(member.preferences) : {},
-      notes: String(member.notes || "").trim()
+      notes: String(member.notes || "").trim(),
+      birthdate: member.birthdate || null,
+      official_history: Array.isArray(member.officialHistory) ? structuredClone(member.officialHistory) : []
     };
   },
 

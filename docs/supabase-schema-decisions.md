@@ -22,14 +22,14 @@ Game lifecycle values are `scheduled`, `completed`, `submitted`, `returned`, `ap
 
 ## Registration boundary
 
-Milestone 2A intentionally grants no anonymous profile insert. Milestone 2B must create a Supabase Auth user and then call the controlled invitation-based provisioning boundary specified in `docs/supabase-bootstrap-and-registration.md`. A browser must never select its own organization or elevated role through raw inserts or editable JWT metadata.
+Milestone 2A intentionally grants no anonymous profile insert. Ordinary pilot registration creates a Supabase Auth user and, after email verification, calls the controlled public provisioning boundary specified in `docs/supabase-bootstrap-and-registration.md`. The server selects the sole active pilot organization and forces a pending umpire role. A browser never selects organization, role, status, Crew identity, or elevated access through raw inserts or editable JWT metadata.
 
 ## Unresolved decisions for review
 
 1. Whether game reviews/reports should remain JSONB for the pilot or be normalized before broader reporting.
 2. Whether profile photos move to Supabase Storage in 2B or a later milestone.
 3. Whether assigners require limited contact fields beyond crew-member display data.
-4. The exact invitation lifetime, issuance UI, and recovery process within the fixed controlled-registration boundary.
+4. Whether the retained invitation infrastructure receives a future restricted administrative use or is removed after pilot compatibility needs end.
 5. Retention periods for activities, notifications, declined claims, and minor-related contact data.
 6. The transactional RPC contract for claim approval, direct assignment, decline/reopen, schedule import, and reminder generation. RLS defines who may act; Milestone 2B/2C must make multi-row transitions atomic.
 

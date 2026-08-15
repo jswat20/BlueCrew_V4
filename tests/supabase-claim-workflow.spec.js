@@ -46,6 +46,21 @@ async function openSharedSession(browser, rows, authUserId) {
   });
 
   await page.exposeFunction("__claimRpc", ({ name, args }) => {
+    if (name === "list_manageable_accounts") {
+      return {
+        data: rows.profiles.map(item => {
+          const linkedCrew = rows.crews.find(candidate => candidate.profile_id === item.id);
+          return {
+            ...item,
+            login_email: item.email,
+            contact_email: linkedCrew?.email || null,
+            crew_member_id: linkedCrew?.id || null,
+            identity_status: item.role === "umpire" ? (linkedCrew ? "linked" : "unlinked") : "not_applicable"
+          };
+        }),
+        error: null
+      };
+    }
     const assignment = rows.assignments.find(item => item.id === args.p_assignment_id);
     if (name === "submit_assignment_claim") {
       if (!crew || !assignment || assignment.status !== "open_for_claim" || assignment.locked) return { data: null, error: { message: "assignment_already_claimed" } };
@@ -112,6 +127,7 @@ test("umpire claim persists across contexts, administrator approves, and refresh
   await umpire.page.evaluate(() => renderPage("claim-games"));
   await expect(umpire.page.getByTestId(`claim-game-${gameId}`)).toBeVisible();
   await umpire.page.getByTestId(`claim-game-${gameId}`).click();
+  await umpire.page.getByTestId("game-hub-submit-claim").click();
   await expect.poll(() => rows.claims.length).toBe(1);
   expect(rows.assignments[0].status).toBe("pending_approval");
 

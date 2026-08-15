@@ -42,14 +42,13 @@ test.describe("Milestone 7.5B identity integrity", () => {
     expect(source).not.toContain("resetPasswordForEmail(target.email");
   });
 
-  test("administrator invitation UI uses the trusted one-use registration service", async ({ supabaseAuthApp }) => {
+  test("ordinary administrator onboarding no longer exposes invitation-code UI", async ({ supabaseAuthApp }) => {
     await supabaseAuthApp.page.goto("/");
     await expect(supabaseAuthApp.page.getByRole("heading", { name: /Good (?:Morning|Afternoon|Evening), Admin User/ })).toBeVisible();
     await supabaseAuthApp.page.getByTestId("nav-accounts").click();
-    await supabaseAuthApp.page.getByTestId("create-registration-invitation").click();
-    await expect(supabaseAuthApp.page.getByTestId("registration-invitation-code")).toBeVisible();
+    await expect(supabaseAuthApp.page.getByTestId("create-registration-invitation")).toHaveCount(0);
+    await expect(supabaseAuthApp.page.getByTestId("registration-invitation-code")).toHaveCount(0);
     const call = await supabaseAuthApp.page.evaluate(() => window.__supabaseFixture.calls.find(item => item.operation === "rpc" && item.name === "create_umpire_invitation"));
-    expect(call.args.p_max_uses).toBe(1);
-    expect(call.args.p_invitation_code.length).toBeGreaterThanOrEqual(24);
+    expect(call).toBeUndefined();
   });
 });

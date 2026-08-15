@@ -17,6 +17,7 @@ test.describe("Hosted claim entry points", () => {
     await page.evaluate(async () => { await loginService.loginWithPassword("claim-ui@example.com", "password"); renderPage("dashboard"); });
     await page.getByRole("button", { name: /Available Games/ }).click();
     await page.getByTestId(`claim-game-${game.id}`).click();
+    await page.getByTestId("game-hub-submit-claim").click();
     await expect.poll(() => page.evaluate(() => window.__supabaseFixture.settings.assignments[0].status)).toBe("pending_approval");
     expect((await calls()).filter(call => call.name === "submit_assignment_claim")).toHaveLength(1);
   });
@@ -25,6 +26,7 @@ test.describe("Hosted claim entry points", () => {
     const { page, calls } = supabaseAuthApp;
     await page.evaluate(async () => { await loginService.loginWithPassword("claim-ui@example.com", "password"); renderPage("claim-games"); });
     await page.getByTestId(`claim-game-${game.id}`).click();
+    await page.getByTestId("game-hub-submit-claim").click();
     await expect(page.locator(".toast.success")).toContainText("Claim submitted for approval.");
     await expect(page.getByTestId("claim-games-empty")).toBeVisible();
     const state = await page.evaluate(() => window.__supabaseFixture.settings);
@@ -76,6 +78,7 @@ test.describe("Hosted claim errors", () => {
     await page.evaluate(async () => { await loginService.loginWithPassword("claim-ui@example.com", "password"); renderPage("dashboard"); });
     await page.getByRole("button", { name: /Available Games/ }).click();
     await page.getByTestId(`claim-game-${game.id}`).click();
+    await page.getByTestId("game-hub-submit-claim").click();
     await expect(page.getByText("The claim could not be submitted. Please try again.")).toBeVisible();
     expect(await page.evaluate(() => window.__supabaseFixture.settings.assignments[0].status)).toBe("needs_assignment");
     expect(await page.evaluate(() => window.__supabaseFixture.settings.claims.filter(claim => claim.status === "pending").length)).toBe(0);
@@ -85,7 +88,8 @@ test.describe("Hosted claim errors", () => {
     const { page } = supabaseAuthApp;
     await page.evaluate(async () => { await loginService.loginWithPassword("claim-ui@example.com", "password"); renderPage("claim-games"); });
     await page.getByTestId(`claim-game-${game.id}`).click();
+    await page.getByTestId("game-hub-submit-claim").click();
     await expect(page.locator(".toast.error")).toContainText("The claim could not be submitted. Please try again.");
-    await expect(page.getByTestId(`claim-game-row-${game.id}`)).toBeVisible();
+    await expect(page.getByTestId("game-hub-submit-claim")).toBeVisible();
   });
 });

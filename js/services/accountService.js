@@ -55,10 +55,10 @@ function isValidRole(role) {
     return supabaseAuthService.signUpAndProvision({
       email: String(accountData.email || "").trim(),
       password: String(accountData.password || ""),
-      invitationCode: String(accountData.invitationCode || "").trim(),
       firstName: String(accountData.firstName || "").trim(),
       lastName: String(accountData.lastName || "").trim(),
-      phone: String(accountData.phone || "").trim()
+      phone: String(accountData.phone || "").trim(),
+      birthdate: String(accountData.birthdate || "")
     });
   }
 
@@ -74,24 +74,28 @@ function isValidRole(role) {
       : mutationResult(true, "Registration invitation created.", { id: data });
   }
 
-  async function approveAuthenticatedAccount(profileId, crewMemberId) {
+  async function approveAuthenticatedAccount(profileId) {
     const authorization = requireManageAccounts();
     if (authorization) return authorization;
 
-    if (!crewMemberId) return mutationResult(false, "Select a crew member before approving.");
-    const { data, error } = await supabaseSharedRepository.approveUmpireProfile(profileId, crewMemberId);
+    const { data, error } = await supabaseSharedRepository.approveUmpireProfile(profileId);
     return error
-      ? mutationResult(false, error.message)
-      : mutationResult(true, "Account approved and linked to crew.", sharedDomainMappingService.mapProfile(data, crewMemberId));
+      ? mutationResult(false, ({
+          crew_email_match_ambiguous: "Multiple Crew records use this verified email. Resolve the duplicate Crew records before approval.",
+          crew_email_match_already_linked: "A Crew record with this verified email is already linked to another account.",
+          crew_email_match_inactive: "The matching Crew record is inactive. Review and reactivate it before approval.",
+          verified_email_identity_conflict: "The verified login email conflicts with the pending profile. Review the account identity before approval."
+        })[error.message] || error.message)
+      : mutationResult(true, "Account approved and linked to crew.", sharedDomainMappingService.mapProfile(data));
   }
 
   async function loadPendingAuthenticatedAccounts() {
     if (!isSharedMode()) return mutationResult(true, "Local pending accounts ready.", getPendingAccounts());
-    const { data, error } = await supabaseSharedRepository.getPendingUmpireProfiles();
+    const { data, error } = await supabaseSharedRepository.getManageableAccounts();
     if (error) return mutationResult(false, error.message || "Pending accounts could not be loaded.");
-    pendingProfileSnapshot = (data || []).map(row => sharedDomainMappingService.mapProfile(row)).filter(Boolean)
+    pendingProfileSnapshot = (data || []).map(row => sharedDomainMappingService.mapProfile(row, row.crew_member_id || null)).filter(account => account && account.id !== authenticatedProfileSnapshot?.id)
       .sort((left, right) => `${left.createdAt || ""}\u0000${left.lastName}\u0000${left.firstName}\u0000${left.id}`.localeCompare(`${right.createdAt || ""}\u0000${right.lastName}\u0000${right.firstName}\u0000${right.id}`));
-    return mutationResult(true, "Pending accounts loaded.", structuredClone(pendingProfileSnapshot));
+    return mutationResult(true, "Administrative accounts loaded.", structuredClone(pendingProfileSnapshot));
   }
 
   async function rejectAuthenticatedAccount(profileId, reason = "") {
@@ -779,7 +783,7 @@ function getRoleSummary() {
     return history.map(entry => ({
       year: Number(entry?.year),
       season: normalizeProfileValue(entry?.season),
-      label: normalizeProfileValue(entry?.label),
+      label: normalizeProfileValue(entry?.label || [entry?.season, entry?.level].filter(Boolean).join(" - ")),
       note: normalizeProfileValue(entry?.note)
     })).filter(entry => Number.isInteger(entry.year) && entry.year >= 1900 && entry.year <= new Date().getFullYear() + 1 && entry.label);
   }
@@ -791,6 +795,24 @@ function getRoleSummary() {
     const beforeBirthday = today.getMonth() < born.getMonth() || (today.getMonth() === born.getMonth() && today.getDate() < born.getDate());
     if (beforeBirthday) age -= 1;
     return age >= 0 ? age : null;
+  }
+
+  function isAtLeastAge(birthdate, minimumAge, today = new Date()) {
+    const age = deriveAge(birthdate, today);
+    return Number.isInteger(age) && age >= minimumAge;
+  }
+
+  function isBirthdayOn(birthdate, today = new Date()) {
+    if (!isValidBirthdate(birthdate) || !birthdate) return false;
+    const born = new Date(`${birthdate}T12:00:00`);
+    const month = born.getMonth();
+    const day = born.getDate();
+    if (month === 1 && day === 29) {
+      const year = today.getFullYear();
+      const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+      return today.getMonth() === 1 && today.getDate() === (leap ? 29 : 28);
+    }
+    return today.getMonth() === month && today.getDate() === day;
   }
 
   function deriveYearsOfService(history) {
@@ -1116,6 +1138,8 @@ function getRoleSummary() {
     updateCrewSelfServiceProfile,
     updateCrewProfileAsAdmin,
     deriveAge,
+    isAtLeastAge,
+    isBirthdayOn,
     deriveYearsOfService,
     normalizeOfficialHistory,
     validatePhotoDataUrl,

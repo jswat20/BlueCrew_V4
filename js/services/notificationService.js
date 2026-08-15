@@ -443,6 +443,25 @@ const notificationService = (() => {
     return { success: true, message: "Selected notifications marked as read.", data: { updatedCount: targets.length } };
   }
 
+  async function deleteAuthenticatedNotificationsBulk(notificationIds = []) {
+    const ids = new Set(notificationIds.map(String));
+    const targets = getAll().filter(notification => ids.has(String(notification.id)));
+    if (!targets.length) return { success: true, message: "Selected notifications deleted.", data: { deletedCount: 0 } };
+    let result;
+    try {
+      result = await supabaseNotificationRepository.deleteMany(targets.map(notification => notification.id));
+    } catch (error) {
+      return { success: false, message: error?.message || "Selected notifications could not be deleted." };
+    }
+    if (result.error) return { success: false, message: result.error.message || "Selected notifications could not be deleted." };
+    const refresh = await hydrateAuthenticatedNotifications();
+    if (!refresh.success) return { success: false, message: "Notifications were deleted, but the notification center could not be refreshed. Please reload." };
+    const remainingIds = new Set(getAll().map(notification => String(notification.id)));
+    const deletedCount = targets.filter(notification => !remainingIds.has(String(notification.id))).length;
+    if (deletedCount !== targets.length) return { success: false, message: "Some selected notifications could not be deleted." };
+    return { success: true, message: "Selected notifications deleted.", data: { deletedCount } };
+  }
+
   function markAsRead(notificationId) {
     if (isSupabaseNotificationMode()) return markAuthenticatedNotificationRead(notificationId);
     const notifications = getAll();
@@ -699,7 +718,7 @@ const notificationService = (() => {
   function deleteBulk(
     notificationIds = []
   ) {
-    if (isSupabaseNotificationMode()) return { success: false, message: "Deleting shared notifications is not available." };
+    if (isSupabaseNotificationMode()) return deleteAuthenticatedNotificationsBulk(notificationIds);
     const ids = new Set(
       notificationIds.map(String)
     );

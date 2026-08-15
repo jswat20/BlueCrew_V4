@@ -19,5 +19,10 @@ const supabaseNotificationRepository = (() => {
     return db.rpc("mark_all_notifications_read");
   }
 
-  return { getNotifications, markRead, markAllRead };
+  async function deleteMany(notificationIds) {
+    const db = await client();
+    return db.from("notifications").delete().in("id", notificationIds);
+  }
+
+  return { getNotifications, markRead, markAllRead, deleteMany };
 })();

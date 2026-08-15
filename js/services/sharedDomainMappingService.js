@@ -1,20 +1,32 @@
 const sharedDomainMappingService = (() => {
+  function formatPhone(value) {
+    const phone = String(value || "").trim();
+    const digits = phone.replace(/\D/g, "");
+    return digits.length === 10 ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}` : phone;
+  }
   function mapProfile(profile, crewId = null) {
     if (!profile) return null;
+    const firstName = profile.first_name || "";
+    const lastName = profile.last_name || "";
+    const humanName = `${firstName} ${lastName}`.trim();
     return {
       id: profile.id,
       authUserId: profile.auth_user_id,
       organizationId: profile.organization_id,
-      firstName: profile.first_name || "",
-      lastName: profile.last_name || "",
+      firstName,
+      lastName,
+      name: humanName || profile.login_email || profile.email || "Pending umpire",
       email: profile.email || "",
-      phone: profile.phone || "",
-      homePhone: profile.home_phone || "",
+      loginEmail: profile.login_email || profile.email || "",
+      contactEmail: profile.contact_email || "",
+      identityStatus: profile.identity_status || "",
+      phone: formatPhone(profile.phone),
+      homePhone: formatPhone(profile.home_phone),
       address: profile.address || "",
       contactPreference: profile.contact_preference || "text",
       birthdate: profile.birthdate || "",
       emergencyContact: profile.emergency_contact || "",
-      emergencyContactPhone: profile.emergency_contact_phone || "",
+      emergencyContactPhone: formatPhone(profile.emergency_contact_phone),
       officialHistory: profile.official_history || [],
       yearsOfServiceOverride: profile.years_of_service_override ?? null,
       adminNotes: profile.admin_notes || "",
@@ -24,6 +36,8 @@ const sharedDomainMappingService = (() => {
       crewId,
       crewCode: profile.crew_code || "",
       crewCodeIssuedAt: profile.crew_code_issued_at || null,
+      personnelId: profile.personnel_id || "",
+      personnelIdIssuedAt: profile.personnel_id_issued_at || null,
       approvedAt: profile.approved_at || null,
       rejectedAt: profile.rejected_at || null,
       lastLogin: profile.last_login_at || null,
@@ -33,6 +47,7 @@ const sharedDomainMappingService = (() => {
 
   function mapCrewMember(row) {
     if (!row) return null;
+    const linkedProfile = row.linked_profile || {};
     return {
       id: row.id,
       organizationId: row.organization_id,
@@ -41,7 +56,7 @@ const sharedDomainMappingService = (() => {
       firstName: row.first_name || "",
       lastName: row.last_name || "",
       email: row.email || "",
-      phone: row.phone || "",
+      phone: formatPhone(linkedProfile.phone || row.phone),
       active: row.active !== false,
       levels: levelTerminologyService.normalizeLevels(row.eligible_levels),
       preferences: row.preferences || {},
@@ -51,6 +66,17 @@ const sharedDomainMappingService = (() => {
       ,loginEmail: row.login_email || ""
       ,linkedRole: row.linked_role || ""
       ,linkedStatus: row.linked_status || ""
+      ,profilePhone: formatPhone(linkedProfile.phone)
+      ,profileHomePhone: formatPhone(linkedProfile.home_phone)
+      ,profileAddress: linkedProfile.address || ""
+      ,profileContactPreference: linkedProfile.contact_preference || "text"
+      ,profileEmergencyContact: linkedProfile.emergency_contact || ""
+      ,profileEmergencyContactPhone: formatPhone(linkedProfile.emergency_contact_phone)
+      ,birthdate: linkedProfile.birthdate || ""
+      ,officialHistory: linkedProfile.official_history || []
+      ,personnelId: linkedProfile.personnel_id || ""
+      ,personnelIdIssuedAt: linkedProfile.personnel_id_issued_at || null
+      ,linkedRole: linkedProfile.role || row.linked_role || ""
     };
   }
 
