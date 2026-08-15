@@ -56,6 +56,7 @@ test.describe("Crew Preference Management UI", () => {
   });
 
   test("renders existing preferences and excludes self", async ({ page }) => {
+    await expect(page.getByTestId("crew-preferred-level-select-all")).toBeVisible();
     const preferredBlake = page.locator(
       '.crew-preferred-checkbox[value="2"]'
     );
@@ -71,6 +72,23 @@ test.describe("Crew Preference Management UI", () => {
     await expect(preferredBlake).toBeChecked();
     await expect(preferredLevel).toBeChecked();
     await expect(preferredAlex).toHaveCount(0);
+  });
+
+  test("preferred Select All selects configured levels only and leaves certification levels unchanged", async ({ page }) => {
+    const certificationBefore = await page.locator(".crew-level-checkbox:checked").evaluateAll(nodes => nodes.map(node => node.value));
+    await page.getByTestId("crew-preferred-level-select-all").check();
+    const configuredCount = await page.evaluate(() => settings.levels.length);
+    await expect(page.locator(".crew-preferred-level-checkbox:checked")).toHaveCount(configuredCount);
+    expect(await page.locator(".crew-level-checkbox:checked").evaluateAll(nodes => nodes.map(node => node.value))).toEqual(certificationBefore);
+    await page.getByRole("button", { name: "Save Changes" }).click();
+    await page.evaluate(() => openEditCrewDrawer(1));
+    await expect(page.locator(".crew-preferred-level-checkbox:checked")).toHaveCount(configuredCount);
+  });
+
+  test("preferred Select All is disabled when no levels are configured", async ({ page }) => {
+    await page.evaluate(() => { settings.levels = []; closeCrewDrawer(); openEditCrewDrawer(1); });
+    await expect(page.getByTestId("crew-preferred-level-select-all")).toBeDisabled();
+    await expect(page.locator(".crew-preferred-level-checkbox")).toHaveCount(0);
   });
 
   test("saves partner and level preferences", async ({ page }) => {

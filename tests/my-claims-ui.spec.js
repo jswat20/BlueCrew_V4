@@ -21,11 +21,11 @@ test.describe("My Claims UI", () => {
     ).toHaveCount(1);
 
     await expect(
-      app.page.getByText("Pending Approval")
+      app.page.getByText("Awaiting Approval")
     ).toBeVisible();
 
     await expect(
-      app.page.getByText("Pending Home vs Pending Away")
+      app.page.getByRole("button", { name: "Open" })
     ).toBeVisible();
   });
 });

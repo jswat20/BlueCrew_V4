@@ -6,6 +6,8 @@ const scheduleExportService = (() => {
     "time",
     "awayTeam",
     "homeTeam",
+    "locationComplex",
+    "locationField",
     "field",
     "level",
     "gameType"
@@ -31,6 +33,8 @@ const scheduleExportService = (() => {
       time: game.time || "",
       awayTeam: game.awayTeam || "",
       homeTeam: game.homeTeam || "",
+      locationComplex: game.locationComplex || "",
+      locationField: game.locationField || game.field || "",
       field: game.field || "",
       level: game.level || "",
       gameType: game.gameType || "single"

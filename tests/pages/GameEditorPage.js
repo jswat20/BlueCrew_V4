@@ -52,21 +52,34 @@ export class GameEditorPage {
     await this.page.getByTestId("view-all-games").click();
   }
 
+  async openCurrentScheduleCards(date) {
+    await this.page.getByTestId("nav-schedule").click();
+    await this.page.getByTestId("view-daily").click();
+
+    if (date) {
+      await this.page.evaluate(selectedDate => {
+        selectScheduleCalendarDate(selectedDate);
+      }, date);
+    }
+  }
+
   gameRow({ homeTeam, awayTeam }) {
     return this.page
-      .getByRole("row")
+      .locator(".schedule-game-card")
       .filter({ hasText: homeTeam })
       .filter({ hasText: awayTeam });
   }
 
   async openEditForGame(gameOrId) {
-    await this.openAllGames();
+    await this.openCurrentScheduleCards(
+      typeof gameOrId === "object" ? gameOrId.date : undefined
+    );
 
     if (typeof gameOrId === "object") {
       const row = this.gameRow(gameOrId);
 
       await expect(row).toBeVisible();
-      await row.getByRole("button", { name: "Edit" }).click();
+      await row.getByTestId(/^edit-game-/).click();
     } else {
       await this.page.getByTestId(`edit-game-${gameOrId}`).click();
     }
@@ -78,8 +91,8 @@ export class GameEditorPage {
     await this.openEditForGame(game);
   }
 
-  async expectGameVisible({ homeTeam, awayTeam, field }) {
-    await this.openAllGames();
+  async expectGameVisible({ homeTeam, awayTeam, field, date }) {
+    await this.openCurrentScheduleCards(date);
 
     const row = this.gameRow({ homeTeam, awayTeam });
 
@@ -90,8 +103,8 @@ export class GameEditorPage {
     }
   }
 
-  async expectGameNotVisible({ homeTeam, awayTeam }) {
-    await this.openAllGames();
+  async expectGameNotVisible({ homeTeam, awayTeam, date }) {
+    await this.openCurrentScheduleCards(date);
 
     const row = this.gameRow({ homeTeam, awayTeam });
 
@@ -102,15 +115,19 @@ export class GameEditorPage {
     await this.deleteGameByMatchup(game);
   }
 
-  async deleteGameByMatchup({ homeTeam, awayTeam }) {
-    await this.openAllGames();
+  async deleteGameByMatchup({ homeTeam, awayTeam, date }) {
+    await this.openCurrentScheduleCards(date);
 
     const row = this.gameRow({ homeTeam, awayTeam });
 
     await expect(row).toBeVisible();
 
+    await row.getByTestId(/^edit-game-/).click();
+    const editor = this.page.getByTestId("game-editor");
+    await expect(editor).toBeVisible();
+
     this.page.once("dialog", dialog => dialog.accept());
 
-    await row.getByRole("button", { name: "Delete" }).click();
+    await editor.getByTestId("delete-game-button").click();
   }
 }

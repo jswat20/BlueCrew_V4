@@ -2,6 +2,7 @@
 
 function renderAllGamesTable(container, context = {}) {
     let games = [...gameService.getAll()];
+    const today = typeof getLocalScheduleDate === "function" ? getLocalScheduleDate() : new Date().toISOString().split("T")[0];
 
 const filter =
   typeof getCurrentScheduleFilter === "function"
@@ -16,7 +17,7 @@ const filter =
   switch (filter) {
     case "today":
       games = games.filter(
-        game => game.date === new Date().toISOString().split("T")[0]
+        game => game.date === today
       );
       break;
 
@@ -36,17 +37,28 @@ const filter =
       break;
   }
 
-  const sortedGames = typeof applyScheduleAdvancedFilters === "function"
+  if (!scheduleIncludePastGames) games = games.filter(game => String(game.date || "") >= today);
+
+  const filteredGames = typeof applyScheduleAdvancedFilters === "function"
     ? applyScheduleAdvancedFilters(games)
     : games.sort(sortGames);
+  const sortedGames = typeof applyScheduleQuickSort === "function" ? applyScheduleQuickSort(filteredGames) : filteredGames;
+  const sortableHeader = (field, label) => {
+    const active = scheduleQuickSort.field === field;
+    const direction = active ? scheduleQuickSort.direction : "none";
+    const next = active && direction === "asc" ? "descending" : "ascending";
+    return `<th aria-sort="${active ? direction === "asc" ? "ascending" : "descending" : "none"}" class="schedule-sortable-header schedule-column-${field}"><button type="button" class="schedule-header-sort" data-testid="schedule-quick-sort-${field}" aria-label="Sort ${label} ${next}" onclick="setScheduleQuickSort('${field}')"><span>${label}</span><span aria-hidden="true">${active ? direction === "asc" ? "↑" : "↓" : "↕"}</span></button></th>`;
+  };
 
   container.innerHTML = `
-    <section class="all-games-header presentation-page-header presentation-panel">
+    <section class="all-games-card presentation-card" data-testid="all-games-card">
+    <header class="all-games-header presentation-card-header">
       <div>
         <h2>All Games</h2>
         <p>Full schedule table.</p>
       </div>
       <div class="all-games-filters" aria-label="Filter scheduled games">
+        <label class="schedule-past-toggle"><input type="checkbox" data-testid="schedule-include-past" ${scheduleIncludePastGames ? "checked" : ""} onchange="toggleSchedulePastGames()"><span>Include Past Games</span></label>
         ${[
           ["all", "All Games"],
           ["today", "Games Today"],
@@ -62,19 +74,20 @@ const filter =
           >${label}</button>
         `).join("")}
       </div>
-    </section>
+    </header>
 
     <div class="schedule-table-wrap presentation-table-wrapper">
-      <table class="schedule-table">
+      <table class="schedule-table presentation-table">
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Time</th>
-            <th>Field</th>
-            <th>Level</th>
+            ${sortableHeader("date", "Date")}
+            ${sortableHeader("time", "Time")}
+            ${sortableHeader("complex", "Complex")}
+            ${sortableHeader("field", "Field")}
+            ${sortableHeader("level", "Level")}
             <th>Matchup</th>
             <th>Crew</th>
-            <th>Status</th>
+            ${sortableHeader("status", "Status")}
             <th>Actions</th>
           </tr>
         </thead>
@@ -85,7 +98,7 @@ const filter =
 ? sortedGames.map(game => renderAllGamesRow(game, context)).join("")
               : `
                 <tr>
-                  <td colspan="8">
+                  <td colspan="9">
                     No games loaded.
                   </td>
                 </tr>
@@ -94,6 +107,7 @@ const filter =
         </tbody>
       </table>
     </div>
+    </section>
   `;
 }
 
@@ -106,12 +120,17 @@ function setAllGamesScheduleFilter(filter) {
 function renderAllGamesRow(game, context = {}) {
     const assigned = assignmentService.isAssigned(game);
 
-  const crewName = assigned
-    ? crewService.getDisplayName(game.crewId)
-    : "Needs Crew";
+  const assignedCrew = assignmentService.getAssignments(game).filter(assignment => assignment.crewId);
+  const crewName = assignedCrew.length
+    ? assignedCrew.map(assignment => {
+        const label = presentationFormattingService.formatAssignmentPosition(assignment.position, "");
+        return `${label ? `${label} ` : ""}${crewService.getDisplayName(assignment.crewId)}`;
+      }).join(", ")
+    : (assigned && game.crewId ? crewService.getDisplayName(game.crewId) : "TBD");
 const isHighlighted =
   context.highlightId &&
   String(game.id) === String(context.highlightId);
+  const status = getScheduleDisplayStatus(game);
 
   return `
 <tr
@@ -121,11 +140,13 @@ const isHighlighted =
 >
       <td>${formatShortDate(game.date)}</td>
 
-      <td>${game.time || ""}</td>
+      <td class="schedule-column-time">${dateTimeFormattingService.formatTime12Hour(game.time, "Time unavailable")}</td>
 
-      <td>${game.field || ""}</td>
+      <td class="schedule-column-complex">${game.locationComplex || "Complex unavailable"}</td>
 
-      <td>${game.level || ""}</td>
+      <td>${game.locationField || game.field || "Field unavailable"}</td>
+
+      <td>${levelTerminologyService.format(game.level) || "Level unavailable"}</td>
 
       <td>
         <strong>
@@ -140,15 +161,7 @@ const isHighlighted =
       </td>
 
       <td>
-        ${
-          typeof renderAssignmentStatusBadge === "function"
-            ? renderAssignmentStatusBadge(game)
-            : `
-              <span class="table-status status-badge ${assigned ? "assigned status-badge-approved" : "open status-badge-open"}">
-                ${assigned ? "Assigned" : "Open"}
-              </span>
-            `
-        }
+        <span class="table-status status-badge ${status.className}" data-testid="schedule-status-${game.id}">${status.label}</span>
       </td>
 
       <td>

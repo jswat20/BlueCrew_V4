@@ -18,6 +18,7 @@ function renderClaimHistory(context = {}) {
   const filteredRejectedClaims = claims.filter(
     claim => claim.assignment.claimStatus === "rejected"
   );
+  const filteredWithdrawnClaims = claims.filter(claim => claim.assignment.claimStatus === "withdrawn");
 
   if (!claims.length) {
     return `
@@ -38,15 +39,19 @@ function renderClaimHistory(context = {}) {
       ${renderClaimHistorySummary(summary)}
       ${renderClaimHistoryFilters()}
 
-      <section class="claim-history-section" data-testid="claim-history-approved">
-        <header><h3>Approved Claims</h3><span>${filteredApprovedClaims.length}</span></header>
+      <details class="claim-history-section" data-testid="claim-history-approved" tabindex="0" aria-label="Approved claim history" open>
+        <summary><h3>Approved Claims</h3><span>${filteredApprovedClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredApprovedClaims.map(claim => renderClaimHistoryCard(claim, "approved", highlightedId)).join("")}</div>
-      </section>
+      </details>
 
-      <section class="claim-history-section" data-testid="claim-history-rejected">
-        <header><h3>Rejected Claims</h3><span>${filteredRejectedClaims.length}</span></header>
+      <details class="claim-history-section" data-testid="claim-history-rejected" tabindex="0" aria-label="Rejected claim history" open>
+        <summary><h3>Rejected Claims</h3><span>${filteredRejectedClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredRejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected", highlightedId)).join("")}</div>
-      </section>
+      </details>
+      <details class="claim-history-section" data-testid="claim-history-withdrawn" tabindex="0" aria-label="Withdrawn claim history" open>
+        <summary><h3>Withdrawn Claims</h3><span>${filteredWithdrawnClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
+        <div class="claim-history-list">${filteredWithdrawnClaims.map(claim => renderClaimHistoryCard(claim, "withdrawn", highlightedId)).join("")}</div>
+      </details>
     </section>
   `;
 }
@@ -164,19 +169,18 @@ function renderClaimHistoryCard(claim, status, highlightedId) {
 
   return `
     <article
-      class="claim-history-card ${isHighlighted ? "is-highlighted" : ""}"
+      class="claim-history-card shared-notification-row presentation-card ${isHighlighted ? "is-highlighted" : ""}"
       data-testid="${status}-claim-card"
       ${isHighlighted ? 'data-highlighted="true"' : ""}
     >
-      <div class="claim-history-card-header"><h4>${claim.matchup}</h4><span class="claim-history-status" data-status="${status}">${status}</span></div>
       <div class="claim-history-card-details">
-        <p><strong>Position</strong><span>${claim.position}</span></p>
-        <p><strong>Claimed by</strong><span>${claim.claimedByName}</span></p>
-        <p><strong>Date</strong><span>${claim.date}</span></p>
-        <p><strong>Time</strong><span>${claim.time}</span></p>
-        <p><strong>Field</strong><span>${claim.field}</span></p>
-        <p><strong>Level</strong><span>${claim.level}</span></p>
+        <span class="claim-history-when"><strong>Date / Time</strong><span>${claim.date} · ${dateTimeFormattingService.formatTime12Hour(claim.time, "TBD")}</span></span>
+        <span class="claim-history-game"><strong>Game</strong><span>${claim.matchup}</span></span>
+        <span><strong>Level</strong><span>${levelTerminologyService.format(claim.level)}</span></span>
+        <span><strong>Position</strong><span>${presentationFormattingService.formatAssignmentPosition(claim.position)}</span></span>
+        <span class="claim-history-status status-badge ${presentationFormattingService.getStatusBadgeClass(status)}" data-status="${status}">${status}</span>
       </div>
+      <small class="claim-history-supporting">Claimed by ${claim.claimedByName}${claim.field ? ` · ${claim.field}` : ""}</small>
     </article>
   `;
 }

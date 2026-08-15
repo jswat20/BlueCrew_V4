@@ -2,6 +2,14 @@
 
 const accountService = (() => {
   const STORAGE_KEY = "bluecrew_accounts";
+  let authenticatedProfileSnapshot = null;
+  let pendingProfileSnapshot = [];
+  function isSharedMode() {
+    return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  }
+  function getRepository() {
+    return repositoryProvider.get("accounts");
+  }
 const ACCOUNT_ROLES = Object.freeze({
   ADMINISTRATOR: "administrator",
   ASSIGNER: "assigner",
@@ -23,6 +31,10 @@ function requireManageAccounts() {
 }
 
 function normalizeRole(role) {
+  if (role === "admin") {
+    return ACCOUNT_ROLES.ADMINISTRATOR;
+  }
+
   return VALID_ACCOUNT_ROLES.includes(role)
     ? role
     : ACCOUNT_ROLES.UMPIRE;
@@ -35,21 +47,103 @@ function isValidRole(role) {
     return { success, message, data };
   }
 
+  async function registerAuthenticatedAccount(accountData = {}) {
+    if (typeof supabaseClientService === "undefined" || !supabaseClientService.isConfigured()) {
+      return mutationResult(false, "Supabase Auth is not configured.");
+    }
+
+    return supabaseAuthService.signUpAndProvision({
+      email: String(accountData.email || "").trim(),
+      password: String(accountData.password || ""),
+      firstName: String(accountData.firstName || "").trim(),
+      lastName: String(accountData.lastName || "").trim(),
+      phone: String(accountData.phone || "").trim(),
+      birthdate: String(accountData.birthdate || "")
+    });
+  }
+
+  async function createRegistrationInvitation(invitationCode, expiresAt, maxUses = 1) {
+    const client = await supabaseClientService.getClient();
+    const { data, error } = await client.rpc("create_umpire_invitation", {
+      p_invitation_code: invitationCode,
+      p_expires_at: expiresAt,
+      p_max_uses: maxUses
+    });
+    return error
+      ? mutationResult(false, error.message)
+      : mutationResult(true, "Registration invitation created.", { id: data });
+  }
+
+  async function approveAuthenticatedAccount(profileId) {
+    const authorization = requireManageAccounts();
+    if (authorization) return authorization;
+
+    const { data, error } = await supabaseSharedRepository.approveUmpireProfile(profileId);
+    return error
+      ? mutationResult(false, ({
+          crew_email_match_ambiguous: "Multiple Crew records use this verified email. Resolve the duplicate Crew records before approval.",
+          crew_email_match_already_linked: "A Crew record with this verified email is already linked to another account.",
+          crew_email_match_inactive: "The matching Crew record is inactive. Review and reactivate it before approval.",
+          verified_email_identity_conflict: "The verified login email conflicts with the pending profile. Review the account identity before approval."
+        })[error.message] || error.message)
+      : mutationResult(true, "Account approved and linked to crew.", sharedDomainMappingService.mapProfile(data));
+  }
+
+  async function loadPendingAuthenticatedAccounts() {
+    if (!isSharedMode()) return mutationResult(true, "Local pending accounts ready.", getPendingAccounts());
+    const { data, error } = await supabaseSharedRepository.getManageableAccounts();
+    if (error) return mutationResult(false, error.message || "Pending accounts could not be loaded.");
+    pendingProfileSnapshot = (data || []).map(row => sharedDomainMappingService.mapProfile(row, row.crew_member_id || null)).filter(account => account && account.id !== authenticatedProfileSnapshot?.id)
+      .sort((left, right) => `${left.createdAt || ""}\u0000${left.lastName}\u0000${left.firstName}\u0000${left.id}`.localeCompare(`${right.createdAt || ""}\u0000${right.lastName}\u0000${right.firstName}\u0000${right.id}`));
+    return mutationResult(true, "Administrative accounts loaded.", structuredClone(pendingProfileSnapshot));
+  }
+
+  async function rejectAuthenticatedAccount(profileId, reason = "") {
+    const authorization = requireManageAccounts();
+    if (authorization) return authorization;
+    const { data, error } = await supabaseSharedRepository.rejectUmpireProfile(profileId, reason);
+    return error ? mutationResult(false, error.message) : mutationResult(true, "Account rejected.", sharedDomainMappingService.mapProfile(data));
+  }
+
   function profileMutationResult(success, message, data = null, errors = {}) {
     return { success, message, data, errors };
   }
 
   function readAll() {
-    const accounts = localStorage.getItem(STORAGE_KEY);
-    return accounts ? JSON.parse(accounts) : [];
+    if (isSharedMode()) return authenticatedProfileSnapshot ? [authenticatedProfileSnapshot] : [];
+    return getRepository().read() || [];
   }
 
   function getAll() {
+    if (isSharedMode()) return structuredClone([authenticatedProfileSnapshot, ...pendingProfileSnapshot].filter(Boolean));
     return migrateCrewCodes(readAll());
   }
 
   function saveAll(accounts) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+    if (isSharedMode()) throw new Error("Synchronous profile persistence is unavailable in Supabase mode.");
+    getRepository().write(accounts);
+  }
+
+  async function loadAuthenticatedProfile(user, crewId = null) {
+    if (!isSharedMode() || !user?.id) return null;
+    const { data, error } = await supabaseSharedRepository.getProfileForAuthUser(user.id);
+    if (error) throw error;
+    authenticatedProfileSnapshot = sharedDomainMappingService.mapProfile(data, crewId);
+    return authenticatedProfileSnapshot;
+  }
+
+  function setAuthenticatedCrewId(crewId) {
+    if (authenticatedProfileSnapshot) authenticatedProfileSnapshot.crewId = crewId || null;
+    return authenticatedProfileSnapshot;
+  }
+
+  function clearAuthenticatedProfile() {
+    authenticatedProfileSnapshot = null;
+    pendingProfileSnapshot = [];
+  }
+
+  function getAuthenticatedProfile() {
+    return authenticatedProfileSnapshot;
   }
 
 function generateId() {
@@ -80,6 +174,13 @@ function generateId() {
   function migrateCrewCodes(sourceAccounts = readAll()) {
     const accounts = Array.isArray(sourceAccounts) ? sourceAccounts : [];
     let changed = false;
+    accounts.forEach(account => {
+      const normalizedRole = normalizeRole(account.role);
+      if (account.role !== normalizedRole) {
+        account.role = normalizedRole;
+        changed = true;
+      }
+    });
     const assigned = new Set(accounts.map(account => String(account.crewCode || "").toUpperCase()).filter(Boolean));
     accounts
       .filter(account => normalizeRole(account.role) === ACCOUNT_ROLES.UMPIRE && !account.crewCode)
@@ -126,6 +227,7 @@ function generateId() {
   function normalizeAccount(account) {
     const normalized = {
       id: account.id || generateId(),
+      organizationId: account.organizationId || "local",
       firstName: account.firstName || "",
       lastName: account.lastName || "",
       email: account.email || "",
@@ -136,6 +238,11 @@ function generateId() {
       birthdate: account.birthdate || "",
       photoDataUrl: account.photoDataUrl || "",
       officialHistory: normalizeOfficialHistory(account.officialHistory),
+      yearsOfServiceOverride: account.yearsOfServiceOverride !== null &&
+        account.yearsOfServiceOverride !== undefined &&
+        Number.isInteger(Number(account.yearsOfServiceOverride))
+        ? Math.max(0, Math.min(80, Number(account.yearsOfServiceOverride)))
+        : null,
       adminNotes: account.adminNotes || "",
       emergencyContact: account.emergencyContact || "",
       emergencyContactPhone:
@@ -255,6 +362,13 @@ role: normalizeRole(account.role),
       return authorization;
     }
 
+  if (isSharedMode()) {
+    return approveAuthenticatedAccount(accountId, crewId).then(async result => {
+      if (result.success) await Promise.all([loadPendingAuthenticatedAccounts(), crewService.loadAdministrativeCrew()]);
+      return result;
+    });
+  }
+
   const accounts = getAll();
   const account = accounts.find(account => account.id === accountId);
 
@@ -344,6 +458,13 @@ function rejectAccount(accountId) {
     if (authorization) {
       return authorization;
     }
+
+  if (isSharedMode()) {
+    return rejectAuthenticatedAccount(accountId).then(async result => {
+      if (result.success) await loadPendingAuthenticatedAccounts();
+      return result;
+    });
+  }
 
   const accounts = getAll();
   const account = accounts.find(account => account.id === accountId);
@@ -662,7 +783,7 @@ function getRoleSummary() {
     return history.map(entry => ({
       year: Number(entry?.year),
       season: normalizeProfileValue(entry?.season),
-      label: normalizeProfileValue(entry?.label),
+      label: normalizeProfileValue(entry?.label || [entry?.season, entry?.level].filter(Boolean).join(" - ")),
       note: normalizeProfileValue(entry?.note)
     })).filter(entry => Number.isInteger(entry.year) && entry.year >= 1900 && entry.year <= new Date().getFullYear() + 1 && entry.label);
   }
@@ -674,6 +795,24 @@ function getRoleSummary() {
     const beforeBirthday = today.getMonth() < born.getMonth() || (today.getMonth() === born.getMonth() && today.getDate() < born.getDate());
     if (beforeBirthday) age -= 1;
     return age >= 0 ? age : null;
+  }
+
+  function isAtLeastAge(birthdate, minimumAge, today = new Date()) {
+    const age = deriveAge(birthdate, today);
+    return Number.isInteger(age) && age >= minimumAge;
+  }
+
+  function isBirthdayOn(birthdate, today = new Date()) {
+    if (!isValidBirthdate(birthdate) || !birthdate) return false;
+    const born = new Date(`${birthdate}T12:00:00`);
+    const month = born.getMonth();
+    const day = born.getDate();
+    if (month === 1 && day === 29) {
+      const year = today.getFullYear();
+      const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+      return today.getMonth() === 1 && today.getDate() === (leap ? 29 : 28);
+    }
+    return today.getMonth() === month && today.getDate() === day;
   }
 
   function deriveYearsOfService(history) {
@@ -713,7 +852,9 @@ function getRoleSummary() {
       age: deriveAge(account.birthdate),
       photoDataUrl: account.photoDataUrl || "",
       officialHistory: normalizeOfficialHistory(account.officialHistory),
-      yearsOfService: deriveYearsOfService(account.officialHistory),
+      yearsOfService: Number.isInteger(account.yearsOfServiceOverride)
+        ? account.yearsOfServiceOverride
+        : deriveYearsOfService(account.officialHistory),
       adminNotes: account.adminNotes || "",
       crewCode: account.crewCode || "",
       crewCodeIssuedAt: account.crewCodeIssuedAt || null,
@@ -780,8 +921,13 @@ function getRoleSummary() {
       );
     }
 
-    const restrictedFields = ["crewCode", "firstName", "lastName", "birthdate", "age", "levels", "eligibility", "officialHistory", "adminNotes", "status", "role", "crewId"];
-    const submittedRestricted = restrictedFields.filter(field => Object.prototype.hasOwnProperty.call(updates, field));
+    const restrictedFields = ["crewCode", "firstName", "lastName", "birthdate", "age", "levels", "eligibility", "officialHistory", "yearsOfServiceOverride", "adminNotes", "status", "role", "crewId"];
+    const currentProfile = getProfile(account.id);
+    const submittedRestricted = restrictedFields.filter(field =>
+      Object.prototype.hasOwnProperty.call(updates, field) &&
+      JSON.stringify(updates[field] ?? null) !==
+        JSON.stringify(currentProfile?.[field] ?? null)
+    );
     if (submittedRestricted.length) {
       return profileMutationResult(false, "One or more profile fields are administrator-managed.", getProfile(account.id), Object.fromEntries(submittedRestricted.map(field => [field, "This field cannot be changed in self-service."])));
     }
@@ -849,6 +995,49 @@ function getRoleSummary() {
     return updateCrewSelfServiceProfile(accountId, updates);
   }
 
+  async function updateAuthenticatedProfile(accountId, updates = {}) {
+    const current = typeof loginService !== "undefined" ? loginService.getCurrentAccount?.() : null;
+    const account = authenticatedProfileSnapshot;
+    if (!isSharedMode() || !current || !account || String(current.id) !== String(accountId)) {
+      return profileMutationResult(false, "Unauthorized profile update.", null, { authorization: "You may update only your own profile." });
+    }
+
+    const email = normalizeProfileValue(updates.email);
+    if (!email || !isValidEmail(email)) return profileMutationResult(false, "Enter a valid email address.");
+    if (email.toLowerCase() !== String(account.email || "").toLowerCase()) {
+      return profileMutationResult(false, "Email changes require verified account recovery and are not available yet.", getProfile(account.id), { email: "Use your current verified login email." });
+    }
+    const phone = normalizePhone(updates.phone);
+    const homePhone = normalizePhone(updates.homePhone);
+    const emergencyContactPhone = normalizePhone(updates.emergencyContactPhone);
+    if (!isValidPhone(phone) || !isValidPhone(homePhone) || !isValidPhone(emergencyContactPhone)) {
+      return profileMutationResult(false, "Enter a valid phone number.", getProfile(account.id), { phone: "Phone numbers must contain 7 to 15 digits." });
+    }
+    if (updates.contactPreference && !["text", "call"].includes(updates.contactPreference)) {
+      return profileMutationResult(false, "Select text or call as the contact preference.");
+    }
+    const restrictedFields = ["crewCode", "firstName", "lastName", "birthdate", "age", "levels", "eligibility", "officialHistory", "yearsOfServiceOverride", "adminNotes", "status", "role", "crewId", "photoDataUrl"];
+    const currentProfile = getProfile(account.id);
+    const submittedRestricted = restrictedFields.filter(field => Object.prototype.hasOwnProperty.call(updates, field) && JSON.stringify(updates[field] ?? null) !== JSON.stringify(currentProfile?.[field] ?? null));
+    if (submittedRestricted.length) return profileMutationResult(false, "One or more profile fields are administrator-managed.", currentProfile, Object.fromEntries(submittedRestricted.map(field => [field, "This field cannot be changed in self-service."])));
+
+    const changes = {
+      email,
+      phone,
+      home_phone: homePhone,
+      address: normalizeProfileValue(updates.address),
+      contact_preference: updates.contactPreference || account.contactPreference || "text",
+      emergency_contact: normalizeProfileValue(updates.emergencyContact),
+      emergency_contact_phone: emergencyContactPhone,
+      communication_preferences: normalizeCommunicationPreferences({ ...account.communicationPreferences, ...(updates.communicationPreferences || {}) })
+    };
+    const { data, error } = await supabaseSharedRepository.updateProfile(account.id, changes);
+    if (error) return profileMutationResult(false, error.message || "Profile could not be saved.", currentProfile);
+    authenticatedProfileSnapshot = sharedDomainMappingService.mapProfile(data, account.crewId);
+    supabaseAuthService.refreshAuthenticatedAccount(authenticatedProfileSnapshot);
+    return profileMutationResult(true, "Profile saved.", getProfile(account.id));
+  }
+
   function updateCrewProfileAsAdmin(accountId, changes = {}) {
     const authorization = requireManageAccounts();
     if (authorization) return profileMutationResult(false, authorization.message, null, { authorization: authorization.message });
@@ -863,6 +1052,10 @@ function getRoleSummary() {
     if (accounts.some(item => String(item.id) !== String(accountId) && String(item.email || "").toLowerCase() === email.toLowerCase())) errors.email = "An account with this email already exists.";
     if (!isValidPhone(changes.phone ?? account.phone) || !isValidPhone(changes.homePhone ?? account.homePhone)) errors.phone = "Phone numbers must contain 7 to 15 digits.";
     if (!isValidBirthdate(changes.birthdate ?? account.birthdate)) errors.birthdate = "Enter a valid birthdate that is not in the future.";
+    if (Object.prototype.hasOwnProperty.call(changes, "yearsOfServiceOverride")) {
+      const years = Number(changes.yearsOfServiceOverride);
+      if (!Number.isInteger(years) || years < 0 || years > 80) errors.yearsOfServiceOverride = "Years of service must be a whole number from 0 to 80.";
+    }
     if (Object.prototype.hasOwnProperty.call(changes, "contactPreference") && !["text", "call"].includes(changes.contactPreference)) errors.contactPreference = "Select text or call.";
     if (Object.keys(errors).length) return profileMutationResult(false, "Crew profile could not be saved.", getProfile(account.id), errors);
 
@@ -876,6 +1069,7 @@ function getRoleSummary() {
     if (Object.prototype.hasOwnProperty.call(changes, "birthdate")) account.birthdate = changes.birthdate || "";
     if (Object.prototype.hasOwnProperty.call(changes, "contactPreference")) account.contactPreference = changes.contactPreference;
     if (Object.prototype.hasOwnProperty.call(changes, "officialHistory")) account.officialHistory = normalizeOfficialHistory(changes.officialHistory);
+    if (Object.prototype.hasOwnProperty.call(changes, "yearsOfServiceOverride")) account.yearsOfServiceOverride = Number(changes.yearsOfServiceOverride);
     if (Object.prototype.hasOwnProperty.call(changes, "photoDataUrl")) {
       const photo = validatePhotoDataUrl(changes.photoDataUrl);
       if (!photo.success) return photo;
@@ -894,7 +1088,7 @@ function getRoleSummary() {
       saveCrew?.();
     }
     saveAll(accounts);
-    const changedAreas = ["photoDataUrl", "levels", "officialHistory", "adminNotes", "active"].filter(field => Object.prototype.hasOwnProperty.call(changes, field));
+    const changedAreas = ["photoDataUrl", "levels", "officialHistory", "yearsOfServiceOverride", "adminNotes", "active"].filter(field => Object.prototype.hasOwnProperty.call(changes, field));
     activityService?.log?.({ type: "profile", action: "crew_profile_updated", accountId: account.id, crewId: account.crewId || "", subject: `${account.firstName} ${account.lastName}`.trim(), message: "Crew profile updated by administrator.", metadata: { changedAreas } });
     return profileMutationResult(true, "Crew profile saved.", getProfile(account.id));
   }
@@ -921,6 +1115,11 @@ function getRoleSummary() {
   return {
     getAll,
     createAccount,
+    registerAuthenticatedAccount,
+    createRegistrationInvitation,
+    approveAuthenticatedAccount,
+    rejectAuthenticatedAccount,
+    loadPendingAuthenticatedAccounts,
     approveAccount,
     approveAccounts,
     rejectAccount,
@@ -931,9 +1130,16 @@ function getRoleSummary() {
     getById,
     getProfile,
     updateProfile,
+    loadAuthenticatedProfile,
+    updateAuthenticatedProfile,
+    getAuthenticatedProfile,
+    setAuthenticatedCrewId,
+    clearAuthenticatedProfile,
     updateCrewSelfServiceProfile,
     updateCrewProfileAsAdmin,
     deriveAge,
+    isAtLeastAge,
+    isBirthdayOn,
     deriveYearsOfService,
     normalizeOfficialHistory,
     validatePhotoDataUrl,

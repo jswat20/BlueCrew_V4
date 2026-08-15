@@ -10,6 +10,14 @@ window.scheduleImportService = (() => {
 
   const SUPPORTED_FIELDS = [
     ...REQUIRED_FIELDS,
+    "locationComplex",
+    "locationField",
+    "field",
+    "level",
+    "canonicalLevel",
+    "levelAlias",
+    "displayLevel",
+    "externalGameId", "timezone", "lifecycleStatus", "assignmentStatus", "notes",
     "gameType"
   ];
 
@@ -27,6 +35,23 @@ window.scheduleImportService = (() => {
 
     home: "homeTeam",
     hometeam: "homeTeam",
+
+    locationcomplex: "locationComplex",
+    complex: "locationComplex",
+    venue: "locationComplex",
+    locationfield: "locationField",
+    field: "field",
+    level: "level",
+    agelevel: "level",
+    canonicallevel: "canonicalLevel",
+    lakeshorealias: "levelAlias",
+    levelalias: "levelAlias",
+    displaylevel: "displayLevel",
+    externalgameid: "externalGameId",
+    timezone: "timezone",
+    lifecyclestatus: "lifecycleStatus",
+    initialassignmentstatus: "assignmentStatus",
+    notes: "notes",
 
     type: "gameType",
     gametype: "gameType"
@@ -139,7 +164,7 @@ window.scheduleImportService = (() => {
   }
 
   function normalizeGame(data = {}) {
-    return {
+    const normalized = {
       date: String(data.date || "").trim(),
       time: String(data.time || "").trim(),
       awayTeam: String(data.awayTeam || "").trim(),
@@ -147,6 +172,21 @@ window.scheduleImportService = (() => {
       gameType:
         String(data.gameType || "single").trim() || "single"
     };
+    ["externalGameId", "timezone", "lifecycleStatus", "assignmentStatus", "notes"].forEach(field => {
+      if (Object.hasOwn(data, field)) normalized[field] = String(data[field] || "").trim();
+    });
+    if (Object.hasOwn(data, "locationComplex") || Object.hasOwn(data, "locationField") || Object.hasOwn(data, "field")) {
+      normalized.locationComplex = String(data.locationComplex || "").trim();
+      normalized.locationField = String(data.locationField || data.field || "").trim();
+      normalized.field = normalized.locationField;
+    }
+    const levelSource = String(data.canonicalLevel || data.level || data.levelAlias || data.displayLevel || "").trim();
+    if (levelSource) {
+      const displayCanonical = levelSource.includes("-") ? levelSource.split("-")[0].trim() : levelSource;
+      normalized.level = levelTerminologyService.canonicalize(displayCanonical);
+      normalized.levelSource = levelSource;
+    }
+    return normalized;
   }
 
   function validateRow(row) {
@@ -162,6 +202,14 @@ window.scheduleImportService = (() => {
         });
       }
     });
+
+    const suppliedLevelField = ["level", "canonicalLevel", "levelAlias", "displayLevel"].some(field => Object.hasOwn(row.data, field));
+    if (suppliedLevelField && !game.level) {
+      errors.push({ row: row.rowNumber, field: "level", message: "Missing canonical or recognized alias level." });
+    } else if (game.level && !settings.levels.includes(game.level)) {
+      errors.push({ row: row.rowNumber, field: "level", message: `Unknown level: ${game.levelSource || game.level}.` });
+    }
+    delete game.levelSource;
 
     if (
       game.awayTeam &&

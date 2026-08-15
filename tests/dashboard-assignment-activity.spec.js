@@ -79,7 +79,7 @@ test.describe(
           "dashboard-assignment-activity-matchup"
         ).first()
       ).toHaveText(
-        "Activity Dashboard Field"
+        "12U"
       );
 
       const rowLayout = await app.page.getByTestId("dashboard-assignment-activity-item").first().evaluate(element => ({
@@ -216,7 +216,7 @@ test.describe(
           "dashboard-assignment-activity-action"
         ).first()
       ).toHaveText(
-        "Marcus Reed: Plate — Orioles @ Yankees"
+        "Plate — Orioles @ Yankees"
       );
     });
 
@@ -238,7 +238,7 @@ test.describe(
           "dashboard-assignment-activity-action"
         ).first()
       ).toHaveText(
-        "Schedule activity recorded."
+        "Schedule activity recorded"
       );
     });
 

@@ -328,6 +328,7 @@ function approveClaimFromOperations(
     item.assignmentId ||
     item.assignment?.id ||
     "";
+  const claimId = item.claimId || item.assignment?.claimId || "";
 
   if (
     typeof claimsQueueService ===
@@ -345,7 +346,8 @@ function approveClaimFromOperations(
   return finishOperationsCenterQuickAction(
     claimsQueueService.approveClaim(
       gameId,
-      assignmentId
+      assignmentId,
+      claimId
     )
   );
 }
@@ -363,6 +365,7 @@ function rejectClaimFromOperations(
     item.assignmentId ||
     item.assignment?.id ||
     "";
+  const claimId = item.claimId || item.assignment?.claimId || "";
 
   if (
     typeof claimsQueueService ===
@@ -380,14 +383,16 @@ function rejectClaimFromOperations(
   return finishOperationsCenterQuickAction(
     claimsQueueService.rejectClaim(
       gameId,
-      assignmentId
+      assignmentId,
+      claimId
     )
   );
 }
 
-function decideAccountFromOperations(
+async function decideAccountFromOperations(
   action,
-  item = {}
+  item = {},
+  sourceButton = null
 ) {
   const accountId =
     item.accountId || item.id || "";
@@ -414,14 +419,52 @@ function decideAccountFromOperations(
     });
   }
 
-  return finishOperationsCenterQuickAction(
-    mutation(accountId)
-  );
+  const result = await mutation(accountId);
+  const dialog = sourceButton?.closest?.("dialog");
+  if (!dialog || dialog.dataset.metricId !== "pending-accounts") {
+    return finishOperationsCenterQuickAction(result);
+  }
+
+  const status = dialog.querySelector('[data-testid="operations-pending-accounts-status"]');
+  if (!result || result.success === false) {
+    if (status) {
+      status.textContent = result?.message || "Unable to process this account.";
+      status.dataset.state = "error";
+    }
+    sourceButton?.focus?.();
+    return result;
+  }
+
+  sourceButton.closest("[data-operations-pending-account]")?.remove();
+  const remaining = dialog.querySelectorAll("[data-operations-pending-account]").length;
+  const count = dialog.querySelector('[data-testid="operations-pending-accounts-remaining"]');
+  if (count) count.textContent = `${remaining} remaining`;
+  if (status) {
+    status.textContent = result.message || "Account processed.";
+    status.dataset.state = "success";
+  }
+  setOperationsCenterActionMessage(result.message || "Account processed.");
+  const list = dialog.querySelector(".operations-detail-list");
+  if (!remaining) {
+    if (list) list.innerHTML = '<div class="operations-work-queue-empty" role="status"><strong>Queue clear</strong><span>All pending accounts have been processed.</span></div>';
+    setTimeout(() => dialog.close(), 0);
+  } else {
+    dialog.querySelector('[data-operations-quick-action="approve-account"], [data-operations-quick-action="reject-account"]')?.focus();
+  }
+  if (typeof currentPage !== "undefined" && currentPage === "operations-center") {
+    renderPage("operations-center", {
+      ...(remaining ? { operationsDialog: "pending-accounts" } : {}),
+      operationsFlash: { success: true, message: result.message || "Account processed." }
+    });
+    if (remaining) requestAnimationFrame(() => document.querySelector('#operations-detail-pending-accounts [data-operations-quick-action="approve-account"], #operations-detail-pending-accounts [data-operations-quick-action="reject-account"]')?.focus());
+  }
+  return result;
 }
 
 function handleOperationsCenterQuickAction(
   action,
-  item = {}
+  item = {},
+  sourceButton = null
 ) {
   switch (action) {
     case "assign-recommended":
@@ -443,7 +486,8 @@ function handleOperationsCenterQuickAction(
     case "reject-account":
       return decideAccountFromOperations(
         action,
-        item
+        item,
+        sourceButton
       );
 
     default:
@@ -1790,9 +1834,12 @@ function renderOperationsCenterActivityItem(
     );
 
   const timestamp =
-    formatOperationsActivityTimestamp(
-      activity.createdAt
-    );
+    dashboardFeed
+      ? (() => {
+          const date = new Date(activity.createdAt || "");
+          return Number.isNaN(date.getTime()) ? "Time unavailable" : dateTimeFormattingService.formatTime12Hour(`${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`, "Time unavailable");
+        })()
+      : formatOperationsActivityTimestamp(activity.createdAt);
 
   const exactDate =
     new Date(activity.createdAt || "");
@@ -1855,7 +1902,7 @@ function renderOperationsCenterActivityItem(
 
       <span class="operations-log-location" ${dashboardFeed ? 'data-testid="dashboard-assignment-activity-matchup"' : ""}>
         ${escapeOperationsCenterHtml(
-          activity.location || "—"
+          dashboardFeed ? activity.level || "—" : activity.location || "—"
         )}
       </span>
 
@@ -1869,7 +1916,7 @@ function renderOperationsCenterActivityItem(
 
       <span class="operations-log-action" ${dashboardFeed ? 'data-testid="dashboard-assignment-activity-action"' : ""}>
         ${escapeOperationsCenterHtml(
-          message
+          dashboardFeed ? activity.details || message : message
         )}
       </span>
     </button>
@@ -2098,6 +2145,7 @@ function renderOperationsCenterMetricDialogs(
         id="operations-detail-${escapeOperationsCenterHtml(metric.id)}"
         data-testid="operations-detail-${escapeOperationsCenterHtml(metric.id)}"
         aria-labelledby="operations-detail-${escapeOperationsCenterHtml(metric.id)}-title"
+        data-metric-id="${escapeOperationsCenterHtml(metric.id)}"
       >
         <header class="operations-detail-header">
           <div>
@@ -2114,10 +2162,12 @@ function renderOperationsCenterMetricDialogs(
           >×</button>
         </header>
 
+        ${metric.id === "pending-accounts" ? `<p class="operations-dialog-count" data-testid="operations-pending-accounts-remaining">${metric.detailItems.length} remaining</p><p class="form-status" role="status" aria-live="polite" data-testid="operations-pending-accounts-status"></p>` : ""}
+
         ${metric.detailItems.length ? `
           <div class="operations-detail-list">
             ${metric.detailItems.map(item => `
-              <article class="operations-detail-item">
+              <article class="operations-detail-item" ${metric.id === "pending-accounts" ? `data-operations-pending-account="${escapeOperationsCenterHtml(item.accountId || item.id || "")}"` : ""}>
                 <div>
                   <strong>${escapeOperationsCenterHtml(renderOperationsCenterTaskLabel(item))}</strong>
                   ${renderOperationsCenterTaskDetail(item)
@@ -2227,7 +2277,7 @@ function renderOperationsCenterUpcoming(
                   data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(event))}"
                 >
                   <strong>${escapeOperationsCenterHtml(event.matchup)}</strong>
-                  <span>${escapeOperationsCenterHtml([event.field, event.level].filter(Boolean).join(" · "))}</span>
+                  <span>${escapeOperationsCenterHtml([locationService.getDisplayName(event), event.level].filter(Boolean).join(" · "))}</span>
                   <span class="operations-timeline-status" data-status="${event.fullyStaffed ? "healthy" : "watch"}">
                     ${event.fullyStaffed
                       ? "Fully staffed"
@@ -2263,6 +2313,15 @@ function formatOperationsWorkDate(dateValue, today) {
       }).format(date);
 }
 
+function formatOperationsHeaderDate(dateValue) {
+  const date = new Date(`${dateValue}T12:00:00`);
+  return Number.isNaN(date.getTime())
+    ? String(dateValue || "Date unavailable")
+    : date.toLocaleDateString("en-US", {
+        weekday: "long", month: "long", day: "numeric", year: "numeric"
+      });
+}
+
 function renderOperationsStaffingBoard(events = [], today = "") {
   const groups = [];
   events.forEach(event => {
@@ -2275,10 +2334,6 @@ function renderOperationsStaffingBoard(events = [], today = "") {
     group.events.push(event);
   });
 
-  const positions = [...new Set(events.flatMap(event =>
-    (event.assignments || []).map(assignment => assignment.position)
-  ))];
-
   return `
     <section class="operations-panel operations-upcoming" data-testid="operations-upcoming-work" aria-labelledby="operations-upcoming-title">
       <div class="operations-section-heading"><h2 id="operations-upcoming-title">Today & Upcoming Work</h2></div>
@@ -2287,7 +2342,8 @@ function renderOperationsStaffingBoard(events = [], today = "") {
           <h3>${escapeOperationsCenterHtml(group.label)}</h3>
           <div class="operations-staffing-table-wrap">
             <table class="operations-staffing-table">
-              <thead><tr><th>Time</th><th>Age</th><th>Matchup</th><th>Location</th>${positions.map(position => `<th>${escapeOperationsCenterHtml(position)}</th>`).join("")}</tr></thead>
+              <colgroup><col class="operations-col-time"><col class="operations-col-level"><col class="operations-col-matchup"><col class="operations-col-location"><col class="operations-col-umpires"></colgroup>
+              <thead><tr><th class="operations-column-time">Time</th><th class="operations-column-level">Level</th><th class="operations-column-matchup">Matchup</th><th class="operations-column-location">Location</th><th class="operations-column-umpires">Umpire(s)</th></tr></thead>
               <tbody>${group.events.map(event => `
                 <tr
                   class="operations-staffing-row"
@@ -2298,14 +2354,20 @@ function renderOperationsStaffingBoard(events = [], today = "") {
                   data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(event))}"
                   aria-label="Open ${escapeOperationsCenterHtml(event.matchup)} in Game Hub"
                 >
-                  <td><time datetime="${escapeOperationsCenterHtml(`${event.date} ${event.time || ""}`)}">${escapeOperationsCenterHtml(event.time || "—")}</time></td>
-                  <td>${escapeOperationsCenterHtml(event.level || "—")}</td>
-                  <td><strong class="operations-staffing-matchup">${escapeOperationsCenterHtml(event.matchup)}</strong></td>
-                  <td>${escapeOperationsCenterHtml(event.field || "—")}</td>
-                  ${positions.map(position => {
-                    const assignment = (event.assignments || []).find(item => item.position === position);
-                    return `<td class="operations-staffing-assignment" data-status="${assignment?.crewId ? "assigned" : "open"}">${escapeOperationsCenterHtml(assignment?.crewName || "OPEN")}</td>`;
-                  }).join("")}
+                  <td class="operations-column-time"><time datetime="${escapeOperationsCenterHtml(`${event.date} ${event.time || ""}`)}">${escapeOperationsCenterHtml(dateTimeFormattingService.formatTime12Hour(event.time))}</time></td>
+                  <td class="operations-column-level">${escapeOperationsCenterHtml(event.level ? levelTerminologyService.format(event.level) : "Level unavailable")}</td>
+                  <td class="operations-column-matchup"><strong class="operations-staffing-matchup">${escapeOperationsCenterHtml(event.matchup)}</strong></td>
+                  <td class="operations-column-location">${escapeOperationsCenterHtml(event.locationComplex || locationService.getDisplayName(event) || "Location unavailable")}</td>
+                  <td class="operations-column-umpires"><div class="operations-umpire-list" data-testid="operations-umpires-${escapeOperationsCenterHtml(event.id)}">
+                    ${gameService.getStatus(event) === "cancelled"
+                      ? `<span class="status-badge ${presentationFormattingService.getStatusBadgeClass("Cancelled")}" data-status="cancelled">Cancelled</span>`
+                      : (event.assignments || []).map(assignment => {
+                      const displayPosition = presentationFormattingService.formatAssignmentPosition(assignment.position);
+                      const isAssigned = Boolean(assignment.crewId);
+                      const displayName = isAssigned ? assignment.crewName : "OPEN";
+                      return `<span class="operations-umpire-entry operations-staffing-assignment" data-status="${isAssigned ? "assigned" : "open"}" data-position="${escapeOperationsCenterHtml(displayPosition)}"><strong>${escapeOperationsCenterHtml(displayPosition)}:</strong> <span>${escapeOperationsCenterHtml(displayName)}</span><span class="visually-hidden">${isAssigned ? "Assigned" : "Open assignment"}</span></span>`;
+                    }).join("")}
+                  </div></td>
                 </tr>
               `).join("")}</tbody>
             </table>
@@ -2456,13 +2518,16 @@ function renderOperationsCenter(context = {}) {
         )}
       </div>
 
+      <div class="operations-page-meta" data-testid="operations-page-meta">
+        <time datetime="${escapeOperationsCenterHtml(operations.operationalDate)}" data-testid="operations-operational-date">${escapeOperationsCenterHtml(formatOperationsHeaderDate(operations.operationalDate))}</time>
+        <p class="operations-attention-summary" data-testid="operations-attention-summary" role="status">
+          ${actionableOutstandingCount} operational ${actionableOutstandingCount === 1 ? "item requires" : "items require"} attention.
+        </p>
+      </div>
+
       ${renderOperationsCenterStatusStrip(
         operations.statusMetrics
       )}
-
-      <p class="operations-attention-summary" data-testid="operations-attention-summary" role="status">
-        ${actionableOutstandingCount} operational ${actionableOutstandingCount === 1 ? "item requires" : "items require"} attention.
-      </p>
 
       ${renderOperationsCenterMetricDialogs(
         operations.statusMetrics
@@ -2667,7 +2732,8 @@ function setupOperationsCenterActions() {
 
           handleOperationsCenterQuickAction(
             action,
-            payload
+            payload,
+            button
           );
         }
       );

@@ -31,7 +31,9 @@ test.describe("Portal Pending Claims", () => {
         gameType: "single"
       }).data;
 
+      authService.loginAsAdmin();
       assignmentService.openForClaim(game.id);
+      authService.useAuthenticatedAccount(loginService.getCurrentAccount());
 
       portalService.claimGame(game.id, `${game.id}-plate`);
 
@@ -81,7 +83,9 @@ test.describe("Portal Pending Claims", () => {
         gameType: "single"
       }).data;
 
+      authService.loginAsAdmin();
       assignmentService.openForClaim(game.id);
+      authService.useAuthenticatedAccount(loginService.getCurrentAccount());
 
       portalService.claimGame(game.id, `${game.id}-plate`);
 

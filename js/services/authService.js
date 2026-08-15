@@ -3,7 +3,7 @@
 const authService = (() => {
   let currentUser = {
     id: "admin",
-    role: "admin",
+    role: "administrator",
     crewId: null,
     name: "Assignor"
   };
@@ -13,25 +13,25 @@ const authService = (() => {
   }
 
   function isAdmin() {
-    return currentUser.role === "admin";
+    return currentUser?.role === "administrator";
   }
 
   function isUmpire() {
-    return currentUser.role === "umpire";
+    return currentUser?.role === "umpire";
   }
 
   function currentCrewId() {
-    return currentUser.crewId;
+    return currentUser?.crewId || null;
   }
 
   function currentUserName() {
-    return currentUser.name;
+    return currentUser?.name || "";
   }
 
   function loginAsAdmin() {
     currentUser = {
       id: "admin",
-      role: "admin",
+      role: "administrator",
       crewId: null,
       name: "Assignor"
     };
@@ -68,6 +68,27 @@ const authService = (() => {
     };
   }
 
+  function useAuthenticatedAccount(account) {
+    if (!account) return null;
+
+    currentUser = {
+      id: account.id,
+      role: account.role,
+      crewId: account.crewId || null,
+      name:
+        `${account.firstName || ""} ${account.lastName || ""}`.trim() ||
+        account.email ||
+        "User"
+    };
+
+    return currentUser;
+  }
+
+  function clearAuthenticatedAccount() {
+    currentUser = null;
+    return currentUser;
+  }
+
   return {
     getCurrentUser,
     isAdmin,
@@ -77,6 +98,8 @@ const authService = (() => {
     loginAsAdmin,
     loginAsAssigner,
     loginAsUmpire,
-    loginAsCrew
+    loginAsCrew,
+    useAuthenticatedAccount,
+    clearAuthenticatedAccount
   };
 })();

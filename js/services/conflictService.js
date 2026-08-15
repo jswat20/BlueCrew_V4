@@ -21,7 +21,9 @@ const conflictService = {
     return {
       date: game.date || "",
       time: game.time || "",
-      field: game.field || "",
+      locationComplex: game.locationComplex || "",
+      locationField: game.locationField || game.field || "",
+      field: locationService.getDisplayName(game),
       level: game.level || ""
     };
   },

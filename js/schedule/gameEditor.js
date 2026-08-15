@@ -1,12 +1,15 @@
 // js/schedule/gameEditor.js
 
+let gameEditorReturnFocus = null;
+
 function openGameEditor(gameId = null) {
   const isEditing = gameId !== null && gameId !== undefined;
   const game = isEditing ? gameService.getById(gameId) : createBlankGame();
 
   if (!game) return;
 
-  closeGameEditor();
+  closeGameEditor(false);
+  gameEditorReturnFocus = document.activeElement;
 
   const overlay = document.createElement("div");
   overlay.id = "game-editor-overlay";
@@ -14,9 +17,9 @@ function openGameEditor(gameId = null) {
   overlay.innerHTML = `
     <div class="assign-drawer-backdrop" onclick="closeGameEditor()"></div>
 
-<aside class="assign-drawer" data-testid="game-editor">
+<aside class="assign-drawer game-editor-modal" data-testid="game-editor" role="dialog" aria-modal="true" aria-labelledby="game-editor-title" tabindex="-1">
       <div class="assign-drawer-header">
-        <h2>${isEditing ? "Edit Game" : "Add Game"}</h2>
+        <h2 id="game-editor-title">${isEditing ? "Edit Game" : "Add Game"}</h2>
         <button
           class="button button-link button-compact"
           aria-label="Close game editor"
@@ -29,6 +32,10 @@ function openGameEditor(gameId = null) {
   `;
 
   document.body.appendChild(overlay);
+  overlay.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeGameEditor();
+  });
+  overlay.querySelector(".game-editor-modal")?.focus();
 }
 
 function editGame(gameId) {
@@ -36,11 +43,15 @@ function editGame(gameId) {
 }
 
 function createBlankGame() {
+  const defaultComplex = locationService.getComplexes()[0] || "";
+  const defaultField = locationService.getFields(defaultComplex)[0] || "";
   return {
     id: "",
     date: new Date().toISOString().split("T")[0],
     time: "6:00 PM",
-    field: "Field 1",
+    locationComplex: defaultComplex,
+    locationField: defaultField,
+    field: defaultField,
     level: "12U",
     gameType: "single",
     awayTeam: "",
@@ -54,7 +65,9 @@ function createBlankGame() {
 }
 
 function renderGameEditorForm(game, isEditing) {
-  return `
+  const selectedComplex = game.locationComplex || (game.locationField || game.field ? locationService.LEGACY_COMPLEX : locationService.getComplexes()[0] || "");
+  const selectedField = game.locationField || game.field || locationService.getFields(selectedComplex)[0] || "";
+  return `<div class="game-editor-form">
     <label>Date</label>
     <input id="edit-date" data-testid="game-date-input" type="date" value="${game.date || ""}" />
 
@@ -63,9 +76,14 @@ function renderGameEditorForm(game, isEditing) {
       ${renderTimeOptions(game.time)}
     </select>
 
-    <label>Field</label>
-    <select id="edit-field" data-testid="game-field-input">
-      ${renderOptionList(getFieldOptions(), game.field)}
+    <label>Location Complex</label>
+    <select id="edit-location-complex" data-testid="game-location-complex-input" onchange="handleGameComplexChange(this.value)">
+      ${renderOptionList(locationService.getComplexes(), selectedComplex)}
+    </select>
+
+    <label>Location Field</label>
+    <select id="edit-location-field" data-testid="game-field-input">
+      ${renderOptionList(locationService.getFields(selectedComplex), selectedField)}
     </select>
 
     <label>Level</label>
@@ -142,18 +160,24 @@ function renderGameEditorForm(game, isEditing) {
                   : ""
               }
 
+              ${gameService.getStatus(game) === "cancelled" ? `
+                <button class="button button-primary" type="button" data-testid="restore-game-button" onclick="restoreGameFromEditor('${game.id}')">
+                  Restore Game
+                </button>
+              ` : ""}
+
               <button
                 class="button button-danger danger-btn"
                 type="button"
                 data-testid="delete-game-button"
                 onclick="deleteGame('${game.id}')"
               >
-                Delete
+                Delete Game
               </button>
             `
           : ""
       }
-    </div>
+    </div></div>
   `;
 }
 function renderExistingGameAssignmentSection(game) {
@@ -185,14 +209,14 @@ function renderNewGameAssignmentNote() {
   `;
 }
 
-function saveGameEditor(gameId, isEditing) {
+async function saveGameEditor(gameId, isEditing) {
   const updates = readGameEditorValues();
 
   if (!validateGameEditorValues(updates)) return;
 
-  const result = isEditing
+  const result = await (isEditing
     ? updateExistingGame(gameId, updates)
-    : createNewGame(updates);
+    : createNewGame(updates));
 
   if (!result || !result.success) {
     toastService.error(result?.message || "Unable to save game.");
@@ -214,10 +238,14 @@ function saveGameEditor(gameId, isEditing) {
 }
 
 function readGameEditorValues() {
+  const locationComplex = document.getElementById("edit-location-complex")?.value || "";
+  const locationField = document.getElementById("edit-location-field")?.value || "";
   return {
     date: document.getElementById("edit-date")?.value || "",
     time: document.getElementById("edit-time")?.value || "",
-    field: document.getElementById("edit-field")?.value || "",
+    locationComplex,
+    locationField,
+    field: locationField,
     level: document.getElementById("edit-level")?.value || "",
     gameType: document.getElementById("edit-game-type")?.value || "single",
     awayTeam: document.getElementById("edit-away-team")?.value.trim() || "",
@@ -233,6 +261,11 @@ function validateGameEditorValues(values) {
 
   if (!values.time) {
     toastService.error("Choose a game time.");
+    return false;
+  }
+
+  if (!values.locationComplex || !values.locationField) {
+    toastService.error("Choose a location complex and field.");
     return false;
   }
 
@@ -274,6 +307,9 @@ function createNewGame(values) {
 }
 
 function updateExistingGame(gameId, updates) {
+  if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+    return gameService.updateHostedOperationalDetails(gameId, updates);
+  }
   if (typeof gameService.update !== "function") {
     return {
       success: false,
@@ -323,9 +359,13 @@ function refreshAfterGameEditorSave() {
   }
 }
 
-function closeGameEditor() {
+function closeGameEditor(restoreFocus = true) {
   const existing = document.getElementById("game-editor-overlay");
   if (existing) existing.remove();
+  if (restoreFocus && gameEditorReturnFocus && document.contains(gameEditorReturnFocus)) {
+    gameEditorReturnFocus.focus();
+  }
+  gameEditorReturnFocus = null;
 }
 
 function renderGameTypeOptions(selectedType) {
@@ -414,6 +454,12 @@ function getFieldOptions() {
   ]);
 }
 
+function handleGameComplexChange(complexName) {
+  const fieldSelect = document.getElementById("edit-location-field");
+  if (!fieldSelect) return;
+  fieldSelect.innerHTML = renderOptionList(locationService.getFields(complexName), "");
+}
+
 function getLevelOptions() {
   return getUniqueValues("level", [
     "8U",
@@ -448,7 +494,7 @@ function refreshScheduleAfterLifecycleAction() {
   }
 }
 
-function cancelGameFromEditor(gameId) {
+async function cancelGameFromEditor(gameId) {
   const confirmed =
     window.confirm(
       "Cancel this game? Assigned umpires will be notified."
@@ -458,8 +504,9 @@ function cancelGameFromEditor(gameId) {
     return;
   }
 
-  const result =
-    portalService.cancelGame(gameId);
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await gameService.updateHostedOperationalDetails(gameId, { lifecycleStatus: "cancelled" })
+    : portalService.cancelGame(gameId);
 
   if (!result.success) {
     window.alert(
@@ -469,6 +516,19 @@ function cancelGameFromEditor(gameId) {
     return;
   }
 
+  refreshScheduleAfterLifecycleAction();
+}
+
+async function restoreGameFromEditor(gameId) {
+  const confirmed = window.confirm("Restore this game? Assigned umpires will be notified.");
+  if (!confirmed) return;
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await gameService.updateHostedOperationalDetails(gameId, { lifecycleStatus: "scheduled" })
+    : gameService.transitionStatus(gameId, "scheduled");
+  if (!result.success) {
+    window.alert(result.message || "Unable to restore game.");
+    return;
+  }
   refreshScheduleAfterLifecycleAction();
 }
 

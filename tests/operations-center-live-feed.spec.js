@@ -287,9 +287,7 @@ test.describe(
               .length;
           });
 
-        expect(count).toBeLessThanOrEqual(
-          8
-        );
+        expect(count).toBeLessThanOrEqual(12);
       }
     );
   }

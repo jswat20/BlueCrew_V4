@@ -3,6 +3,7 @@
 const reportPresetService = (() => {
   const STORAGE_KEY =
     "bluecrew_report_presets";
+  const getRepository = () => repositoryProvider.get("reportPresets");
 
   const FILTER_KEYS = [
     "startDate",
@@ -14,10 +15,7 @@ const reportPresetService = (() => {
   ];
 
   function getAll() {
-    const stored = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) ||
-        "[]"
-    );
+    const stored = getRepository().read() || [];
 
     return Array.isArray(stored)
       ? stored
@@ -134,10 +132,7 @@ const reportPresetService = (() => {
       presets.push(savedPreset);
     }
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(presets)
-    );
+    getRepository().write(presets);
 
     return {
       success: true,
@@ -168,10 +163,7 @@ const reportPresetService = (() => {
       };
     }
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(nextPresets)
-    );
+    getRepository().write(nextPresets);
 
     return {
       success: true,

@@ -5,6 +5,10 @@ test.describe("Role-Aware Navigation", () => {
     await page.goto("/");
   });
 
+  test("uses the supplied Slate logo in the application shell", async ({ page }) => {
+    await expect(page.locator(".brand-icon")).toHaveAttribute("src", "assets/the-slate-logo.png");
+  });
+
   test("shows administrator navigation and hides umpire-only pages", async ({
     page
   }) => {
@@ -26,6 +30,7 @@ test.describe("Role-Aware Navigation", () => {
     await expect(page.getByTestId("nav-notifications")).toBeVisible();
 
     await expect(page.getByTestId("nav-claim-games")).toBeHidden();
+    await expect(page.getByTestId("nav-my-schedule")).toBeHidden();
     await expect(page.getByTestId("nav-my-claims")).toBeHidden();
   });
 
@@ -41,6 +46,7 @@ test.describe("Role-Aware Navigation", () => {
 
     await expect(page.getByTestId("nav-dashboard")).toBeVisible();
     await expect(page.getByTestId("nav-claim-games")).toBeVisible();
+    await expect(page.getByTestId("nav-my-schedule")).toBeVisible();
     await expect(page.getByTestId("nav-my-claims")).toBeVisible();
     await expect(page.getByTestId("nav-availability")).toBeVisible();
     await expect(page.getByTestId("nav-notifications")).toBeVisible();
@@ -54,6 +60,14 @@ test.describe("Role-Aware Navigation", () => {
     await expect(page.getByTestId("nav-accounts")).toBeHidden();
     await expect(page.getByTestId("nav-claims-queue")).toBeHidden();
     await expect(page.getByTestId("nav-claim-history")).toBeHidden();
+
+    await page.getByTestId("nav-dashboard").click();
+    await expect(page.getByTestId("crew-dashboard")).toBeVisible();
+    await expect(page.getByTestId("crew-dashboard-upcoming")).toBeVisible();
+    await expect(page.getByTestId("crew-dashboard-actions")).toBeVisible();
+    await expect(page.getByTestId("crew-dashboard-notifications")).toBeVisible();
+    await expect(page.locator(".crew-command-header time strong")).not.toBeEmpty();
+    await expect(page.getByText("Available to Claim")).toHaveCount(0);
   });
 
   test("restores administrator navigation after switching back", async ({

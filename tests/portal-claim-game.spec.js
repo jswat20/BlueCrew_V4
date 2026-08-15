@@ -34,7 +34,9 @@ test.describe("Portal Claim Game", () => {
         gameType: "single"
       });
 
+      authService.loginAsAdmin();
       assignmentService.openForClaims(gameResult.data.id);
+      authService.useAuthenticatedAccount(loginService.getCurrentAccount());
 
       return portalService.claimGame(gameResult.data.id);
     });
@@ -75,7 +77,9 @@ test.describe("Portal Claim Game", () => {
         gameType: "single"
       });
 
+      authService.loginAsAdmin();
       assignmentService.openForClaims(gameResult.data.id);
+      authService.useAuthenticatedAccount(loginService.getCurrentAccount());
 
       portalService.claimGame(gameResult.data.id);
 

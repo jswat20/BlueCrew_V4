@@ -1,6 +1,7 @@
 // js/ui/accountRegistration.js
 
 function renderAccountRegistration() {
+  const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   return `
     <div class="page account-registration">
 
@@ -44,8 +45,23 @@ function renderAccountRegistration() {
           >
         </div>
 
+        <div class="form-group">
+          <label>Date of Birth</label>
+          <input type="date" id="account-birthdate" data-testid="account-birthdate" required>
+          <small>You must be at least 13 years old to register.</small>
+        </div>
+
+        ${usesSupabaseAuth ? `
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="account-password" data-testid="account-password" autocomplete="new-password">
+        </div>
+
+        ` : ""}
+
         <div class="form-actions">
           <button
+            type="button"
             class="primary"
             data-testid="create-account-button"
             onclick="submitAccountRegistration()">
@@ -64,7 +80,7 @@ function renderAccountRegistration() {
   `;
 }
 
-function submitAccountRegistration() {
+async function submitAccountRegistration() {
 
   const firstName =
     document.getElementById("account-first-name").value.trim();
@@ -78,12 +94,31 @@ function submitAccountRegistration() {
   const phone =
     document.getElementById("account-phone").value.trim();
 
-  const result = accountService.createAccount({
-    firstName,
-    lastName,
-    email,
-    phone
-  });
+  const birthdate = document.getElementById("account-birthdate").value;
+  if (!birthdate) {
+    const message = document.getElementById("account-registration-message");
+    message.textContent = "Enter your date of birth.";
+    message.className = "error";
+    return;
+  }
+  if (!accountService.isAtLeastAge(birthdate, 13)) {
+    const message = document.getElementById("account-registration-message");
+    message.textContent = "You must be at least 13 years old to register.";
+    message.className = "error";
+    return;
+  }
+
+  const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  const result = usesSupabaseAuth
+    ? await accountService.registerAuthenticatedAccount({
+        firstName,
+        lastName,
+        email,
+        phone,
+        birthdate,
+        password: document.getElementById("account-password").value
+      })
+    : accountService.createAccount({ firstName, lastName, email, phone, birthdate });
 
   const message =
     document.getElementById("account-registration-message");
@@ -101,4 +136,8 @@ function submitAccountRegistration() {
   document.getElementById("account-last-name").value = "";
   document.getElementById("account-email").value = "";
   document.getElementById("account-phone").value = "";
+  document.getElementById("account-birthdate").value = "";
+  if (usesSupabaseAuth) {
+    document.getElementById("account-password").value = "";
+  }
 }

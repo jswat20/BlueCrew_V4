@@ -86,11 +86,12 @@ test.describe("Schedule Import Service", () => {
         time: "18:00",
         awayTeam: "Tigers",
         homeTeam: "Bears",
+        notes: "Bring equipment",
         gameType: "single"
       }
     ]);
 
-    expect(result.games[0].notes).toBeUndefined();
+    expect(result.games[0].notes).toBe("Bring equipment");
     expect(result.games[0].unknown).toBeUndefined();
   });
 

@@ -62,14 +62,14 @@ test.describe("Operations Center redesign", () => {
 
   test("uses title-case labels, an explicit staffing ratio, and no context captions", async ({ page }) => {
     const strip = page.getByTestId("operations-status-strip");
-    await expect(page.getByTestId("operations-metric-events-today")).toContainText("Events Today");
+    await expect(page.getByTestId("operations-metric-events-today").locator("span")).toHaveText("Games");
     const fullyStaffed = page.getByTestId("operations-metric-fully-staffed");
     await expect(fullyStaffed.locator("span")).toHaveText("Fully Staffed");
     await expect(fullyStaffed.locator("strong")).toHaveText(/\d+ of \d+/);
     await expect(strip.locator("small")).toHaveCount(0);
     await expect(strip).not.toContainText("Open work");
     await expect(strip).not.toContainText("Operational context");
-    await expect(page.getByTestId("operations-attention-summary")).toHaveCSS("color", "rgb(180, 35, 24)");
+    await expect(page.getByTestId("operations-attention-summary")).toHaveCSS("color", "rgb(156, 42, 16)");
   });
 
   test("attention summary totals every actionable status metric", async ({ page }) => {
@@ -263,20 +263,23 @@ test.describe("Operations Center redesign", () => {
     await expect(page.locator("body")).toHaveAttribute("data-page", "game-hub");
     await expect(page.getByTestId("game-hub-empty")).toHaveCount(0);
     await expect(page.getByTestId("game-hub-admin-view")).toBeVisible();
+    await expect(page.getByTestId("game-hub-back")).toContainText("Back to Ops Center");
+    await page.getByTestId("game-hub-back").click();
+    await expect(page.locator("body")).toHaveAttribute("data-page", "operations-center");
   });
 
   test("Operations Log is newest first with exact timestamps", async ({ page }) => {
     await page.evaluate(() => {
       localStorage.removeItem("bluecrew_activity");
-      activityService.log({ id: "older", type: "assignment", action: "assigned", message: "Older action", createdAt: "2026-07-17T12:00:00.000Z" });
-      activityService.log({ id: "newer", type: "review", action: "submitted", message: "Newer action", createdAt: "2026-07-17T13:00:00.000Z" });
+      activityService.log({ id: "older", type: "assignment", action: "assigned", message: "Older action", createdAt: new Date(Date.now() - 60_000).toISOString() });
+      activityService.log({ id: "newer", type: "review", action: "submitted", message: "Newer action", createdAt: new Date().toISOString() });
       renderPage("operations-center");
     });
 
     const rows = page.getByTestId("operations-activity-item");
     await expect(rows).toHaveCount(2);
     await expect(rows.first()).toHaveAttribute("data-activity-id", "newer");
-    await expect(rows.first().locator("time")).toHaveAttribute("title", /Jul/);
+    await expect(rows.first().locator("time")).toHaveAttribute("title", /\w{3}/);
     await expect(rows.first()).toHaveAttribute("data-activity-category", "Reviews");
   });
 
@@ -375,7 +378,7 @@ test.describe("Operations Center redesign", () => {
         action: "assigned",
         actor: "Layout Tester",
         message: "Assigned event official",
-        createdAt: "2026-07-17T14:00:00.000Z"
+        createdAt: new Date().toISOString()
       });
       renderPage("operations-center");
     });

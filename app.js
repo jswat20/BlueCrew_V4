@@ -22,9 +22,11 @@ const pages = {
     subtitle: "Assignments, Schedules, and Activity."
   },
   login: {
-    title: "Login",
-    subtitle: "Access your umpire portal."
+    title: "The Slate - Login",
+    subtitle: ""
   },
+  "forgot-password": { title: "Forgot Password", subtitle: "Request a secure password reset link." },
+  "password-recovery": { title: "Set New Password", subtitle: "Finish your secure password recovery." },
   "my-schedule": {
     title: "My Schedule",
     subtitle: "Your assigned games."
@@ -105,20 +107,64 @@ const pages = {
 };
 
 function initializeApp() {
-  games = loadGames();
-  crew = loadCrew();
+  if (typeof supabaseClientService === "undefined" || supabaseClientService.hasConfigurationError()) {
+    games = [];
+    crew = [];
+    authService.clearAuthenticatedAccount?.();
+    document.body.dataset.page = "configuration-error";
+    document.body.dataset.role = "none";
+    document.querySelector(".sidebar")?.setAttribute("hidden", "");
+    document.querySelector(".topbar")?.setAttribute("hidden", "");
+    const content = document.getElementById("app-content");
+    if (content) content.innerHTML = `<div class="page-wrapper" data-testid="hosted-configuration-error"><section class="page-section"><h2>The Slate could not connect to its hosted configuration.</h2><p>Do not continue with schedule or account changes. Restart the hosted application or contact the administrator.</p></section></div>`;
+    window.BlueCrew.test.currentPage = "configuration-error";
+    window.BlueCrew.test.currentRole = "none";
+    window.BlueCrew.test.initialized = true;
+    return;
+  }
+  const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  games = usesSupabaseAuth ? [] : loadGames();
+  crew = usesSupabaseAuth ? [] : loadCrew();
 
-  ensureDataIds();
-  migrateCrewIds();
+  if (!usesSupabaseAuth) {
+    ensureDataIds();
+    migrateCrewIds();
+  }
 
-  migrationService.migrateGames();
-  migrationService.migrateCrewAccounts();
+  if (!usesSupabaseAuth) migrationService.migrateGames();
+  if (!usesSupabaseAuth) migrationService.migrateCrewAccounts();
 
-  document.body.dataset.page = "dashboard";
-  document.body.dataset.role = "admin";
+  document.body.dataset.page = usesSupabaseAuth ? "login" : "dashboard";
+  document.body.dataset.role = usesSupabaseAuth ? "umpire" : "admin";
 
   setupNavigation();
+  setupInstallHelper?.();
   setupRoleSwitcher();
+
+  if (usesSupabaseAuth) {
+    authService.clearAuthenticatedAccount?.();
+    renderPage("login");
+    window.history.replaceState(
+      { blueCrewPage: "login", context: {} },
+      "",
+      window.location.href
+    );
+    window.BlueCrew.test.currentRole = "umpire";
+    window.BlueCrew.test.initialized = true;
+
+    loginService.initializeAuthenticatedIdentity().then(result => {
+      if (result.data?.recovery || supabaseAuthService.isRecoveringPassword?.()) {
+        renderPage("password-recovery");
+        return;
+      }
+      if (!result.data) return;
+      document.body.dataset.role = result.data.role;
+      window.BlueCrew.test.currentRole = result.data.role;
+      refreshNavigationAuthorization?.();
+      renderPage("dashboard");
+    });
+    return;
+  }
 
   if (typeof refreshNavigationAuthorization === "function") {
     refreshNavigationAuthorization();
@@ -136,11 +182,18 @@ function initializeApp() {
 }
 
 function setupNavigation() {
-  document.querySelectorAll(".nav-link").forEach(button => {
+  document.querySelectorAll(".nav-link[data-page]").forEach(button => {
     button.addEventListener("click", () => {
       navigateTo(button.dataset.page);
     });
   });
+  document.querySelector("[data-testid='nav-logout']")
+    ?.addEventListener("click", logoutFromNavigation);
+}
+
+async function retrySharedHydration() {
+  const result = await loginService.initializeAuthenticatedIdentity();
+  renderPage(result.success && result.data ? "dashboard" : "login");
 }
 
 function setupRoleSwitcher() {
@@ -148,6 +201,11 @@ function setupRoleSwitcher() {
   const umpireButton = document.getElementById("umpire-role-btn");
 
   if (!adminButton || !umpireButton) return;
+
+  if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+    document.querySelector(".role-switcher")?.setAttribute("hidden", "");
+    return;
+  }
 
   adminButton.addEventListener("click", () => {
     authService.loginAsAdmin();
@@ -206,7 +264,25 @@ function renderAccessDenied(page) {
   `;
 }
 
+function escapeSharedStateHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function renderPage(page, context = {}) {
+  const hostedMode = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  const publicAuthPage = ["login", "forgot-password", "password-recovery"].includes(page);
+  if (supabaseAuthService?.isRecoveringPassword?.() && page !== "password-recovery") page = "password-recovery";
+  if (hostedMode && !publicAuthPage && !loginService.isLoggedIn()) {
+    page = "login";
+    context = {};
+    window.history.replaceState({ blueCrewPage: "login", context: {} }, "", window.location.href);
+  }
+  authenticatedIdentityService.updateDocumentTitle(page === "login" ? null : loginService.getCurrentAccount());
   if (typeof refreshNavigationAuthorization === "function") {
     refreshNavigationAuthorization();
   }
@@ -232,7 +308,18 @@ function renderPage(page, context = {}) {
   const content = document.getElementById("app-content");
   if (!content) return;
 
-  const isAuthorized =
+  const sharedHydrationState = typeof supabaseAuthService !== "undefined"
+    ? supabaseAuthService.getHydrationState()
+    : { status: "ready" };
+  const requiresSharedHydration = sharedHydrationState.status === "error"
+    || (["profile", "availability"].includes(page) && sharedHydrationState.status !== "ready");
+  if (!publicAuthPage && requiresSharedHydration && typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+    const state = sharedHydrationState;
+    content.innerHTML = `<div class="page-wrapper" data-testid="shared-hydration-error"><section class="page-section"><h2>Account data unavailable</h2><p>${escapeSharedStateHtml(state.message || "Your shared account data has not finished loading.")}</p><button type="button" data-testid="shared-hydration-retry" onclick="retrySharedHydration()">Retry</button><button type="button" class="secondary" data-testid="shared-hydration-logout" onclick="loginService.logoutAuthenticated().then(() => renderPage('login'))">Log out</button></section></div>`;
+    return;
+  }
+
+  const isAuthorized = publicAuthPage ||
     typeof authorizationService === "undefined" ||
     typeof authorizationService.canView !== "function" ||
     authorizationService.canView(page);
@@ -273,10 +360,40 @@ function renderPage(page, context = {}) {
     </div>
   `;
 
-  updateNotificationBadge();
+updateNotificationBadge();
 
   runPageSetup(page, context);
+  requestAnimationFrame(() => enhanceResponsiveSurfaces(content, page));
 }
+
+function enhanceResponsiveSurfaces(root, page) {
+  if (!root) return;
+  const scrollRegions = root.querySelectorAll([
+    ".table-wrapper", ".responsive-table", ".table-container",
+    ".presentation-table-wrapper", ".schedule-table-wrap", ".schedule-table-wrapper",
+    ".my-schedule-table-wrapper", ".claims-queue-table-wrapper", ".claim-history-section",
+    ".review-queue-table-wrapper", ".report-table-wrapper", ".report-detail-table-wrapper",
+    ".operations-staffing-table-wrap", ".workbench-open-table-wrap"
+  ].join(","));
+  scrollRegions.forEach((region, index) => {
+    if (!region.hasAttribute("tabindex")) region.tabIndex = 0;
+    if (!region.hasAttribute("role")) region.setAttribute("role", "region");
+    if (!region.hasAttribute("aria-label")) {
+      const heading = region.closest("section, article, .card")?.querySelector("h1, h2, h3, h4");
+      region.setAttribute("aria-label", `${heading?.textContent?.trim() || pages[page]?.title || "Data"} table ${index + 1}`);
+    }
+  });
+}
+
+async function logoutFromNavigation() {
+  const result = await loginService.logout();
+  window.history.replaceState({ blueCrewPage: "login", context: {} }, "", window.location.href);
+  refreshNavigationAuthorization?.();
+  renderPage("login");
+  return result;
+}
+
+window.logoutFromNavigation = logoutFromNavigation;
 
 function navigateTo(page, context = {}) {
   window.history.pushState(
@@ -298,6 +415,16 @@ window.addEventListener("popstate", event => {
 });
 
 function runPageSetup(page, context = {}) {
+  if (page === "login" && typeof setupLoginForm === "function") {
+    setupLoginForm();
+  }
+  if (["forgot-password", "password-recovery"].includes(page) && typeof setupAccountSecurityPage === "function") {
+    setupAccountSecurityPage(page);
+  }
+  if (page === "settings" && typeof setupSettingsPage === "function") {
+    setupSettingsPage();
+  }
+
   if (
     page === "operations-center" &&
     typeof window
@@ -327,6 +454,8 @@ function renderAdminView(page, context = {}) {
         ? renderProfile
         : null,
     login: typeof renderLogin === "function" ? renderLogin : null,
+    "forgot-password": typeof renderForgotPassword === "function" ? renderForgotPassword : null,
+    "password-recovery": typeof renderPasswordRecovery === "function" ? renderPasswordRecovery : null,
     schedule: typeof renderSchedule === "function" ? renderSchedule : null,
     crew: typeof renderCrew === "function" ? renderCrew : null,
     reports: typeof renderReports === "function" ? renderReports : null,
@@ -350,7 +479,9 @@ function renderAdminView(page, context = {}) {
     "game-hub": typeof renderGameHub === "function" ? renderGameHub : null,
     "review-queue": typeof renderReviewQueue === "function" ? renderReviewQueue : null,
  
-    availability: typeof renderAvailability === "function" ? renderAvailability : null,
+    availability: typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+      ? () => placeholderPage("Availability", "Feature Coming Soon. Availability management will be available soon.")
+      : (typeof renderAvailability === "function" ? renderAvailability : null),
   };
 
   const renderer = renderers[page];
@@ -362,6 +493,13 @@ function renderAdminView(page, context = {}) {
 
 function renderUmpireView(page, context = {}) {
   switch (page) {
+    case "login":
+      return typeof renderLogin === "function"
+        ? renderLogin(context)
+        : placeholderPage("Login", "Login is unavailable.");
+    case "forgot-password": return renderForgotPassword();
+    case "password-recovery": return renderPasswordRecovery();
+
     case "dashboard":
       return typeof renderCrewDashboard === "function"
         ? renderCrewDashboard(context)
@@ -410,9 +548,9 @@ function renderUmpireView(page, context = {}) {
         : placeholderPage("My Claims", "My Claims is unavailable.");
 
     case "availability":
-      return typeof renderAvailability === "function"
-        ? renderAvailability(context)
-        : placeholderPage("Availability", "Availability is unavailable.");
+      return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+        ? placeholderPage("Availability", "Feature Coming Soon. Availability management will be available soon.")
+        : (typeof renderAvailability === "function" ? renderAvailability(context) : placeholderPage("Availability", "Availability is unavailable."));
 
     default:
       return placeholderPage(

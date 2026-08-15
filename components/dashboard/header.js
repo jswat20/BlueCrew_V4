@@ -18,6 +18,13 @@ function getDashboardUnreadNotificationCount() {
 }
 
 function renderDashboardNotificationBell() {
+  if (
+    typeof authorizationService !== "undefined" &&
+    authorizationService.currentRole() !== "umpire"
+  ) {
+    return "";
+  }
+
   const unreadCount =
     getDashboardUnreadNotificationCount();
 
@@ -96,7 +103,7 @@ function renderDashboardWelcome() {
         <h1
           data-testid="dashboard-welcome-name"
         >
-          ${getDashboardGreeting()}, ${getDashboardUserName()}
+          ${getDashboardGreeting()}
         </h1>
       </div>
 

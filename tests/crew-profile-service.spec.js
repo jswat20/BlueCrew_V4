@@ -18,13 +18,14 @@ test.describe("Crew profile permissions", () => {
         homePhone: "5552223333",
         contactPreference: "call",
         officialHistory: [{ year: 2025, label: "1st Year" }, { year: 2026, label: "2nd Year" }],
+        yearsOfServiceOverride: 6,
         adminNotes: "Internal note"
       });
       return saved;
     });
     expect(result.success).toBe(true);
     expect(result.data.age).toBeGreaterThan(30);
-    expect(result.data.yearsOfService).toBe(2);
+    expect(result.data.yearsOfService).toBe(6);
     expect(result.data.contactPreference).toBe("call");
   });
 

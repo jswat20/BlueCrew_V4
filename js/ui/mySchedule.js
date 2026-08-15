@@ -2,6 +2,8 @@
 
 function renderMySchedule(context = {}) {
   const allGames = portalService.getMySchedule();
+  const showCompleted = sessionStorage.getItem("slate-show-completed-games") === "true";
+  const isCompleted = game => ["completed", "submitted", "returned", "approved"].includes(game.lifecycleStatus);
 
   const games =
     context.filter === "returned"
@@ -10,7 +12,7 @@ function renderMySchedule(context = {}) {
             game.completion?.review?.status ===
             "returned"
         )
-      : allGames;
+      : allGames.filter(game => showCompleted || !isCompleted(game));
 
   if (!games.length) {
     return `
@@ -23,7 +25,8 @@ function renderMySchedule(context = {}) {
           data-testid="my-schedule-empty"
         >
           <h2>My Schedule</h2>
-          <p>You have no assigned games.</p>
+          <p>${showCompleted ? "You do not have any assignments to display." : "You do not have any upcoming assignments."}</p>
+          <button type="button" class="button button-secondary" onclick="renderPage('claim-games')">View Games</button>
         </div>
       </section>
     `;
@@ -58,28 +61,23 @@ function renderMySchedule(context = {}) {
           }
         </div>
       </div>
+      ${context.filter === "returned" ? "" : `<label class="schedule-history-toggle"><input type="checkbox" data-testid="my-schedule-show-completed" ${showCompleted ? "checked" : ""} onchange="toggleCompletedSchedule(this.checked)"> Show completed games</label>`}
 
-      <div class="table-wrapper">
+      <div class="table-wrapper my-schedule-table-wrapper presentation-table-wrapper" tabindex="0" role="region" aria-label="My Schedule table">
         <table
-          class="table"
+          class="table presentation-table presentation-table-centered my-schedule-compact-table"
           data-testid="my-schedule-table"
         >
           <thead>
             <tr>
-              <th>Date</th>
+              <th>Day/Date</th>
               <th>Time</th>
-              <th>Game</th>
-              <th>Game Information</th>
               <th>Level</th>
+              <th>Location</th>
+              <th>Field</th>
               <th>Position</th>
-              <th>Crew</th>
-              <th>Arrival</th>
-              <th>Game Day</th>
-              <th>Checklist</th>
-              <th>Timeline</th>
-              <th>Conditions</th>
-              <th>Contacts</th>
               <th>Status</th>
+              <th>Open</th>
             </tr>
           </thead>
 
@@ -92,6 +90,11 @@ function renderMySchedule(context = {}) {
       </div>
     </section>
   `;
+}
+
+function toggleCompletedSchedule(showCompleted) {
+  sessionStorage.setItem("slate-show-completed-games", showCompleted ? "true" : "false");
+  renderPage("my-schedule");
 }
 
 function renderMySchedulePartners(game) {
@@ -121,7 +124,10 @@ function renderMySchedulePartners(game) {
 }
 
 function renderMyScheduleBadges(game) {
-  return game.statusBadges
+  const badges = game.lifecycleStatus === "cancelled"
+    ? [{ key: "cancelled", label: "Cancelled" }]
+    : game.statusBadges;
+  return badges
     .map(
       badge => `
         <span
@@ -512,6 +518,17 @@ function renderMyScheduleChecklist(game) {
 }
 
 function renderMyScheduleStatus(game) {
+  const canDecline =
+    ["assigned", "locked"].includes(
+      game.assignmentStatus
+    ) &&
+    ![
+      "completed",
+      "submitted",
+      "approved",
+      "cancelled"
+    ].includes(game.lifecycleStatus);
+
   return `
     <div
       class="status-badges"
@@ -519,7 +536,62 @@ function renderMyScheduleStatus(game) {
     >
       ${renderMyScheduleBadges(game)}
     </div>
+
+    ${
+      canDecline
+        ? `
+            <button
+              type="button"
+              class="button button-danger button-compact"
+              data-testid="decline-assignment-${game.id}"
+              onclick="handleDeclineAssignment('${game.id}')"
+            >
+              Decline Assignment
+            </button>
+          `
+        : ""
+    }
   `;
+}
+
+function handleDeclineAssignment(gameId) {
+  const reason = window.prompt(
+    "Why are you declining this assignment? A reason is required."
+  );
+
+  if (reason === null) {
+    return;
+  }
+
+  const result =
+    portalService.declineAssignment(
+      gameId,
+      reason
+    );
+
+  if (!result.success) {
+    if (
+      typeof toastService !== "undefined" &&
+      typeof toastService.error === "function"
+    ) {
+      toastService.error(result.message);
+    } else {
+      window.alert(result.message);
+    }
+
+    return;
+  }
+
+  if (
+    typeof toastService !== "undefined" &&
+    typeof toastService.success === "function"
+  ) {
+    toastService.success(
+      "Assignment declined. The assigner has been notified."
+    );
+  }
+
+  renderPage("my-schedule");
 }
 
 const gameDayRenderers = Object.freeze({
@@ -552,61 +624,17 @@ const gameDayRenderers = Object.freeze({
 });
 
 function renderMyScheduleRow(game) {
+  const information = game.gameInformation || {};
   return `
     <tr data-testid="my-schedule-row-${game.id}">
-      <td>${game.date}</td>
-      <td>${game.time}</td>
-      <td> <button class="button-link" type="button" onclick="renderPage('game-hub', { gameId: '${game.id}' })" data-testid="my-schedule-open-game-${game.id}"> ${game.matchup} </button> </td>
-      <td>
-        ${gameDayRenderers.renderGameInformation(game)}
-      </td>
-
-      <td>${game.level}</td>
-
-      ${renderMyScheduleCell(
-        `my-schedule-position-${game.id}`,
-        game.position
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-partners-${game.id}`,
-        gameDayRenderers.renderPartners(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-arrival-${game.id}`,
-        gameDayRenderers.renderArrival(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-game-day-${game.id}`,
-        gameDayRenderers.renderGameDay(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-checklist-${game.id}`,
-        gameDayRenderers.renderChecklist(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-timeline-cell-${game.id}`,
-        gameDayRenderers.renderTimeline(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-conditions-cell-${game.id}`,
-        gameDayRenderers.renderConditions(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-contacts-cell-${game.id}`,
-        gameDayRenderers.renderContacts(game)
-      )}
-
-      ${renderMyScheduleCell(
-        `my-schedule-status-${game.id}`,
-        gameDayRenderers.renderStatus(game)
-      )}
+      <td>${dateTimeFormattingService.formatDayDate(game.date)}</td>
+      <td>${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}</td>
+      <td>${levelTerminologyService.format(game.level)}</td>
+      <td>${game.locationComplex || game.complex || information.venue || "Location TBD"}</td>
+      <td>${locationService.getFieldDisplayName(game)}</td>
+      <td data-testid="my-schedule-position-${game.id}">${presentationFormattingService.formatAssignmentPosition(game.position, "Assigned")}</td>
+      <td data-testid="my-schedule-status-${game.id}">${renderMyScheduleBadges(game)}</td>
+      <td><button class="button button-primary button-compact" type="button" onclick="renderPage('game-hub', { gameId: '${game.id}', origin: 'my-schedule', returnPage: 'my-schedule' })" data-testid="my-schedule-open-game-${game.id}">Open</button></td>
     </tr>
   `;
 }

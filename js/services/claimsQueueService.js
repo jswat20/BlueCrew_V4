@@ -27,10 +27,13 @@ const claimsQueueService = (() => {
             assignment,
             gameId: game.id,
             assignmentId: assignment.id,
+            claimId: assignment.claimId || "",
             matchup: `${game.awayTeam} @ ${game.homeTeam}`,
             date: game.date,
             time: game.time,
-            field: game.field,
+            locationComplex: game.locationComplex || "",
+            locationField: game.locationField || game.field || "",
+            field: locationService.getDisplayName(game),
             level: game.level,
             position: assignment.position,
             claimedBy: assignment.claimedBy,
@@ -96,7 +99,10 @@ const claimsQueueService = (() => {
           claim =>
             claim.assignment.claimProcessed &&
             claim.assignment.claimStatus === "rejected"
-        )
+        ),
+
+      ...getClaimsByStatus(AssignmentStatus.NEEDS_ASSIGNMENT)
+        .filter(claim => claim.assignment.claimProcessed && claim.assignment.claimStatus === "withdrawn")
     ];
 
     if (status !== "all") {
@@ -127,6 +133,7 @@ const claimsQueueService = (() => {
   function getClaimHistorySummary() {
     const approvedClaims = getClaimHistory({ status: "approved" });
     const rejectedClaims = getClaimHistory({ status: "rejected" });
+    const withdrawnClaims = getClaimHistory({ status: "withdrawn" });
     const today = new Date().toISOString().split("T")[0];
 
     return {
@@ -139,7 +146,8 @@ const claimsQueueService = (() => {
       ).length,
 
       totalApproved: approvedClaims.length,
-      totalRejected: rejectedClaims.length
+      totalRejected: rejectedClaims.length,
+      totalWithdrawn: withdrawnClaims.length
     };
   }
 
@@ -155,7 +163,7 @@ const claimsQueueService = (() => {
     });
   }
 
-function approveClaim(gameId, assignmentId) {
+function approveClaim(gameId, assignmentId, claimId) {
   const denied = requireApproveClaims();
 
   if (denied) {
@@ -164,11 +172,12 @@ function approveClaim(gameId, assignmentId) {
 
   return assignmentService.approveClaim(
     gameId,
-    assignmentId
+    assignmentId,
+    claimId
   );
 }
 
-function rejectClaim(gameId, assignmentId) {
+function rejectClaim(gameId, assignmentId, claimId) {
   const denied = requireApproveClaims();
 
   if (denied) {
@@ -177,7 +186,8 @@ function rejectClaim(gameId, assignmentId) {
 
   return assignmentService.rejectClaim(
     gameId,
-    assignmentId
+    assignmentId,
+    claimId
   );
 }
 

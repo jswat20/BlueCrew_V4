@@ -42,16 +42,17 @@ test("workbench renders", async ({ page }) => {
   await expect(page.getByTestId("workbench-activity")).toHaveCount(0);
 });
 
-test("workbench notifications collapse without leaving the page", async ({ page }) => {
+test("workbench notifications expand without leaving the page", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => {
     notificationService.create({ title: "Collapsible notice", message: "Visible before collapse." });
     navigateTo("assigner-workbench");
   });
-  await expect(page.getByTestId("workbench-notification-item")).toBeVisible();
-  await page.getByTestId("workbench-toggle-notifications").click();
   await expect(page.getByTestId("workbench-notification-item")).toHaveCount(0);
   await expect(page.getByTestId("workbench-toggle-notifications")).toHaveText("Expand");
+  await page.getByTestId("workbench-toggle-notifications").click();
+  await expect(page.getByTestId("workbench-notification-item")).toBeVisible();
+  await expect(page.getByTestId("workbench-toggle-notifications")).toHaveText("Collapse");
 });
 
 test("workbench notifications open details and completed Game Hub summaries", async ({ page }) => {
@@ -84,6 +85,7 @@ test("workbench notifications open details and completed Game Hub summaries", as
     navigateTo("assigner-workbench");
   });
 
+  await page.getByTestId("workbench-toggle-notifications").click();
   const rows = page.getByTestId("workbench-notification-item");
   expect(await rows.count()).toBeGreaterThanOrEqual(3);
   await rows.filter({ hasText: "Game Completed" }).click();
@@ -141,6 +143,7 @@ test("workbench notifications describe the exact crew assignment change", async 
     return `${assignment.position}: Assigned to ${crewService.getDisplayName(crew.id)}.`;
   });
 
+  await page.getByTestId("workbench-toggle-notifications").click();
   const row = page.getByTestId("workbench-notification-item").filter({ hasText: "Activity Away @ Activity Home · 6:15 PM" }).first();
   await expect(row).toContainText(expected);
 });
@@ -154,6 +157,7 @@ test("workbench notifications describe schedule values before and after an edit"
     navigateTo("assigner-workbench");
   });
 
+  await page.getByTestId("workbench-toggle-notifications").click();
   const row = page.getByTestId("workbench-notification-item").filter({ hasText: "Edit Away @ Edit Home · 7:30 PM" }).first();
   await expect(row).toContainText("Time: 5:00 PM changed to 7:30 PM.");
   await expect(row).toContainText("Field: Old Field changed to New Field.");

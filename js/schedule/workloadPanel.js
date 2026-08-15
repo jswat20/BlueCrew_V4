@@ -164,7 +164,6 @@ function renderCrewWorkloadOverview() {
       <div class="panel-header crew-roster-header">
         <div>
           <h3>Crew Roster &amp; Workload</h3>
-          <p>Contact details, eligibility, status, and assignment load in one place.</p>
         </div>
         <label class="crew-roster-search">
           <span class="sr-only">Search crew by name or age level</span>
@@ -176,7 +175,7 @@ function renderCrewWorkloadOverview() {
         </div>
       </div>
       <div class="crew-roster-list">
-        ${crewService.getAll().map(member => renderCrewCardFront(member, { className: "crew-roster-row" })).join("")}
+        ${crewService.getAll().map(member => renderCrewCardFront(member, { className: "crew-roster-credential" })).join("")}
       </div>
     </section>
   `;
@@ -284,7 +283,7 @@ function openCrewCard(memberId) {
 
       <footer class="crew-profile-card-footer">
         <button type="button" class="button button-secondary" onclick="closeCrewCard()">Close</button>
-        <button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="editCrewFromCard('${escapeCrewOverviewJs(member.id)}')">Edit Crew Member</button>
+        <button type="button" class="button button-primary" data-testid="crew-card-edit" data-crew-id="${escapeCrewOverviewHtml(member.id)}">Edit Crew Member</button>
       </footer>
     </article>
   `;
@@ -323,10 +322,14 @@ function confirmCrewPhoneCall(phone) {
   }
 }
 
-function editCrewFromCard(memberId) {
+function editCrewFromCard(event, memberId) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (!openEditCrewDrawer(memberId)) return false;
   const dialog = document.getElementById("crew-card-dialog");
   if (dialog) {
     dialog.close();
   }
-  openEditCrewDrawer(memberId);
+  document.querySelector("#crew-drawer input:not([readonly])")?.focus();
+  return true;
 }

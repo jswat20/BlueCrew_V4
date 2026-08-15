@@ -2,11 +2,13 @@ import { test, expect } from "./fixtures/app.fixture.js";
 
 test.describe("Notifications UI", () => {
   test("shows an empty state when there are no notifications", async ({ app }) => {
+    await app.loginAsApprovedUmpire();
+
     await app.page.evaluate(() => {
       notificationService.clearAll();
     });
 
-    await app.page.getByTestId("nav-notifications").click();
+    await app.page.evaluate(() => renderPage("notifications"));
 
     await expect(app.page.getByTestId("notifications-empty")).toBeVisible();
   });
@@ -24,10 +26,10 @@ test.describe("Notifications UI", () => {
       });
     });
 
-    await app.page.getByTestId("nav-notifications").click();
+    await app.page.evaluate(() => renderPage("notifications"));
 
     await expect(app.page.getByTestId("notification-card")).toHaveCount(1);
-    await expect(app.page.getByText("New claim submitted")).toBeVisible();
+    await expect(app.page.getByText("Game Claimed")).toBeVisible();
     await expect(
       app.page.getByText("Pending Away @ Pending Home has been claimed.")
     ).toBeVisible();
@@ -72,7 +74,7 @@ test.describe("Notifications UI", () => {
 
     await expect(app.page.getByTestId("notifications-badge")).toHaveText("1");
 
-    await app.page.getByTestId("nav-notifications").click();
+    await app.page.evaluate(() => renderPage("notifications"));
     await app.page.getByTestId("notification-mark-read").click();
 
     await expect(app.page.getByTestId("notifications-badge")).toBeHidden();
@@ -98,12 +100,13 @@ test.describe("Notifications UI", () => {
 
     await expect(app.page.getByTestId("notifications-badge")).toHaveText("2");
 
-    await app.page.getByTestId("nav-notifications").click();
-    await app.page.getByTestId("notifications-mark-all-read").click();
+    await app.page.evaluate(() => renderPage("notifications"));
+    await app.page.getByTestId("notifications-select-visible").click();
+    await app.page.getByTestId("notifications-mark-selected-read").click();
 
     await expect(app.page.getByTestId("notifications-badge")).toBeHidden();
     await expect(app.page.getByTestId("notification-mark-read")).toHaveCount(0);
-    await expect(app.page.getByTestId("notifications-mark-all-read")).toHaveCount(0);
+    await expect(app.page.getByTestId("notifications-mark-selected-read")).toBeDisabled();
   });
 
   test("filters notifications by unread status", async ({ app }) => {
@@ -152,13 +155,15 @@ test.describe("Notifications UI", () => {
       });
     });
 
-    await app.page.getByTestId("nav-notifications").click();
+    await app.page.evaluate(() => renderPage("notifications"));
 
     await expect(app.page.getByTestId("notification-timestamp")).toBeVisible();
   });
 
 
   test("assignment notifications open the Game Hub", async ({ app }) => {
+    await app.loginAsApprovedUmpire();
+
     await app.page.evaluate(() => {
       notificationService.clearAll();
 
@@ -172,6 +177,8 @@ test.describe("Notifications UI", () => {
         gameType: "single"
       }).data;
 
+      notificationService.clearAll();
+
       notificationService.create({
         type: "assignment",
         title: "New Assignment",
@@ -181,7 +188,7 @@ test.describe("Notifications UI", () => {
       });
     });
 
-    await app.page.getByTestId("nav-notifications").click();
+    await app.page.evaluate(() => renderPage("notifications"));
 
     await app.page
       .getByTestId("notification-action")
@@ -205,7 +212,7 @@ test.describe("Notifications UI", () => {
       });
     });
 
-    await app.page.getByTestId("nav-notifications").click();
+    await app.page.evaluate(() => renderPage("notifications"));
     await app.page.getByTestId("notification-action").click();
 
     await expect(app.page.getByTestId("claims-queue")).toBeVisible();
@@ -231,7 +238,7 @@ test.describe("Notifications UI", () => {
     });
   });
 
-  await app.page.getByTestId("nav-notifications").click();
+  await app.page.evaluate(() => renderPage("notifications"));
   await app.page.getByTestId("notification-action").click();
 
   await expect(app.page.getByTestId("claims-queue")).toBeVisible();
@@ -278,7 +285,7 @@ assignmentService.rejectClaim(game.id);
   });
 });
 
-  await app.page.getByTestId("nav-notifications").click();
+  await app.page.evaluate(() => renderPage("notifications"));
   await app.page.getByTestId("notification-action").click();
 
   await expect(app.page.getByTestId("claim-history")).toBeVisible();
@@ -404,31 +411,12 @@ test.describe(
         };
 
         gameService.save();
+        notificationService.clearAll();
         renderPage("dashboard");
 
         return {
           gameId: game.id
         };
-        test(
-  "returned review notifications are excluded from the Read filter",
-  async ({ app }) => {
-    await setupReturnedReview(app);
-
-    await app.page.evaluate(() => {
-      renderPage("notifications");
-    });
-
-    await app.page
-      .getByTestId("notification-filter-read")
-      .click();
-
-    await expect(
-      app.page.locator(
-        '[data-testid="notification-action"][data-notification-type="returned-review"]'
-      )
-    ).toHaveCount(0);
-  }
-);
       });
     }
 

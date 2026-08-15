@@ -61,6 +61,8 @@ function renderDashboardTodayGames() {
               <div
                 class="dashboard-today-list"
                 data-testid="dashboard-today-list"
+                tabindex="0"
+                aria-label="Today’s scheduled games"
               >
                 <div
                   class="
@@ -76,7 +78,6 @@ function renderDashboardTodayGames() {
                 </div>
 
                 ${games
-                  .slice(0, 8)
                   .map(
                     renderDashboardTodayGame
                   )
@@ -122,7 +123,7 @@ function renderDashboardTodayGame(game) {
       </strong>
 
       <span class="dashboard-today-location">
-        ${game.field || "Location TBD"}
+        ${locationService.getDisplayName(game) || "Location TBD"}
       </span>
 
       <span

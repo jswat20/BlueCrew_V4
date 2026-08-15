@@ -53,7 +53,7 @@ function renderUpcomingGame(game) {
       <div class="today-details">
         <strong>${game.matchup}</strong>
         <span>
-          ${[game.level, game.field].filter(Boolean).join(" • ")}
+          ${[levelTerminologyService.format(game.level), game.field].filter(Boolean).join(" • ")}
         </span>
       </div>
 

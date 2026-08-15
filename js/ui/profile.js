@@ -4,6 +4,7 @@ let profileFormSnapshot = null;
 let profileFormMessage = "";
 let profileFormError = "";
 let profilePendingPhotoDataUrl = "";
+let profileCardShowingBack = false;
 
 function escapeProfileHtml(value) {
   return String(value || "")
@@ -40,7 +41,29 @@ function renderProfile() {
   profileFormSnapshot = { ...profile };
   profilePendingPhotoDataUrl = profile.photoDataUrl || "";
 
-  return renderProfileForm(profile);
+  return renderUnifiedProfileExperience(profile);
+}
+
+function renderUnifiedProfileExperience(profile) {
+  const account = accountService.getById(profile.id) || profile;
+  const cardModel = getCrewCardModel(account);
+  const frontFace = renderCrewCredentialFrontFace(cardModel).replace("<section class=\"crew-credential-face crew-credential-face-front\"", `<section class="crew-credential-face crew-credential-face-front" ${profileCardShowingBack ? 'aria-hidden="true" inert' : ''}`);
+  const backFace = renderCrewCredentialBackFace(cardModel).replace("<section class=\"crew-credential-face crew-credential-face-back\"", `<section class="crew-credential-face crew-credential-face-back" ${profileCardShowingBack ? '' : 'aria-hidden="true" inert'}`);
+  const preferences = profile.communicationPreferences || accountService.getDefaultCommunicationPreferences();
+  return `<section class="page-section unified-profile-page" data-testid="profile">
+    <div class="section-header"><div><h2>My Crew Card</h2><p>View and maintain your authorized contact and emergency information.</p></div></div>
+    ${profileFormMessage ? `<div class="success-message" data-testid="profile-success" role="status" aria-live="polite" tabindex="-1">${escapeProfileHtml(profileFormMessage)}</div>` : ""}
+    ${profileFormError ? `<div class="validation-message" data-testid="profile-error" role="alert">${escapeProfileHtml(profileFormError)}</div>` : ""}
+    <div class="unified-profile-card profile-baseball-card" data-testid="profile-crew-card-experience"><div class="crew-credential-flipper ${profileCardShowingBack ? "is-flipped" : ""}" data-testid="profile-card-flipper">${frontFace}${backFace}</div><div class="unified-profile-card-actions">${profileCardShowingBack ? `<button type="button" class="button button-secondary" data-testid="profile-card-front" onclick="showProfileCardSide(false)">Back to Card Front</button><button type="button" class="button button-primary" data-testid="profile-edit-crew-card" onclick="openOwnCrewCardEditMode()">Edit My Information</button>` : `<button type="button" class="button button-primary" data-testid="profile-card-back" onclick="showProfileCardSide(true)">View My Information</button>`}</div></div>
+    <section class="settings-section unified-profile-support" id="profile-communication" data-testid="profile-communication"><div class="section-header"><div><h3>Communication</h3><p class="muted">Choose which in-app updates appear in your Notification Center.</p></div></div><div class="settings-options" data-testid="communication-options">${COMMUNICATION_PROFILE_OPTIONS.map(option => renderCommunicationProfileOption(option, preferences)).join("")}</div></section>
+    <section class="settings-section unified-profile-support profile-account-security" data-testid="profile-account-security" aria-labelledby="profile-account-security-title"><div class="profile-security-heading"><h3 id="profile-account-security-title">Account Security</h3><p>Manage the password for your verified login identity</p></div><div class="profile-security-actions"><dl><dt>Login Email:</dt><dd data-testid="profile-login-email">${escapeProfileHtml(profile.email)}</dd></dl><button type="button" class="button button-secondary" data-testid="profile-change-password" onclick="openChangePasswordDialog()">Change Password</button></div></section>
+  </section>`;
+}
+
+function showProfileCardSide(showBack) {
+  profileCardShowingBack = showBack === true;
+  renderPage("profile");
+  focusElementWhenReady(showBack ? '[data-testid="profile-card-front"]' : '[data-testid="profile-card-back"]');
 }
 
 const COMMUNICATION_PROFILE_OPTIONS = [
@@ -74,9 +97,9 @@ const COMMUNICATION_PROFILE_OPTIONS = [
   },
   {
     key: "desktopNotifications",
-    label: "Desktop notifications",
+    label: "Browser notifications (not currently available)",
     description:
-      "Future-ready browser notification preference."
+      "Save this preference for future browser notification support."
   }
 ];
 
@@ -130,6 +153,12 @@ function renderCommunicationProfileOption(
 }
 
 function renderProfileForm(profile) {
+  const account = accountService.getById(profile.id);
+  const crewCard =
+    typeof getCrewCardModel === "function"
+      ? getCrewCardModel(account)
+      : null;
+
   return `
     <section
       class="page-section"
@@ -180,16 +209,18 @@ function renderProfileForm(profile) {
       }
 
       <div class="profile-crew-card-preview" data-testid="profile-crew-card-front">
-        ${typeof renderCrewCardFront === "function" ? renderCrewCardFront(accountService.getById(profile.id), { testId: "profile-crew-card" }) : ""}
+        ${typeof renderCrewCardFront === "function" ? renderCrewCardFront(accountService.getById(profile.id), { testId: "profile-crew-card", hideLevels: true }) : ""}
       </div>
 
       <form
-        class="form-card"
+        class="form-card profile-form-card"
         data-testid="profile-form"
         novalidate
         onsubmit="handleSaveProfile(event)"
       >
-        <div class="form-grid">
+        <section class="profile-details-section" aria-labelledby="profile-details-title">
+          <div class="profile-section-heading"><div><h3 id="profile-details-title">Profile Details</h3><p>Account identity, contact, and emergency information.</p></div></div>
+        <div class="form-grid profile-details-grid">
           <label>
             Crew ID
             <input type="text" data-testid="profile-crew-id" value="${escapeProfileHtml(profile.crewCode || "Not issued")}" disabled>
@@ -242,7 +273,7 @@ function renderProfileForm(profile) {
           </label>
 
           <label>
-            Email
+            Login Email
             <input
               type="email"
               id="profile-email"
@@ -250,6 +281,7 @@ function renderProfileForm(profile) {
               value="${escapeProfileHtml(
                 profile.email
               )}"
+              ${typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured() ? "disabled" : ""}
               required
             >
           </label>
@@ -316,7 +348,30 @@ function renderProfileForm(profile) {
               )}"
             >
           </label>
-        </div>
+        </div></section>
+
+        <section class="profile-credentials" data-testid="profile-credentials">
+          <div class="section-header">
+            <div>
+              <h3>Crew Information</h3>
+              <p class="muted">Verified crew and service information.</p>
+            </div>
+          </div>
+          <div class="profile-credential-grid">
+            <div>
+              <span>Status</span>
+              <strong>${escapeProfileHtml(crewCard?.statusLabel || profile.status || "Pending")}</strong>
+            </div>
+            <div>
+              <span>Years of Service</span>
+              <strong>${escapeProfileHtml(crewCard?.yearsOfService ?? profile.yearsOfService ?? 0)}</strong>
+            </div>
+            <div>
+              <span>Crew Assignment</span>
+              <strong>${escapeProfileHtml(profile.crewName || "Not assigned")}</strong>
+            </div>
+          </div>
+        </section>
 
         <section
           class="settings-section"
@@ -352,9 +407,16 @@ function renderProfileForm(profile) {
           </div>
         </section>
 
+        <section class="settings-section" data-testid="profile-account-security" aria-labelledby="profile-account-security-title">
+          <div class="section-header"><div><h3 id="profile-account-security-title">Account Security</h3><p>Manage the password for your verified login identity.</p></div></div>
+          <dl><dt>Login Email</dt><dd data-testid="profile-login-email">${escapeProfileHtml(profile.email)}</dd></dl>
+          <button type="button" class="button button-secondary" data-testid="profile-change-password" onclick="openChangePasswordDialog()">Change Password</button>
+        </section>
+
         <div class="form-actions responsive-actions">
           <button
             type="submit"
+            class="button button-primary"
             data-testid="profile-save"
           >
             Save
@@ -362,7 +424,7 @@ function renderProfileForm(profile) {
 
           <button
             type="button"
-            class="secondary"
+            class="button button-secondary"
             data-testid="profile-cancel"
             onclick="handleCancelProfileEdit()"
           >
@@ -375,35 +437,17 @@ function renderProfileForm(profile) {
 }
 
 function getProfileFormValues() {
+  const current = portalService.getProfile() || {};
   return {
-    email:
-      document.getElementById(
-        "profile-email"
-      )?.value || "",
-    phone:
-      document.getElementById(
-        "profile-phone"
-      )?.value || "",
-    homePhone: document.getElementById("profile-home-phone")?.value || "",
-    address:
-      document.getElementById(
-        "profile-address"
-      )?.value || "",
-    emergencyContact:
-      document.getElementById(
-        "profile-emergency-contact"
-      )?.value || "",
-    emergencyContactPhone:
-      document.getElementById(
-        "profile-emergency-phone"
-      )?.value || "",
-    contactPreference: document.getElementById("profile-contact-preference")?.value || "text",
+    email: document.getElementById("profile-email")?.value || current.email || "",
+    phone: document.getElementById("profile-phone")?.value || current.phone || "",
+    homePhone: document.getElementById("profile-home-phone")?.value || current.homePhone || "",
+    address: document.getElementById("profile-address")?.value || current.address || "",
+    emergencyContact: document.getElementById("profile-emergency-contact")?.value || current.emergencyContact || "",
+    emergencyContactPhone: document.getElementById("profile-emergency-phone")?.value || current.emergencyContactPhone || "",
+    contactPreference: document.getElementById("profile-contact-preference")?.value || current.contactPreference || "text",
     photoDataUrl: profilePendingPhotoDataUrl,
-    communicationPreferences:
-      portalService.getProfile()
-        ?.communicationPreferences ||
-      accountService
-        .getDefaultCommunicationPreferences()
+    communicationPreferences: current.communicationPreferences || accountService.getDefaultCommunicationPreferences()
   };
 }
 
@@ -429,7 +473,7 @@ async function handleProfilePhotoSelected(input) {
   }
 }
 
-function handleCommunicationPreferenceChange(
+async function handleCommunicationPreferenceChange(
   key,
   enabled
 ) {
@@ -450,14 +494,16 @@ function handleCommunicationPreferenceChange(
     return;
   }
 
-  const result =
-    portalService.saveProfile({
+  const profileChanges = {
       ...getProfileFormValues(),
       communicationPreferences: {
         ...current.communicationPreferences,
         [key]: enabled === true
       }
-    });
+    };
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await portalService.saveProfileShared(profileChanges)
+    : portalService.saveProfile(profileChanges);
 
   if (!result.success) {
     profileFormError =
@@ -491,15 +537,16 @@ function handleCommunicationPreferenceChange(
   );
 }
 
-function handleSaveProfile(event) {
+async function handleSaveProfile(event) {
   event?.preventDefault();
 
   profileFormMessage = "";
   profileFormError = "";
 
-  const result = portalService.saveProfile(
-    getProfileFormValues()
-  );
+  const values = getProfileFormValues();
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+    ? await portalService.saveProfileShared(values)
+    : portalService.saveProfile(values);
 
   if (!result.success) {
     profileFormError =

@@ -10,7 +10,7 @@ test.describe(
     test("claim approval invokes the workbench refresh hook after success", async ({
       page
     }) => {
-      const result = await page.evaluate(() => {
+      const result = await page.evaluate(async () => {
         let refreshCount = 0;
 
         const originalRefresh =
@@ -34,7 +34,7 @@ test.describe(
 
         window.renderPage = () => {};
 
-        handleApproveClaim(
+        await handleApproveClaim(
           "game-1",
           "assignment-1"
         );

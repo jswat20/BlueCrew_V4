@@ -2,13 +2,13 @@
 
 function renderGameCard(game) {
   const assigned = assignmentService.isAssigned(game);
+  const displayStatus = getScheduleDisplayStatus(game);
   const isAdmin = authService.isAdmin();
 const isUmpire = authService.isUmpire();
 const isOpenForClaim = assignmentService.isOpenForClaim(game);
 const isPendingApproval = assignmentService.isPendingApproval(game);
 const isLocked = assignmentService.isLocked(game);
 const myCrewId = authService.currentCrewId();
-  const crewName = crewService.getDisplayName(game.crewId);
   const assignments = assignmentService.getAssignments(game);
   const assignedCrew = assignments.filter(assignment => assignment.crewId);
   const warnings = getGameCardWarnings(game);
@@ -16,15 +16,14 @@ const myCrewId = authService.currentCrewId();
 
   return `
     <article
-    class="schedule-game-card presentation-card ${assigned ? "assigned" : "open"}"
+    class="schedule-game-card presentation-card ${displayStatus.key === "cancelled" ? "cancelled" : assigned ? "assigned" : "open"}"
     data-testid="game-card-${game.id}">
       <div class="game-card-left">
-        <div
-    class="game-time"
-    data-testid="game-time-${game.id}">${game.time || "Time TBD"}</div>
+        <div class="game-date">${formatShortDate(game.date)}</div>
+        <div class="game-time" data-testid="game-time-${game.id}">${dateTimeFormattingService.formatTime12Hour(game.time, "Time TBD")}</div>
 
         <div
-    class="game-status status-badge ${assigned ? "status-badge-approved" : "status-badge-open"}"
+    class="game-status status-badge ${displayStatus.className}"
     data-testid="game-status-${game.id}">
   ${
     typeof renderAssignmentStatusBadge === "function"
@@ -39,20 +38,12 @@ const myCrewId = authService.currentCrewId();
         <div
     class="game-meta"
     data-testid="game-meta-${game.id}">
-          <span>${game.field || "Field TBD"}</span>
-          ${game.level ? `<span>${game.level}</span>` : ""}
+          ${game.level ? `<span class="game-level">${levelTerminologyService.format(game.level)}</span>` : ""}
         </div>
 
         <h3 data-testid="game-title-${game.id}">${game.awayTeam || "Away"} @ ${game.homeTeam || "Home"}</h3>
 
-<div
-    class="game-crew-line ${assigned ? "" : "missing"}"
-    data-testid="game-crew-${game.id}">          ${
-            assigned
-              ? `👤 ${crewName}`
-              : "⚠ No crew assigned"
-          }
-        </div>
+        <div class="game-location">${locationService.getDisplayName(game) || "Location TBD"}</div>
 
         ${
           workload
@@ -83,20 +74,46 @@ const myCrewId = authService.currentCrewId();
       <div class="game-card-crew ${assignedCrew.length ? "" : "missing"}">
         ${assignedCrew.length
           ? assignedCrew.map(assignment => `
-              <span><small>${assignments.length === 1 ? "Solo" : assignment.position}</small><button type="button" class="game-card-crew-link" onclick="openCrewCard('${assignment.crewId}')">${crewService.getDisplayName(assignment.crewId)}</button></span>
+              <span><small>${assignments.length === 1 ? "Solo" : presentationFormattingService.formatAssignmentPosition(assignment.position)}</small><button type="button" class="game-card-crew-link" onclick="openCrewCard('${assignment.crewId}')">${crewService.getDisplayName(assignment.crewId)}</button></span>
             `).join("")
-          : `<span><small>Crew</small><strong>No crew assigned</strong></span>`}
+          : `<strong data-testid="game-crew-${game.id}">No crew assigned</strong>`}
       </div>
 
 <div
     class="game-card-actions"
     data-testid="game-actions-${game.id}">
-<button
-    class="button button-secondary"
-    data-testid="game-details-${game.id}"
-    aria-label="View Game Hub"
-    onclick="openScheduleGameHub('${game.id}')">View<br>Game<br>Hub
+${
+  isAdmin
+    ? `
+        <button
+          type="button"
+          class="button button-primary"
+          data-testid="game-details-${game.id}"
+          aria-label="Manage Crew"
+          onclick="openAssignmentDrawer('${game.id}')">
+          Manage Crew
         </button>
+
+        <button
+          type="button"
+          class="button button-secondary"
+          data-testid="edit-game-${game.id}"
+          aria-label="Edit Game"
+          onclick="editGame('${game.id}')">
+          Edit Game
+        </button>
+      `
+    : ""
+}
+
+<button
+  type="button"
+  class="button button-secondary"
+  data-testid="game-hub-${game.id}"
+  aria-label="View Game Hub"
+  onclick="openScheduleGameHub('${game.id}')">
+  View Game Hub
+</button>
       </div>
     </article>
   `;

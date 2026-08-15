@@ -4,7 +4,12 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "start": "http-server . -p 5500",
+    "build:production": "node scripts/build-production.cjs",
+    "verify:production-artifact": "node scripts/verify-production-artifact.cjs",
+    "generate:supabase-config": "node scripts/generate-supabase-config.cjs",
+    "start": "npm run start:hosted",
+    "start:hosted": "node scripts/generate-supabase-config.cjs --mode=hosted && http-server . -a 127.0.0.1 -p 5500",
+    "start:local": "node scripts/generate-supabase-config.cjs --mode=local && http-server . -a 127.0.0.1 -p 5500",
     "test": "playwright test"
   },
   "keywords": [],
@@ -15,6 +20,10 @@
     "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.1.0",
-    "http-server": "^14.1.1"
+    "http-server": "^14.1.1",
+    "supabase": "^2.111.0"
+  },
+  "dependencies": {
+    "@supabase/server": "^1.4.1"
   }
 }

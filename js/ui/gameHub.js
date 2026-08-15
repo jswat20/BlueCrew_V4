@@ -8,6 +8,53 @@ function escapeGameHubText(value) {
     .replaceAll('"', "&quot;");
 }
 
+let gameHubNavigationContext = {};
+const pendingGameHubCrewAssignments = new Set();
+const pendingGameHubDeclines = new Set();
+let gameHubDeclineTrigger = null;
+
+function formatGameHubDate(value) {
+  if (!value) return "Date unavailable";
+  const parsed = new Date(`${value}T12:00:00`);
+  return Number.isNaN(parsed.getTime()) ? "Date unavailable" : parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatGameHubLongDate(value) {
+  if (!value) return "Date unavailable";
+  const parsed = new Date(`${value}T12:00:00`);
+  return Number.isNaN(parsed.getTime())
+    ? "Date unavailable"
+    : parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+function getGameHubPresentation(game = {}) {
+  const information = game.gameInformation || {};
+  return {
+    matchup: game.matchup || `${game.awayTeam || "Away team unavailable"} @ ${game.homeTeam || "Home team unavailable"}`,
+    date: formatGameHubDate(game.date),
+    dateLong: formatGameHubLongDate(game.date),
+    time: dateTimeFormattingService.formatTime12Hour(game.time, "Time unavailable"),
+    complex: information.locationComplex || information.venue || game.locationComplex || "Complex unavailable",
+    field: information.locationField || information.field || game.field || "Field unavailable",
+    level: levelTerminologyService.format(game.level) || "Level unavailable",
+    contact: organizationContactService.getGameContact(game)
+  };
+}
+
+function renderGameHubAssignmentBadge(game = {}) {
+  if (game.lifecycleStatus === "cancelled") {
+    return `<span class="status-badge ${presentationFormattingService.getStatusBadgeClass("Cancelled")}" data-testid="game-hub-assignment-status" data-status="cancelled">Cancelled</span>`;
+  }
+  const status = String(game.assignmentStatus || "").toLowerCase();
+  const label = game.assignmentStatusLabel || (status === "pending_approval"
+    ? "Pending Approval"
+    : ["needs_assignment", "open_for_claim"].includes(status)
+      ? "Needs Assignment"
+      : "Assigned");
+  const semanticClass = presentationFormattingService.getStatusBadgeClass(label);
+  return `<span class="status-badge ${semanticClass}" data-testid="game-hub-assignment-status">${escapeGameHubText(label)}</span>`;
+}
+
 function isGameHubReadOnly(game) {
   return Boolean(
     game?.isReadOnly === true ||
@@ -37,14 +84,20 @@ function getGameHubLifecycleLabel(game) {
 function renderGameHubLifecycleBadge(game) {
   const status =
     game?.lifecycleStatus || "scheduled";
+  const label = getGameHubLifecycleLabel(game);
+  const semanticLabel = ["submitted", "returned"].includes(status)
+    ? "Pending Approval"
+    : status === "postponed"
+      ? "Cancelled"
+      : label;
 
   return `
     <span
-      class="status-badge game-hub-lifecycle-badge"
+      class="status-badge game-hub-lifecycle-badge ${presentationFormattingService.getStatusBadgeClass(semanticLabel)}"
       data-testid="game-hub-lifecycle-badge"
       data-status="${status}"
     >
-      ${getGameHubLifecycleLabel(game)}
+      ${label}
     </span>
   `;
 }
@@ -95,6 +148,116 @@ function renderGameHubLifecycleBanner(game) {
       </span>
     </div>
   `;
+}
+
+function getUmpireOperationalStatus(game) {
+  const status = game?.lifecycleStatus || "scheduled";
+  if (status === "cancelled") return { label: "Cancelled", key: "cancelled" };
+  if (["completed", "submitted", "returned", "approved"].includes(status)) return { label: "Completed", key: "completed" };
+  if (status === "postponed") return { label: "Delayed", key: "delayed" };
+  return { label: "On Time", key: "on-time" };
+}
+
+function getUmpirePositionLabel(position, game) {
+  const value = String(position || "").trim();
+  if (/plate/i.test(value) && Number(game?.crewSize || 1) === 1) return "Solo";
+  return presentationFormattingService.formatAssignmentPosition(value, "Position unavailable");
+}
+
+function renderUmpireGameSummary(game) {
+  const presentation = getGameHubPresentation(game);
+  const operational = getUmpireOperationalStatus(game);
+  const assigned = ["assigned", "locked"].includes(game.assignmentStatus);
+  const primaryStatus = game.lifecycleStatus === "cancelled" ? "Cancelled" : "Assigned";
+  const conditions = game.gameConditions || {};
+  const weather = [conditions.summary, conditions.temperature, conditions.fieldStatus].filter(Boolean);
+  const canDecline = assigned && !["cancelled", "completed", "submitted", "returned", "approved"].includes(game.lifecycleStatus);
+  return `<section class="card presentation-card game-hub-summary game-hub-umpire-summary" data-testid="game-hub-summary" data-umpire-summary="true">
+    <h2 data-testid="game-hub-matchup">${escapeGameHubText(presentation.matchup)}</h2>
+    <div class="game-hub-umpire-status-row" data-testid="game-hub-umpire-status-row">
+      <span class="game-hub-assignment-badge" data-assigned="${assigned}" data-status="${game.lifecycleStatus === "cancelled" ? "cancelled" : "assigned"}" data-testid="game-hub-assignment-badge">${primaryStatus}</span>
+      <span class="game-hub-operational-badge" data-status="${operational.key}" data-testid="game-hub-operational-status">${operational.label}</span>
+      <span class="game-hub-weather" data-testid="game-hub-weather"><small>Forecast</small><strong>${weather.length ? escapeGameHubText(weather.join(" · ")) : "Unavailable"}</strong></span>
+    </div>
+    <div class="game-hub-summary-details game-hub-umpire-details" data-testid="game-hub-umpire-details">
+      <div data-testid="game-hub-summary-date"><span>Date</span><strong>${escapeGameHubText(presentation.date)}</strong></div>
+      <div data-testid="game-hub-summary-time"><span>Time</span><strong>${escapeGameHubText(presentation.time)}</strong></div>
+      ${assigned ? `<div data-testid="game-hub-summary-position"><span>Position</span><strong class="game-hub-position-badge">${escapeGameHubText(getUmpirePositionLabel(game.positions?.[0], game))}</strong></div>` : `<div><span>Position</span><strong>Position unavailable</strong></div>`}
+      <div data-testid="game-hub-summary-level"><span>Level</span><strong data-testid="game-hub-level-badge">${escapeGameHubText(presentation.level)}</strong></div>
+      <div data-testid="game-hub-summary-location"><span>Complex</span><strong>${escapeGameHubText(presentation.complex)}</strong></div>
+      <div data-testid="game-hub-summary-field"><span>Field</span><strong>${escapeGameHubText(presentation.field)}</strong></div>
+    </div>${canDecline ? `<div class="game-hub-summary-actions"><button type="button" class="button button-danger" data-testid="game-hub-decline-assignment" aria-haspopup="dialog" onclick="openGameHubDeclineDialog('${escapeGameHubText(game.id)}', this)">Decline Assignment</button></div>${renderGameHubDeclineDialog(game)}` : ""}
+  </section>`;
+}
+
+function renderGameHubDeclineDialog(game) {
+  const titleId = `game-hub-decline-title-${escapeGameHubText(game.id)}`;
+  return `<dialog class="game-hub-crew-picker game-hub-decline-dialog" data-testid="game-hub-decline-dialog" aria-labelledby="${titleId}" onclose="restoreGameHubDeclineFocus()">
+    <form method="dialog" novalidate onsubmit="event.preventDefault(); submitGameHubDecline('${escapeGameHubText(game.id)}')">
+      <header><h3 id="${titleId}">Decline Assignment</h3></header>
+      <div class="game-hub-decline-content">
+        <label for="game-hub-decline-reason">Reason for declining</label>
+        <textarea id="game-hub-decline-reason" data-testid="game-hub-decline-reason" rows="4" required aria-describedby="game-hub-decline-status"></textarea>
+        <p id="game-hub-decline-status" class="form-status" data-testid="game-hub-decline-status" role="alert" aria-live="polite"></p>
+      </div>
+      <footer class="game-hub-picker-actions">
+        <button type="button" class="button button-secondary" data-testid="game-hub-decline-cancel" onclick="this.closest('dialog').close()">Cancel</button>
+        <button type="submit" class="button button-danger" data-testid="game-hub-decline-submit">Decline Assignment</button>
+      </footer>
+    </form>
+  </dialog>`;
+}
+
+function openGameHubDeclineDialog(gameId, trigger) {
+  const dialog = document.querySelector('[data-testid="game-hub-decline-dialog"]');
+  if (!dialog) return;
+  gameHubDeclineTrigger = trigger || document.activeElement;
+  const reason = dialog.querySelector('[data-testid="game-hub-decline-reason"]');
+  const status = dialog.querySelector('[data-testid="game-hub-decline-status"]');
+  if (reason) reason.value = "";
+  if (status) status.textContent = "";
+  dialog.dataset.gameId = gameId;
+  dialog.showModal();
+  reason?.focus();
+}
+
+function restoreGameHubDeclineFocus() {
+  gameHubDeclineTrigger?.focus?.();
+  gameHubDeclineTrigger = null;
+}
+
+async function submitGameHubDecline(gameId) {
+  const dialog = document.querySelector('[data-testid="game-hub-decline-dialog"]');
+  const reasonInput = dialog?.querySelector('[data-testid="game-hub-decline-reason"]');
+  const status = dialog?.querySelector('[data-testid="game-hub-decline-status"]');
+  const submit = dialog?.querySelector('[data-testid="game-hub-decline-submit"]');
+  const reason = String(reasonInput?.value || "").trim();
+  if (!reason) {
+    if (status) status.textContent = "Enter a reason for declining the assignment.";
+    reasonInput?.focus();
+    return;
+  }
+  if (pendingGameHubDeclines.has(gameId)) return;
+  pendingGameHubDeclines.add(gameId);
+  if (submit) { submit.disabled = true; submit.setAttribute("aria-busy", "true"); }
+  if (status) status.textContent = "Declining assignment...";
+  try {
+    const result = await portalService.declineAssignment(gameId, reason);
+    if (!result.success) {
+      if (status) status.textContent = result.message;
+      reasonInput?.focus();
+      return;
+    }
+    dialog?.close();
+    toastService?.success?.("Assignment declined. The assigner has been notified.");
+    renderPage("my-schedule");
+  } catch (error) {
+    if (status) status.textContent = error?.message || "Assignment could not be declined.";
+    reasonInput?.focus();
+  } finally {
+    pendingGameHubDeclines.delete(gameId);
+    if (submit) { submit.disabled = false; submit.removeAttribute("aria-busy"); }
+  }
 }
 
 function renderGameHubCrewNotes(game) {
@@ -792,6 +955,7 @@ function renderGameHubCompletion(
   };
 
   if (!completion.completed) {
+    const eligibility = portalService.getCompletionEligibility(game);
     return `
       <section
         class="card game-hub-section game-hub-completion"
@@ -809,10 +973,22 @@ function renderGameHubCompletion(
           type="button"
           class="button button-primary"
           data-testid="game-hub-complete-game"
-          onclick="completeGameFromHub('${game.id}')"
+          onclick="openGameCompletionDialog()"
+          ${eligibility.allowed ? "" : "disabled"}
+          aria-describedby="game-hub-completion-help"
         >
           Complete Game
         </button>
+
+        <p class="muted" id="game-hub-completion-help" data-testid="game-hub-completion-help">${escapeGameHubText(eligibility.allowed ? "Enter the final score and optional game notes." : eligibility.reason)}</p>
+        <dialog class="game-hub-completion-dialog" data-testid="game-hub-completion-dialog" aria-labelledby="game-hub-completion-dialog-title" onclose="restoreGameCompletionFocus()">
+          <div><h3 id="game-hub-completion-dialog-title">Complete Game</h3>
+          <label>Away Score<input type="number" min="0" step="1" data-testid="game-hub-completion-away-score"></label>
+          <label>Home Score<input type="number" min="0" step="1" data-testid="game-hub-completion-home-score"></label>
+          <label>Game Notes<textarea rows="5" data-testid="game-hub-completion-notes"></textarea></label>
+          <p class="form-status" role="alert" data-testid="game-hub-completion-dialog-error"></p>
+          <div class="game-hub-dialog-actions"><button type="button" class="button button-primary" data-testid="game-hub-confirm-completion" onclick="completeGameFromHub('${game.id}')">Complete Game</button><button type="button" class="button button-secondary" data-testid="game-hub-cancel-completion" onclick="closeGameCompletionDialog()">Cancel</button></div></div>
+        </dialog>
 
         <p
           class="form-status"
@@ -863,7 +1039,7 @@ function renderGameHubCompletion(
         </div>
       </dl>
 
-      <div
+      ${false ? `<div
         class="game-hub-final-score"
         data-testid="game-hub-final-score"
       >
@@ -931,7 +1107,23 @@ function renderGameHubCompletion(
       ${renderGameHubReports(
         game,
         completion
-      )}
+      )}` : ""}
+
+      <div class="game-hub-completion-summary" data-testid="game-hub-completion-summary">
+        <h4>Final Score</h4>
+        <p><strong>${escapeGameHubText(game.awayTeam)}</strong> ${completion.awayScore} – ${completion.homeScore} <strong>${escapeGameHubText(game.homeTeam)}</strong></p>
+        ${completion.reports?.notes ? `<p data-testid="game-hub-completion-notes-readonly"><strong>Game Notes:</strong> ${escapeGameHubText(completion.reports.notes)}</p>` : ""}
+      </div>
+
+      ${game.lifecycleStatus === "returned" ? `<button type="button" class="button button-primary" data-testid="game-hub-edit-completion" onclick="openGameCompletionEditDialog()">Edit Completion</button>
+      <dialog class="game-hub-completion-dialog" data-testid="game-hub-completion-edit-dialog" aria-labelledby="game-hub-completion-edit-title" onclose="restoreGameCompletionFocus()"><div>
+        <h3 id="game-hub-completion-edit-title">Edit Completion</h3>
+        <label>Away Score<input type="number" min="0" step="1" value="${completion.awayScore ?? ""}" data-testid="game-hub-edit-away-score"></label>
+        <label>Home Score<input type="number" min="0" step="1" value="${completion.homeScore ?? ""}" data-testid="game-hub-edit-home-score"></label>
+        <label>Game Notes<textarea rows="5" data-testid="game-hub-edit-notes">${escapeGameHubText(completion.reports?.notes || "")}</textarea></label>
+        <p class="form-status" role="alert" data-testid="game-hub-completion-edit-error"></p>
+        <div class="game-hub-dialog-actions"><button type="button" class="button button-primary" data-testid="game-hub-save-completion-edit" onclick="saveGameCompletionEdit('${game.id}')">Save Changes</button><button type="button" class="button button-secondary" onclick="document.querySelector('[data-testid=game-hub-completion-edit-dialog]').close()">Cancel</button></div>
+      </div></dialog>` : ""}
 
       ${renderGameHubReview(
         game,
@@ -942,9 +1134,49 @@ function renderGameHubCompletion(
   `;
 }
 
-function completeGameFromHub(gameId) {
+let gameCompletionTrigger = null;
+
+function openGameCompletionDialog() {
+  const dialog = document.querySelector('[data-testid="game-hub-completion-dialog"]');
+  gameCompletionTrigger = document.activeElement;
+  dialog?.showModal();
+  dialog?.querySelector("input")?.focus();
+}
+
+function openGameCompletionEditDialog() {
+  const dialog = document.querySelector('[data-testid="game-hub-completion-edit-dialog"]');
+  gameCompletionTrigger = document.activeElement;
+  dialog?.showModal();
+  dialog?.querySelector("input")?.focus();
+}
+
+async function saveGameCompletionEdit(gameId) {
+  const result = await portalService.updateCompletedGame(gameId, {
+    awayScore: document.querySelector('[data-testid="game-hub-edit-away-score"]')?.value ?? "",
+    homeScore: document.querySelector('[data-testid="game-hub-edit-home-score"]')?.value ?? "",
+    notes: document.querySelector('[data-testid="game-hub-edit-notes"]')?.value ?? ""
+  });
+  if (result.success) return renderPage("game-hub", { gameId });
+  const status = document.querySelector('[data-testid="game-hub-completion-edit-error"]');
+  if (status) status.textContent = result.message;
+}
+
+function closeGameCompletionDialog() {
+  document.querySelector('[data-testid="game-hub-completion-dialog"]')?.close();
+}
+
+function restoreGameCompletionFocus() {
+  gameCompletionTrigger?.focus?.();
+  gameCompletionTrigger = null;
+}
+
+async function completeGameFromHub(gameId) {
   const result =
-    portalService.completeGame(gameId);
+    await portalService.completeGame(gameId, {
+      awayScore: document.querySelector('[data-testid="game-hub-completion-away-score"]')?.value ?? "",
+      homeScore: document.querySelector('[data-testid="game-hub-completion-home-score"]')?.value ?? "",
+      notes: document.querySelector('[data-testid="game-hub-completion-notes"]')?.value ?? ""
+    });
 
   if (result.success) {
     renderPage("game-hub", {
@@ -955,7 +1187,7 @@ function completeGameFromHub(gameId) {
   }
 
   const status = document.querySelector(
-    '[data-testid="game-hub-completion-status"]'
+    '[data-testid="game-hub-completion-dialog-error"], [data-testid="game-hub-completion-status"]'
   );
 
   if (status) {
@@ -1255,12 +1487,13 @@ function filterGameHubCrewOptions(input) {
 
 function renderGameHubCrewPicker(game, assignment) {
   const candidates = getGameHubEligibleCrew(game, assignment);
+  const presentation = getGameHubPresentation(game);
 
   return `
     <dialog class="game-hub-crew-picker" data-testid="game-hub-crew-picker-${escapeGameHubText(assignment.id)}">
       <form method="dialog" onsubmit="event.preventDefault(); saveGameHubCrewAssignment('${escapeGameHubText(game.id)}', '${escapeGameHubText(assignment.id)}')">
         <header>
-          <div><span class="dashboard-eyebrow">${escapeGameHubText(`${game.level} - ${game.awayTeam} @ ${game.homeTeam} - ${new Date(`${game.date}T12:00:00`).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" })} @ ${game.time} - ${game.field || game.venue || "Location TBD"}`)}</span><h3>Assign ${escapeGameHubText(assignment.position)}</h3></div>
+          <div class="game-hub-picker-heading"><strong>${escapeGameHubText(presentation.complex)}</strong><span>${escapeGameHubText(`${presentation.date} • ${presentation.time} • ${presentation.field} • ${presentation.level}`)}</span><h3>Assign ${escapeGameHubText(presentationFormattingService.formatAssignmentPosition(assignment.position))}</h3></div>
           <div class="game-hub-picker-actions">
             <button type="submit" class="button button-primary" data-testid="game-hub-crew-save-${escapeGameHubText(assignment.id)}">Save</button>
             <button type="button" class="button button-secondary" onclick="this.closest('dialog').close()" aria-label="Close crew picker">Close</button>
@@ -1285,55 +1518,74 @@ function openGameHubCrewPicker(assignmentId) {
   document.querySelector(`[data-testid="game-hub-crew-picker-${assignmentId}"]`)?.showModal();
 }
 
-function saveGameHubCrewAssignment(gameId, assignmentId) {
+async function saveGameHubCrewAssignment(gameId, assignmentId) {
   const dialog = document.querySelector(`[data-testid="game-hub-crew-picker-${assignmentId}"]`);
   const selected = dialog?.querySelector(`input[name="crew-${assignmentId}"]:checked`);
   const status = dialog?.querySelector('[data-testid="game-hub-crew-picker-status"]');
+  const submit = dialog?.querySelector(`[data-testid="game-hub-crew-save-${assignmentId}"]`);
 
   if (!selected) {
     if (status) status.textContent = "Select a crew member before saving.";
     return;
   }
 
-  const result = assignmentService.assignToAssignment(gameId, assignmentId, selected.value);
+  if (pendingGameHubCrewAssignments.has(assignmentId)) return;
+  pendingGameHubCrewAssignments.add(assignmentId);
+  if (submit) { submit.disabled = true; submit.setAttribute("aria-busy", "true"); }
+  if (status) status.textContent = "Saving assignment...";
+  try {
+    const result = await assignmentService.assignToAssignment(gameId, assignmentId, selected.value);
+    if (!result.success) {
+      if (status) status.textContent = result.message;
+      return;
+    }
+    dialog?.close();
+    if (typeof refreshWorkbenchGameDialog === "function" && refreshWorkbenchGameDialog(gameId)) return;
+    renderPage("game-hub", { ...gameHubNavigationContext, gameId });
+  } catch (error) {
+    if (status) status.textContent = error?.message || "Crew member could not be assigned.";
+  } finally {
+    pendingGameHubCrewAssignments.delete(assignmentId);
+    if (submit) { submit.disabled = false; submit.removeAttribute("aria-busy"); }
+  }
+}
+
+async function removeGameHubCrewAssignment(gameId, assignmentId) {
+  const status = document.querySelector(`[data-testid="game-hub-remove-status-${assignmentId}"]`);
+  const result = await assignmentService.removeCrewAdministratively(gameId, assignmentId);
   if (!result.success) {
     if (status) status.textContent = result.message;
     return;
   }
-
-  dialog?.close();
-  if (
-    typeof refreshWorkbenchGameDialog === "function" &&
-    refreshWorkbenchGameDialog(gameId)
-  ) {
-    return;
-  }
-  renderPage("game-hub", { gameId });
+  if (typeof refreshWorkbenchGameDialog === "function" && refreshWorkbenchGameDialog(gameId)) return;
+  renderPage("game-hub", { ...gameHubNavigationContext, gameId });
 }
 
 function renderAdministrativeGameHubCrew(game, sourceGame) {
-  const assignments = assignmentService.getAssignments(sourceGame);
+  const allAssignments = assignmentService.getAssignments(sourceGame);
+  const requiredOfficialCount = Math.min(4, Math.max(1, Number(game.crewSize) || allAssignments.length || 1));
+  const assignments = allAssignments.slice(0, requiredOfficialCount);
 
   return `
     <section class="game-hub-command-card game-hub-command-crew" data-testid="game-hub-admin-crew">
       <header>
-        <div><span class="dashboard-eyebrow">Requested Officials</span><h3>Crew</h3></div>
+        <div><h3>Officials</h3></div>
         <button type="button" class="button button-link" data-testid="game-hub-open-crew-notes" onclick="document.querySelector('[data-testid=game-hub-crew-notes-dialog]').showModal()">Crew Notes</button>
       </header>
       <div class="game-hub-command-slots">
         ${assignments.map(assignment => `
           <div class="game-hub-command-slot" data-testid="game-hub-crew-slot-${escapeGameHubText(assignment.position)}">
-            <span>${escapeGameHubText(assignment.position)}</span>
+            <span>${escapeGameHubText(presentationFormattingService.formatAssignmentPosition(assignment.position))}</span>
             ${assignment.crewId
-              ? `<strong>${escapeGameHubText(crewService.getDisplayName(assignment.crewId))}</strong>`
+              ? `<strong>${escapeGameHubText(crewService.getDisplayName(assignment.crewId))}</strong><button type="button" class="button button-danger" data-testid="game-hub-remove-${escapeGameHubText(assignment.id)}" onclick="removeGameHubCrewAssignment('${escapeGameHubText(sourceGame.id)}','${escapeGameHubText(assignment.id)}')">Remove Crew Member</button><span class="form-status" role="alert" data-testid="game-hub-remove-status-${escapeGameHubText(assignment.id)}"></span>`
               : `<button type="button" class="button button-primary" data-testid="game-hub-assign-${escapeGameHubText(assignment.position)}" onclick="openGameHubCrewPicker('${escapeGameHubText(assignment.id)}')">Assign Crew</button>`}
           </div>
           ${renderGameHubCrewPicker(sourceGame, assignment)}
         `).join("")}
       </div>
-      <dialog class="game-hub-crew-picker game-hub-notes-dialog" data-testid="game-hub-crew-notes-dialog">
-        <header><h3>Crew Notes</h3><button type="button" class="button button-secondary" onclick="this.closest('dialog').close()">Close</button></header>
-        <div class="game-hub-admin-notes">${assignments.filter(item => item.crewId).map(item => `<p><strong>${escapeGameHubText(item.position)} — ${escapeGameHubText(crewService.getDisplayName(item.crewId))}</strong><br>${escapeGameHubText(sourceGame.crewNotesByCrewId?.[String(item.crewId)] || "No crew notes entered.")}</p>`).join("") || "No assigned crew notes are available."}</div>
+      <dialog class="game-hub-crew-picker game-hub-notes-dialog" data-testid="game-hub-crew-notes-dialog" aria-labelledby="game-hub-admin-notes-title">
+        <header><h3 id="game-hub-admin-notes-title">Crew Notes</h3><button type="button" class="button button-secondary" onclick="this.closest('dialog').close()">Close</button></header>
+        <div class="game-hub-admin-notes">${assignments.filter(item => item.crewId).map(item => `<p><strong>${escapeGameHubText(presentationFormattingService.formatAssignmentPosition(item.position))} — ${escapeGameHubText(crewService.getDisplayName(item.crewId))}</strong><br>${escapeGameHubText(sourceGame.crewNotesByCrewId?.[String(item.crewId)] || "No crew notes entered.")}</p>`).join("") || `<div class="presentation-empty-state presentation-empty-state-compact" role="status">No assigned crew notes are available.</div>`}</div>
       </dialog>
     </section>
   `;
@@ -1341,20 +1593,27 @@ function renderAdministrativeGameHubCrew(game, sourceGame) {
 
 function renderAdministrativeGameHub(game) {
   const sourceGame = gameService.getById(game.id);
-  const assignor = game.gameDayContacts?.primaryContact;
+  const presentation = getGameHubPresentation(game);
+  const assignor = presentation.contact;
   const gameHasStarted = hasGameHubGameStarted(game);
 
   return `
     <div class="game-hub-command-layout" data-testid="game-hub-admin-view">
-      <section class="game-hub-command-card game-hub-command-summary">
-        <div class="game-hub-command-title"><span class="dashboard-eyebrow">${escapeGameHubText(game.date)}</span><h2 data-testid="game-hub-matchup">${escapeGameHubText(game.matchup)}</h2></div>
+      <section class="game-hub-command-card presentation-card game-hub-command-summary" data-testid="game-hub-admin-details">
+        <header class="game-hub-command-summary-header" data-testid="game-hub-admin-statuses">
+          <div class="game-hub-command-title"><h3>Game Details</h3></div>
+          <div class="game-hub-command-lifecycle" data-testid="game-hub-admin-lifecycle-status">${renderGameHubLifecycleBadge(game)}</div>
+          <div class="game-hub-command-assignment" data-testid="game-hub-admin-assignment-status">${renderGameHubAssignmentBadge(game)}</div>
+        </header>
         ${gameHasStarted && !game.completion?.completed
           ? `<button type="button" class="button button-primary game-hub-command-complete" data-testid="game-hub-complete-game" onclick="completeGameFromHub('${escapeGameHubText(game.id)}')">Complete Game</button>`
-          : `<div class="game-hub-command-status">${renderGameHubLifecycleBadge(game)} ${gameDayRenderers.renderStatus(game)}</div>`}
+          : ""}
         <dl>
-          <div data-testid="game-hub-summary-time"><dt>Time</dt><dd>${escapeGameHubText(game.time)}</dd></div>
-          <div data-testid="game-hub-summary-field"><dt>Location</dt><dd>${escapeGameHubText(game.gameInformation?.field || game.field || "")}</dd></div>
-          <div data-testid="game-hub-summary-level"><dt>Level</dt><dd>${escapeGameHubText(game.level)}</dd></div>
+          <div data-testid="game-hub-summary-level"><dt>Level</dt><dd>${escapeGameHubText(presentation.level)}</dd></div>
+          <div data-testid="game-hub-summary-date"><dt>Date</dt><dd>${escapeGameHubText(presentation.dateLong)}</dd></div>
+          <div data-testid="game-hub-summary-location"><dt>Complex</dt><dd>${escapeGameHubText(presentation.complex)}</dd></div>
+          <div data-testid="game-hub-summary-field"><dt>Field</dt><dd>${escapeGameHubText(presentation.field)}</dd></div>
+          <div data-testid="game-hub-summary-time"><dt>Time</dt><dd>${escapeGameHubText(presentation.time)}</dd></div>
         </dl>
       </section>
       ${renderAdministrativeGameHubCrew(game, sourceGame)}
@@ -1370,6 +1629,7 @@ function renderGameHubQuickActions(
   reviewMode = false,
   game = null
 ) {
+  const isClaimOrigin = gameHubNavigationContext.origin === "claim-games" || gameHubNavigationContext.returnPage === "claim-games";
   return `
     <div
       class="game-hub-actions"
@@ -1381,19 +1641,21 @@ function renderGameHubQuickActions(
         onclick="renderPage('${
           reviewMode
             ? "review-queue"
-            : "my-schedule"
+            : isClaimOrigin ? "claim-games" : "my-schedule"
         }')"
         data-testid="game-hub-back"
       >
         ${
           reviewMode
             ? "← Back to Review Queue"
-            : "← Back to My Schedule"
+            : isClaimOrigin ? "← Back to Claim Games" : "← Back to My Schedule"
         }
       </button>
 
+      ${isClaimOrigin && !reviewMode ? `<button class="button button-primary" type="button" data-testid="game-hub-submit-claim" onclick="claimPortalGame('${escapeGameHubText(game?.id || "")}')">Submit Claim</button>` : ""}
+
       ${
-        reviewMode
+        reviewMode || !isGameHubAdministrativeView()
           ? ""
           : `
               ${canManageGameHubCrew(game) ? `
@@ -1431,6 +1693,7 @@ function renderGameHubQuickActions(
 }
 
 function renderGameHub(context = {}) {
+  gameHubNavigationContext = { origin: context.origin || "", returnPage: context.returnPage || "" };
   const reviewMode =
     context.reviewMode === true;
 
@@ -1507,9 +1770,15 @@ function renderGameHub(context = {}) {
   ];
 
   if (isGameHubAdministrativeView() && !reviewMode) {
+    const returnToWorkbench = context.returnPage === "assigner-workbench" || context.origin === "assigner-workbench";
+    const returnToOperations = context.returnPage === "operations-center" || context.origin === "operations-center";
+    const backPage = returnToOperations ? "operations-center" : returnToWorkbench ? "assigner-workbench" : context.returnPage || "dashboard";
+    const backLabel = returnToOperations ? "Back to Ops Center" : returnToWorkbench ? "Back to Assigner Workbench" : backPage === "dashboard" ? "Back to Dashboard" : "Back to Previous Page";
+    const presentation = getGameHubPresentation(game);
     return `
       <section class="page-section game-hub game-hub-admin" data-testid="game-hub" data-game-id="${game.id}" data-review-mode="false" data-lifecycle-status="${game.lifecycleStatus}" data-read-only="${isGameHubReadOnly(game)}">
-        <div class="game-hub-admin-nav"><button class="button button-secondary" type="button" onclick="renderPage('dashboard')" data-testid="game-hub-back">← Back to Dashboard</button></div>
+        <div class="game-hub-admin-nav"><button class="button button-secondary" type="button" onclick="renderPage('${backPage}')" data-testid="game-hub-back">← ${backLabel}</button></div>
+        <header class="game-hub-admin-heading"><h1 data-testid="game-hub-matchup">${escapeGameHubText(presentation.matchup)}</h1></header>
         ${renderGameHubLifecycleBanner(game)}
         ${renderAdministrativeGameHub(game)}
       </section>
@@ -1529,6 +1798,10 @@ function renderGameHub(context = {}) {
 
       <h2>Game Hub</h2>
 
+      ${renderUmpireGameSummary(game)}
+
+      ${false ? `
+      <div>
       ${renderGameHubLifecycleBanner(game)}
 
       <div
@@ -1545,7 +1818,7 @@ function renderGameHub(context = {}) {
               class="game-hub-summary-date"
               data-testid="game-hub-date-time"
             >
-              ${game.date} • ${game.time}
+              ${game.date} • ${dateTimeFormattingService.formatTime12Hour(game.time, "Time unavailable")}
             </div>
           </div>
 
@@ -1578,9 +1851,10 @@ function renderGameHub(context = {}) {
         </div>
       </div>
 
-      ${renderGameHubCrewNotes(game)}
+      </div>
+      ` : ""}
 
-      ${renderGameHubChecklist(game)}
+      ${renderGameHubCrewNotes(game)}
 
       ${renderGameHubCompletion(
         game,
@@ -1588,7 +1862,7 @@ function renderGameHub(context = {}) {
           isGameHubReadOnly(game)
       )}
 
-      <div
+      ${false ? `<div
         class="game-hub-sections"
         data-testid="game-hub-sections"
       >
@@ -1602,7 +1876,7 @@ function renderGameHub(context = {}) {
             )
           )
           .join("")}
-      </div>
+      </div>` : ""}
     </section>
   `;
 }

@@ -28,6 +28,8 @@ test.describe("Accounts", () => {
 
     await expect(row).toBeVisible();
 
+    await expect(row.locator("[data-testid^='pending-crew-select-']")).toHaveCount(0);
+
     await row
       .locator("[data-testid^='approve-account-']")
       .click();
@@ -293,7 +295,7 @@ test("displays an approved account role", async ({ app }) => {
   ).toHaveText("Role: Assigner");
 });
 
-test("changes a pending account role", async ({ app }) => {
+test("does not offer privileged role selection for a pending public account", async ({ app }) => {
   const account = await app.page.evaluate(() => {
     const created = accountService.createAccount({
       firstName: "Role",
@@ -306,17 +308,9 @@ test("changes a pending account role", async ({ app }) => {
     return created.data;
   });
 
-  await app.page
-    .getByTestId(`account-role-${account.id}`)
-    .selectOption("administrator");
-
-  const role = await app.page.evaluate(accountId => {
-    return accountService
-      .getById(accountId)
-      .role;
-  }, account.id);
-
-  expect(role).toBe("administrator");
+  const role = app.page.getByTestId(`account-role-${account.id}`);
+  await expect(role).toHaveText("Role: Umpire");
+  await expect(role.locator("select")).toHaveCount(0);
 });
 
 test("filters accounts by role", async ({ app }) => {
@@ -393,7 +387,7 @@ test.describe("Account Roles UI", () => {
     ).toHaveText("Role: Assigner");
   });
 
-  test("changes the role of a pending account", async ({ app }) => {
+  test("presents an ordinary pending registration as a fixed umpire role", async ({ app }) => {
     const account = await app.page.evaluate(() => {
       const created = accountService.createAccount({
         firstName: "Change",
@@ -405,21 +399,11 @@ test.describe("Account Roles UI", () => {
       return created;
     });
 
-    const roleSelect = app.page.getByTestId(
+    const roleDisplay = app.page.getByTestId(
       `account-role-${account.id}`
     );
-
-    await expect(roleSelect).toHaveValue("umpire");
-
-    await roleSelect.selectOption("administrator");
-
-    const role = await app.page.evaluate(accountId => {
-      return accountService.getAll().find(
-        account => String(account.id) === String(accountId)
-      )?.role;
-    }, account.id);
-
-    expect(role).toBe("administrator");
+    await expect(roleDisplay).toHaveText("Role: Umpire");
+    await expect(roleDisplay.locator("select")).toHaveCount(0);
   });
 
   test("filters accounts by role and composes with status", async ({ app }) => {

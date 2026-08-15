@@ -123,27 +123,12 @@ game.crewNotesByCrewId = {
       "true"
     );
 
-    await expect(
-      page.getByTestId("game-hub-away-score")
-    ).toHaveValue("3");
-
-    await expect(
-      page.getByTestId("game-hub-home-score")
-    ).toHaveValue("5");
-
-    await expect(
-      page.getByTestId("game-hub-reports")
-    ).toBeVisible();
-
-    await expect(
-      page.getByTestId("game-hub-report-incidents")
-    ).toBeChecked();
-
-    await expect(
-      page.getByTestId("game-hub-report-notes")
-    ).toHaveValue(
-      "Bench warning in the fifth inning."
-    );
+    const completion = page.getByTestId("game-hub-completion-summary");
+    await expect(completion).toContainText("3");
+    await expect(completion).toContainText("5");
+    await expect(completion).toContainText("Bench warning in the fifth inning.");
+    await expect(page.getByTestId("game-hub-away-score")).toHaveCount(0);
+    await expect(page.getByTestId("game-hub-report-notes")).toHaveCount(0);
 
     await expect(
       page.getByTestId("game-hub-crew-notes-input")
@@ -159,29 +144,10 @@ game.crewNotesByCrewId = {
       page.getByTestId("game-hub-save-crew-notes")
     ).toBeDisabled();
 
-    await expect(
-  page.getByTestId("game-hub-away-score")
-).toBeDisabled();
-
-await expect(
-  page.getByTestId("game-hub-home-score")
-).toBeDisabled();
-
-    await expect(
-      page.getByTestId("game-hub-save-score")
-    ).toBeDisabled();
-
-    await expect(
-      page.getByTestId("game-hub-report-incidents")
-    ).toBeDisabled();
-
-    await expect(
-      page.getByTestId("game-hub-report-notes")
-    ).toHaveAttribute("readonly", "");
-
-    await expect(
-      page.getByTestId("game-hub-save-reports")
-    ).toBeDisabled();
+    await expect(page.getByTestId("game-hub-away-score")).toHaveCount(0);
+    await expect(page.getByTestId("game-hub-home-score")).toHaveCount(0);
+    await expect(page.getByTestId("game-hub-save-score")).toHaveCount(0);
+    await expect(page.getByTestId("game-hub-report-notes")).toHaveCount(0);
 
     await expect(
       page.getByTestId("game-hub-back")

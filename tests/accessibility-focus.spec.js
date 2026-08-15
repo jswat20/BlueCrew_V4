@@ -210,13 +210,16 @@ test.describe(
             account.email
           );
 
-          authService.loginAsAdmin();
+          authService.loginAsUmpire(account.crewId);
 
           document.body.dataset.role =
-            "admin";
+            "umpire";
 
           navigateTo("profile");
         });
+
+        await page.getByTestId("profile-card-back").click();
+        await page.getByTestId("profile-edit-crew-card").click();
 
         await page
           .getByTestId("profile-phone")

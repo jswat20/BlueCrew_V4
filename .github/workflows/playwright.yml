@@ -17,8 +17,18 @@ jobs:
       run: npm ci
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
+    - name: Build production artifact
+      env:
+        SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+        SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+        SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      run: |
+        npm run generate:supabase-config
+        npm run build:production
+    - name: Verify production artifact
+      run: npm run verify:production-artifact
     - name: Run Playwright tests
-      run: npx playwright test
+      run: npx playwright test --reporter=line
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:

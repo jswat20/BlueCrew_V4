@@ -3,6 +3,10 @@
 const loginService = (() => {
   const SESSION_KEY = "bluecrew_session";
 
+  function getRepository() {
+    return repositoryProvider.get("session");
+  }
+
   function mutationResult(success, message, data = null) {
     return {
       success,
@@ -39,31 +43,41 @@ const loginService = (() => {
       lastLogin: account.lastLogin
     });
 
-    localStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify({
+    getRepository().write({
         accountId: account.id,
         role: account.role || "umpire",
         loginAt,
         previousLoginAt
-      })
-    );
+      });
+
+    if (
+      typeof authService !== "undefined" &&
+      typeof authService.useAuthenticatedAccount === "function"
+    ) {
+      authService.useAuthenticatedAccount(account);
+    }
 
     return mutationResult(true, "Login successful.", account);
   }
 
   function logout() {
-    localStorage.removeItem(SESSION_KEY);
+    if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+      return logoutAuthenticated();
+    }
+
+    getRepository().remove();
+    if (typeof authService !== "undefined") authService.clearAuthenticatedAccount?.();
+    if (typeof uiStateService !== "undefined") uiStateService.clearSelections?.();
+    authenticatedIdentityService?.updateDocumentTitle?.(null);
 
     return mutationResult(true, "Logged out.");
   }
 
   function getCurrentSession() {
-    const session = localStorage.getItem(SESSION_KEY);
-
-    return session
-      ? JSON.parse(session)
-      : null;
+    if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+      return supabaseAuthService.getCurrentSession();
+    }
+    return getRepository().read();
   }
 
   function isLoggedIn() {
@@ -71,6 +85,10 @@ const loginService = (() => {
   }
 
   function getCurrentAccount() {
+    if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+      return supabaseAuthService.getCurrentAccount();
+    }
+
     const session = getCurrentSession();
 
     if (!session) {
@@ -80,11 +98,33 @@ const loginService = (() => {
     return accountService.getById(session.accountId);
   }
 
+  async function loginWithPassword(email, password) {
+    if (!email || !password) {
+      return mutationResult(false, "Email and password are required.");
+    }
+    return supabaseAuthService.login(email, password);
+  }
+
+  async function logoutAuthenticated() {
+    return supabaseAuthService.logout();
+  }
+
+  async function initializeAuthenticatedIdentity() {
+    if (typeof supabaseClientService === "undefined" || !supabaseClientService.isConfigured()) {
+      return mutationResult(true, "Local authentication mode.");
+    }
+    await supabaseAuthService.startSessionListener();
+    return supabaseAuthService.restoreSession();
+  }
+
   return {
     login,
     logout,
     isLoggedIn,
     getCurrentSession,
-    getCurrentAccount
+    getCurrentAccount,
+    loginWithPassword,
+    logoutAuthenticated,
+    initializeAuthenticatedIdentity
   };
 })();

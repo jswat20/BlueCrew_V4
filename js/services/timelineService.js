@@ -201,7 +201,7 @@ const timelineService = (() => {
       case "game_updated":
       case "updated":
         if (Array.isArray(activity.metadata?.changes) && activity.metadata.changes.length) {
-          const labels = { date: "Date", time: "Time", field: "Field", venue: "Location", level: "Level", homeTeam: "Home team", awayTeam: "Away team", status: "Status" };
+          const labels = { date: "Date", time: "Time", locationComplex: "Location complex", locationField: "Location field", field: "Field", venue: "Location", level: "Level", homeTeam: "Home team", awayTeam: "Away team", status: "Status" };
           return activity.metadata.changes.map(change =>
             `${labels[change.field] || change.field}: ${change.from || "Not set"} changed to ${change.to || "Not set"}.`
           ).join(" ");

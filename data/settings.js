@@ -1,6 +1,12 @@
 const settings = {
   fields: ["Field 1", "Field 2", "Field 3", "Field 4"],
-  levels: ["8U", "10U", "12U", "14U", "Juniors", "Seniors"],
+  locations: [
+    { name: "Central Complex", fields: ["Field 1", "Field 2", "Field 3", "Field 4"] },
+    { name: "Riverside Park", fields: ["Field 1", "Field 2"] },
+    { name: "East Complex", fields: ["Field 1", "Field 2"] },
+    { name: "West Complex", fields: ["Field 1"] }
+  ],
+  levels: ["6U", "8U", "10U", "12U", "14U", "16U", "Juniors", "Seniors"],
   teams: ["Orioles", "Yankees", "Red Sox", "Blue Jays", "Mets", "Phillies", "Nationals", "Braves"],
   timeSlots: [
     "8:00 AM", "8:15 AM", "8:30 AM", "8:45 AM",

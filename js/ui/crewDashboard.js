@@ -1,391 +1,185 @@
-// js/ui/crewDashboard.js
-
 function renderReturnedReviewDashboardCard() {
   const returnedGames =
     typeof reviewService !== "undefined" &&
-    typeof reviewService
-      .getReturnedGamesForCurrentUmpire ===
-      "function"
-      ? reviewService
-          .getReturnedGamesForCurrentUmpire()
+    typeof reviewService.getReturnedGamesForCurrentUmpire === "function"
+      ? reviewService.getReturnedGamesForCurrentUmpire()
       : [];
 
-  if (!returnedGames.length) {
-    return "";
-  }
+  if (!returnedGames.length) return "";
 
   return `
-    <section
-      class="dashboard-card"
-      data-testid="dashboard-returned-review-card"
-    >
-      <div class="card-header">
-        <div>
-          <h2>Returned Reviews</h2>
-          <span class="card-subtitle">
-            Games waiting for corrections.
-          </span>
-        </div>
-      </div>
-
-      <div
-        class="summary-value"
-        data-testid="dashboard-returned-review-count"
-      >
-        ${returnedGames.length}
-      </div>
-
-      <div class="card-actions">
-        <button
-          type="button"
-          class="button button-primary"
-          data-testid="dashboard-resume-returned-review"
-          onclick="openReturnedReviewFromDashboard()"
-        >
-          Resume Review
-        </button>
-      </div>
+    <section class="crew-returned-review" data-testid="dashboard-returned-review-card">
+      <span><strong>Returned Reviews</strong><small>Game reports waiting for corrections.</small></span>
+      <b data-testid="dashboard-returned-review-count">${returnedGames.length}</b>
+      <button type="button" class="button button-primary" data-testid="dashboard-resume-returned-review" onclick="openReturnedReviewFromDashboard()">Resume</button>
     </section>
   `;
 }
 
 function openReturnedReviewFromDashboard() {
-  const returnedGames =
-    reviewService
-      .getReturnedGamesForCurrentUmpire();
-
+  const returnedGames = reviewService.getReturnedGamesForCurrentUmpire();
   if (returnedGames.length === 1) {
-    renderPage("game-hub", {
-      gameId: returnedGames[0].id
-    });
-
+    renderPage("game-hub", { gameId: returnedGames[0].id });
     return;
   }
-
-  renderPage("my-schedule", {
-    filter: "returned"
-  });
+  renderPage("my-schedule", { filter: "returned" });
 }
 
 function renderCrewDashboard() {
-
   const crewId = authService.currentCrewId();
 
   if (!crewId) {
-    return `
-      <div class="empty-state">
-        <h2>No crew member selected</h2>
-      </div>
-    `;
+    return `<div class="empty-state"><h2>No crew member selected</h2></div>`;
   }
 
   const member = crewService.getById(crewId);
-
-  const todaysAssignments =
-    assignmentService.getTodaysAssignmentsForCrew(crewId);
-
-  const pendingApprovals =
-    assignmentService.getPendingClaimsForCrew(crewId);
-
-  const claimableGames =
-    assignmentService.getClaimableGames(crewId);
-
-  const upcomingAssignments =
-    assignmentService
-      .getUpcomingAssignmentsForCrew(crewId)
-      .slice(0, 10);
-
-  const todaysGame = todaysAssignments[0];
+  const todaysAssignments = assignmentService.getTodaysAssignmentsForCrew(crewId);
+  const pendingApprovals = assignmentService.getPendingClaimsForCrew(crewId);
+  const claimableGames = assignmentService.getClaimableGames(crewId);
+  const upcomingAssignments = assignmentService
+    .getUpcomingAssignmentsForCrew(crewId)
+    .slice(0, 10);
+  const now = new Date();
+  const greeting = now.getHours() < 12 ? "Morning" : now.getHours() < 17 ? "Afternoon" : "Evening";
+  const todayLabel = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric"
+  });
+  const timeLabel = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
   return `
+    <div class="crew-dashboard crew-command-dashboard" data-testid="crew-dashboard">
+      <header class="crew-command-header">
+        <div><h1>Good ${greeting}, ${authenticatedIdentityService.displayName(loginService.getCurrentAccount())}</h1><p>Your assignments, claims, and game-day work at a glance.</p></div>
+        <time><span>${todayLabel}</span><strong>${timeLabel}</strong></time>
+      </header>
 
-    <div class="crew-dashboard">
-
-      <div class="dashboard-header">
-        <h2>Welcome, ${member?.name || "Crew Member"}</h2>
-        <p>Here's what's happening today.</p>
+      <div class="crew-command-grid crew-command-grid-polished">
+        <section class="crew-command-panel crew-command-actions crew-action-center-primary" data-testid="crew-dashboard-actions">
+          <header><h2>Action Center</h2></header>
+          ${renderReturnedReviewDashboardCard()}
+          ${renderCrewActionSummary("Today's Assignments", todaysAssignments.length, "Open today's game-day details.", "renderPage('my-schedule')")}
+          ${renderCrewActionSummary("Pending Claims", pendingApprovals.length, "Claims awaiting assignor approval.", "renderPage('my-claims')")}
+          ${renderCrewActionSummary("Available Games", claimableGames.length, "Games currently open for claims.", "renderPage('claim-games')")}
+        </section>
       </div>
 
-      ${renderReturnedReviewDashboardCard()}
-
-      ${renderCrewHero(todaysGame)}
-
-      ${renderCrewStats(
-        todaysAssignments.length,
-        upcomingAssignments.length,
-        pendingApprovals.length,
-        claimableGames.length
-      )}
-
-      ${renderCrewSection(
-        "Upcoming Schedule",
-        upcomingAssignments,
-        renderCrewAssignmentCard
-      )}
-
-      ${renderCrewSection(
-        "Pending Approval",
-        pendingApprovals,
-        renderCrewPendingCard
-      )}
-
-      ${renderCrewSection(
-        "Available Games",
-        claimableGames,
-        renderCrewClaimCard
-      )}
-
+      <div class="crew-command-lists crew-command-lists-polished">
+        ${renderCrewSection("Upcoming Schedule", upcomingAssignments, renderCrewAssignmentCard, "crew-dashboard-upcoming")}
+        ${renderCrewRecentNotifications()}
+      </div>
     </div>
-
   `;
 }
 
-function renderCrewSection(title, games, renderer) {
+function renderCrewActionSummary(title, count, detail, action) {
+  return `<button type="button" class="crew-action-row crew-action-cell" data-testid="crew-action-cell" onclick="${action}"><span><strong>${title}</strong><small>${detail}</small></span><b data-attention="${count > 0}">${count}</b></button>`;
+}
 
+function renderCrewSection(title, games, renderer, testId = "") {
   return `
-    <section class="crew-dashboard-section">
-
-      <h3>${title}</h3>
-
-      ${
-        games.length
-          ? games.map(renderer).join("")
-          : `<div class="empty-state">None</div>`
-      }
-
+    <section class="crew-dashboard-section crew-command-panel" ${testId ? `data-testid="${testId}"` : ""}>
+      <header><h2>${title}</h2></header>
+      <div class="crew-command-list">
+        ${games.length ? games.map(renderer).join("") : `<div class="crew-command-empty">Nothing to show right now.</div>`}
+      </div>
     </section>
   `;
 }
 
-function renderCrewHero(game) {
-
-  if (!game) {
-
-    return `
-      <div class="card crew-hero">
-
-        <h3>Today</h3>
-
-        <p>No assignments today.</p>
-
+function renderCrewRecentNotifications() {
+  const notifications = notificationService.getNotifications().slice(0, 5);
+  return `
+    <section class="crew-dashboard-section crew-command-panel crew-recent-notifications" data-testid="crew-dashboard-notifications">
+      <header><h2>Recent Notifications</h2><button type="button" class="button button-primary button-view-all" onclick="renderPage('notifications')">View All</button></header>
+      <div class="crew-command-list">
+        ${notifications.length ? notifications.map(notification => {
+          const presentation = getNotificationPresentation(notification);
+          const game = notification.relatedId ? gameService.getById(notification.relatedId) : null;
+          const alias = game ? levelTerminologyService.aliasFor(game.level) : "";
+          const compactLevel = alias || (game ? levelTerminologyService.canonicalize(game.level) : "");
+          const compactMessage = game
+            ? `${compactLevel || "Game"} game - ${formatNotificationDate(game.date)} at ${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}`
+            : presentation.message;
+          return renderNotificationRow({
+            notification,
+            title: presentation.title,
+            message: compactMessage,
+            supporting: "",
+            timestamp: "",
+            actions: renderNotificationAction(notification)
+          });
+        }).join("") : `<div class="crew-command-empty">No recent notifications.</div>`}
       </div>
-    `;
+    </section>`;
+}
+
+function renderCrewHero(game) {
+  if (!game) {
+    return `<div class="crew-hero crew-hero-empty"><strong>No assignments today.</strong><span>Use Available Games to find work that fits your eligibility.</span></div>`;
   }
 
   return `
-
-    <div class="card crew-hero">
-
-      <div class="hero-status">
-
-        ${renderAssignmentStatusBadge(game)}
-
-      </div>
-
-      <h2>
-
-        ${game.awayTeam}
-
-        @
-
-        ${game.homeTeam}
-
-      </h2>
-
-      <p>
-
-        📅 ${formatDate(game.date)}
-
-      </p>
-
-      <p>
-
-        🕒 ${game.time}
-
-      </p>
-
-      <p>
-
-        📍 Field ${game.field}
-
-      </p>
-
-      <p>
-
-        ${game.level}
-
-      </p>
-
-    </div>
-
+    <button type="button" class="crew-hero" onclick="renderPage('game-hub', { gameId: '${game.id}' })">
+      <span class="crew-hero-time">${game.time}</span>
+      <span class="crew-hero-matchup"><strong>${game.awayTeam} @ ${game.homeTeam}</strong><small>${formatDate(game.date)}</small></span>
+      <span class="crew-hero-detail"><b>${levelTerminologyService.format(game.level)}</b><small>${locationService.getDisplayName(game)}</small></span>
+      <span class="crew-hero-status">${renderAssignmentStatusBadge(game)}</span>
+    </button>
   `;
 }
 
 function renderCrewStats(today, upcoming, pending, available) {
-
   return `
-
-    <div class="crew-stats">
-
-      <div class="stat-card">
-
-        <div class="stat-value">${today}</div>
-
-        <div class="stat-label">Today</div>
-
-      </div>
-
-      <div class="stat-card">
-
-        <div class="stat-value">${upcoming}</div>
-
-        <div class="stat-label">Upcoming</div>
-
-      </div>
-
-      <div class="stat-card">
-
-        <div class="stat-value">${pending}</div>
-
-        <div class="stat-label">Pending</div>
-
-      </div>
-
-      <div class="stat-card">
-
-        <div class="stat-value">${available}</div>
-
-        <div class="stat-label">Available</div>
-
-      </div>
-
+    <div class="crew-stats" aria-label="Crew dashboard status">
+      <button type="button" class="stat-card" onclick="renderPage('my-schedule')"><span class="stat-label">Assignments Today</span><span class="stat-value">${today}</span></button>
+      <button type="button" class="stat-card" onclick="renderPage('my-schedule')"><span class="stat-label">Upcoming Games</span><span class="stat-value">${upcoming}</span></button>
+      <button type="button" class="stat-card" data-attention="${pending > 0}" onclick="renderPage('my-claims')"><span class="stat-label">Pending Claims</span><span class="stat-value">${pending}</span></button>
+      <button type="button" class="stat-card" onclick="renderPage('claim-games')"><span class="stat-label">Available Games</span><span class="stat-value">${available}</span></button>
     </div>
-
   `;
 }
 
 function renderCrewAssignmentCard(game) {
-
   return `
-    <div class="schedule-game-card">
-
-      <div>
-        <strong>${game.awayTeam}</strong>
-        @
-        <strong>${game.homeTeam}</strong>
-      </div>
-
-      <div>
-        ${formatDate(game.date)}
-        •
-        ${game.time}
-      </div>
-
-      <div>
-        ${game.level}
-        •
-        Field ${game.field}
-      </div>
-
+    <button type="button" class="schedule-game-card crew-command-game-row" onclick="renderPage('game-hub', { gameId: '${game.id}' })">
+      <span><small>Date</small><b>${formatDate(game.date)}</b></span>
+      <span><small>Time</small><b>${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}</b></span>
+      <span><small>Level</small><b>${levelTerminologyService.format(game.level)}</b></span>
+      <span class="crew-upcoming-location"><small>Location</small><b>${locationService.getDisplayName(game)}</b></span>
       ${renderAssignmentStatusBadge(game)}
-
-    </div>
+    </button>
   `;
 }
 
 function renderCrewPendingCard(game) {
-
-  return `
-    <div class="schedule-game-card">
-
-      <div>
-        <strong>${game.awayTeam}</strong>
-        @
-        <strong>${game.homeTeam}</strong>
-      </div>
-
-      <div>
-        ${formatDate(game.date)}
-        •
-        ${game.time}
-      </div>
-
-      <div class="pending-note">
-        Awaiting assignor approval
-      </div>
-
-      ${renderAssignmentStatusBadge(game)}
-
-    </div>
-  `;
+  return renderCrewAssignmentCard(game);
 }
 
 function renderCrewClaimCard(game) {
   const crewId = authService.currentCrewId();
   const availability = crewService.getAvailability(game.id, crewId);
-
   const availabilityText = {
-    available: "✅ Available",
-    unavailable: "❌ Can't Work",
-    unknown: "❓ Not Set"
+    available: "Available",
+    unavailable: "Can't Work",
+    unknown: "Not Set"
   };
 
   return `
-    <div class="schedule-game-card">
-
-      <div>
-        <strong>${game.awayTeam}</strong>
-        @
-        <strong>${game.homeTeam}</strong>
-      </div>
-
-      <div>
-        ${formatDate(game.date)}
-        •
-        ${game.time}
-      </div>
-
-      <div>
-        ${game.level}
-        •
-        Field ${game.field}
-      </div>
-
-      <div class="crew-availability">
-        <strong>${availabilityText[availability] || availabilityText.unknown}</strong>
-      </div>
-
+    <article class="schedule-game-card crew-command-claim-row">
+      <div class="crew-claim-summary"><strong>${game.time}</strong><span><b>${game.awayTeam} @ ${game.homeTeam}</b><small>${formatDate(game.date)} · ${levelTerminologyService.format(game.level)} · ${locationService.getDisplayName(game)}</small></span><em data-status="${availability}">${availabilityText[availability] || availabilityText.unknown}</em></div>
       <div class="crew-availability-buttons">
-        <button
-          class="secondary-btn"
-          onclick="setCrewAvailability('${game.id}', 'available')">
-          I'm Available
-        </button>
-
-        <button
-          class="secondary-btn"
-          onclick="setCrewAvailability('${game.id}', 'unavailable')">
-          Can't Work
-        </button>
-
-        <button
-          class="primary-btn"
-          onclick="claimCrewGame('${game.id}')">
-          Claim Game
-        </button>
+        <button type="button" class="button button-secondary" onclick="setCrewAvailability('${game.id}', 'available')">Available</button>
+        <button type="button" class="button button-secondary" onclick="setCrewAvailability('${game.id}', 'unavailable')">Can't Work</button>
+        <button type="button" class="button button-primary" data-testid="dashboard-claim-${game.id}" onclick="claimCrewGame('${game.id}')">Claim</button>
       </div>
-
-    </div>
+    </article>
   `;
 }
 
-function claimCrewGame(gameId) {
-
-  const result = assignmentService.claimGame(
-    gameId,
-    authService.currentCrewId()
-  );
-
+async function claimCrewGame(gameId) {
+  const result = await portalService.claimGame(gameId);
   if (result.success) {
     toastService.success(result.message);
     uiService.refreshCrewPortal();
@@ -395,10 +189,6 @@ function claimCrewGame(gameId) {
 }
 
 function setCrewAvailability(gameId, status) {
-  crewService.setAvailability(
-    gameId,
-    authService.currentCrewId(),
-    status
-  );
-
-uiService.refreshCrewPortal();}
+  crewService.setAvailability(gameId, authService.currentCrewId(), status);
+  uiService.refreshCrewPortal();
+}

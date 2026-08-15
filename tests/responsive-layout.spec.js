@@ -196,6 +196,9 @@ test("tablet Operations Center preserves essential operational content", async (
           page.getByTestId("page-profile")
         ).toBeVisible();
 
+        await page.getByTestId("profile-card-back").click();
+        await page.getByTestId("profile-edit-crew-card").click();
+
         const submit =
           page.getByTestId(
             "profile-save"

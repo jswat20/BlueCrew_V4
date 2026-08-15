@@ -4,49 +4,46 @@ const GAMES_STORAGE_KEY = "bluecrew-games-v2";
 const CREW_STORAGE_KEY = "bluecrew-crew-v2";
 
 function loadGames() {
-  return loadFromStorage(GAMES_STORAGE_KEY, games, "games");
+  return loadFromRepository("games", games, "games");
 }
 
 function saveGames() {
-  localStorage.setItem(GAMES_STORAGE_KEY, JSON.stringify(games));
+  repositoryProvider.get("games").write(games);
 }
 
 function loadCrew() {
-  return loadFromStorage(CREW_STORAGE_KEY, crew, "crew");
+  return loadFromRepository("crew", crew, "crew");
 }
 
 function saveCrew() {
-  localStorage.setItem(CREW_STORAGE_KEY, JSON.stringify(crew));
+  repositoryProvider.get("crew").write(crew);
 }
 
-function loadFromStorage(key, fallbackData, label) {
-  const stored = localStorage.getItem(key);
-
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (err) {
-      console.error(`Unable to load saved ${label}.`, err);
-    }
+function loadFromRepository(name, fallbackData, label) {
+  try {
+    const stored = repositoryProvider.get(name).read();
+    if (stored !== null) return stored;
+  } catch (err) {
+    console.error(`Unable to load saved ${label}.`, err);
   }
 
   return structuredClone(fallbackData);
 }
 
 function resetGames() {
-  localStorage.removeItem(GAMES_STORAGE_KEY);
+  repositoryProvider.get("games").remove();
   location.reload();
 }
 
 function resetCrew() {
-  localStorage.removeItem(CREW_STORAGE_KEY);
+  repositoryProvider.get("crew").remove();
   location.reload();
 }
 
 function resetAllData() {
-  localStorage.removeItem(GAMES_STORAGE_KEY);
-  localStorage.removeItem(CREW_STORAGE_KEY);
-  localStorage.removeItem("bluecrewDatabase_v1");
+  repositoryProvider.get("games").remove();
+  repositoryProvider.get("crew").remove();
+  repositoryProvider.get("legacyDatabase").remove();
   location.reload();
 }
 

@@ -6,12 +6,13 @@ const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH;
 
 module.exports = defineConfig({
   testDir: "./tests",
+  globalSetup: "./tests/global-setup.cjs",
   timeout: 30000,
   retries: 1,
   workers: 1,
 
   use: {
-    baseURL: "http://127.0.0.1:5500",
+    baseURL: "http://127.0.0.1:5501",
     headless: true,
     launchOptions: executablePath ? { executablePath } : {},
     screenshot: "only-on-failure",
@@ -21,9 +22,9 @@ module.exports = defineConfig({
 
   webServer: {
     command:
-      "node node_modules/http-server/bin/http-server . -p 5500",
-    url: "http://127.0.0.1:5500",
-    reuseExistingServer: true,
+      "node scripts/playwright-server.cjs",
+    url: "http://127.0.0.1:5501",
+    reuseExistingServer: false,
     timeout: 120000
   },
 

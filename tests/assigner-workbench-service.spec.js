@@ -16,9 +16,11 @@ test.describe("Assigner Workbench Service", () => {
         workbench,
         expected: {
           needsAssignment:
-            assignmentService
-              .getNeedsAssignmentGames()
-              .length,
+            new Set(
+              dashboardService
+                .getOpenAssignments()
+                .map(item => item.gameId)
+            ).size,
 
           pendingClaims:
             claimsQueueService

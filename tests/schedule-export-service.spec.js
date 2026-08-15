@@ -19,6 +19,8 @@ test.describe("Schedule Export Service", () => {
       "time",
       "awayTeam",
       "homeTeam",
+      "locationComplex",
+      "locationField",
       "field",
       "level",
       "gameType"
@@ -32,7 +34,7 @@ test.describe("Schedule Export Service", () => {
       });
 
     expect(csv).toBe(
-      "date,time,awayTeam,homeTeam,field,level,gameType"
+      "date,time,awayTeam,homeTeam,locationComplex,locationField,field,level,gameType"
     );
   });
 
@@ -53,8 +55,8 @@ test.describe("Schedule Export Service", () => {
       });
 
     expect(csv).toBe([
-      "date,time,awayTeam,homeTeam,field,level,gameType",
-      "2026-08-01,6:00 PM,Tigers,Bears,Field 2,12U,single"
+      "date,time,awayTeam,homeTeam,locationComplex,locationField,field,level,gameType",
+      "2026-08-01,6:00 PM,Tigers,Bears,,Field 2,Field 2,12U,single"
     ].join("\r\n"));
   });
 
@@ -98,6 +100,8 @@ test.describe("Schedule Export Service", () => {
       time: "",
       awayTeam: "Away",
       homeTeam: "Home",
+      locationComplex: "",
+      locationField: "",
       field: "",
       level: "",
       gameType: "single"

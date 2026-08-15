@@ -1,13 +1,87 @@
 const notificationService = (() => {
   const STORAGE_KEY = "bluecrew_notifications";
+  const getRepository = () => repositoryProvider.get("notifications");
+  let authenticatedNotifications = null;
+  let notificationHydrationState = { status: "idle", message: "" };
+
+  function isSupabaseNotificationMode() {
+    return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  }
+
+  function cloneNotifications(notifications) {
+    return structuredClone(Array.isArray(notifications) ? notifications : []);
+  }
+
+  function mapSupabaseNotification(row) {
+    const destinationContext = row.destination_context && typeof row.destination_context === "object"
+      ? structuredClone(row.destination_context)
+      : {};
+    return {
+      id: row.id,
+      organizationId: row.organization_id,
+      type: row.type || "",
+      audience: row.audience || "account",
+      recipientProfileId: row.recipient_profile_id || "",
+      recipientAccountId: row.recipient_profile_id || "",
+      title: row.title || "",
+      message: row.message || "",
+      relatedId: row.related_legacy_id || "",
+      destinationPage: row.destination_page || "",
+      destinationContext,
+      destination: row.destination_page
+        ? { page: row.destination_page, context: destinationContext }
+        : null,
+      reminderKey: row.reminder_key || "",
+      read: Boolean(row.read_at),
+      readAt: row.read_at || null,
+      createdAt: row.created_at || ""
+    };
+  }
+
+  async function hydrateAuthenticatedNotifications() {
+    if (!isSupabaseNotificationMode()) {
+      notificationHydrationState = { status: "ready", message: "" };
+      return { success: true, message: "Local notifications ready.", data: getAll() };
+    }
+    notificationHydrationState = { status: "loading", message: "" };
+    let result;
+    try {
+      result = await supabaseNotificationRepository.getNotifications();
+    } catch (error) {
+      notificationHydrationState = { status: "error", message: error?.message || "Notifications could not be loaded." };
+      return { success: false, message: notificationHydrationState.message };
+    }
+    if (result.error) {
+      notificationHydrationState = { status: "error", message: result.error.message || "Notifications could not be loaded." };
+      return { success: false, message: notificationHydrationState.message };
+    }
+    const mapped = (result.data || [])
+      .map(mapSupabaseNotification)
+      .sort((left, right) => `${right.createdAt}\u0000${right.id}`.localeCompare(`${left.createdAt}\u0000${left.id}`));
+    authenticatedNotifications = cloneNotifications(mapped);
+    notificationHydrationState = { status: "ready", message: "" };
+    return { success: true, message: "Notifications loaded.", data: getAll() };
+  }
+
+  function refreshAuthenticatedNotifications() {
+    return hydrateAuthenticatedNotifications();
+  }
+
+  function clearAuthenticatedNotifications() {
+    authenticatedNotifications = null;
+    notificationHydrationState = { status: "idle", message: "" };
+  }
+
+  function getNotificationHydrationState() {
+    return { ...notificationHydrationState };
+  }
 
   function getAll() {
-    const stored = localStorage.getItem(STORAGE_KEY);
-
-    if (!stored) return [];
-
+    if (isSupabaseNotificationMode()) return cloneNotifications(authenticatedNotifications || []);
     try {
-      const notifications = JSON.parse(stored);
+      const stored = getRepository().read();
+      if (!stored) return [];
+      const notifications = stored;
       return Array.isArray(notifications) ? notifications : [];
     } catch {
       return [];
@@ -15,10 +89,9 @@ const notificationService = (() => {
   }
 
   function saveAll(notifications) {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(notifications)
-    );
+    if (isSupabaseNotificationMode()) return false;
+    getRepository().write(notifications);
+    return true;
   }
 
   function getCurrentNotificationAccount() {
@@ -55,6 +128,11 @@ const notificationService = (() => {
       return isCurrentNotificationAdmin();
     }
 
+    if (audience === "account") {
+      const recipientAccountId = notification.recipientAccountId || notification.recipientProfileId || "";
+      return Boolean(account && recipientAccountId && String(account.id) === String(recipientAccountId));
+    }
+
     if (audience !== "umpire") {
       return true;
     }
@@ -63,11 +141,8 @@ const notificationService = (() => {
       notification.recipientAccountId ||
       "";
 
-    // Preserve existing assignment, claim, review,
-    // and lifecycle notifications that predate
-    // account-specific targeting.
     if (!recipientAccountId) {
-      return true;
+      return false;
     }
 
     if (isCurrentNotificationAdmin()) {
@@ -124,7 +199,8 @@ const notificationService = (() => {
     }
 
     if (
-      value.includes("assignment")
+      value.includes("assignment") ||
+      value === "game-available"
     ) {
       return "assignments";
     }
@@ -203,8 +279,15 @@ const notificationService = (() => {
     audience = "admin",
     recipientAccountId = "",
     destination = null,
-    createdAt = ""
+    createdAt = "",
+    reminderKey = ""
   } = {}) {
+    if (isSupabaseNotificationMode()) {
+      return {
+        success: false,
+        message: "Notification creation is managed by the shared backend."
+      };
+    }
     if (!title || !message) {
       return {
         success: false,
@@ -224,6 +307,31 @@ const notificationService = (() => {
 
     const notifications = getAll();
 
+    if (
+      reminderKey &&
+      notifications.some(
+        notification =>
+          String(notification.reminderKey || "") ===
+          String(reminderKey)
+      )
+    ) {
+      return {
+        success: true,
+        message:
+          "Notification already exists.",
+        data: notifications.find(
+          notification =>
+            String(notification.reminderKey || "") ===
+            String(reminderKey)
+        ),
+        duplicate: true
+      };
+    }
+
+    const currentAccount = getCurrentNotificationAccount();
+    const resolvedRecipientAccountId = recipientAccountId ||
+      (audience === "umpire" && !isCurrentNotificationAdmin() ? currentAccount?.id || "" : "");
+
     const notification = {
       id: `notification-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       type,
@@ -233,7 +341,7 @@ const notificationService = (() => {
       audience,
       recipientAccountId:
         String(
-          recipientAccountId || ""
+          resolvedRecipientAccountId || ""
         ),
       destination:
         destination &&
@@ -251,7 +359,9 @@ const notificationService = (() => {
       read: false,
       createdAt:
         createdAt ||
-        new Date().toISOString()
+        new Date().toISOString(),
+      reminderKey:
+        String(reminderKey || "")
     };
 
     notifications.push(notification);
@@ -290,11 +400,74 @@ const notificationService = (() => {
     return getUnread().length;
   }
 
+  async function markAuthenticatedNotificationRead(notificationId) {
+    const current = getAll();
+    const notification = current.find(item => String(item.id) === String(notificationId));
+    if (!notification || !isVisibleToCurrentUser(notification)) {
+      return { success: false, message: "Notification not found." };
+    }
+    if (notification.read) {
+      return { success: true, message: "Notification already read.", data: notification };
+    }
+    const result = await supabaseNotificationRepository.markRead(notification.id);
+    if (result.error) return { success: false, message: result.error.message || "Notification could not be marked as read." };
+    const readAt = new Date().toISOString();
+    authenticatedNotifications = current.map(item => String(item.id) === String(notification.id)
+      ? { ...item, read: true, readAt }
+      : item);
+    return { success: true, message: "Notification marked as read.", data: getAll().find(item => String(item.id) === String(notification.id)) };
+  }
+
+  async function markAllAuthenticatedNotificationsRead() {
+    const current = getAll();
+    const result = await supabaseNotificationRepository.markAllRead();
+    if (result.error) return { success: false, message: result.error.message || "Notifications could not be marked as read." };
+    const readAt = new Date().toISOString();
+    authenticatedNotifications = current.map(notification => notification.read
+      ? notification
+      : { ...notification, read: true, readAt });
+    return { success: true, message: "All notifications marked as read." };
+  }
+
+  async function markAuthenticatedNotificationsReadBulk(notificationIds = []) {
+    const ids = new Set(notificationIds.map(String));
+    const targets = getAll().filter(notification => ids.has(String(notification.id)) && !notification.read);
+    if (!targets.length) return { success: true, message: "Selected notifications marked as read.", data: { updatedCount: 0 } };
+    const results = await Promise.all(targets.map(notification => supabaseNotificationRepository.markRead(notification.id)));
+    const failure = results.find(result => result.error);
+    if (failure) return { success: false, message: failure.error.message || "Selected notifications could not be marked as read." };
+    const readAt = new Date().toISOString();
+    authenticatedNotifications = getAll().map(notification => ids.has(String(notification.id))
+      ? { ...notification, read: true, readAt: notification.readAt || readAt }
+      : notification);
+    return { success: true, message: "Selected notifications marked as read.", data: { updatedCount: targets.length } };
+  }
+
+  async function deleteAuthenticatedNotificationsBulk(notificationIds = []) {
+    const ids = new Set(notificationIds.map(String));
+    const targets = getAll().filter(notification => ids.has(String(notification.id)));
+    if (!targets.length) return { success: true, message: "Selected notifications deleted.", data: { deletedCount: 0 } };
+    let result;
+    try {
+      result = await supabaseNotificationRepository.deleteMany(targets.map(notification => notification.id));
+    } catch (error) {
+      return { success: false, message: error?.message || "Selected notifications could not be deleted." };
+    }
+    if (result.error) return { success: false, message: result.error.message || "Selected notifications could not be deleted." };
+    const refresh = await hydrateAuthenticatedNotifications();
+    if (!refresh.success) return { success: false, message: "Notifications were deleted, but the notification center could not be refreshed. Please reload." };
+    const remainingIds = new Set(getAll().map(notification => String(notification.id)));
+    const deletedCount = targets.filter(notification => !remainingIds.has(String(notification.id))).length;
+    if (deletedCount !== targets.length) return { success: false, message: "Some selected notifications could not be deleted." };
+    return { success: true, message: "Selected notifications deleted.", data: { deletedCount } };
+  }
+
   function markAsRead(notificationId) {
+    if (isSupabaseNotificationMode()) return markAuthenticatedNotificationRead(notificationId);
     const notifications = getAll();
     const notification = notifications.find(item => item.id === notificationId);
 
-    if (!notification) {
+    if (!notification || !isVisibleToCurrentUser(notification)) {
       return {
         success: false,
         message: "Notification not found."
@@ -312,10 +485,11 @@ const notificationService = (() => {
   }
 
   function markAllAsRead() {
+    if (isSupabaseNotificationMode()) return markAllAuthenticatedNotificationsRead();
     const notifications = getAll();
 
     notifications.forEach(notification => {
-      notification.read = true;
+      if (isVisibleToCurrentUser(notification)) notification.read = true;
     });
 
     saveAll(notifications);
@@ -327,11 +501,11 @@ const notificationService = (() => {
   }
 
   function clearRead() {
+    if (isSupabaseNotificationMode()) return { success: false, message: "Deleting shared notifications is not available." };
     const notifications = getAll();
 
-    const unread = notifications.filter(
-      notification =>
-        notification.read !== true
+    const unread = notifications.filter(notification =>
+      !isVisibleToCurrentUser(notification) || notification.read !== true
     );
 
     const clearedCount =
@@ -349,6 +523,7 @@ const notificationService = (() => {
   }
 
   function clearAll() {
+    if (isSupabaseNotificationMode()) return { success: false, message: "Deleting shared notifications is not available." };
     saveAll([]);
 
     return {
@@ -507,6 +682,7 @@ const notificationService = (() => {
   function markAsReadBulk(
     notificationIds = []
   ) {
+    if (isSupabaseNotificationMode()) return markAuthenticatedNotificationsReadBulk(notificationIds);
     const ids = new Set(
       notificationIds.map(String)
     );
@@ -519,6 +695,7 @@ const notificationService = (() => {
         ids.has(
           String(notification.id)
         ) &&
+        isVisibleToCurrentUser(notification) &&
         !notification.read
       ) {
         notification.read = true;
@@ -541,6 +718,7 @@ const notificationService = (() => {
   function deleteBulk(
     notificationIds = []
   ) {
+    if (isSupabaseNotificationMode()) return deleteAuthenticatedNotificationsBulk(notificationIds);
     const ids = new Set(
       notificationIds.map(String)
     );
@@ -550,9 +728,7 @@ const notificationService = (() => {
     const remaining =
       notifications.filter(
         notification =>
-          !ids.has(
-            String(notification.id)
-          )
+          !isVisibleToCurrentUser(notification) || !ids.has(String(notification.id))
       );
 
     const deletedCount =
@@ -571,8 +747,272 @@ const notificationService = (() => {
     };
   }
 
+
+  function parseReminderGameTime(
+    timeValue
+  ) {
+    const value =
+      String(timeValue || "").trim();
+
+    const twelveHour =
+      value.match(
+        /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i
+      );
+
+    if (twelveHour) {
+      let hour = Number(twelveHour[1]);
+      const minute = Number(twelveHour[2]);
+      const period =
+        twelveHour[3].toUpperCase();
+
+      if (hour === 12) {
+        hour = 0;
+      }
+
+      if (period === "PM") {
+        hour += 12;
+      }
+
+      return {
+        hour,
+        minute
+      };
+    }
+
+    const twentyFourHour =
+      value.match(
+        /^(\d{1,2}):(\d{2})$/
+      );
+
+    if (!twentyFourHour) {
+      return null;
+    }
+
+    return {
+      hour: Number(twentyFourHour[1]),
+      minute: Number(twentyFourHour[2])
+    };
+  }
+
+  function getReminderGameDateTime(
+    game
+  ) {
+    const date =
+      String(game?.date || "").trim();
+
+    const time =
+      parseReminderGameTime(
+        game?.time
+      );
+
+    if (!date || !time) {
+      return null;
+    }
+
+    const value =
+      new Date(`${date}T00:00:00`);
+
+    if (Number.isNaN(value.getTime())) {
+      return null;
+    }
+
+    value.setHours(
+      time.hour,
+      time.minute,
+      0,
+      0
+    );
+
+    return value;
+  }
+
+  function isReminderAssignmentForCrew(
+    game,
+    crewId
+  ) {
+    if (
+      typeof assignmentService ===
+        "undefined" ||
+      typeof assignmentService
+        .getAssignments !==
+        "function"
+    ) {
+      return false;
+    }
+
+    return assignmentService
+      .getAssignments(game)
+      .some(
+        assignment =>
+          String(assignment.crewId || "") ===
+            String(crewId) &&
+          [
+            "assigned",
+            "locked"
+          ].includes(
+            assignment.status
+          )
+      );
+  }
+
+  function getReminderWindow(
+    millisecondsUntilGame
+  ) {
+    const hoursUntilGame =
+      millisecondsUntilGame /
+      (60 * 60 * 1000);
+
+    if (
+      hoursUntilGame <= 0 ||
+      hoursUntilGame > 24
+    ) {
+      return null;
+    }
+
+    if (hoursUntilGame <= 0.5) {
+      return {
+        key: "30-minute",
+        type: "game-reminder-30-minute"
+      };
+    }
+
+    if (hoursUntilGame <= 2) {
+      return {
+        key: "2-hour",
+        type: "game-reminder-2-hour"
+      };
+    }
+
+    return {
+      key: "24-hour",
+      type: "game-reminder-24-hour"
+    };
+  }
+
+  function generateUpcomingGameReminders(
+    nowValue = new Date()
+  ) {
+    const account =
+      getCurrentNotificationAccount();
+
+    if (
+      !account ||
+      !account.crewId ||
+      isCurrentNotificationAdmin()
+    ) {
+      return {
+        success: true,
+        createdCount: 0,
+        duplicateCount: 0
+      };
+    }
+
+    if (
+      typeof gameService === "undefined" ||
+      typeof gameService.getAll !==
+        "function"
+    ) {
+      return {
+        success: false,
+        message:
+          "Game service is unavailable.",
+        createdCount: 0,
+        duplicateCount: 0
+      };
+    }
+
+    const now =
+      nowValue instanceof Date
+        ? nowValue
+        : new Date(nowValue);
+
+    if (Number.isNaN(now.getTime())) {
+      return {
+        success: false,
+        message:
+          "Invalid reminder time.",
+        createdCount: 0,
+        duplicateCount: 0
+      };
+    }
+
+    let createdCount = 0;
+    let duplicateCount = 0;
+
+    gameService
+      .getAll()
+      .filter(
+        game =>
+          isReminderAssignmentForCrew(
+            game,
+            account.crewId
+          )
+      )
+      .filter(
+        game =>
+          ![
+            "completed",
+            "submitted",
+            "approved",
+            "cancelled"
+          ].includes(
+            typeof gameService.getStatus ===
+              "function"
+              ? gameService.getStatus(game)
+              : game.status
+          )
+      )
+      .forEach(game => {
+        const gameDateTime =
+          getReminderGameDateTime(game);
+
+        if (!gameDateTime) {
+          return;
+        }
+
+        const window =
+          getReminderWindow(
+            gameDateTime.getTime() -
+            now.getTime()
+          );
+
+        if (!window) {
+          return;
+        }
+
+        const assignment = assignmentService.getAssignments(game).find(item =>
+          String(item.crewId || "") === String(account.crewId) && ["assigned", "locked"].includes(item.status));
+        const reminderKey = [window.type, game.id, assignment?.id || account.crewId, account.id].join(":");
+        const result = communicationService.publish({
+          type: window.type, organizationId: account.organizationId || "local", recipientProfileId: account.id,
+          subjectEntityType: "assignment", subjectEntityId: assignment?.id || game.id, gameId: game.id,
+          assignmentId: assignment?.id || "", occurredAt: now.toISOString(), idempotencyKey: reminderKey,
+          metadata: { gameDisplay: presentationFormattingService.formatGameIdentifier(game), level: game.level,
+            divisionAlias: levelTerminologyService.aliasFor(game.level), date: game.date, time: game.time,
+            location: game.locationComplex, field: game.locationField || game.field, position: assignment?.position || "",
+            actionPath: "my-schedule", reminderWindow: window.key }
+        });
+        const inApp = result.data?.deliveries?.find(delivery => delivery.channel === "in_app");
+
+        if (inApp?.duplicate) {
+          duplicateCount += 1;
+        } else if (result.success && inApp?.status === "sent") {
+          createdCount += 1;
+        }
+      });
+
+    return {
+      success: true,
+      createdCount,
+      duplicateCount
+    };
+  }
   return {
     getAll,
+    hydrateAuthenticatedNotifications,
+    refreshAuthenticatedNotifications,
+    clearAuthenticatedNotifications,
+    getNotificationHydrationState,
     create,
     getUnread,
     getRead,
@@ -589,6 +1029,7 @@ const notificationService = (() => {
     getUnreadByCategory,
     getOldestUnread,
     getNotificationCategory,
-    isCategoryEnabled
+    isCategoryEnabled,
+    generateUpcomingGameReminders
   };
 })();

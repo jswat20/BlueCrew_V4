@@ -119,7 +119,7 @@ function renderOpenGamesQueue(date) {
               </h4>
 
               <p>
-                ${game.level}
+                ${levelTerminologyService.format(game.level)}
                 •
                 ${game.time}
               </p>

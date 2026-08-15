@@ -28,7 +28,7 @@ function renderAccounts(context = {}) {
     accountService.getApprovedAccounts(roleOptions);
 
   const unlinkedAccounts =
-    accountService.getUnlinkedApprovedAccounts(roleOptions);
+    accountService.getUnlinkedApprovedAccounts(roleOptions).filter(account => account.role === "umpire");
 
   const linkedAccounts =
     approvedAccounts.filter(account => account.crewId !== null);
@@ -47,12 +47,13 @@ function renderAccounts(context = {}) {
         Review and manage umpire registrations.
       </p>
 
+
 ${renderAccountFilters(selectedFilter)}
 ${renderRoleFilters()}
       ${
         selectedFilter === "all" ||
         selectedFilter === "pending"
-          ? renderPendingAccountsSection(pendingAccounts)
+          ? renderPendingAccountsSection(pendingAccounts, crewMembers)
           : ""
       }
 
@@ -171,7 +172,7 @@ function setAccountFilter(filter) {
   renderPage("accounts");
 }
 
-function renderPendingAccountsSection(pendingAccounts) {
+function renderPendingAccountsSection(pendingAccounts, crewMembers = []) {
   const hasSelection =
     selectedPendingAccountIds.size > 0;
 
@@ -224,7 +225,7 @@ function renderPendingAccountsSection(pendingAccounts) {
 
             <div data-testid="pending-accounts-list">
               ${pendingAccounts
-                .map(renderPendingAccountRow)
+                .map(account => renderPendingAccountRow(account, crewMembers))
                 .join("")}
             </div>
           `
@@ -335,8 +336,14 @@ function renderLinkedAccountsSection(
   `;
 }
 
-function renderPendingAccountRow(account) {
+function renderPendingAccountRow(account, crewMembers = []) {
   const accountId = String(account.id);
+  const displayName = String(
+    account.name ||
+    `${account.firstName || ""} ${account.lastName || ""}`.trim() ||
+    account.email ||
+    "Pending umpire"
+  );
   const isSelected =
     selectedPendingAccountIds.has(accountId);
 
@@ -360,43 +367,15 @@ function renderPendingAccountRow(account) {
 
       <div class="pending-account-details">
         <strong>
-          ${account.firstName} ${account.lastName}
+          ${displayName}
         </strong>
 
         <div>${account.email}</div>
-<div>
-
-  <label>
-
-    Role
-
-    <select
-      data-testid="account-role-${account.id}"
-      onchange="changePendingAccountRole(
-        '${account.id}',
-        this.value
-      )">
-
-      ${accountService.getRoles().map(role => `
-        <option
-          value="${role}"
-          ${
-            account.role === role
-              ? "selected"
-              : ""
-          }>
-          ${
-            role.charAt(0).toUpperCase() +
-            role.slice(1)
-          }
-        </option>
-      `).join("")}
-
-    </select>
-
-  </label>
-
-</div>
+        <div>${account.phone || "No phone provided"}</div>
+        <div data-testid="pending-account-birthdate-${account.id}">Birthdate: ${account.birthdate ? formatCrewCardDate(account.birthdate) : "Not recorded"}</div>
+        <div data-testid="pending-account-age-${account.id}">Age: ${accountService.deriveAge(account.birthdate) ?? "Not recorded"}</div>
+        <div data-testid="account-verification-${account.id}">Email: Verified</div>
+        <div data-testid="account-role-${account.id}">Role: Umpire</div>
         <small>
           Registered ${formatAccountDate(account.createdAt)}
         </small>
@@ -509,8 +488,21 @@ function renderApprovedAccount(account, crewMembers) {
     String(member.id) === String(account.crewId)
   );
 
-  if (account.role === "umpire" && typeof renderCrewCardFront === "function") return renderCrewCardFront(account, { testId: `approved-account-${account.id}`, className: "account-crew-card", roleTestId: `account-role-display-${account.id}` });
-  return `<div class="card" data-testid="approved-account-${account.id}"><strong>${account.firstName} ${account.lastName}</strong><div>${account.email}</div><div data-testid="account-role-display-${account.id}">Role: ${formatAccountRole(account.role)}</div><small>${crewMember ? `Linked to ${crewMember.firstName} ${crewMember.lastName}` : "Not linked to a crew member"}</small></div>`;
+  const resetAction = authService.isAdmin?.() ? `<button type="button" class="button button-secondary" data-testid="send-password-reset-${account.id}" onclick="sendAdministrativePasswordReset('${account.id}')">Send Password Reset</button>` : "";
+  if (account.role === "umpire" && typeof renderCrewCardFront === "function") return `<div class="account-security-admin-row">${renderCrewCardFront(account, { testId: `approved-account-${account.id}`, className: "account-crew-card", roleTestId: `account-role-display-${account.id}` })}${resetAction}</div>`;
+  return `<div class="card" data-testid="approved-account-${account.id}"><strong>${account.firstName} ${account.lastName}</strong><div data-testid="account-personnel-id-${account.id}">Personnel ID: ${account.personnelId || "Not issued"}</div><div>Login Email: ${account.email}</div><div data-testid="account-role-display-${account.id}">Role: ${formatAccountRole(account.role)}</div><small>${crewMember ? `Linked to ${crewMember.firstName} ${crewMember.lastName}` : "Not linked to a crew member"}</small>${resetAction}</div>`;
+}
+
+async function createRegistrationInvitation() {
+  const output = document.getElementById("registration-invitation-result");
+  const code = `${crypto.randomUUID()}${crypto.randomUUID()}`.replaceAll("-", "");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const result = await accountService.createRegistrationInvitation(code, expiresAt, 1);
+  if (!result.success) {
+    if (output) output.textContent = result.message;
+    return;
+  }
+  if (output) output.innerHTML = `<label>One-use Registration Code<input type="text" readonly value="${code}" data-testid="registration-invitation-code" aria-describedby="registration-code-expiry"></label><small id="registration-code-expiry">Expires in 24 hours. Share only with the intended adult.</small>`;
 }
 
 function changePendingAccountRole(accountId, role) {
@@ -530,12 +522,9 @@ function changePendingAccountRole(accountId, role) {
   }
 }
 
-function approvePendingAccount(accountId) {
-  const result =
-    accountService.approveAccount(accountId);
-
-  alert(result.message);
-
+async function approvePendingAccount(accountId) {
+  const result = await accountService.approveAccount(accountId);
+  result.success ? toastService?.success?.(result.message) : toastService?.error?.(result.message);
   renderPage("accounts");
 }
 
@@ -606,7 +595,7 @@ function renderUnlinkedAccount(account, crewMembers) {
   `;
 }
 
-function linkCrewAccount(accountId) {
+async function linkCrewAccount(accountId) {
   const select = document.getElementById(
     `crew-select-${accountId}`
   );
@@ -620,10 +609,14 @@ function linkCrewAccount(accountId) {
     return;
   }
 
-  const result = accountService.linkCrew(
-    accountId,
-    crewId
-  );
+  const account = accountService.getById(accountId);
+  if (!account || account.role !== "umpire" || account.status !== "approved") {
+    toastService?.show?.("Only an approved umpire Login Account may be linked to crew.");
+    return;
+  }
+  const result = crewService.isSharedMode()
+    ? await crewService.manageLoginIdentity(crewId, "link", account.id)
+    : accountService.linkCrew(accountId, crewId);
 
   toastService?.show?.(result.message);
 

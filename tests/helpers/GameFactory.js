@@ -5,9 +5,11 @@ let counter = 1;
 export function buildGame(overrides = {}) {
   const id = counter++;
   const now = Date.now();
+  const futureDate = new Date();
+  futureDate.setDate(futureDate.getDate() + 30);
 
   return {
-    date: new Date().toISOString().split("T")[0],
+    date: futureDate.toISOString().split("T")[0],
     time: "6:00 PM",
     field: "Field 1",
     level: "12U",

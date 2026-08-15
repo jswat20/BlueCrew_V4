@@ -1,6 +1,7 @@
 // js/services/portalService.js
 
 const portalService = (() => {
+  let nowProvider = () => new Date();
   const DEFAULT_ARRIVAL_MINUTES = 30;
 
   const STATUS_LABELS = Object.freeze({
@@ -50,11 +51,7 @@ const portalService = (() => {
           String(candidate.id) === String(gameId)
       );
 
-    if (
-      !game ||
-      (!canManageGame &&
-        !isGameAssignedToCrew(game, account.crewId))
-    ) {
+    if (!game) {
       return null;
     }
 
@@ -98,6 +95,28 @@ const portalService = (() => {
       gameId,
       account.crewId
     );
+  }
+
+  function declineAssignment(
+    gameId,
+    reason
+  ) {
+    const account =
+      getCurrentAccount();
+
+    if (!account || !account.crewId) {
+      return {
+        success: false,
+        message: "No logged in umpire."
+      };
+    }
+
+    return assignmentService
+      .declineAssignment(
+        gameId,
+        account.crewId,
+        reason
+      );
   }
 
   function getAssignments(game) {
@@ -449,12 +468,37 @@ const portalService = (() => {
       return;
     }
 
+    const assignedCrewIds = [
+      game.crewId,
+      ...(typeof assignmentService !== "undefined" &&
+      typeof assignmentService.getAssignments === "function"
+        ? assignmentService.getAssignments(game).map(
+            assignment => assignment.crewId
+          )
+        : [])
+    ].filter(Boolean);
+
+    const recipientAccount =
+      audience === "umpire" &&
+      typeof accountService !== "undefined" &&
+      typeof accountService.getAll === "function"
+        ? accountService.getAll().find(account =>
+            assignedCrewIds.some(
+              crewId =>
+                String(account.crewId || "") ===
+                String(crewId)
+            )
+          )
+        : null;
+
     notificationService.create({
       type,
       title,
       message,
       relatedId: game.id,
       audience,
+      recipientAccountId:
+        recipientAccount?.id || "",
       destination: {
         page: "game-hub",
         context: {
@@ -984,7 +1028,144 @@ const portalService = (() => {
     );
   }
 
-  function completeGame(gameId) {
+  function parseGameStart(game) {
+    const date = String(game?.date || "").trim();
+    const value = String(game?.time || "").trim();
+    if (!date || !value) return null;
+    const twelveHour = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    const twentyFourHour = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    let hour;
+    let minute;
+    if (twelveHour) {
+      hour = Number(twelveHour[1]) % 12 + (twelveHour[3].toUpperCase() === "PM" ? 12 : 0);
+      minute = Number(twelveHour[2]);
+    } else if (twentyFourHour) {
+      hour = Number(twentyFourHour[1]);
+      minute = Number(twentyFourHour[2]);
+    } else {
+      return null;
+    }
+    const start = new Date(`${date}T00:00:00`);
+    start.setHours(hour, minute, 0, 0);
+    return Number.isNaN(start.getTime()) ? null : start;
+  }
+
+  function hostedCompletionError(error, fallback) {
+    const message = String(error?.message || "");
+
+    const messages = {
+      game_completion_identity_required:
+        "An approved linked umpire account is required.",
+      game_completion_game_required:
+        "Game not found.",
+      game_completion_invalid_score:
+        "Enter non-negative whole numbers for both scores.",
+      game_completion_not_found:
+        "Game not found.",
+      game_completion_not_assigned:
+        "You are not assigned to this game.",
+      game_completion_cancelled:
+        "Cancelled games cannot be completed.",
+      game_completion_finalized:
+        "Approved game reviews are read-only.",
+      game_completion_not_editable:
+        "This game completion can no longer be edited.",
+      game_completion_start_unavailable:
+        "The scheduled start time is unavailable.",
+      game_completion_too_early:
+        "Complete Game becomes available after the scheduled start time."
+    };
+
+    const code = Object.keys(messages).find(
+      candidate => message.includes(candidate)
+    );
+
+    return code ? messages[code] : fallback;
+  }
+
+  function validateCompletionScores(completionInput = {}) {
+    const awayValue =
+      String(completionInput.awayScore ?? "").trim();
+    const homeValue =
+      String(completionInput.homeScore ?? "").trim();
+    const awayScore = Number(awayValue);
+    const homeScore = Number(homeValue);
+
+    if (
+      !awayValue ||
+      !homeValue ||
+      !Number.isInteger(awayScore) ||
+      awayScore < 0 ||
+      !Number.isInteger(homeScore) ||
+      homeScore < 0
+    ) {
+      return {
+        success: false,
+        message:
+          "Enter non-negative whole numbers for both scores."
+      };
+    }
+
+    return {
+      success: true,
+      awayScore,
+      homeScore,
+      notes:
+        String(completionInput.notes || "").trim()
+    };
+  }
+
+  async function saveHostedCompletion(
+    gameId,
+    completionInput,
+    successMessage
+  ) {
+    const validated =
+      validateCompletionScores(completionInput);
+
+    if (!validated.success) {
+      return validated;
+    }
+
+    const result =
+      await gameService.saveOwnCompletion(
+        gameId,
+        validated
+      );
+
+    if (!result.success) {
+      return {
+        ...result,
+        message: hostedCompletionError(
+          result.error,
+          result.message ||
+            "Game completion could not be saved."
+        )
+      };
+    }
+
+    return {
+      success: true,
+      message: successMessage,
+      data: getGameCompletion(gameId)
+    };
+  }
+
+  function getCompletionEligibility(game, now = nowProvider()) {
+    const lifecycleStatus = game?.lifecycleStatus || gameService.getStatus(game);
+    if (lifecycleStatus === "cancelled") return { allowed: false, reason: "Cancelled games cannot be completed." };
+    if (["completed", "submitted", "returned", "approved"].includes(lifecycleStatus)) {
+      return { allowed: false, reason: "This game has already been completed." };
+    }
+    const start = parseGameStart(game);
+    if (!start) return { allowed: false, reason: "The scheduled start time is unavailable." };
+    if (now.getTime() <= start.getTime()) {
+      return { allowed: false, reason: "Complete Game becomes available after the scheduled start time." };
+    }
+    return { allowed: true, reason: "" };
+  }
+
+  function completeGame(gameId, completionInput = {}) {
     const account = getCurrentAccount();
 
     if (!account || !account.crewId) {
@@ -1024,8 +1205,34 @@ const portalService = (() => {
       };
     }
 
+    if (
+      typeof supabaseClientService !== "undefined" &&
+      supabaseClientService.isConfigured()
+    ) {
+      return saveHostedCompletion(
+        gameId,
+        completionInput,
+        "Game completed."
+      );
+    }
+
+    const eligibility = getCompletionEligibility(game);
+    if (!eligibility.allowed) {
+      return {
+        success: false,
+        message: eligibility.reason
+      };
+    }
+
+    const validated =
+      validateCompletionScores(completionInput);
+
+    if (!validated.success) {
+      return validated;
+    }
+
     const completionTime =
-      new Date().toISOString();
+      nowProvider().toISOString();
 
     const completedBy =
       getCompletionAccountName(account);
@@ -1038,7 +1245,13 @@ const portalService = (() => {
           completed: true,
           completionTime,
           completedBy,
-          completionStatus: "completed"
+          completionStatus: "completed",
+          awayScore: validated.awayScore,
+          homeScore: validated.homeScore,
+          reports: {
+            ...getGameReports(gameId),
+            notes: validated.notes
+          }
         }
       );
 
@@ -1144,7 +1357,9 @@ const portalService = (() => {
 
   function getGameInformation(game) {
     return {
-      field: normalizeOptionalValue(game.field),
+      locationComplex: normalizeOptionalValue(game.locationComplex),
+      locationField: normalizeOptionalValue(game.locationField || game.field),
+      field: normalizeOptionalValue(locationService.getDisplayName(game)),
       venue: normalizeOptionalValue(game.venue),
       address: normalizeOptionalValue(game.address),
       notes: normalizeOptionalValue(
@@ -1730,6 +1945,21 @@ const portalService = (() => {
       } has been cancelled.`
     );
 
+    activityService?.log?.({
+      type: "game",
+      action: "game_cancelled",
+      gameId: result.game.id,
+      object: activityService.getGameMatchup?.(result.game) || "",
+      metadata: {
+        date: result.game.date || "",
+        time: result.game.time || "",
+        level: result.game.level || "",
+        locationComplex: result.game.locationComplex || result.game.venue || "",
+        locationField: result.game.locationField || "",
+        field: result.game.field || ""
+      }
+    });
+
     return {
       success: true,
       message: "Game cancelled.",
@@ -1875,6 +2105,10 @@ const portalService = (() => {
       time: game.time,
       field: gameInformation.field,
       level: game.level,
+      crewSize: game.crewSize || gameTypeService.getCrewSize(game),
+      filledPositions: getAssignments(game).filter(assignment =>
+        [AssignmentStatus.ASSIGNED, AssignmentStatus.LOCKED].includes(assignment.status)
+      ).length,
       homeTeam: game.homeTeam,
       awayTeam: game.awayTeam,
       matchup:
@@ -1912,9 +2146,9 @@ const portalService = (() => {
   }
 
   function sortByDateTime(a, b) {
-    return `${a.date} ${a.time}`.localeCompare(
-      `${b.date} ${b.time}`
-    );
+    const difference = dateTimeFormattingService.toSortableDateTime(a.date, a.time) -
+      dateTimeFormattingService.toSortableDateTime(b.date, b.time);
+    return difference || String(a.id || "").localeCompare(String(b.id || ""));
   }
 
   function getMyPendingClaims() {
@@ -1939,7 +2173,8 @@ const portalService = (() => {
             game,
             assignment
           }))
-      );
+      )
+      .sort((a, b) => sortByDateTime(a.game, b.game));
   }
 
   function getProfile() {
@@ -1987,10 +2222,68 @@ const portalService = (() => {
     );
   }
 
+  function updateCompletedGame(gameId, completionInput = {}) {
+    const account = getCurrentAccount();
+    const game = gameService.getById(gameId);
+
+    if (
+      !account?.crewId ||
+      !game ||
+      !isGameAssignedToCrew(game, account.crewId)
+    ) {
+      return {
+        success: false,
+        message: "You are not assigned to this game."
+      };
+    }
+
+    if (gameService.getStatus(game) !== "returned") {
+      return {
+        success: false,
+        message:
+          "Only a returned completion may be edited."
+      };
+    }
+
+    if (
+      typeof supabaseClientService !== "undefined" &&
+      supabaseClientService.isConfigured()
+    ) {
+      return saveHostedCompletion(
+        gameId,
+        completionInput,
+        "Game completion updated."
+      );
+    }
+
+    const validated =
+      validateCompletionScores(completionInput);
+
+    if (!validated.success) {
+      return validated;
+    }
+
+    return gameService.update(gameId, {
+      awayScore: validated.awayScore,
+      homeScore: validated.homeScore,
+      reports: {
+        ...getGameReports(gameId),
+        notes: validated.notes
+      }
+    });
+  }
+
+  async function saveProfileShared(profile = {}) {
+    const account = getCurrentAccount();
+    if (!account) return { success: false, message: "No logged in umpire." };
+    return accountService.updateAuthenticatedProfile(account.id, profile);
+  }
+
 
   return {
     getProfile,
     saveProfile,
+    saveProfileShared,
     getGameReview,
     cancelGame,
     postponeGame,
@@ -2002,6 +2295,11 @@ const portalService = (() => {
     saveGameScore,
     getGameCompletion,
     completeGame,
+    updateCompletedGame,
+    getCompletionEligibility,
+    setNowProviderForTests(provider) {
+      nowProvider = typeof provider === "function" ? provider : () => new Date();
+    },
     getCurrentAccount,
     getMySchedule,
     getGameHub,
@@ -2010,6 +2308,7 @@ const portalService = (() => {
     toggleChecklistItem,
     getClaimableGames,
     claimGame,
+    declineAssignment,
     getMyPendingClaims,
     getArrivalRecommendation
   };

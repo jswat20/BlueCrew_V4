@@ -17,8 +17,6 @@ test.describe("Operations Center", () => {
 
     expect(result).toEqual(
       expect.objectContaining({
-        currentTask:
-          expect.anything(),
         remainingTasks:
           expect.any(Array),
         queueCounts:
@@ -33,6 +31,11 @@ test.describe("Operations Center", () => {
           expect.any(Boolean)
       })
     );
+
+    expect(result.currentTask === null || typeof result.currentTask === "object").toBe(true);
+    for (const value of [result.queueCounts.all, result.outstandingCount, result.totalOutstandingCount, result.queueCounts.conflicts]) {
+      expect(Number.isFinite(value)).toBe(true);
+    }
 
     expect(
       JSON.stringify(result)
@@ -119,13 +122,13 @@ test.describe("Operations Center", () => {
 
     await expect(
       page.getByTestId(
-        "operations-current-task"
+        "operations-status-strip"
       )
     ).toBeVisible();
 
     await expect(
       page.getByTestId(
-        "operations-remaining-tasks"
+        "operations-upcoming-work"
       )
     ).toBeVisible();
 
@@ -148,60 +151,14 @@ test.describe("Operations Center", () => {
     ).toBeVisible();
   });
 
-  test("current task navigates through the existing workflow action", async ({
+  test("open-position KPI navigates through the current staffing workflow", async ({
     page
   }) => {
-    await page.evaluate(() => {
-      const original =
-        dashboardService
-          .getOperationsCenter;
-
-      dashboardService
-        .getOperationsCenter = () => ({
-          currentTask: {
-            key: "needsAssignment",
-            title: "Needs Assignment",
-            count: 1,
-            action: "needs-assignment",
-            items: [
-              {
-                id:
-                  "operations-game-1",
-                gameId:
-                  "operations-game-1",
-                matchup:
-                  "Visitors @ Home"
-              }
-            ]
-          },
-          remainingTasks: [],
-          queueCounts: {
-            needsAssignment: 1,
-            pendingClaims: 0,
-            awaitingReview: 0,
-            returnedReviews: 0,
-            todaysPriorities: 0
-          },
-          recentActivity: [],
-          operationalProgress: {
-            completed: 4,
-            total: 5,
-            percent: 80
-          },
-          outstandingCount: 1,
-          isEmpty: false
-        });
-
-      renderPage("operations-center");
-
-      dashboardService
-        .getOperationsCenter =
-        original;
-    });
+    await page.evaluate(() => renderPage("operations-center"));
 
     await page
       .getByTestId(
-        "operations-current-task-action"
+        "operations-metric-open-positions"
       )
       .click();
 
@@ -212,16 +169,7 @@ test.describe("Operations Center", () => {
       }));
 
     expect(state.page)
-      .toBe("schedule");
-
-    expect(state.context)
-      .toEqual(
-        expect.objectContaining({
-          filter: "open",
-          gameId:
-            "operations-game-1"
-        })
-      );
+      .toBe("assigner-workbench");
   });
 
   test("renders the completed-work empty state", async ({

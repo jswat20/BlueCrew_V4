@@ -6,3 +6,14 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Local Supabase/client configuration. Commit examples only.
+.env
+.env.*
+!.env.example
+/config/supabase.js
+/supabase/.temp/
+/.npm-cache/
+/dist/
+/.wrangler/
+/work/
