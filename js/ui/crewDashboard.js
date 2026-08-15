@@ -59,9 +59,9 @@ function renderCrewDashboard() {
         <section class="crew-command-panel crew-command-actions crew-action-center-primary" data-testid="crew-dashboard-actions">
           <header><h2>Action Center</h2></header>
           ${renderReturnedReviewDashboardCard()}
+          ${renderCrewActionSummary("Today's Assignments", todaysAssignments.length, "Open today's game-day details.", "renderPage('my-schedule')")}
           ${renderCrewActionSummary("Pending Claims", pendingApprovals.length, "Claims awaiting assignor approval.", "renderPage('my-claims')")}
           ${renderCrewActionSummary("Available Games", claimableGames.length, "Games currently open for claims.", "renderPage('claim-games')")}
-          ${renderCrewActionSummary("Today's Assignments", todaysAssignments.length, "Open today's game-day details.", "renderPage('my-schedule')")}
         </section>
       </div>
 

@@ -560,6 +560,10 @@ body {
   display: none;
 }
 
+.nav-link[hidden] {
+  display: none;
+}
+
 .nav-group-label {
   margin: 0 0 2px;
   padding: 0 14px;
@@ -2496,6 +2500,7 @@ body[data-page="game-hub"] .game-hub-admin {
 .game-hub-command-contact a { width: fit-content; color: #076b7d; }
 
 @media (max-width: 900px) {
+  body[data-page="profile"] .profile-details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .game-hub-command-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -2504,6 +2509,100 @@ body[data-page="game-hub"] .game-hub-admin {
   .game-hub-command-status { grid-row: auto; }
   .game-hub-command-summary dl, .game-hub-command-slots { grid-template-columns: 1fr; }
   .game-hub-command-complete { position: static; justify-self: start; }
+}
+
+/* Pilot D3-D6: content-first Crew Card reflow and compact account security. */
+.profile-account-security { display: grid; gap: 10px; }
+.profile-security-heading, .profile-security-actions { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 16px; }
+.profile-security-heading h3, .profile-security-heading p, .profile-security-actions dl { margin: 0; }
+.profile-security-actions dl { display: flex; min-width: 0; align-items: baseline; gap: 6px; }
+.profile-security-actions dd { margin: 0; overflow-wrap: anywhere; }
+.crew-credential-dialog { overflow: auto; }
+.crew-credential-face-back { height: auto; min-height: 100%; }
+.crew-credential-identity-panel { grid-template-columns: minmax(125px, 165px) minmax(0, 1fr); }
+.crew-credential-identity-panel h2 { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.crew-credential-age { display: grid; grid-template-columns: repeat(2, minmax(90px, 1fr)); }
+.crew-credential-contact dd { min-width: 0; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+.crew-credential-modal-footer { position: relative; margin-top: auto; flex-wrap: wrap; }
+.crew-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.crew-history-rows { display: grid; gap: 8px; margin-top: 8px; }
+.crew-history-row { display: grid; grid-template-columns: 90px 1fr 130px 1fr 1.5fr auto; align-items: end; gap: 8px; padding: 10px; border: 1px solid #b8d6de; border-radius: 8px; background: #f7fbfc; }
+.crew-history-row label { display: grid; min-width: 0; gap: 4px; }
+
+@media (max-width: 1100px) and (min-width: 761px) {
+  .crew-credential-face-back { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .crew-credential-identity-panel h2 { font-size: clamp(1.45rem, 3vw, 2rem); }
+  .crew-credential-contact dl div { grid-template-columns: minmax(100px, 34%) minmax(0, 1fr); }
+}
+
+@media (max-height: 820px) and (min-width: 761px) {
+  .crew-credential-dialog { height: min(calc(100dvh - 20px), 760px); }
+  .crew-credential-face-back { padding: 10px; gap: 7px; }
+  .crew-credential-back-header { margin: -10px -10px 0; }
+  .crew-credential-panel > h3 { padding-block: 4px; }
+  .crew-credential-contact dl div { min-height: 24px; padding-block: 1px; }
+}
+
+@media (max-width: 760px) {
+  .crew-history-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crew-history-row label:nth-child(5), .crew-history-row button { grid-column: 1 / -1; }
+}
+
+@media (max-width: 560px) {
+  .profile-security-heading, .profile-security-actions { align-items: stretch; flex-direction: column; }
+  .crew-history-row { grid-template-columns: 1fr; }
+  .crew-history-row label:nth-child(5), .crew-history-row button { grid-column: 1; }
+}
+
+/* Canonical personnel experience: the same Crew Card shell serves Profile and Crew. */
+.unified-profile-page { display: grid; gap: var(--space-large); }
+.unified-profile-card { width: min(100%, 1120px); margin-inline: auto; overflow: hidden; border: 1px solid #4f8290; border-radius: 18px; background: #f7f8f5; box-shadow: 0 18px 45px rgba(5,24,39,.18); }
+.unified-profile-card .crew-credential-face-back { position: relative; inset: auto; min-height: 0; border: 0; border-radius: 0; overflow: visible; transform: none; backface-visibility: visible; }
+.unified-profile-card-actions { display: flex; padding: 12px 16px; border-top: 1px solid #b8d6de; background: #eef5f6; justify-content: flex-end; }
+.unified-profile-support { width: min(100%, 960px); margin-inline: auto !important; }
+.crew-card-edit-mode { min-height: 100%; padding: 20px; overflow-y: auto; background: #f7f8f5; color: #071f35; }
+.crew-card-edit-header { position: relative; z-index: 3; display: flex; margin: -20px -20px 18px; padding: 16px 20px; background: linear-gradient(100deg,#071f35 0 55%,#138e9d); color: #fff; align-items: center; justify-content: space-between; gap: 16px; }
+.crew-card-edit-header h2,.crew-card-edit-header p { margin: 0; }
+.crew-card-edit-header span { color: #4bd1dd; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.unified-crew-admin-editor .drawer-header { display: none; }
+.unified-crew-admin-editor .drawer-body { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.unified-crew-admin-editor .form-group { min-width: 0; }
+.unified-crew-admin-editor .drawer-footer { position: static; margin-top: 16px; }
+.unified-crew-self-editor { display: grid; gap: 16px; }
+.unified-crew-self-editor > section { overflow: hidden; border: 1px solid #b8d6de; border-radius: 10px; background: #fff; }
+.unified-crew-self-editor > section > h3 { margin: 0; padding: 9px 14px; background: #07596b; color: #fff; }
+.unified-crew-edit-grid { display: grid; padding: 14px; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.unified-crew-edit-grid label { display: grid; min-width: 0; gap: 5px; font-weight: 800; }
+.unified-crew-edit-grid input,.unified-crew-edit-grid select { width: 100%; min-width: 0; }
+.unified-crew-edit-grid .wide { grid-column: span 2; }
+.unified-crew-self-editor > footer { display: flex; justify-content: flex-end; gap: 10px; }
+
+@media (min-width: 901px) {
+  .unified-profile-card .crew-credential-face-back {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+    grid-template-rows: auto auto auto auto;
+  }
+  .unified-profile-card .crew-credential-back-header { grid-column: 1 / -1; }
+  .unified-profile-card .crew-credential-identity-panel { grid-column: 1; }
+  .unified-profile-card .crew-credential-contact { grid-column: 2; }
+  .unified-profile-card .crew-credential-eligibility { grid-column: 1; }
+  .unified-profile-card .crew-credential-history { grid-column: 2; }
+  .unified-profile-card .crew-credential-notes { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .unified-profile-card .crew-credential-face-back { min-height: 0; display: grid; }
+  .unified-crew-admin-editor .drawer-body,.unified-crew-edit-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 560px) {
+  .unified-profile-card { border-radius: 10px; }
+  .unified-profile-card .crew-credential-face-back { grid-template-columns: 1fr; }
+  .unified-profile-card .crew-credential-back-header,.unified-profile-card .crew-credential-identity-panel,.unified-profile-card .crew-credential-contact,.unified-profile-card .crew-credential-eligibility,.unified-profile-card .crew-credential-history,.unified-profile-card .crew-credential-notes { grid-column: 1; }
+  .crew-card-edit-header { align-items: stretch; flex-direction: column; }
+  .unified-crew-admin-editor .drawer-body,.unified-crew-edit-grid { grid-template-columns: 1fr; }
+  .unified-crew-edit-grid .wide { grid-column: 1; }
+  .unified-crew-self-editor > footer,.unified-profile-card-actions { flex-direction: column; }
+  .unified-crew-self-editor > footer .button,.unified-profile-card-actions .button { width: 100%; }
 }
 
 .role-switcher-label {
@@ -7182,10 +7281,32 @@ body[data-role="umpire"][data-page="dashboard"] .content-area { background: var(
 .crew-command-empty { padding: 22px 14px; color: var(--slate-muted); text-align: center; }
 
 /* Keep the expanded credential inside the visible browser window. */
-.crew-credential-dialog { height: min(760px, calc(100dvh - 24px)); max-height: calc(100dvh - 24px); overflow: hidden; }
+.crew-credential-dialog { height: min(760px, calc(100dvh - 24px)); max-height: calc(100dvh - 24px); overflow: auto; }
 .crew-credential-modal { display: grid; height: 100%; min-height: 0; padding: 10px; grid-template-rows: minmax(0,1fr); }
 .crew-credential-flipper { height: 100%; min-height: 0; }
 .crew-credential-modal-footer { position: absolute; z-index: 15; right: 20px; bottom: 18px; padding: 0; }
+
+@media (min-width: 901px) {
+  .crew-credential-flipper.is-flipped { height: auto; min-height: 100%; transform: none; }
+  .crew-credential-flipper.is-flipped .crew-credential-face-front { display: none; }
+  .crew-credential-flipper.is-flipped .crew-credential-face-back {
+    position: relative;
+    inset: auto;
+    min-height: 100%;
+    padding-bottom: 76px;
+    overflow: visible;
+    backface-visibility: visible;
+    transform: none;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+    grid-template-rows: auto auto auto auto;
+  }
+  .crew-credential-flipper.is-flipped .crew-credential-back-header { grid-column: 1 / -1; }
+  .crew-credential-flipper.is-flipped .crew-credential-identity-panel { grid-column: 1; }
+  .crew-credential-flipper.is-flipped .crew-credential-contact { grid-column: 2; }
+  .crew-credential-flipper.is-flipped .crew-credential-eligibility { grid-column: 1; }
+  .crew-credential-flipper.is-flipped .crew-credential-history { grid-column: 2; }
+  .crew-credential-flipper.is-flipped .crew-credential-notes { grid-column: 1 / -1; }
+}
 
 @media (max-height: 780px) and (min-width: 901px) {
   .crew-credential-face-back { padding: 15px; gap: 8px; }
@@ -7457,7 +7578,7 @@ body[data-page="profile"] .page-section > .section-header {
 body[data-page="profile"] .page-section > .section-header h2,
 body[data-page="profile"] .page-section > .section-header p { margin: 0; color: #fff; }
 body[data-page="profile"] .page-section > .section-header p { margin-top: 3px; opacity: .88; }
-body[data-page="profile"] .profile-form-card { padding: 0; overflow: hidden; }
+body[data-page="profile"] .profile-form-card { width: min(100%, 1080px); margin-inline: auto; padding: 0; overflow: hidden; }
 body[data-page="profile"] .profile-details-section { padding: var(--space-large); }
 body[data-page="profile"] .profile-section-heading { margin: calc(-1 * var(--space-large)) calc(-1 * var(--space-large)) var(--space-large); padding: 11px var(--space-large); border-bottom: 1px solid #d7e6ea; background: #f0f7f8; }
 body[data-page="profile"] .profile-section-heading h3,
@@ -7466,6 +7587,8 @@ body[data-page="profile"] .profile-section-heading p { margin-top: 3px; color: #
 body[data-page="profile"] .profile-details-grid > label { display: grid; min-width: 0; align-content: start; gap: 5px; color: #29465b; font-weight: 800; }
 body[data-page="profile"] .profile-details-grid input,
 body[data-page="profile"] .profile-details-grid select { width: 100%; min-width: 0; }
+body[data-page="profile"] [data-testid="communication-options"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 10px; }
+body[data-page="profile"] [data-testid="communication-options"] .settings-option { min-width: 0; }
 body[data-page="profile"] .profile-credentials,
 body[data-page="profile"] .settings-section { margin-inline: var(--space-large); }
 body[data-page="profile"] .form-actions { margin: 0; padding: 14px var(--space-large); border-top: 1px solid #d7e6ea; background: #f7fbfc; }
@@ -7512,6 +7635,7 @@ body[data-page="profile"] .form-actions { margin: 0; padding: 14px var(--space-l
   body[data-page="profile"] .profile-credentials,
   body[data-page="profile"] .settings-section { margin-inline: var(--space-medium); padding: var(--space-medium); }
   body[data-page="profile"] .form-actions { position: sticky; bottom: 0; z-index: 2; padding-inline: var(--space-medium); }
+  body[data-page="profile"] [data-testid="communication-options"] { grid-template-columns: 1fr; }
   .settings-card-grid { grid-template-columns: 1fr; }
   .settings-card > .page-section-header { align-items: flex-start; }
 }
@@ -7679,6 +7803,60 @@ body[data-page="profile"] .profile-details-grid > label select { margin-top: aut
 .crew-card-admin-form { display: grid; padding: 18px; gap: 14px; }.crew-card-admin-form > header { display: flex; align-items: start; justify-content: space-between; }.crew-card-admin-form h2 { margin: 2px 0; }.crew-card-admin-form header span { color: #087f91; font-weight: 900; text-transform: uppercase; }.crew-card-admin-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }.crew-card-admin-grid > label { display: grid; gap: 4px; font-weight: 800; }.crew-card-admin-grid input,.crew-card-admin-grid select,.crew-card-admin-grid textarea { width: 100%; }.crew-card-admin-grid fieldset { display: flex; grid-column: 1 / -1; flex-wrap: wrap; gap: 8px; }.crew-card-admin-grid fieldset label { display: flex; align-items: center; gap: 4px; }.crew-admin-address,.crew-admin-history,.crew-admin-notes { grid-column: span 2; }.crew-admin-history textarea,.crew-admin-notes textarea { min-height: 95px; }.crew-admin-active { align-self: end; }
 
 @media (prefers-reduced-motion: reduce) { .crew-credential-flipper { transition: none; } }
+
+.crew-credential-identity-panel { align-items: start; }
+.crew-credential-identity-details { display: grid; min-width: 0; align-content: start; gap: 10px; }
+.crew-credential-identity-details > h3 { margin: 0; text-align: center; }
+.crew-credential-identity-details > h2 { margin: 0; overflow-wrap: anywhere; }
+.crew-credential-inline-id { margin: 0; color: #486273; font-weight: 700; overflow-wrap: anywhere; }
+.crew-credential-inline-id span { margin-right: 5px; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
+.crew-credential-identity-eligibility { display: grid; min-width: 0; gap: 6px; }
+.crew-credential-identity-eligibility h4 { margin: 0; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
+.crew-credential-identity-eligibility > div { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
+.crew-credential-history-launch { display: grid; align-content: center; justify-items: start; padding-bottom: 12px; }
+.crew-credential-history-launch p { margin: 12px; }
+.crew-credential-history-launch .button { margin-inline: 12px; }
+.crew-credential-modal-footer { pointer-events: none; }
+.crew-credential-modal-footer button { pointer-events: auto; }
+.official-history-dialog { width: min(680px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; overflow: auto; border: 0; border-radius: 12px; box-shadow: 0 24px 60px rgba(7,31,53,.3); }
+.official-history-dialog::backdrop { background: rgba(7,31,53,.68); }
+.official-history-dialog article { display: grid; gap: 16px; padding: 20px; }
+.official-history-dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.official-history-dialog header span { color: #486273; font-size: .75rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.official-history-dialog h2,.official-history-dialog p { margin: 3px 0 0; }
+.official-history-dialog ol { display: grid; margin: 0; padding: 0; list-style: none; gap: 8px; }
+.official-history-dialog li { display: grid; padding: 12px; border: 1px solid #b7c8cd; border-radius: 8px; grid-template-columns: 72px minmax(0,1fr); gap: 4px 12px; }
+.official-history-dialog li b { color: #087f91; }
+.official-history-dialog li small { grid-column: 2; overflow-wrap: anywhere; }
+
+@media (min-width: 768px) and (max-width: 1200px) {
+  .crew-credential-identity-details > h2 { font-size: clamp(1.25rem, 2.2vw, 1.65rem); line-height: 1.08; }
+  .crew-credential-identity-details { gap: 7px; }
+  .crew-credential-identity-details > h3 { font-size: .82rem; }
+  .crew-credential-inline-id { font-size: .82rem; }
+}
+
+.presentation-card-header-blue > span { color: #fff; font-weight: 700; }
+.game-list-filters { margin: 1rem; border: 1px solid var(--border-color, #d9e0e8); border-radius: .75rem; padding: .75rem; }
+.game-list-filters summary { cursor: pointer; font-weight: 700; }
+.game-list-filter-grid { display: grid; grid-template-columns: 2fr repeat(3, minmax(9rem, 1fr)) auto; gap: .75rem; align-items: end; margin-top: .75rem; }
+.game-list-filter-grid fieldset { display: flex; flex-wrap: wrap; gap: .35rem .75rem; border: 0; padding: 0; margin: 0; }
+.game-list-filter-grid label { min-width: 0; }
+.game-list-filter-grid select { width: 100%; }
+.table-sort-button { appearance: none; border: 0; background: none; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; padding: .25rem; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: .25rem; }
+.schedule-history-toggle { display: inline-flex; align-items: center; gap: .5rem; margin: 0 0 1rem; font-weight: 700; }
+.shared-game-list th, .shared-game-list td, .my-schedule-compact-table th, .my-schedule-compact-table td { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+
+@media (max-width: 700px) {
+  .game-list-filters { margin: .75rem 0; }
+  .game-list-filter-grid { grid-template-columns: 1fr; }
+  .shared-game-list thead, .my-schedule-compact-table thead { display: none; }
+  .shared-game-list, .shared-game-list tbody, .shared-game-list tr, .shared-game-list td,
+  .my-schedule-compact-table, .my-schedule-compact-table tbody, .my-schedule-compact-table tr, .my-schedule-compact-table td { display: block; width: 100%; }
+  .shared-game-list tr, .my-schedule-compact-table tr { border: 1px solid var(--border-color, #d9e0e8); border-radius: .75rem; padding: .75rem; margin-bottom: .75rem; }
+  .shared-game-list td, .my-schedule-compact-table td { border: 0; padding: .35rem 0; }
+  .shared-game-list .button, .my-schedule-compact-table .button { width: 100%; }
+}
 @media (max-width: 900px) { .crew-credential-flipper { min-height: 900px; }.crew-credential-face-back { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto auto auto; }.crew-credential-back-header { grid-template-columns: 1fr 1fr; }.crew-credential-back-header p { display: none; }.crew-credential-identity-panel { grid-column: 1; }.crew-credential-contact { grid-column: 2; }.crew-credential-eligibility { grid-column: 1; }.crew-credential-history { grid-column: 2; }.crew-credential-notes { grid-column: 1 / -1; }.crew-card-admin-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 
 .workbench-game-dialog {
@@ -8173,6 +8351,14 @@ body[data-page="notifications"] .notification-center-actions {
 .account-security-page label, .account-security-dialog label { display: grid; gap: 6px; font-weight: 700; }
 .account-security-dialog { width: min(520px, calc(100vw - 28px)); border: 0; border-radius: 14px; padding: 24px; box-shadow: 0 24px 60px rgba(15,39,66,.28); }
 .account-security-dialog::backdrop { background: rgba(15,23,42,.58); }
+.install-helper-dialog { width: min(440px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); overflow: auto; border: 0; border-radius: 14px; padding: 0; color: #18354b; background: #fff; box-shadow: 0 24px 60px rgba(15,39,66,.28); }
+.install-helper-dialog::backdrop { background: rgba(15,23,42,.58); }
+.install-helper-panel { display: grid; gap: 16px; padding: 24px; }
+.install-helper-panel h2, .install-helper-panel p { margin: 0; }
+.install-helper-panel ol { margin: 0; padding-left: 24px; display: grid; gap: 8px; }
+.install-helper-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.install-helper-actions .button { min-height: 44px; }
+.install-helper-status { min-height: 1.3em; margin: 0; }
 .account-security-admin-row { display: grid; gap: 10px; }
 
 /* Milestone 7.6: shared responsive and mobile readiness guardrails. */
@@ -8260,4 +8446,197 @@ body[data-page="notifications"] .notification-center-actions {
   .sidebar .brand { display: none; }
   .sidebar { max-height: 46dvh; overflow-y: auto; }
   dialog { max-height: calc(100dvh - 12px) !important; }
+}
+
+.crew-credential-contact { overflow: visible; }
+.crew-credential-contact dl { height: auto; grid-template-rows: none; grid-auto-rows: minmax(30px, auto); }
+
+/* Pilot cleanup: keep variable Crew IDs centered inside their colored header region. */
+.crew-credential-back-header > div:nth-child(2) { width: 100%; min-width: 0; padding-inline: 8px; }
+.crew-credential-back-header > div:nth-child(2) b { display: block; max-width: 100%; overflow-wrap: anywhere; line-height: 1.1; text-align: center; word-break: break-word; }
+
+/* B2: compact, content-aware profile field layout. */
+body[data-page="profile"] .profile-form-card { width: min(100%, 960px); }
+body[data-page="profile"] .profile-details-grid { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
+body[data-page="profile"] .profile-details-grid > label:has(#profile-email),
+body[data-page="profile"] .profile-details-grid > label:has(#profile-address),
+body[data-page="profile"] .profile-details-grid > label:has(#profile-photo) { grid-column: span 2; }
+
+/* B3: below the wide-card boundary, use deliberate reflow instead of 3D clipping. */
+@media (max-width: 900px) {
+  body[data-page="profile"] .profile-details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crew-credential-dialog { width: calc(100vw - 16px); height: calc(100dvh - 16px); overflow-x: hidden; overflow-y: auto; }
+  .crew-credential-flipper,
+  .crew-credential-flipper.is-flipped { height: auto; min-height: 0; transform: none; }
+  .crew-credential-face { position: relative; inset: auto; width: 100%; min-width: 0; height: auto; overflow: visible; backface-visibility: visible; }
+  .crew-credential-face-front { min-height: calc(100dvh - 32px); padding: 54px 34px; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); gap: 28px; }
+  .crew-credential-face-back { display: none; min-height: 100%; padding: 15px; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; transform: none; }
+  .crew-credential-flipper.is-flipped .crew-credential-face-front { display: none; }
+  .crew-credential-flipper.is-flipped .crew-credential-face-back { display: grid; }
+  .crew-credential-back-header { margin: -15px -15px 0; padding: 0; overflow: hidden; border-radius: 5px 5px 0 0; background: #071f35; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; }
+  .crew-credential-back-header > div { min-width: 0; padding: 14px 18px; }
+  .crew-credential-back-header > div:nth-child(2) { background: #07596b; }
+  .crew-credential-back-header p { display: none; }
+  .crew-credential-contact { grid-column: 2; }
+  .crew-credential-contact dl div { grid-template-columns: minmax(105px, 38%) minmax(0, 1fr); }
+  .crew-credential-contact dd { min-width: 0; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+  .crew-credential-dialog-actions { position: sticky; top: 12px; right: auto; float: right; margin: 12px 12px -58px 0; }
+  .crew-credential-modal-footer { position: sticky; right: auto; bottom: 0; padding: 10px; background: rgba(247,248,245,.96); justify-content: flex-end; }
+}
+
+@media (max-width: 760px) {
+  body[data-page="profile"] .profile-details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crew-credential-face-front { min-height: calc(100dvh - 32px); padding: 52px 22px 28px; grid-template-columns: 120px minmax(0, 1fr); gap: 18px; }
+  .crew-credential-face-back { grid-template-columns: 1fr; }
+  .crew-credential-back-header,
+  .crew-credential-identity-panel,
+  .crew-credential-contact,
+  .crew-credential-eligibility,
+  .crew-credential-history,
+  .crew-credential-notes { grid-column: 1; }
+}
+
+@media (max-width: 560px) {
+  body[data-page="profile"] .profile-details-grid { grid-template-columns: 1fr; }
+  body[data-page="profile"] .profile-details-grid > label:has(#profile-email),
+  body[data-page="profile"] .profile-details-grid > label:has(#profile-address),
+  body[data-page="profile"] .profile-details-grid > label:has(#profile-photo) { grid-column: 1; }
+  .crew-credential-face-front { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .crew-credential-front-identity { min-width: 0; }
+  .crew-credential-front-identity h2 { overflow-wrap: anywhere; }
+  .crew-credential-back-header { grid-template-columns: 1fr; }
+  .crew-credential-back-header > div:first-child { min-height: 78px; }
+  .crew-credential-identity-panel { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .crew-credential-contact dl div { grid-template-columns: 1fr; gap: 2px; }
+  .crew-credential-contact dt { min-height: 0; padding-right: 0; }
+  .crew-credential-contact dt::after { display: none; }
+  .crew-credential-contact dd { padding: 0 0 5px; }
+  .crew-credential-modal-footer .button { width: 100%; }
+}
+
+/* Pilot E1-E4: one canonical content-first Crew Card and compact editor. */
+@media (min-width: 761px) {
+  .crew-credential-dialog { width: min(1220px, calc(100vw - 24px)); overflow-x: hidden; }
+  .crew-credential-modal { min-width: 0; }
+  .crew-credential-face-back { grid-template-columns: minmax(360px, 42%) minmax(0, 58%); grid-template-rows: auto auto auto auto; }
+  .crew-credential-back-header { grid-template-columns: minmax(0, 1fr) minmax(210px, .65fr); padding: 14px 20px; background: linear-gradient(115deg, #071f35 0 56%, #138e9d 56% 100%); }
+  .crew-credential-back-header > div { min-width: 0; min-height: 58px; padding-inline: 58px 12px; place-content: center; }
+  .crew-credential-back-header > div:nth-child(2) { padding-inline: 12px; }
+  .crew-credential-back-header p { grid-column: 1 / -1; margin: 5px 0 0; color: #071f35; background: #f7f8f5; }
+  .crew-credential-identity-panel { display: grid; grid-column: 1; grid-template-columns: minmax(118px, 150px) minmax(0, 1fr); align-content: start; align-items: start; gap: 10px 16px; }
+  .crew-credential-identity-panel > h2 { grid-column: 1 / -1; width: 100%; font-size: clamp(1.55rem, 2.8vw, 2.35rem); line-height: 1.05; overflow-wrap: normal; word-break: normal; }
+  .crew-credential-identity-details { min-width: 0; }
+  .crew-credential-identity-details h3 { margin-top: 0; }
+  .crew-credential-age { display: grid; grid-template-columns: repeat(2, minmax(92px, 1fr)); gap: 12px 16px; }
+  .crew-credential-age div { min-width: 0; }
+  .crew-credential-age dt { white-space: normal; }
+  .crew-credential-contact { grid-column: 2; }
+  .crew-credential-contact dl { height: auto; }
+  .crew-credential-contact dl div { grid-template-columns: minmax(120px, 32%) minmax(0, 1fr); }
+  .crew-credential-contact dd, .crew-contact-action { min-width: 0; max-width: 100%; overflow: visible; white-space: normal; overflow-wrap: anywhere; word-break: break-word; text-align: left; }
+  .crew-credential-eligibility { grid-column: 1; }
+  .crew-credential-history { grid-column: 2; }
+  .crew-credential-notes { grid-column: 1 / -1; }
+  .crew-credential-modal-footer { position: relative; grid-column: 1 / -1; margin-top: auto; flex-wrap: wrap; }
+
+  .crew-card-edit-mode { max-width: 100%; overflow-x: hidden; }
+  .crew-card-edit-mode, .unified-crew-admin-editor, .unified-crew-admin-editor .drawer-body { width: 100%; min-width: 0; box-sizing: border-box; }
+  .unified-crew-admin-editor input, .unified-crew-admin-editor select, .unified-crew-admin-editor textarea, .unified-crew-admin-editor button { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .unified-crew-admin-editor .drawer-body.crew-editor-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; gap: 10px; padding: 12px; overflow-x: hidden; }
+  .unified-crew-admin-editor .form-group { min-width: 0; margin: 0; }
+  .crew-field-first-name, .crew-field-last-name, .crew-field-email { grid-column: span 2; }
+  .crew-field-phone, .crew-field-personnel-id, .crew-field-birthdate { grid-column: span 2; }
+  .crew-field-levels, .crew-field-preferred-partners, .crew-field-avoid-partners { grid-column: span 2; }
+  .crew-field-preferred-levels { grid-column: span 4; }
+  .crew-field-active { grid-column: span 2; }
+  .crew-field-notes, .crew-official-history-editor { grid-column: 1 / -1; }
+  .unified-crew-admin-editor .checkbox-list { display: flex; max-width: 100%; flex-wrap: wrap; gap: 5px 10px; }
+  .unified-crew-admin-editor .drawer-footer { position: static; grid-column: 1 / -1; margin: 0; padding: 10px 12px; }
+  .crew-history-add-row { display: grid; grid-template-columns: repeat(4, minmax(105px, 1fr)) auto; align-items: end; gap: 8px; }
+  .crew-official-history-editor { min-width: 0; max-width: 100%; overflow-x: hidden; }
+  .crew-history-add-row label { display: grid; min-width: 0; gap: 4px; }
+  .crew-history-list { display: grid; gap: 3px; margin-block: 8px; }
+  .crew-history-list-row { display: grid; grid-template-columns: auto 70px repeat(3, minmax(90px, 1fr)); align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid #c7dce1; border-radius: 6px; }
+}
+
+@media (min-width: 761px) and (max-width: 1000px) {
+  .crew-credential-face-back { grid-template-columns: minmax(315px, 44%) minmax(0, 56%); padding: 12px; gap: 8px; }
+  .crew-credential-back-header { margin: -12px -12px 0; }
+  .crew-credential-identity-panel { grid-template-columns: 110px minmax(0, 1fr); gap: 8px 12px; }
+  .crew-credential-identity-panel .crew-credential-modal-photo { width: 105px; height: 135px; }
+  .crew-credential-contact dl div { grid-template-columns: minmax(105px, 36%) minmax(0, 1fr); gap: 6px; }
+  .crew-credential-contact dd { font-size: clamp(.75rem, 1.25vw, .9rem); }
+  .crew-history-add-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crew-history-add-row button { grid-column: 1 / -1; }
+}
+
+@media (max-width: 760px) {
+  .crew-credential-identity-panel > h2 { grid-column: 1; }
+  .crew-history-add-row, .crew-history-list-row { display: grid; grid-template-columns: 1fr; gap: 6px; }
+}
+
+/* Umpire portal refinement: content-sized dashboard, explicit table rows, and credential hierarchy. */
+.crew-command-lists-polished { grid-template-columns: minmax(0, 1.25fr) minmax(360px, 1fr); }
+.crew-command-lists-polished [data-testid="crew-dashboard-upcoming"] .crew-command-list { display: grid; grid-template-columns: max-content max-content max-content minmax(180px, 1fr) max-content; }
+.crew-command-lists-polished [data-testid="crew-dashboard-upcoming"] .crew-command-game-row { grid-column: 1 / -1; grid-template-columns: subgrid; }
+.crew-command-lists-polished .crew-command-game-row b { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+.claim-games-table tbody td,
+.my-schedule-compact-table tbody td { border-bottom: 1px solid #b9cdd3; }
+
+.game-list-filter-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, 260px); align-items: stretch; gap: 18px; }
+.game-list-filter-options { display: grid; min-width: 0; gap: 12px; }
+.game-list-filter-options fieldset { display: grid; min-width: 0; grid-template-columns: 76px minmax(0, 1fr); align-items: start; gap: 10px; }
+.game-list-filter-options legend { float: left; width: 76px; padding-top: 4px; font-weight: 850; }
+.game-list-filter-options fieldset > div { display: flex; min-width: 0; flex-wrap: wrap; gap: 7px 16px; }
+.game-list-filter-options label { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.game-list-filter-actions { display: grid; align-content: start; gap: 24px; padding-left: 18px; border-left: 1px solid #c9dadd; }
+.game-list-filter-actions label { display: grid; gap: 5px; font-weight: 800; }
+.game-list-filter-actions .button { justify-self: stretch; }
+
+.crew-credential-identity-panel { row-gap: 18px; column-gap: 24px; }
+.crew-credential-identity-panel > *,
+.crew-credential-identity-details,
+.crew-credential-photo-column { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.crew-credential-photo-column { display: grid; width: 100%; min-width: 0; align-content: start; justify-items: center; gap: 18px; }
+.crew-credential-photo-column .crew-credential-photo-block { width: 100%; }
+.crew-credential-photo-column .crew-credential-modal-photo { margin-inline: auto; }
+.crew-credential-history-launch { display: grid; width: 100%; margin-top: 10px; padding: 10px 0 0; border-top: 1px solid #9db5bc; justify-items: center; text-align: center; gap: 8px; }
+.crew-credential-history-launch h3,
+.crew-credential-history-launch strong { margin: 0; }
+.crew-credential-history-launch .button { width: 100%; margin: 0; white-space: normal; }
+.crew-credential-identity-details { padding-left: 8px; align-self: start; }
+.crew-credential-identity-details > h3,
+.crew-credential-identity-details > h2,
+.crew-credential-inline-id { width: 100%; text-align: center; }
+.crew-credential-identity-details > h2 { font-size: clamp(1rem, calc(2.75rem - var(--crew-name-length) * .065rem), 2.35rem); line-height: 1.08; white-space: nowrap; overflow-wrap: normal; }
+.crew-credential-inline-id { margin-bottom: 4px; }
+.crew-credential-age { width: 100%; }
+.crew-credential-age div { justify-items: center; text-align: center; }
+.crew-credential-identity-eligibility { width: 100%; margin-top: 4px; padding-top: 0; border-top: 0; }
+.crew-credential-identity-eligibility h4 { width: 100%; text-align: center; }
+.crew-credential-identity-eligibility h4 { margin: 0; padding-block: 7px; border-block: 2px solid #168fa1; color: #087f91; font-size: 1rem; }
+.crew-credential-identity-eligibility > div { width: 100%; padding: 10px 0 0; justify-content: center; gap: 8px 14px; }
+.crew-credential-identity-eligibility > div .settings-pill { display: grid; width: 45px; height: 45px; padding: 0; border: 2px solid #07596b; border-radius: 50%; background: linear-gradient(#24b6c3,#087283); color: #fff; place-items: center; font-size: .72rem; font-style: normal; font-weight: 900; }
+
+@media (max-width: 1000px) {
+  .crew-command-lists-polished { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .claim-games-table tbody td,
+  .my-schedule-compact-table tbody td { border-bottom-width: 2px; border-bottom-color: #829fa8; }
+  .game-list-filter-grid { grid-template-columns: 1fr; }
+  .game-list-filter-options fieldset { grid-template-columns: 1fr; gap: 6px; }
+  .game-list-filter-options legend { float: none; width: auto; }
+  .game-list-filter-actions { padding: 12px 0 0; border-top: 1px solid #c9dadd; border-left: 0; }
+  .crew-command-lists-polished [data-testid="crew-dashboard-upcoming"] .crew-command-list { display: grid; grid-template-columns: 1fr; }
+  .crew-command-lists-polished [data-testid="crew-dashboard-upcoming"] .crew-command-game-row { grid-column: 1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crew-credential-identity-panel { grid-template-columns: 1fr; gap: 20px; }
+  .crew-credential-photo-column { width: min(180px, 100%); justify-self: center; }
+  .crew-credential-identity-details { width: 100%; padding-left: 0; }
+  .crew-credential-identity-details > h2 { max-width: 100%; font-size: clamp(.78rem, 5vw, 1.25rem); }
+  .crew-credential-dialog { width: calc(100vw - 20px); }
+  .unified-profile-card,
+  .unified-profile-card .crew-credential-flipper,
+  .unified-profile-card .crew-credential-face { min-width: 0; max-width: 100%; box-sizing: border-box; }
 }

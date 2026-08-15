@@ -2,6 +2,8 @@
 
 function renderMySchedule(context = {}) {
   const allGames = portalService.getMySchedule();
+  const showCompleted = sessionStorage.getItem("slate-show-completed-games") === "true";
+  const isCompleted = game => ["completed", "submitted", "returned", "approved"].includes(game.lifecycleStatus);
 
   const games =
     context.filter === "returned"
@@ -10,7 +12,7 @@ function renderMySchedule(context = {}) {
             game.completion?.review?.status ===
             "returned"
         )
-      : allGames;
+      : allGames.filter(game => showCompleted || !isCompleted(game));
 
   if (!games.length) {
     return `
@@ -23,7 +25,8 @@ function renderMySchedule(context = {}) {
           data-testid="my-schedule-empty"
         >
           <h2>My Schedule</h2>
-          <p>You have no assigned games.</p>
+          <p>${showCompleted ? "You do not have any assignments to display." : "You do not have any upcoming assignments."}</p>
+          <button type="button" class="button button-secondary" onclick="renderPage('claim-games')">View Games</button>
         </div>
       </section>
     `;
@@ -58,6 +61,7 @@ function renderMySchedule(context = {}) {
           }
         </div>
       </div>
+      ${context.filter === "returned" ? "" : `<label class="schedule-history-toggle"><input type="checkbox" data-testid="my-schedule-show-completed" ${showCompleted ? "checked" : ""} onchange="toggleCompletedSchedule(this.checked)"> Show completed games</label>`}
 
       <div class="table-wrapper my-schedule-table-wrapper presentation-table-wrapper" tabindex="0" role="region" aria-label="My Schedule table">
         <table
@@ -66,14 +70,14 @@ function renderMySchedule(context = {}) {
         >
           <thead>
             <tr>
-              <th>Date</th>
+              <th>Day/Date</th>
               <th>Time</th>
               <th>Level</th>
-              <th>Complex</th>
+              <th>Location</th>
               <th>Field</th>
-              <th>Forecast</th>
+              <th>Position</th>
               <th>Status</th>
-              <th>Game Hub</th>
+              <th>Open</th>
             </tr>
           </thead>
 
@@ -86,6 +90,11 @@ function renderMySchedule(context = {}) {
       </div>
     </section>
   `;
+}
+
+function toggleCompletedSchedule(showCompleted) {
+  sessionStorage.setItem("slate-show-completed-games", showCompleted ? "true" : "false");
+  renderPage("my-schedule");
 }
 
 function renderMySchedulePartners(game) {
@@ -616,18 +625,16 @@ const gameDayRenderers = Object.freeze({
 
 function renderMyScheduleRow(game) {
   const information = game.gameInformation || {};
-  const conditions = game.gameConditions || {};
-  const forecast = [conditions.summary, conditions.temperature].filter(Boolean).join(" · ") || "—";
   return `
     <tr data-testid="my-schedule-row-${game.id}">
-      <td>${game.date}</td>
+      <td>${dateTimeFormattingService.formatDayDate(game.date)}</td>
       <td>${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}</td>
       <td>${levelTerminologyService.format(game.level)}</td>
-      <td>${game.locationComplex || game.complex || information.venue || "Complex TBD"}</td>
-      <td>${game.locationField || game.field || "Field TBD"}</td>
-      <td data-testid="my-schedule-forecast-${game.id}">${forecast}</td>
+      <td>${game.locationComplex || game.complex || information.venue || "Location TBD"}</td>
+      <td>${locationService.getFieldDisplayName(game)}</td>
+      <td data-testid="my-schedule-position-${game.id}">${presentationFormattingService.formatAssignmentPosition(game.position, "Assigned")}</td>
       <td data-testid="my-schedule-status-${game.id}">${renderMyScheduleBadges(game)}</td>
-      <td><button class="button button-primary button-compact" type="button" onclick="renderPage('game-hub', { gameId: '${game.id}', origin: 'my-schedule', returnPage: 'my-schedule' })" data-testid="my-schedule-open-game-${game.id}">Open Game Hub</button></td>
+      <td><button class="button button-primary button-compact" type="button" onclick="renderPage('game-hub', { gameId: '${game.id}', origin: 'my-schedule', returnPage: 'my-schedule' })" data-testid="my-schedule-open-game-${game.id}">Open</button></td>
     </tr>
   `;
 }

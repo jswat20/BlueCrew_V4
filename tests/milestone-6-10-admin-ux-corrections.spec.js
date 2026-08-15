@@ -4,16 +4,19 @@ import AxeBuilder from "@axe-core/playwright";
 async function openNeedsAssignmentDialog(app) {
   return app.page.evaluate(() => {
     authService.loginAsAdmin(); document.body.dataset.role = "admin";
-    const game = gameService.create({ date: "2026-08-12", time: "18:00", level: "12U", locationComplex: "Lake Shore Athletic Complex", locationField: "Field 8", field: "Field 8", awayTeam: "Visitors", homeTeam: "Home", gameType: "single" }).data;
-    navigateTo("assigner-workbench"); return game.id;
+    const today = new Date();
+    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const game = gameService.create({ date, time: "18:00", level: "12U", locationComplex: "Lake Shore Athletic Complex", locationField: "Field 8", field: "Field 8", awayTeam: "Visitors", homeTeam: "Home", gameType: "single" }).data;
+    navigateTo("assigner-workbench"); return { id: game.id, date };
   });
 }
 
 test("Needs Assignment renders MM/DD/YY without changing the canonical date", async ({ app }) => {
-  const gameId = await openNeedsAssignmentDialog(app);
+  const { id: gameId, date } = await openNeedsAssignmentDialog(app);
   const row = app.page.getByTestId("workbench-needs-assignment-item").filter({ hasText: "Visitors @ Home" }).first();
-  await expect(row.locator(".workbench-mini-game-date")).toHaveText("08/12/26");
-  expect(await app.page.evaluate(id => gameService.getById(id).date, gameId)).toBe("2026-08-12");
+  const [year, month, day] = date.split("-");
+  await expect(row.locator(".workbench-mini-game-date")).toHaveText(`${month}/${day}/${year.slice(-2)}`);
+  expect(await app.page.evaluate(id => gameService.getById(id).date, gameId)).toBe(date);
 });
 
 test("compact Workbench Game Details header has left, centered, and right status structure", async ({ app }) => {
@@ -54,27 +57,18 @@ test("Claim History uses compact shared rows with U labels and AM/PM time", asyn
   expect(await card.evaluate(element => element.getBoundingClientRect().height)).toBeLessThanOrEqual(72);
 });
 
-test("Admin Profile Details uses three, two, and one deliberate columns", async ({ app }) => {
+test("Profile Crew Card and edit mode reflow without horizontal overflow", async ({ app }) => {
   await app.page.setViewportSize({ width: 1280, height: 900 });
   await app.loginAsApprovedUmpire();
-  await app.page.evaluate(() => {
-    authService.loginAsAdmin();
-    document.body.dataset.role = "admin";
-    document.body.dataset.page = "profile";
-    renderPage("profile");
-  });
-  const grid = app.page.locator(".profile-details-grid");
-  const columns = async () => grid.evaluate(element => {
-    const value = getComputedStyle(element).gridTemplateColumns;
-    const repeat = value.match(/^repeat\((\d+)/);
-    return repeat ? Number(repeat[1]) : value.split(/\s+/).length;
-  });
-  expect(await columns()).toBe(3);
-  await app.page.setViewportSize({ width: 800, height: 900 });
-  expect(await columns()).toBe(2);
-  await app.page.setViewportSize({ width: 600, height: 900 }); expect(await columns()).toBe(1);
+  await app.page.evaluate(() => renderPage("profile"));
+  await expect(app.page.getByTestId("profile-crew-card-experience")).toBeVisible();
+  for (const width of [1280, 800, 600, 500]) {
+    await app.page.setViewportSize({ width, height:900 });
+    expect(await app.page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+  }
+  await app.page.getByTestId("profile-card-back").click();
+  await app.page.getByTestId("profile-edit-crew-card").click();
   await expect(app.page.getByTestId("profile-save")).toBeVisible();
-  await expect(app.page.getByTestId("profile-cancel")).toBeVisible();
 });
 
 test("Claim History scroll region remains keyboard accessible and WCAG-clean", async ({ app }) => {

@@ -419,9 +419,7 @@ async function decideAccountFromOperations(
     });
   }
 
-  const crewMemberId = sourceButton?.closest?.("[data-operations-pending-account]")
-    ?.querySelector?.('[data-testid="operations-pending-account-crew"]')?.value || "";
-  const result = await mutation(accountId, action === "approve-account" ? crewMemberId : undefined);
+  const result = await mutation(accountId);
   const dialog = sourceButton?.closest?.("dialog");
   if (!dialog || dialog.dataset.metricId !== "pending-accounts") {
     return finishOperationsCenterQuickAction(result);
@@ -438,11 +436,6 @@ async function decideAccountFromOperations(
   }
 
   sourceButton.closest("[data-operations-pending-account]")?.remove();
-  if (action === "approve-account" && crewMemberId) {
-    dialog.querySelectorAll('[data-testid="operations-pending-account-crew"] option').forEach(option => {
-      if (String(option.value) === String(crewMemberId)) option.remove();
-    });
-  }
   const remaining = dialog.querySelectorAll("[data-operations-pending-account]").length;
   const count = dialog.querySelector('[data-testid="operations-pending-accounts-remaining"]');
   if (count) count.textContent = `${remaining} remaining`;
@@ -457,6 +450,13 @@ async function decideAccountFromOperations(
     setTimeout(() => dialog.close(), 0);
   } else {
     dialog.querySelector('[data-operations-quick-action="approve-account"], [data-operations-quick-action="reject-account"]')?.focus();
+  }
+  if (typeof currentPage !== "undefined" && currentPage === "operations-center") {
+    renderPage("operations-center", {
+      ...(remaining ? { operationsDialog: "pending-accounts" } : {}),
+      operationsFlash: { success: true, message: result.message || "Account processed." }
+    });
+    if (remaining) requestAnimationFrame(() => document.querySelector('#operations-detail-pending-accounts [data-operations-quick-action="approve-account"], #operations-detail-pending-accounts [data-operations-quick-action="reject-account"]')?.focus());
   }
   return result;
 }
@@ -2181,7 +2181,6 @@ function renderOperationsCenterMetricDialogs(
                     <button type="button" class="button button-secondary" data-operations-quick-action="reject-claim" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Deny</button>
                   ` : ""}
                   ${metric.id === "pending-accounts" ? `
-                    <label class="operations-account-crew-link"><span class="sr-only">Crew member for ${escapeOperationsCenterHtml(renderOperationsCenterTaskLabel(item))}</span><select data-testid="operations-pending-account-crew"><option value="">Select crew member</option>${crewService.getAll().filter(member => !member.profileId).map(member => `<option value="${escapeOperationsCenterHtml(member.id)}">${escapeOperationsCenterHtml(crewService.getName(member))}</option>`).join("")}</select></label>
                     <button type="button" class="button button-primary" data-operations-quick-action="approve-account" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Approve</button>
                     <button type="button" class="button button-secondary" data-operations-quick-action="reject-account" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Deny</button>
                   ` : ""}

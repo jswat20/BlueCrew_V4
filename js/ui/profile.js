@@ -4,6 +4,7 @@ let profileFormSnapshot = null;
 let profileFormMessage = "";
 let profileFormError = "";
 let profilePendingPhotoDataUrl = "";
+let profileCardShowingBack = false;
 
 function escapeProfileHtml(value) {
   return String(value || "")
@@ -40,7 +41,29 @@ function renderProfile() {
   profileFormSnapshot = { ...profile };
   profilePendingPhotoDataUrl = profile.photoDataUrl || "";
 
-  return renderProfileForm(profile);
+  return renderUnifiedProfileExperience(profile);
+}
+
+function renderUnifiedProfileExperience(profile) {
+  const account = accountService.getById(profile.id) || profile;
+  const cardModel = getCrewCardModel(account);
+  const frontFace = renderCrewCredentialFrontFace(cardModel).replace("<section class=\"crew-credential-face crew-credential-face-front\"", `<section class="crew-credential-face crew-credential-face-front" ${profileCardShowingBack ? 'aria-hidden="true" inert' : ''}`);
+  const backFace = renderCrewCredentialBackFace(cardModel).replace("<section class=\"crew-credential-face crew-credential-face-back\"", `<section class="crew-credential-face crew-credential-face-back" ${profileCardShowingBack ? '' : 'aria-hidden="true" inert'}`);
+  const preferences = profile.communicationPreferences || accountService.getDefaultCommunicationPreferences();
+  return `<section class="page-section unified-profile-page" data-testid="profile">
+    <div class="section-header"><div><h2>My Crew Card</h2><p>View and maintain your authorized contact and emergency information.</p></div></div>
+    ${profileFormMessage ? `<div class="success-message" data-testid="profile-success" role="status" aria-live="polite" tabindex="-1">${escapeProfileHtml(profileFormMessage)}</div>` : ""}
+    ${profileFormError ? `<div class="validation-message" data-testid="profile-error" role="alert">${escapeProfileHtml(profileFormError)}</div>` : ""}
+    <div class="unified-profile-card profile-baseball-card" data-testid="profile-crew-card-experience"><div class="crew-credential-flipper ${profileCardShowingBack ? "is-flipped" : ""}" data-testid="profile-card-flipper">${frontFace}${backFace}</div><div class="unified-profile-card-actions">${profileCardShowingBack ? `<button type="button" class="button button-secondary" data-testid="profile-card-front" onclick="showProfileCardSide(false)">Back to Card Front</button><button type="button" class="button button-primary" data-testid="profile-edit-crew-card" onclick="openOwnCrewCardEditMode()">Edit My Information</button>` : `<button type="button" class="button button-primary" data-testid="profile-card-back" onclick="showProfileCardSide(true)">View My Information</button>`}</div></div>
+    <section class="settings-section unified-profile-support" id="profile-communication" data-testid="profile-communication"><div class="section-header"><div><h3>Communication</h3><p class="muted">Choose which in-app updates appear in your Notification Center.</p></div></div><div class="settings-options" data-testid="communication-options">${COMMUNICATION_PROFILE_OPTIONS.map(option => renderCommunicationProfileOption(option, preferences)).join("")}</div></section>
+    <section class="settings-section unified-profile-support profile-account-security" data-testid="profile-account-security" aria-labelledby="profile-account-security-title"><div class="profile-security-heading"><h3 id="profile-account-security-title">Account Security</h3><p>Manage the password for your verified login identity</p></div><div class="profile-security-actions"><dl><dt>Login Email:</dt><dd data-testid="profile-login-email">${escapeProfileHtml(profile.email)}</dd></dl><button type="button" class="button button-secondary" data-testid="profile-change-password" onclick="openChangePasswordDialog()">Change Password</button></div></section>
+  </section>`;
+}
+
+function showProfileCardSide(showBack) {
+  profileCardShowingBack = showBack === true;
+  renderPage("profile");
+  focusElementWhenReady(showBack ? '[data-testid="profile-card-front"]' : '[data-testid="profile-card-back"]');
 }
 
 const COMMUNICATION_PROFILE_OPTIONS = [
@@ -74,9 +97,9 @@ const COMMUNICATION_PROFILE_OPTIONS = [
   },
   {
     key: "desktopNotifications",
-    label: "Desktop notifications",
+    label: "Browser notifications (not currently available)",
     description:
-      "Future-ready browser notification preference."
+      "Save this preference for future browser notification support."
   }
 ];
 
@@ -414,35 +437,17 @@ function renderProfileForm(profile) {
 }
 
 function getProfileFormValues() {
+  const current = portalService.getProfile() || {};
   return {
-    email:
-      document.getElementById(
-        "profile-email"
-      )?.value || "",
-    phone:
-      document.getElementById(
-        "profile-phone"
-      )?.value || "",
-    homePhone: document.getElementById("profile-home-phone")?.value || "",
-    address:
-      document.getElementById(
-        "profile-address"
-      )?.value || "",
-    emergencyContact:
-      document.getElementById(
-        "profile-emergency-contact"
-      )?.value || "",
-    emergencyContactPhone:
-      document.getElementById(
-        "profile-emergency-phone"
-      )?.value || "",
-    contactPreference: document.getElementById("profile-contact-preference")?.value || "text",
+    email: document.getElementById("profile-email")?.value || current.email || "",
+    phone: document.getElementById("profile-phone")?.value || current.phone || "",
+    homePhone: document.getElementById("profile-home-phone")?.value || current.homePhone || "",
+    address: document.getElementById("profile-address")?.value || current.address || "",
+    emergencyContact: document.getElementById("profile-emergency-contact")?.value || current.emergencyContact || "",
+    emergencyContactPhone: document.getElementById("profile-emergency-phone")?.value || current.emergencyContactPhone || "",
+    contactPreference: document.getElementById("profile-contact-preference")?.value || current.contactPreference || "text",
     photoDataUrl: profilePendingPhotoDataUrl,
-    communicationPreferences:
-      portalService.getProfile()
-        ?.communicationPreferences ||
-      accountService
-        .getDefaultCommunicationPreferences()
+    communicationPreferences: current.communicationPreferences || accountService.getDefaultCommunicationPreferences()
   };
 }
 

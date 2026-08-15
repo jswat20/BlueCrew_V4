@@ -7,7 +7,7 @@ function renderSettings() {
       ${renderSettingsCard("Levels", settings.levels)}
       ${renderSettingsCard("Teams", settings.teams)}
       ${renderSettingsCard("Time Slots", settings.timeSlots.slice(0, 12))}
-    </div></section>
+    </div>${renderLocationEntryDialog()}</section>
   `;
 }
 
@@ -26,6 +26,10 @@ function renderSettingsCard(title, items) {
   `;
 }
 
+function renderLocationEntryDialog() {
+  return `<dialog data-testid="location-entry-dialog"><form data-testid="location-entry-form"><h3 data-testid="location-entry-title">Add Location</h3><input type="hidden" data-testid="location-entry-complex"><label>Name<input data-testid="location-entry-name" required></label><div class="form-actions"><button type="submit" class="button button-primary">Save</button><button type="button" class="button button-secondary" data-testid="location-entry-cancel">Cancel</button></div><p role="alert" data-testid="location-entry-error"></p></form></dialog>`;
+}
+
 function renderLocationSettingsCard() {
   return `
     <section class="card presentation-card settings-card settings-location-card" data-testid="settings-locations">
@@ -40,17 +44,33 @@ function renderLocationSettingsCard() {
 }
 
 function addLocationComplexFromSettings() {
-  const name = window.prompt("Location complex name");
-  if (name === null) return;
-  const result = locationService.addComplex(name);
-  result.success ? toastService.success(result.message) : toastService.error(result.message);
-  if (result.success) renderPage("settings");
+  openLocationEntryDialog("Add Complex", "");
 }
 
 function addLocationFieldFromSettings(complexName) {
-  const name = window.prompt(`Field name for ${complexName}`);
-  if (name === null) return;
-  const result = locationService.addField(complexName, name);
+  openLocationEntryDialog(`Add Field for ${complexName}`, complexName);
+}
+
+function openLocationEntryDialog(title, complexName) {
+  const dialog = document.querySelector('[data-testid="location-entry-dialog"]');
+  document.querySelector('[data-testid="location-entry-title"]').textContent = title;
+  document.querySelector('[data-testid="location-entry-complex"]').value = complexName;
+  document.querySelector('[data-testid="location-entry-name"]').value = "";
+  document.querySelector('[data-testid="location-entry-error"]').textContent = "";
+  dialog.showModal();
+}
+
+async function submitLocationEntry(event) {
+  event.preventDefault();
+  const complexName = document.querySelector('[data-testid="location-entry-complex"]').value;
+  const name = document.querySelector('[data-testid="location-entry-name"]').value;
+  const result = complexName ? await locationService.addField(complexName, name) : await locationService.addComplex(name);
   result.success ? toastService.success(result.message) : toastService.error(result.message);
+  if (!result.success) return document.querySelector('[data-testid="location-entry-error"]').textContent = result.message;
   if (result.success) renderPage("settings");
+}
+
+function setupSettingsPage() {
+  document.querySelector('[data-testid="location-entry-form"]')?.addEventListener("submit", submitLocationEntry);
+  document.querySelector('[data-testid="location-entry-cancel"]')?.addEventListener("click", event => event.currentTarget.closest("dialog").close());
 }

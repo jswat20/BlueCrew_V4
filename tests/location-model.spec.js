@@ -63,9 +63,9 @@ test.describe("Complex and field location model", () => {
   });
 
   test("location catalog persists complexes and their fields", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const complex = locationService.addComplex("North Athletic Campus");
-      const field = locationService.addField("North Athletic Campus", "Diamond 3");
+    const result = await page.evaluate(async () => {
+      const complex = await locationService.addComplex("North Athletic Campus");
+      const field = await locationService.addField("North Athletic Campus", "Diamond 3");
       return { complex, field, fields: locationService.getFields("North Athletic Campus") };
     });
     expect(result.complex.success).toBe(true);

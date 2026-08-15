@@ -1,3 +1,81 @@
+function getCrewComponentFullName(member) {
+  return `${member?.firstName || ""} ${member?.lastName || ""}`.trim();
+}
+
+function escapeCrewComponentHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+}
+
+function serializeOfficialServiceHistory(history = []) {
+  return history.map(entry => [entry.year, entry.season || "Unspecified", entry.role || "umpire", entry.level || "", entry.note || ""].join("|")).join("\n");
+}
+
+function parseOfficialServiceHistory(value) {
+  const entries = String(value || "").split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
+    const [year, season = "Unspecified", role = "umpire", level = "", ...note] = line.split("|");
+    return { year: Number(year), season: season.trim() || "Unspecified", role: role.trim() || "umpire", level: level.trim(), note: note.join("|").trim() };
+  });
+  const invalid = entries.find(entry => !Number.isInteger(entry.year) || entry.year < 1900 || entry.year > new Date().getFullYear() + 1 || !["umpire", "assigner", "administrator"].includes(entry.role));
+  if (invalid) throw new Error("Official history must use year|season|role|level|notes with a valid year and role.");
+  const keys = entries.map(entry => `${entry.year}:${entry.season.toLowerCase()}`);
+  if (new Set(keys).size !== keys.length) throw new Error("Official history cannot contain the same year and season twice.");
+  return entries;
+}
+
+function officialHistoryKey(entry = {}) {
+  return [entry.year, entry.season, entry.role, entry.level].map(value => String(value || "").trim().toLowerCase()).join(":");
+}
+
+function renderOfficialHistoryEditor(member) {
+  const currentYear = new Date().getFullYear();
+  const history = member.officialHistory || [];
+  const years = accountService.deriveYearsOfService(history);
+  return `<section class="crew-official-history-editor" data-testid="crew-official-history-editor">
+    <div class="crew-history-heading"><div><strong>Official History</strong><small>Add one entry at a time.</small></div><b data-testid="crew-history-years">${years} ${years === 1 ? "year" : "years"} of service</b></div>
+    <div class="crew-history-add-row" data-testid="crew-history-add-row">
+      <label>Year<select data-history-new="year"><option value="">Select</option>${Array.from({length: currentYear + 3 - 2020}, (_, index) => 2020 + index).map(year => `<option value="${year}">${year}</option>`).join("")}</select></label>
+      <label>Season<select data-history-new="season"><option value="">Select</option>${["Spring","Summer","Fall","Winter"].map(value => `<option>${value}</option>`).join("")}</select></label>
+      <label>Position<select data-history-new="role"><option value="">Select</option><option value="umpire">Umpire</option></select></label>
+      <label>Level<select data-history-new="level"><option value="">Select</option>${["6U","8U","10U","12U","14U","16U","18U"].map(value => `<option>${value}</option>`).join("")}</select></label>
+      <button type="button" class="secondary-btn" data-testid="crew-history-add" onclick="addOfficialHistoryEntry('${escapeCrewComponentHtml(member.id)}')">Add History Entry</button>
+    </div>
+    <div class="crew-history-list" data-testid="crew-official-history-list">${history.length ? history.map((entry, index) => `<label class="crew-history-list-row"><input type="checkbox" data-history-delete-index="${index}"><span>${escapeCrewComponentHtml(entry.year)}</span><span>${escapeCrewComponentHtml(entry.season)}</span><span>${escapeCrewComponentHtml(entry.role === "umpire" ? "Umpire" : entry.role)}</span><span>${escapeCrewComponentHtml(entry.level)}</span></label>`).join("") : `<p data-testid="crew-history-empty">No official history recorded.</p>`}</div>
+    <button type="button" class="danger-btn" data-testid="crew-history-delete" onclick="deleteSelectedOfficialHistory('${escapeCrewComponentHtml(member.id)}')" ${history.length ? "" : "disabled"}>Delete Selected</button>
+  </section>`;
+}
+
+function refreshOfficialHistoryEditor(memberId) {
+  const member = crewService.getById(memberId);
+  const editor = document.querySelector("[data-testid='crew-official-history-editor']");
+  if (member && editor) editor.outerHTML = renderOfficialHistoryEditor(member);
+}
+
+async function addOfficialHistoryEntry(memberId) {
+  const values = Object.fromEntries([...document.querySelectorAll("[data-history-new]")].map(input => [input.dataset.historyNew, input.value]));
+  if (!values.year || !values.season || !values.role || !values.level) return showCrewMutationError("Year, Season, Position, and Level are required.");
+  const member = crewService.getById(memberId);
+  if (!member) return showCrewMutationError("Crew member not found.");
+  const entry = { year: Number(values.year), season: values.season, role: values.role, level: values.level, note: "" };
+  if ((member.officialHistory || []).some(existing => officialHistoryKey(existing) === officialHistoryKey(entry))) return showCrewMutationError("That exact Official History entry already exists.");
+  const result = await crewService.updateMember(memberId, { officialHistory: [...(member.officialHistory || []), entry] });
+  if (!result.success) return showCrewMutationError(result.message);
+  document.querySelector('[data-testid="crew-mutation-error"]')?.remove();
+  refreshOfficialHistoryEditor(memberId);
+  toastService?.success?.("Official History entry added.");
+}
+
+async function deleteSelectedOfficialHistory(memberId) {
+  const selected = [...document.querySelectorAll("[data-history-delete-index]:checked")].map(input => Number(input.dataset.historyDeleteIndex));
+  if (!selected.length) return showCrewMutationError("Select at least one Official History entry to delete.");
+  const member = crewService.getById(memberId);
+  if (!member) return showCrewMutationError("Crew member not found.");
+  const result = await crewService.updateMember(memberId, { officialHistory: (member.officialHistory || []).filter((_, index) => !selected.includes(index)) });
+  if (!result.success) return showCrewMutationError(result.message);
+  document.querySelector('[data-testid="crew-mutation-error"]')?.remove();
+  refreshOfficialHistoryEditor(memberId);
+  toastService?.success?.("Selected Official History deleted.");
+}
+
 function renderCrew() {
   const roster = crewService.getAll();
   const sharedState = crewService.getAdministrativeCrewState?.() || { status: "ready" };
@@ -57,7 +135,7 @@ function renderCrewCard(member) {
   return `
     <div class="crew-card">
       <div>
-        <h3>${getCrewFullName(member)}</h3>
+        <h3>${getCrewComponentFullName(member)}</h3>
         <p>${member.email}</p>
         <p>${member.phone}</p>
 
@@ -160,6 +238,10 @@ function toggleCrewLevels(checked) {
   document.querySelectorAll(".crew-level-checkbox").forEach(box => { box.checked = checked; });
 }
 
+function toggleCrewPreferredLevels(checked) {
+  document.querySelectorAll(".crew-preferred-level-checkbox").forEach(box => { box.checked = checked; });
+}
+
 function showCrewMutationError(message) {
   let status = document.querySelector('[data-testid="crew-mutation-error"]');
   if (!status) {
@@ -167,7 +249,7 @@ function showCrewMutationError(message) {
     status.dataset.testid = "crew-mutation-error";
     status.className = "form-status";
     status.setAttribute("role", "alert");
-    document.querySelector("#crew-drawer .drawer-footer")?.before(status);
+    document.querySelector("#crew-drawer .drawer-footer, #crew-credential-dialog .drawer-footer")?.before(status);
   }
   status.textContent = message || "Crew member could not be saved.";
 }
@@ -207,16 +289,49 @@ function openEditCrewDrawer(memberId) {
     String(item.id) === String(memberId)
   );
 
-  if (!member) return;
+  if (!member) {
+    const error = new Error("Crew editor member lookup failed.");
+    error.crewEditCode = "CREW-EDIT-E1";
+    throw error;
+  }
 
   const content = document.getElementById("app-content");
+  if (!content) {
+    const error = new Error("Crew editor host is unavailable.");
+    error.crewEditCode = "CREW-EDIT-E2";
+    throw error;
+  }
 
-  content.insertAdjacentHTML("beforeend", `
-    <div id="drawer-backdrop" class="drawer-backdrop" onclick="closeCrewDrawer()"></div>
-    <aside id="crew-drawer" class="game-drawer open">
-      ${renderEditCrewDrawerContent(member)}
-    </aside>
-  `);
+  closeCrewDrawer();
+
+  let drawerContent;
+  try {
+    drawerContent = renderEditCrewDrawerContent(member);
+  } catch (cause) {
+    const error = new Error("Crew editor rendering failed.", { cause });
+    error.crewEditCode = "CREW-EDIT-E3";
+    throw error;
+  }
+
+  try {
+    content.insertAdjacentHTML("beforeend", `
+      <div id="drawer-backdrop" class="drawer-backdrop" onclick="closeCrewDrawer()"></div>
+      <aside id="crew-drawer" class="game-drawer open">
+        ${drawerContent}
+      </aside>
+    `);
+  } catch (cause) {
+    const error = new Error("Crew editor mounting failed.", { cause });
+    error.crewEditCode = "CREW-EDIT-E4";
+    throw error;
+  }
+  const drawer = document.getElementById("crew-drawer");
+  if (!drawer) {
+    const error = new Error("Crew editor was not mounted.");
+    error.crewEditCode = "CREW-EDIT-E5";
+    throw error;
+  }
+  return drawer;
 }
 function renderPreferenceCheckboxList(
   member,
@@ -230,7 +345,7 @@ function renderPreferenceCheckboxList(
   return crewService.getAll()
     .filter(c => String(c.id) !== String(member.id))
     .sort((a, b) =>
-      getCrewFullName(a).localeCompare(getCrewFullName(b))
+      getCrewComponentFullName(a).localeCompare(getCrewComponentFullName(b))
     )
     .map(c => `
       <label class="checkbox-row">
@@ -244,13 +359,20 @@ function renderPreferenceCheckboxList(
               : ""
           }
         />
-        <span>${getCrewFullName(c)}</span>
+        <span>${getCrewComponentFullName(c)}</span>
       </label>
     `)
     .join("");
 }
 
 function renderEditCrewDrawerContent(member) {
+  const memberLevels = levelTerminologyService.normalizeLevels(
+    Array.isArray(member?.levels) ? member.levels : member?.eligible_levels
+  );
+  const configuredLevels = levelTerminologyService.normalizeLevels(
+    Array.isArray(settings?.levels) ? settings.levels : []
+  );
+  const officialFieldsDisabled = member.profileId ? "" : "disabled";
    const preferences =
     typeof crewService !== "undefined" &&
     crewService.getPreferences
@@ -264,37 +386,50 @@ function renderEditCrewDrawerContent(member) {
     <div class="drawer-header">
       <div>
         <h3>Edit Crew Member</h3>
-        <p>${getCrewFullName(member)}</p>
+        <p>${getCrewComponentFullName(member)}</p>
       </div>
       <button class="drawer-close-btn" onclick="closeCrewDrawer()">×</button>
     </div>
 
-    <div class="drawer-body">
-      <div class="form-group">
+    <div class="drawer-body crew-editor-grid">
+      <div class="form-group crew-field-first-name">
         <label>First Name</label>
         <input id="crew-first-name" type="text" value="${member.firstName}" />
       </div>
 
-      <div class="form-group">
+      <div class="form-group crew-field-last-name">
         <label>Last Name</label>
         <input id="crew-last-name" type="text" value="${member.lastName}" />
       </div>
 
-      <div class="form-group">
+      <div class="form-group crew-field-email">
         <label>Email</label>
         <input id="crew-email" type="email" value="${member.email}" />
       </div>
 
-      <div class="form-group">
+      <div class="form-group crew-field-phone">
         <label>Phone</label>
         <input id="crew-phone" type="tel" value="${member.phone}" />
       </div>
 
-      <div class="form-group">
+      <div class="form-group crew-field-personnel-id">
+        <label>Personnel ID</label>
+        <input id="crew-personnel-id" value="${escapeCrewComponentHtml(member.personnelId || "Not issued")}" readonly data-testid="crew-personnel-id" />
+      </div>
+
+      <div class="form-group crew-field-birthdate">
+        <label>Date of Birth</label>
+        <input id="crew-birthdate" type="date" value="${escapeCrewComponentHtml(member.birthdate || "")}" ${officialFieldsDisabled} data-testid="crew-birthdate" />
+        ${member.profileId ? "<small>Administrator-controlled identity correction.</small>" : "<small>Link an approved profile before recording DOB.</small>"}
+      </div>
+
+      ${member.profileId ? renderOfficialHistoryEditor(member) : `<div class="form-group crew-official-history-editor"><label>Official History</label><small>Link an approved profile before recording history.</small></div>`}
+
+      <div class="form-group crew-field-levels">
         <label>Certification Levels</label>
         <label class="checkbox-row"><input type="checkbox" data-testid="crew-level-select-all" onchange="toggleCrewLevels(this.checked)" /><span>Select All</span></label>
         <div class="checkbox-list">
-          ${levelTerminologyService.checkboxOptions(settings.levels).map(option => `
+          ${levelTerminologyService.checkboxOptions(configuredLevels).map(option => `
             <label class="checkbox-row">
               <input
                 type="checkbox"
@@ -302,7 +437,7 @@ function renderEditCrewDrawerContent(member) {
                 data-canonical="${option.canonical}"
                 data-level-kind="${option.kind}"
                 class="crew-level-checkbox"
-                ${member.levels.includes(option.canonical) ? "checked" : ""}
+                ${memberLevels.includes(option.canonical) ? "checked" : ""}
                 onchange="levelTerminologyService.synchronizeCheckbox(this)"
               />
               <span>${option.label}</span>
@@ -310,7 +445,7 @@ function renderEditCrewDrawerContent(member) {
           `).join("")}
         </div>
       </div>
-      <div class="form-group">
+      <div class="form-group crew-field-preferred-partners">
         <label>Preferred Partners</label>
 
         <div class="checkbox-list">
@@ -322,7 +457,7 @@ function renderEditCrewDrawerContent(member) {
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group crew-field-avoid-partners">
         <label>Avoid Partners</label>
 
         <div class="checkbox-list">
@@ -334,11 +469,13 @@ function renderEditCrewDrawerContent(member) {
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group crew-field-preferred-levels">
         <label>Preferred Game Levels</label>
 
+        <label class="checkbox-row"><input type="checkbox" data-testid="crew-preferred-level-select-all" onchange="toggleCrewPreferredLevels(this.checked)" ${configuredLevels.length ? "" : "disabled"} /><span>Select All</span></label>
+
         <div class="checkbox-list">
-          ${settings.levels.map(level => `
+          ${configuredLevels.map(level => `
             <label class="checkbox-row">
               <input
                 type="checkbox"
@@ -357,14 +494,14 @@ function renderEditCrewDrawerContent(member) {
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group crew-field-active">
         <label class="checkbox-row">
           <input id="crew-active" type="checkbox" ${member.active ? "checked" : ""} />
           <span>Active</span>
         </label>
       </div>
 
-      <div class="form-group">
+      <div class="form-group crew-field-notes">
         <label>Notes</label>
         <textarea id="crew-notes" placeholder="Optional notes...">${member.notes || ""}</textarea>
       </div>
@@ -401,7 +538,9 @@ async function saveCrewEdits(memberId) {
     phone: document.getElementById("crew-phone").value.trim(),
     active: document.getElementById("crew-active").checked,
     notes: document.getElementById("crew-notes").value.trim(),
-    levels: levelTerminologyService.normalizeLevels([...document.querySelectorAll(".crew-level-checkbox:checked")].map(box => box.value))
+    levels: levelTerminologyService.normalizeLevels([...document.querySelectorAll(".crew-level-checkbox:checked")].map(box => box.value)),
+    birthdate: document.getElementById("crew-birthdate")?.value || null,
+    officialHistory: member.officialHistory || []
   };
 
     const preferredCrewIds = [
@@ -428,11 +567,23 @@ const preferredLevels = [
       preferredLevels
     };
 
-  const result = await crewService.updateMember(member.id, changes);
+  let result;
+  try {
+    result = await crewService.updateMember(member.id, changes);
+  } catch (error) {
+    return showCrewMutationError(error?.message || "Crew member could not be saved.");
+  }
   if (!result.success) return showCrewMutationError(result.message);
 
+  const cardDialog = document.getElementById("crew-credential-dialog");
+  const cardEditMode = cardDialog?.dataset.editMode === "administrator";
   closeCrewDrawer();
   renderPage("crew");
+  toastService?.success?.("Crew member saved.");
+  if (cardEditMode) {
+    cardDialog.close();
+    requestAnimationFrame(() => openCrewCredentialCard(member.id));
+  }
 }
 
 async function deactivateCrewMember(memberId) {
@@ -440,7 +591,7 @@ async function deactivateCrewMember(memberId) {
 
   if (!member) return;
 
-  const confirmed = confirm(`Deactivate ${getCrewFullName(member)}?`);
+  const confirmed = confirm(`Deactivate ${getCrewComponentFullName(member)}?`);
 
   if (!confirmed) return;
 

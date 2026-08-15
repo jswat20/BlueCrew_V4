@@ -113,6 +113,19 @@ const locationService = (() => {
     const field = clean(game.locationField || game.field);
     return complex && field && complex !== field ? `${complex} — ${field}` : complex || field;
   }
+  function getFieldDisplayName(game, fallback = "Field TBD") {
+    if (!game) return fallback;
+    const authoritative = game.fieldId ? getSharedFieldRecord(game.fieldId)?.name : "";
+    const field = clean(authoritative || game.locationField || game.field || game.gameInformation?.field);
+    if (!field) return fallback;
+    const complex = clean(game.locationComplex || game.complex || game.venue || game.gameInformation?.venue);
+    let concise = field;
+    if (complex && concise.toLowerCase().startsWith(complex.toLowerCase())) {
+      concise = clean(concise.slice(complex.length).replace(/^[\s\-\u2013\u2014:|/]+/, ""));
+    }
+    const designation = concise.match(/\bField\s+[A-Za-z0-9-]+\b/i);
+    return designation ? designation[0].replace(/^field/i, "Field") : concise || fallback;
+  }
   function isValidPair(complexName, fieldName) {
     const complex = clean(complexName);
     const field = clean(fieldName);
@@ -122,21 +135,33 @@ const locationService = (() => {
     if (isSharedMode()) throw new Error("Location mutations are unavailable in Supabase read mode.");
     getRepository().write(locations);
   }
-  function addComplex(name) {
-    if (isSharedMode()) return { success: false, message: "Location changes are unavailable in shared read mode." };
+  async function addComplex(name) {
     const cleanName = clean(name);
     if (!cleanName) return { success: false, message: "Enter a complex name." };
+    if (isSharedMode()) {
+      const { error } = await supabaseSharedRepository.createLocationComplex(cleanName);
+      if (error) return { success: false, message: error.message || "Location complex could not be added." };
+      await loadSharedLocations();
+      return { success: true, message: "Location complex added." };
+    }
     const locations = getConfiguredLocations().map(location => ({ name: clean(location.name), fields: [...(location.fields || [])] }));
     if (locations.some(location => location.name.toLowerCase() === cleanName.toLowerCase())) return { success: false, message: "That complex already exists." };
     locations.push({ name: cleanName, fields: [] });
     saveConfiguredLocations(locations);
     return { success: true, message: "Location complex added." };
   }
-  function addField(complexName, fieldName) {
-    if (isSharedMode()) return { success: false, message: "Field changes are unavailable in shared read mode." };
+  async function addField(complexName, fieldName) {
     const cleanComplex = clean(complexName);
     const cleanField = clean(fieldName);
     if (!cleanField) return { success: false, message: "Enter a field name." };
+    if (isSharedMode()) {
+      const location = findSharedLocationRecord(complexName);
+      if (!location?.id) return { success: false, message: "Location complex not found." };
+      const { error } = await supabaseSharedRepository.createLocationField(location.id, cleanField);
+      if (error) return { success: false, message: error.message || "Location field could not be added." };
+      await loadSharedLocations();
+      return { success: true, message: "Location field added." };
+    }
     const locations = getConfiguredLocations().map(location => ({ name: clean(location.name), fields: [...(location.fields || [])] }));
     const location = locations.find(item => item.name === cleanComplex);
     if (!location) return { success: false, message: "Location complex not found." };
@@ -145,5 +170,5 @@ const locationService = (() => {
     saveConfiguredLocations(locations);
     return { success: true, message: "Location field added." };
   }
-  return { LEGACY_COMPLEX, getLocations, getComplexes, getFields, normalizeGame, getDisplayName, isValidPair, addComplex, addField, prepareSharedLocations, publishSharedLocations, loadSharedLocations, clearSharedLocations, getSharedLocationsSnapshot, getSharedLocationRecord, getSharedFieldRecord, findSharedLocationRecord, findSharedFieldRecord };
+  return { LEGACY_COMPLEX, getLocations, getComplexes, getFields, normalizeGame, getDisplayName, getFieldDisplayName, isValidPair, addComplex, addField, prepareSharedLocations, publishSharedLocations, loadSharedLocations, clearSharedLocations, getSharedLocationsSnapshot, getSharedLocationRecord, getSharedFieldRecord, findSharedLocationRecord, findSharedFieldRecord };
 })();

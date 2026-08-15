@@ -4,13 +4,11 @@ function renderLogin(context = {}) {
   const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   return `
     <section class="panel" data-testid="login-page">
-      <h2>Umpire Login</h2>
-
       <p class="muted">
         ${usesSupabaseAuth ? "Enter your verified email and password to continue." : "Enter your email to continue."}
       </p>
 
-      <form data-testid="login-form" onsubmit="handleLoginSubmit(event)">
+      <form data-testid="login-form">
         <div class="form-group">
           <label for="login-email">Email</label>
           <input
@@ -37,7 +35,7 @@ function renderLogin(context = {}) {
         <button type="submit" data-testid="login-submit">
           Log In
         </button>
-        ${usesSupabaseAuth ? `<button type="button" class="button button-link" data-testid="forgot-password-link" onclick="renderPage('forgot-password')">Forgot Password?</button>` : ""}
+        ${usesSupabaseAuth ? `<button type="button" class="button button-link" data-testid="forgot-password-link">Forgot Password?</button>` : ""}
       </form>
 
       <div
@@ -47,9 +45,40 @@ function renderLogin(context = {}) {
       >${context.passwordMessage ? escapeSharedStateHtml(context.passwordMessage) : ""}</div>
     </section>
     ${usesSupabaseAuth && typeof renderAccountRegistration === "function"
-      ? renderAccountRegistration()
+      ? `
+        <section class="account-registration-disclosure" data-testid="account-registration-disclosure">
+          <button
+            type="button"
+            class="button button-secondary registration-toggle"
+            data-testid="registration-toggle"
+            aria-expanded="false"
+            aria-controls="account-registration-panel"
+          >New Here? Create a New Account</button>
+          <div id="account-registration-panel" data-testid="account-registration-panel" hidden>
+            ${renderAccountRegistration()}
+          </div>
+        </section>
+      `
       : ""}
   `;
+}
+
+function setupLoginForm() {
+  const form = document.querySelector("[data-testid='login-form']");
+  if (!form) return;
+  form.addEventListener("submit", handleLoginSubmit);
+  document.querySelector("[data-testid='forgot-password-link']")
+    ?.addEventListener("click", () => renderPage("forgot-password"));
+  const registrationToggle = document.querySelector("[data-testid='registration-toggle']");
+  const registrationPanel = document.querySelector("[data-testid='account-registration-panel']");
+  registrationToggle?.addEventListener("click", () => {
+    const willExpand = registrationToggle.getAttribute("aria-expanded") !== "true";
+    registrationToggle.setAttribute("aria-expanded", String(willExpand));
+    registrationToggle.textContent = willExpand
+      ? "Hide Account Registration"
+      : "New Here? Create a New Account";
+    if (registrationPanel) registrationPanel.hidden = !willExpand;
+  });
 }
 
 async function handleLoginSubmit(event) {

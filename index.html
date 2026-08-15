@@ -3,8 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b0d10" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="The Slate" />
   <title>The Slate | SwatWorks</title>
-  <link rel="stylesheet" href="styles.css?v=20260811-responsive-readiness" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png" />
+    <link rel="stylesheet" href="styles.css?v=20260814-crew-card-layout" />
   <link rel="stylesheet" href="css/schedule.css?v=20260811-responsive-readiness">
 </head>
 <body>
@@ -58,9 +65,10 @@
           <button type="button" class="nav-group-toggle" id="nav-group-account-toggle" aria-expanded="true" aria-controls="nav-group-account-items"><span>Account</span><span class="nav-group-chevron" aria-hidden="true">⌄</span></button>
           <div class="nav-group-items" id="nav-group-account-items">
           <button type="button" class="nav-link nav-notifications-link" data-page="notifications" data-testid="nav-notifications"><span>Notifications</span><span class="sidebar-notification-badge" data-testid="notifications-badge"></span></button>
+          <button type="button" class="nav-link install-helper-trigger" data-testid="nav-install" hidden>Install The Slate</button>
           <button type="button" class="nav-link" data-page="profile" data-testid="nav-profile">👤 Profile</button>
           <button type="button" class="nav-link" data-page="login" data-testid="nav-login">Login</button>
-          <button type="button" class="nav-link" data-testid="nav-logout" onclick="logoutFromNavigation()" hidden>Log out</button>
+          <button type="button" class="nav-link" data-testid="nav-logout" hidden>Log out</button>
           </div>
         </section>
       </nav>
@@ -91,32 +99,32 @@
 <script src="js/repositories/repositoryFactory.js"></script>
 <script src="data/storage.js"></script>
 <script src="js/services/supabaseClientService.js"></script>
-<script src="js/repositories/supabaseSharedRepository.js?v=20260811-identity-integrity"></script>
-<script src="js/repositories/supabaseNotificationRepository.js"></script>
+<script src="js/repositories/supabaseSharedRepository.js?v=20260814-personnel-data"></script>
+<script src="js/repositories/supabaseNotificationRepository.js?v=20260814-notification-delete"></script>
 <script src="js/services/levelTerminologyService.js"></script>
 <script src="js/services/authenticatedIdentityService.js"></script>
 <script src="js/services/dateTimeFormattingService.js"></script>
 <script src="js/services/presentationFormattingService.js"></script>
 <script src="js/services/organizationContactService.js"></script>
-<script src="js/services/sharedDomainMappingService.js?v=20260811-identity-integrity"></script>
-<script src="js/services/passwordSecurityService.js?v=20260811-identity-integrity"></script>
-<script src="js/services/supabaseAuthService.js"></script>
+<script src="js/services/sharedDomainMappingService.js?v=20260814-personnel-data"></script>
+<script src="js/services/passwordSecurityService.js?v=20260812-production-blocker-closure-2"></script>
+<script src="js/services/supabaseAuthService.js?v=20260814-personnel-data"></script>
 
 <script src="components/dashboard/context.js?v=20260718-dashboard-actions"></script>
 <script src="components/dashboard/header.js?v=20260718-dashboard-actions"></script>
 <script src="components/dashboard/dailyBrief.js?v=20260718-dashboard-actions"></script>
 <script src="components/dashboard/todaysGames.js?v=20260719-dashboard-game-priority"></script>
 <script src="components/dashboard/index.js"></script>
-<script src="components/crew.js?v=20260719-schedule-crew-theme"></script>
+<script src="components/crew.js?v=20260814-personnel-data"></script>
 <script src="components/reports.js"></script>
-<script src="components/settings.js"></script>
+<script src="components/settings.js?v=20260812-production-location-create"></script>
 <script src="components/admin.js"></script>
 
 <script src="js/constants/assignmentConstants.js"></script>
 <script src="js/models/Assignment.js"></script>
 
 <script src="js/services/gameTypeService.js"></script>
-<script src="js/services/locationService.js?v=20260719-location-model"></script>
+<script src="js/services/locationService.js?v=20260812-production-location-create"></script>
 <script src="js/services/gameService.js?v=20260719-crew-notifications"></script>
 <script src="js/services/conflictService.js"></script>
 <script src="js/services/workloadService.js"></script>
@@ -129,7 +137,7 @@
 <script src="js/services/recommendationService.js"></script>
 <script src="js/services/assignmentModelService.js"></script>
 <script src="js/services/assignmentService.js?v=20260719-crew-notifications"></script>
-<script src="js/services/crewService.js?v=20260811-identity-integrity"></script>
+<script src="js/services/crewService.js?v=20260814-personnel-data"></script>
 <script src="js/services/crewConfigurationService.js"></script>
 <script src="js/services/crewBuilderService.js"></script>
 <script src="js/services/dashboardService.js?v=20260718-dashboard-actions"></script>
@@ -140,17 +148,17 @@
 <script src="js/services/toastService.js"></script>
 <script src="js/services/modalService.js"></script>
 <script src="js/services/uiService.js"></script>
-<script src="js/services/accountService.js?v=20260719-crew-years-save"></script>
+<script src="js/services/accountService.js?v=20260814-personnel-data"></script>
 <script src="js/services/crewPhotoService.js"></script>
 <script src="js/services/loginService.js"></script>
 <script src="js/services/authorizationService.js"></script>
 <script src="js/services/portalService.js"></script>
 <script src="js/services/claimsQueueService.js"></script>
-<script src="js/services/notificationService.js?v=20260811-game-reminders"></script>
+<script src="js/services/notificationService.js?v=20260814-notification-delete"></script>
 <script src="js/services/communicationEventCatalog.js?v=20260811-game-reminders"></script>
 <script src="js/services/communicationPreferenceService.js"></script>
 <script src="js/services/communicationRecipientService.js"></script>
-<script src="js/services/communicationTemplateService.js?v=20260811-game-reminders"></script>
+<script src="js/services/communicationTemplateService.js?v=20260814-personnel-data"></script>
 <script src="js/services/communicationService.js?v=20260811-game-reminders"></script>
 <script src="js/services/scheduleImportService.js?v=20260719-location-model"></script>
 <script src="js/services/scheduleExportService.js?v=20260719-location-model"></script>
@@ -165,10 +173,10 @@
 
 <script src="js/ui/statusBadge.js"></script>
 <script src="js/ui/crewDashboard.js?v=20260719-crew-notifications"></script>
-<script src="js/ui/accountRegistration.js"></script>
-<script src="js/ui/accountSecurity.js"></script>
-<script src="js/ui/login.js"></script>
-<script src="js/ui/accounts.js?v=20260811-identity-integrity-2"></script>
+<script src="js/ui/accountRegistration.js?v=20260814-personnel-data"></script>
+<script src="js/ui/accountSecurity.js?v=20260812-production-auth-forms"></script>
+<script src="js/ui/login.js?v=20260813-login-registration"></script>
+<script src="js/ui/accounts.js?v=20260814-personnel-data"></script>
 <script src="js/ui/mySchedule.js"></script>
 <script src="js/ui/reviewQueue.js"></script>
 <script src="js/ui/gameHub.js?v=20260718-ops4c"></script>
@@ -177,14 +185,14 @@
 <script src="js/ui/claimsQueue.js"></script>
 <script src="js/ui/claimHistory.js?v=20260719-collapsible"></script>
 <script src="js/ui/interactionState.js"></script>
-<script src="js/ui/notifications.js?v=20260719-crew-notifications"></script>
-<script src="js/ui/profile.js?v=20260719-crew-portal"></script>
+<script src="js/ui/notifications.js?v=20260814-notification-delete"></script>
+<script src="js/ui/profile.js?v=20260814-unified-crew-card"></script>
 
 <script src="js/schedule/assignmentEngine.js"></script>
 <script src="js/schedule/assignmentDrawer.js?v=20260718-ops4c"></script>
 <script src="js/schedule/gameCard.js"></script>
-<script src="js/schedule/workloadPanel.js?v=20260719-schedule-crew-theme"></script>
-<script src="js/ui/crewCard.js?v=20260811-identity-integrity"></script>
+<script src="js/schedule/workloadPanel.js?v=20260813-live-crew-edit-handler"></script>
+<script src="js/ui/crewCard.js?v=20260814-personnel-data"></script>
 <script src="js/schedule/openGamesQueue.js"></script>
 <script src="js/schedule/schedule.js?v=20260811-responsive-readiness"></script>
 <script src="js/schedule/dailyView.js?v=20260718-site-teal"></script>
@@ -211,10 +219,11 @@
 <script src="js/ui/availability.js?v=20260719-crew-notifications"></script>
 <script src="js/ui/reports.js"></script>
 <script src="js/ui/seasonDashboard.js"></script>
-<script src="js/ui/navigationAuthorization.js?v=20260719-crew-portal"></script>
+<script src="js/ui/navigationAuthorization.js?v=20260813-login-registration"></script>
 <script src="js/ui/workbench.js?v=20260718-dashboard-actions"></script>
-<script src="js/ui/operationsCenter.js?v=20260718-dashboard-actions"></script>
+<script src="js/ui/operationsCenter.js?v=20260813-one-click-approval"></script>
   <script src="js/ui/presentation.js"></script>
-<script src="app.js?v=20260811-responsive-readiness"></script>
+<script src="js/ui/installHelper.js?v=20260813-install-guidance"></script>
+<script src="app.js?v=20260813-login-registration"></script>
 </body>
 </html>

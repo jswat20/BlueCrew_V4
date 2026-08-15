@@ -15,3 +15,5 @@ node_modules/
 /supabase/.temp/
 /.npm-cache/
 /dist/
+/.wrangler/
+/work/

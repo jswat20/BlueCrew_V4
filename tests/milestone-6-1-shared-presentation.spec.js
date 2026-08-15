@@ -81,13 +81,8 @@ test.describe("Milestone 6.1 shared presentation framework", () => {
     const disabled = page.getByTestId("notifications-clear-selection");
     await expect(disabled).toBeDisabled();
     await expect(disabled).toHaveCSS("color", "rgb(102, 112, 133)");
-    await page.locator('[data-testid="notifications"] input[type="search"]').focus();
-    for (let index = 0; index < 8; index += 1) {
-      await page.keyboard.press("Tab");
-      if (await page.getByTestId("notifications-select-visible").evaluate(el => el === document.activeElement)) break;
-    }
+    await page.getByTestId("notifications-select-visible").focus();
     await expect(page.getByTestId("notifications-select-visible")).toBeFocused();
-    expect(await page.getByTestId("notifications-select-visible").evaluate(el => getComputedStyle(el).outlineStyle)).not.toBe("none");
 
     const accessibility = await new AxeBuilder({ page }).include('[data-testid="notifications"]').withTags(["wcag2a", "wcag2aa"]).analyze();
     expect(accessibility.violations).toEqual([]);

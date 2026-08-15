@@ -55,24 +55,25 @@ test("crew admin editor retains dialog semantics, linked checkboxes, and Select 
   await expect(canonical.filter({ has: app.page.locator(":checked") })).toHaveCount(0);
 });
 
-test("admin and umpire profiles share grouped layout while save and cancel remain unchanged", async ({ app }) => {
+test("umpire Profile uses the canonical Crew Card while account support remains available", async ({ app }) => {
   await app.loginAsApprovedUmpire();
   await app.page.evaluate(() => renderPage("profile"));
   const profile = app.page.getByTestId("profile");
-  await expect(profile.getByRole("heading", { name: "Profile Details" })).toBeVisible();
+  await expect(profile.getByRole("heading", { name: "My Crew Card" })).toBeVisible();
+  await expect(profile.getByTestId("profile-crew-card-experience")).toBeVisible();
   await expect(profile.getByTestId("profile-communication")).toBeVisible();
-  await profile.getByTestId("profile-phone").fill("5550000000");
-  await profile.getByTestId("profile-cancel").click();
-  await expect(profile.getByTestId("profile-phone")).not.toHaveValue("5550000000");
-  await app.page.evaluate(() => { authService.loginAsAdmin(); document.body.dataset.role = "admin"; renderPage("profile"); });
-  await expect(app.page.getByTestId("profile-form")).toHaveClass(/profile-form-card/);
-  await expect(app.page.getByTestId("profile-save")).toHaveClass(/button-primary/);
-  await expect(app.page.getByTestId("profile")).not.toContainText(/change role|disable access/i);
+  await profile.getByTestId("profile-card-back").click();
+  await profile.getByTestId("profile-edit-crew-card").click();
+  await expect(app.page.getByTestId("crew-card-self-edit-mode")).toBeVisible();
+  await expect(app.page.locator(".crew-level-checkbox, #crew-active")).toHaveCount(0);
+  await expect(profile.getByTestId("profile-account-security")).toBeVisible();
 });
 
 test("profile and crew controls remain reachable on narrow screens", async ({ app }) => {
   await app.loginAsApprovedUmpire(); await app.page.evaluate(() => renderPage("profile"));
   await app.page.setViewportSize({ width: 390, height: 760 });
+  await app.page.getByTestId("profile-card-back").click();
+  await app.page.getByTestId("profile-edit-crew-card").click();
   const save = app.page.getByTestId("profile-save");
   await save.scrollIntoViewIfNeeded();
   const box = await save.boundingBox();

@@ -5,6 +5,12 @@ function escapeCrewCardHtml(value) {
   return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
 
+function formatCrewCardPhone(value) {
+  const phone = String(value || "").trim();
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 10 ? `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}` : phone;
+}
+
 function getCrewCardModel(crewOrId) {
   const suppliedAccount = typeof crewOrId === "object" && Object.prototype.hasOwnProperty.call(crewOrId, "role") ? crewOrId : null;
   const crewMember = suppliedAccount ? (suppliedAccount.crewId ? crewService.getById(suppliedAccount.crewId) : null) : (typeof crewOrId === "object" ? crewOrId : crewService.getById(crewOrId));
@@ -12,16 +18,16 @@ function getCrewCardModel(crewOrId) {
     ? accountService.getAll().find(item => String(item.crewId) === String(crewMember.id)) || null
     : accountService.getById(crewOrId));
   const linkedCrew = crewMember || (account?.crewId ? crewService.getById(account.crewId) : null);
-  const firstName = account?.firstName || linkedCrew?.firstName || "";
-  const lastName = account?.lastName || linkedCrew?.lastName || "";
+  const firstName = linkedCrew?.firstName || account?.firstName || "";
+  const lastName = linkedCrew?.lastName || account?.lastName || "";
   const history = account?.officialHistory || [];
   const identityStatus = linkedCrew?.identityStatus || (account?.id && linkedCrew ? "linked" : linkedCrew?.profileId ? "unknown" : "unlinked");
   return {
     accountId: account?.id || "",
     profileId: account?.id || linkedCrew?.profileId || "",
     crewRecordId: linkedCrew?.id || "",
-    crewCode: account?.crewCode || "Not issued",
-    issuedAt: account?.crewCodeIssuedAt || "",
+    crewCode: account?.personnelId || linkedCrew?.personnelId || account?.crewCode || "Not issued",
+    issuedAt: account?.personnelIdIssuedAt || linkedCrew?.personnelIdIssuedAt || account?.crewCodeIssuedAt || "",
     firstName,
     lastName,
     fullName: `${firstName} ${lastName}`.trim() || "Unnamed Crew Member",
@@ -31,18 +37,18 @@ function getCrewCardModel(crewOrId) {
     loginEmail: linkedCrew?.loginEmail || (identityStatus === "linked" ? account?.email || "" : ""),
     identityStatus,
     identityConflictCode: linkedCrew?.identityConflictCode || "",
-    phone: account?.phone || linkedCrew?.phone || "",
-    homePhone: account?.homePhone || "",
-    address: account?.address || "",
-    contactPreference: account?.contactPreference || "text",
-    birthdate: account?.birthdate || "",
-    age: accountService.deriveAge(account?.birthdate),
+    phone: formatCrewCardPhone(account?.phone || linkedCrew?.phone),
+    homePhone: formatCrewCardPhone(account?.homePhone || linkedCrew?.profileHomePhone),
+    address: account?.address || linkedCrew?.profileAddress || "",
+    contactPreference: account?.contactPreference || linkedCrew?.profileContactPreference || "text",
+    emergencyContact: account?.emergencyContact || linkedCrew?.profileEmergencyContact || "",
+    emergencyContactPhone: formatCrewCardPhone(account?.emergencyContactPhone || linkedCrew?.profileEmergencyContactPhone),
+    birthdate: account?.birthdate || linkedCrew?.birthdate || "",
+    age: accountService.deriveAge(account?.birthdate || linkedCrew?.birthdate),
     photoDataUrl: account?.photoDataUrl || "",
     levels: [...(linkedCrew?.levels || [])],
-    officialHistory: history,
-    yearsOfService: Number.isInteger(account?.yearsOfServiceOverride)
-      ? account.yearsOfServiceOverride
-      : accountService.deriveYearsOfService(history),
+    officialHistory: history.length ? history : (linkedCrew?.officialHistory || []),
+    yearsOfService: accountService.deriveYearsOfService(history.length ? history : (linkedCrew?.officialHistory || [])),
     adminNotes: account?.adminNotes || linkedCrew?.notes || "",
     accountStatus: account?.status || (identityStatus === "conflict" ? "Identity Conflict" : identityStatus === "linked" ? "Linked" : "Unlinked roster record")
     ,dailyWorkload: linkedCrew ? workloadService.getCrewWorkloadForDate(linkedCrew.id, new Date().toISOString().split("T")[0]).count : 0
@@ -65,6 +71,13 @@ function formatCrewCardLevel(level) {
   return authService.isAdmin?.() === true ? canonical : levelTerminologyService.format(canonical);
 }
 
+function formatCrewCardEligibilityBadge(level) {
+  const canonical = levelTerminologyService.canonicalize(level);
+  if (/^juniors?$/i.test(canonical)) return "JR";
+  if (/^seniors?$/i.test(canonical)) return "SR";
+  return canonical;
+}
+
 function renderCrewCardFront(crewMember, options = {}) {
   const model = getCrewCardModel(crewMember);
   const testId = options.testId || "crew-roster-member";
@@ -81,7 +94,7 @@ function formatCrewCardDate(value) {
 }
 
 function renderCrewCredentialFrontFace(model) {
-  return `<section class="crew-credential-face crew-credential-face-front" aria-hidden="true">
+  return `<section class="crew-credential-face crew-credential-face-front">
     <div class="crew-credential-brand"><strong>The Slate</strong><span>Crew Card</span></div>
     ${renderCrewCardPhoto(model, "crew-credential-modal-photo")}
     <div class="crew-credential-front-identity"><small>${escapeCrewCardHtml(model.crewCode)}</small><h2>${escapeCrewCardHtml(model.fullName)}</h2><p>${escapeCrewCardHtml(model.role)}</p><b data-status="${model.status.toLowerCase()}">${escapeCrewCardHtml(model.status)}</b></div>
@@ -97,16 +110,47 @@ function renderCrewCredentialBackFace(model) {
   return `<section class="crew-credential-face crew-credential-face-back" data-testid="crew-card-back">
     <header class="crew-credential-back-header"><div><img class="crew-card-site-logo" src="assets/the-slate-logo.png" alt="The Slate logo"><strong>The Slate</strong><span>Crew Card</span></div><div><small>Crew ID</small><b data-testid="crew-card-id">${escapeCrewCardHtml(model.crewCode)}</b></div><p>Professional. Reliable. Game Ready.</p></header>
     <div class="crew-credential-identity-panel">
-      <div class="crew-credential-photo-block">${renderCrewCardPhoto(model, "crew-credential-modal-photo")}<b data-status="${model.status.toLowerCase()}">${escapeCrewCardHtml(model.status)}</b></div>
-      <div><h2 id="crew-card-title">${escapeCrewCardHtml(model.fullName)}</h2><h3>${escapeCrewCardHtml(model.role)}</h3><dl class="crew-credential-age"><div><dt>Age</dt><dd>${model.age ?? "—"}</dd></div><div><dt>Birthdate</dt><dd>${formatCrewCardDate(model.birthdate)}</dd></div><div><dt>Today</dt><dd>${model.dailyWorkload}</dd></div><div><dt>Season</dt><dd>${model.seasonWorkload}</dd></div></dl></div>
+      <div class="crew-credential-photo-column"><div class="crew-credential-photo-block">${renderCrewCardPhoto(model, "crew-credential-modal-photo")}<b data-status="${model.status.toLowerCase()}">${escapeCrewCardHtml(model.status)}</b></div><section class="crew-credential-history-launch"><h3>Official History</h3><strong>${model.yearsOfService} ${model.yearsOfService === 1 ? "Season" : "Seasons"}</strong><button type="button" class="button button-secondary" data-testid="crew-card-view-official-history" onclick="openOfficialHistoryModal('${escapeCrewCardHtml(model.crewRecordId || model.accountId)}')">View Official History</button></section></div>
+      <div class="crew-credential-identity-details" style="--crew-name-length:${model.fullName.length}"><h3>${escapeCrewCardHtml(model.role)}</h3><h2 id="crew-card-title">${escapeCrewCardHtml(model.fullName)}</h2><p class="crew-credential-inline-id"><span>Crew ID</span> ${escapeCrewCardHtml(model.crewCode)}</p><dl class="crew-credential-age"><div><dt>Age</dt><dd>${model.age ?? "Not recorded"}</dd></div><div><dt>Birthdate</dt><dd>${formatCrewCardDate(model.birthdate)}</dd></div><div><dt>Games Today</dt><dd>${model.dailyWorkload}</dd></div><div><dt>Season Total</dt><dd>${model.seasonWorkload}</dd></div></dl><section class="crew-credential-eligibility crew-credential-identity-eligibility" data-testid="crew-card-identity-eligibility"><h4>Eligibility</h4><div>${model.levels.length ? model.levels.map(level => `<span class="settings-pill">${escapeCrewCardHtml(formatCrewCardEligibilityBadge(level))}</span>`).join("") : "No eligibility levels assigned."}</div></section></div>
     </div>
     <section class="crew-credential-panel crew-credential-contact"><h3>Contact Information</h3><dl>
-      <div><dt>Phone (Cell)</dt><dd>${model.phone ? `<button type="button" class="crew-contact-action" data-testid="crew-card-call-phone" onclick="confirmCrewPhoneCall('${escapeCrewCardHtml(model.phone)}')">${escapeCrewCardHtml(model.phone)}</button>` : "Not recorded"}</dd></div><div><dt>Phone (Home)</dt><dd>${escapeCrewCardHtml(model.homePhone || "Not recorded")}</dd></div><div><dt>Login Identity</dt><dd data-testid="crew-card-identity-status">${model.identityStatus === "conflict" ? "Identity Conflict" : model.identityStatus === "linked" ? "Linked" : "Unlinked"}</dd></div><div><dt>Login Email</dt><dd data-testid="crew-card-login-email">${escapeCrewCardHtml(model.loginEmail || (model.identityStatus === "conflict" ? "Needs identity review" : "No login account linked"))}</dd></div><div><dt>Contact Email</dt><dd>${model.email ? `<button type="button" class="crew-contact-action" data-testid="crew-card-copy-email" onclick="copyCrewEmail('${escapeCrewCardHtml(model.email)}', this)">${escapeCrewCardHtml(model.email)}</button>` : "Not recorded"}</dd></div><div><dt>Address</dt><dd>${escapeCrewCardHtml(model.address || "Not recorded")}</dd></div><div><dt>Preferred Contact</dt><dd>${model.contactPreference === "call" ? "Call" : "Text"}</dd></div><div><dt>Account Status</dt><dd>${escapeCrewCardHtml(model.accountStatus)}</dd></div>
+      <div><dt>Phone (Cell)</dt><dd>${model.phone ? `<button type="button" class="crew-contact-action" data-testid="crew-card-call-phone" onclick="confirmCrewPhoneCall('${escapeCrewCardHtml(model.phone)}')">${escapeCrewCardHtml(model.phone)}</button>` : "Not recorded"}</dd></div><div><dt>Phone (Home)</dt><dd>${escapeCrewCardHtml(model.homePhone || "Not recorded")}</dd></div>${canSeeAdminNotes ? `<div><dt>Login Identity</dt><dd data-testid="crew-card-identity-status">${model.identityStatus === "conflict" ? "Identity Conflict" : model.identityStatus === "linked" ? "Linked" : "Unlinked"}</dd></div><div><dt>Login Email</dt><dd data-testid="crew-card-login-email">${escapeCrewCardHtml(model.loginEmail || (model.identityStatus === "conflict" ? "Needs identity review" : "No login account linked"))}</dd></div>` : ""}<div><dt>Contact Email</dt><dd>${model.email ? `<button type="button" class="crew-contact-action" data-testid="crew-card-copy-email" onclick="copyCrewEmail('${escapeCrewCardHtml(model.email)}', this)">${escapeCrewCardHtml(model.email)}</button>` : "Not recorded"}</dd></div><div><dt>Address</dt><dd>${escapeCrewCardHtml(model.address || "Not recorded")}</dd></div><div><dt>Preferred Contact</dt><dd>${model.contactPreference === "call" ? "Call" : "Text"}</dd></div><div><dt>Account Status</dt><dd>${escapeCrewCardHtml(model.accountStatus)}</dd></div>
+      <div><dt>Emergency Contact</dt><dd data-testid="crew-card-emergency-contact">${escapeCrewCardHtml(model.emergencyContact || "Not recorded")}</dd></div><div><dt>Emergency Phone</dt><dd data-testid="crew-card-emergency-phone">${escapeCrewCardHtml(model.emergencyContactPhone || "Not recorded")}</dd></div>
     </dl></section>
-    <section class="crew-credential-panel crew-credential-eligibility"><h3>Age Eligibility</h3><div>${model.levels.length ? model.levels.map(level => `<span class="settings-pill">${escapeCrewCardHtml(formatCrewCardLevel(level))}</span>`).join("") : "No eligibility recorded"}</div></section>
-    <section class="crew-credential-panel crew-credential-history"><h3>Official History</h3><div class="crew-credential-service"><span>Years of Service</span><b>${model.yearsOfService}</b></div><ul>${model.officialHistory.length ? [...model.officialHistory].sort((a,b) => b.year-a.year).map(entry => `<li><b>${entry.year}</b><span>${escapeCrewCardHtml(entry.label)}</span>${entry.note ? `<small>${escapeCrewCardHtml(entry.note)}</small>` : ""}</li>`).join("") : `<li>No official history recorded.</li>`}</ul></section>
     ${canSeeAdminNotes ? `<section class="crew-credential-panel crew-credential-notes"><h3>Administrator Notes</h3><ul>${adminNoteItems.length ? adminNoteItems.map(note => `<li>${escapeCrewCardHtml(note)}</li>`).join("") : `<li>No administrator notes recorded.</li>`}</ul></section>` : ""}
   </section>`;
+}
+
+function openOfficialHistoryModal(memberId) {
+  const model = getCrewCardModel(memberId);
+  const origin = document.activeElement;
+  document.getElementById("official-history-dialog")?.remove();
+  const dialog = document.createElement("dialog");
+  dialog.id = "official-history-dialog";
+  dialog.className = "official-history-dialog";
+  dialog.dataset.testid = "official-history-dialog";
+  dialog.setAttribute("aria-labelledby", "official-history-title");
+  const records = [...model.officialHistory].sort((a, b) => Number(b.year) - Number(a.year));
+  dialog.innerHTML = `<article><header><div><span>Read-only record</span><h2 id="official-history-title">Official History</h2><p>${escapeCrewCardHtml(model.fullName)} · ${model.yearsOfService} official ${model.yearsOfService === 1 ? "season" : "seasons"}</p></div><button type="button" class="button button-secondary" data-testid="official-history-close" onclick="closeOfficialHistoryModal()">Close</button></header><ol data-testid="official-history-records">${records.length ? records.map(entry => `<li><b>${escapeCrewCardHtml(entry.year)}</b><span>${escapeCrewCardHtml(entry.label)}</span>${entry.note ? `<small>${escapeCrewCardHtml(entry.note)}</small>` : ""}</li>`).join("") : `<li>No official history recorded.</li>`}</ol></article>`;
+  dialog.addEventListener("click", event => { if (event.target === dialog) closeOfficialHistoryModal(); });
+  dialog.addEventListener("keydown", handleOfficialHistoryDialogKeydown);
+  dialog.addEventListener("close", () => { dialog.remove(); origin?.focus?.(); }, { once: true });
+  document.body.appendChild(dialog);
+  dialog.showModal();
+  dialog.querySelector('[data-testid="official-history-close"]')?.focus();
+}
+
+function closeOfficialHistoryModal() {
+  document.getElementById("official-history-dialog")?.close();
+}
+
+function handleOfficialHistoryDialogKeydown(event) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeOfficialHistoryModal();
+    return;
+  }
+  handleCrewCardDialogKeydown(event);
 }
 
 function openCrewCredentialCard(memberId) {
@@ -121,7 +165,8 @@ function openCrewCredentialCard(memberId) {
   dialog.setAttribute("aria-labelledby", "crew-card-title");
   const resetDisabled = model.identityStatus !== "linked";
   const identityAction = model.identityStatus === "unlinked" ? "link" : "relink";
-  dialog.innerHTML = `<article class="crew-credential-modal"><div class="crew-credential-dialog-actions"><button type="button" class="button button-secondary" onclick="closeCrewCard()">Close</button></div><div class="crew-credential-flipper" data-testid="crew-card-flipper">${renderCrewCredentialFrontFace(model)}${renderCrewCredentialBackFace(model)}</div><footer class="crew-credential-modal-footer">${authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-secondary" data-testid="crew-card-password-reset" ${resetDisabled ? `disabled title="This crew member's login identity needs review before a password reset can be sent."` : `onclick="sendAdministrativePasswordReset('${escapeCrewCardHtml(model.profileId)}','${escapeCrewCardHtml(model.crewRecordId)}')"`}>Send Password Reset</button><button type="button" class="button button-secondary" data-testid="crew-card-${identityAction}-identity" onclick="openCrewIdentityManager('${escapeCrewCardHtml(model.crewRecordId)}','${identityAction}')">${identityAction === "link" ? "Link" : "Relink"} Login Account</button>${model.profileId ? `<button type="button" class="button button-secondary" data-testid="crew-card-unlink-identity" onclick="manageCrewIdentity('${escapeCrewCardHtml(model.crewRecordId)}','unlink')">Unlink Login Account</button>` : ""}` : ""}${authService.isAdmin?.() && model.accountId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="openCrewCardAdminEditor('${escapeCrewCardHtml(model.accountId)}')">Edit Crew Profile</button>` : authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="closeCrewCard(); openEditCrewDrawer('${escapeCrewCardHtml(model.crewRecordId)}')">Edit Crew Profile</button>` : ""}</footer></article>`;
+  const useHostedCrewEditor = crewService.isSharedMode?.() && model.crewRecordId;
+  dialog.innerHTML = `<article class="crew-credential-modal"><div class="crew-credential-dialog-actions"><button type="button" class="button button-secondary" onclick="closeCrewCard()">Close</button></div><div class="crew-credential-flipper" data-testid="crew-card-flipper">${renderCrewCredentialFrontFace(model)}${renderCrewCredentialBackFace(model)}</div><footer class="crew-credential-modal-footer">${authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-secondary" data-testid="crew-card-password-reset" ${resetDisabled ? `disabled title="This crew member's login identity needs review before a password reset can be sent."` : `onclick="sendAdministrativePasswordReset('${escapeCrewCardHtml(model.profileId)}','${escapeCrewCardHtml(model.crewRecordId)}')"`}>Send Password Reset</button><button type="button" class="button button-secondary" data-testid="crew-card-${identityAction}-identity" onclick="openCrewIdentityManager('${escapeCrewCardHtml(model.crewRecordId)}','${identityAction}')">${identityAction === "link" ? "Link" : "Relink"} Login Account</button>${model.profileId ? `<button type="button" class="button button-secondary" data-testid="crew-card-unlink-identity" onclick="manageCrewIdentity('${escapeCrewCardHtml(model.crewRecordId)}','unlink')">Unlink Login Account</button>` : ""}` : ""}${authService.isAdmin?.() && useHostedCrewEditor ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" data-crew-id="${escapeCrewCardHtml(model.crewRecordId)}">Edit Crew Profile</button>` : authService.isAdmin?.() && model.accountId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="openCrewCardAdminEditor('${escapeCrewCardHtml(model.accountId)}')">Edit Crew Profile</button>` : authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" data-crew-id="${escapeCrewCardHtml(model.crewRecordId)}">Edit Crew Profile</button>` : ""}</footer></article>`;
   dialog.addEventListener("click", event => { if (event.target === dialog) closeCrewCard(); });
   dialog.addEventListener("keydown", handleCrewCardDialogKeydown);
   dialog.addEventListener("close", () => { dialog.remove(); crewCardOrigin?.focus?.(); crewCardOrigin = null; }, { once: true });
@@ -129,6 +174,132 @@ function openCrewCredentialCard(memberId) {
   dialog.showModal();
   dialog.querySelector("button")?.focus();
   requestAnimationFrame(() => dialog.querySelector(".crew-credential-flipper")?.classList.add("is-flipped"));
+}
+
+function openHostedCrewEditorFromCard(event, crewMemberId) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (!openEditCrewDrawer(crewMemberId)) return false;
+  closeCrewCard();
+  document.querySelector("#crew-drawer input:not([readonly])")?.focus();
+  return true;
+}
+
+function renderCrewCardEditShell(title, subtitle, body, testId) {
+  return `<article class="crew-credential-modal crew-card-edit-mode" data-testid="${testId}"><header class="crew-card-edit-header"><div><span>Crew Card</span><h2>${escapeCrewCardHtml(title)}</h2><p>${escapeCrewCardHtml(subtitle)}</p></div><button type="button" class="button button-secondary" onclick="cancelCrewCardEditMode()">Cancel</button></header>${body}</article>`;
+}
+
+function openCrewCardAdminEditMode(crewMemberId) {
+  if (!authService.isAdmin?.()) return false;
+  const member = crewService.getById(crewMemberId);
+  const dialog = document.getElementById("crew-credential-dialog");
+  if (!member || !dialog || typeof renderEditCrewDrawerContent !== "function") return false;
+  dialog.dataset.editMode = "administrator";
+  dialog.dataset.crewId = String(member.id);
+  dialog.innerHTML = renderCrewCardEditShell("Edit Crew Member", getCrewComponentFullName(member), `<div class="unified-crew-admin-editor">${renderEditCrewDrawerContent(member)}</div>`, "crew-card-admin-edit-mode");
+  dialog.querySelectorAll('[onclick="closeCrewDrawer()"]')?.forEach(control => control.setAttribute("onclick", "cancelCrewCardEditMode()"));
+  dialog.querySelector("input:not([readonly])")?.focus();
+  return true;
+}
+
+function renderOwnCrewCardEditForm(profile) {
+  return `<form class="unified-crew-self-editor" data-testid="crew-card-self-edit-mode" onsubmit="saveOwnCrewCardEdit(event)"><section><h3>Contact Information</h3><div class="unified-crew-edit-grid"><label>Primary / Cell Phone<input id="profile-phone" data-testid="profile-phone" type="tel" value="${escapeCrewCardHtml(profile.phone || "")}"></label><label>Home Phone<input id="profile-home-phone" data-testid="profile-home-phone" type="tel" value="${escapeCrewCardHtml(profile.homePhone || "")}"></label><label class="wide">Address<input id="profile-address" data-testid="profile-address" value="${escapeCrewCardHtml(profile.address || "")}"></label><label>Preferred Contact<select id="profile-contact-preference" data-testid="profile-contact-preference"><option value="text" ${profile.contactPreference !== "call" ? "selected" : ""}>Text</option><option value="call" ${profile.contactPreference === "call" ? "selected" : ""}>Call</option></select></label><label class="wide">Login Email<input value="${escapeCrewCardHtml(profile.email || "")}" readonly data-testid="profile-login-email-readonly"></label></div></section><section><h3>Emergency Contact</h3><div class="unified-crew-edit-grid"><label>Emergency Contact<input id="profile-emergency-contact" data-testid="profile-emergency-contact" value="${escapeCrewCardHtml(profile.emergencyContact || "")}"></label><label>Emergency Phone<input id="profile-emergency-phone" data-testid="profile-emergency-phone" type="tel" value="${escapeCrewCardHtml(profile.emergencyContactPhone || "")}"></label></div></section><div class="validation-message" data-testid="profile-error" hidden role="alert"></div><footer><button type="button" class="button button-secondary" onclick="cancelCrewCardEditMode()">Cancel</button><button type="submit" class="button button-primary" data-testid="profile-save">Save My Information</button></footer></form>`;
+}
+
+function openOwnCrewCardEditMode() {
+  const profile = portalService.getProfile();
+  if (!profile) return false;
+  const account = accountService.getById(profile.id) || profile;
+  if (account.crewId) openCrewCredentialCard(account.crewId);
+  else {
+    closeCrewCard();
+    const selfDialog = document.createElement("dialog");
+    selfDialog.id = "crew-credential-dialog";
+    selfDialog.className = "crew-credential-dialog";
+    document.body.appendChild(selfDialog);
+    selfDialog.addEventListener("close", () => selfDialog.remove(), { once: true });
+    selfDialog.showModal();
+  }
+  const dialog = document.getElementById("crew-credential-dialog");
+  if (!dialog) return false;
+  dialog.dataset.editMode = "self";
+  dialog.dataset.crewId = String(account.crewId || "");
+  dialog.innerHTML = renderCrewCardEditShell("Edit My Information", "Only your authorized profile fields can be changed.", renderOwnCrewCardEditForm(profile), "crew-card-self-edit-shell");
+  dialog.querySelector("input:not([readonly])")?.focus();
+  return true;
+}
+
+async function saveOwnCrewCardEdit(event) {
+  event.preventDefault();
+  const profile = portalService.getProfile();
+  const error = document.querySelector('#crew-credential-dialog [data-testid="profile-error"]');
+  const values = { email: profile.email, phone: document.getElementById("profile-phone").value, homePhone: document.getElementById("profile-home-phone").value, address: document.getElementById("profile-address").value, contactPreference: document.getElementById("profile-contact-preference").value, emergencyContact: document.getElementById("profile-emergency-contact").value, emergencyContactPhone: document.getElementById("profile-emergency-phone").value, communicationPreferences: profile.communicationPreferences };
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured() ? await portalService.saveProfileShared(values) : portalService.saveProfile(values);
+  if (!result.success) { error.hidden = false; error.textContent = result.message || "Profile could not be saved."; return; }
+  profileFormMessage = result.message || "Profile saved.";
+  closeCrewCard();
+  renderPage("profile");
+  toastService?.success?.("Profile saved.");
+  announceToScreenReader?.("Profile saved.");
+  focusElementWhenReady?.('[data-testid="profile-success"]');
+}
+
+function cancelCrewCardEditMode() {
+  const dialog = document.getElementById("crew-credential-dialog");
+  const crewId = dialog?.dataset.crewId;
+  closeCrewCard();
+  if (dialog?.dataset.editMode === "administrator" && crewId) requestAnimationFrame(() => openCrewCredentialCard(crewId));
+}
+
+function showCrewEditorLaunchError(code = "CREW-EDIT-E6") {
+  const safeCode = /^CREW-EDIT-E[1-6]$/.test(code) ? code : "CREW-EDIT-E6";
+  const message = `Unable to open Crew editor. Please try again. [${safeCode}]`;
+  if (typeof toastService !== "undefined" && typeof toastService.error === "function") {
+    toastService.error(message);
+    return;
+  }
+  const dialog = document.querySelector("#crew-credential-dialog, #crew-card-dialog");
+  if (!dialog) return;
+  let status = dialog.querySelector('[data-testid="crew-editor-launch-error"]');
+  if (!status) {
+    status = document.createElement("p");
+    status.dataset.testid = "crew-editor-launch-error";
+    status.className = "form-status";
+    status.setAttribute("role", "alert");
+    dialog.querySelector("footer")?.before(status);
+  }
+  status.textContent = message;
+}
+
+async function launchHostedCrewEditor(crewMemberId) {
+  try {
+    await Promise.resolve(openEditCrewDrawer(crewMemberId));
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const drawer = document.getElementById("crew-drawer");
+    if (!drawer) throw new Error("crew_editor_not_created");
+    for (const selector of ["#crew-credential-dialog", "#crew-card-dialog"]) {
+      const dialog = document.querySelector(selector);
+      if (dialog?.open) dialog.close();
+    }
+    drawer.querySelector("input:not([readonly])")?.focus();
+    return true;
+  } catch (error) {
+    console.error("Crew editor launch failed.", error);
+    showCrewEditorLaunchError(error?.crewEditCode);
+    return false;
+  }
+}
+
+if (!window.__slateHostedCrewEditListener) {
+  window.__slateHostedCrewEditListener = true;
+  document.addEventListener("click", event => {
+    const control = event.target.closest?.('[data-testid="crew-card-edit"][data-crew-id]');
+    if (!control || !crewService.isSharedMode?.()) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (document.getElementById("crew-credential-dialog")) openCrewCardAdminEditMode(control.dataset.crewId);
+    else void launchHostedCrewEditor(control.dataset.crewId);
+  }, true);
 }
 
 async function openCrewIdentityManager(crewMemberId, action) {

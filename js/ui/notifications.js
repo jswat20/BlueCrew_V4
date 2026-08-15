@@ -538,7 +538,7 @@ function renderNotifications() {
           ...returned,
           ...stored
         ],
-        query
+        { ...query, filter: "all", search: "", sort: "newest" }
       );
 
   const unreadCount =
@@ -613,101 +613,6 @@ function renderNotifications() {
             `
           : `
               <div
-                class="notification-productivity-controls"
-                data-testid="notification-productivity-controls"
-              >
-                <div
-                  class="filter-chip-group"
-                  data-testid="notification-filters"
-                >
-                  ${renderNotificationFilterChip(
-                    "all",
-                    "All"
-                  )}
-
-                  ${renderNotificationFilterChip(
-                    "unread",
-                    "Unread"
-                  )}
-
-                  ${renderNotificationFilterChip(
-                    "assignments",
-                    "Assignments"
-                  )}
-
-                  ${renderNotificationFilterChip(
-                    "claims",
-                    "Claims"
-                  )}
-
-                  ${renderNotificationFilterChip(
-                    "reviews",
-                    "Reviews"
-                  )}
-
-                  ${renderNotificationFilterChip(
-                    "availability",
-                    "Availability"
-                  )}
-
-                  ${renderNotificationFilterChip(
-                    "accounts",
-                    "Accounts"
-                  )}
-                </div>
-
-                <label>
-                  Search notifications
-
-                  <input
-                    type="search"
-                    data-testid="notification-search"
-                    value="${escapeNotificationHtml(
-                      uiStateService
-                        .getNotificationSearch()
-                    )}"
-                    placeholder="Search title, message, actor, or game"
-                    oninput="handleNotificationSearch(
-                      this.value
-                    )"
-                  >
-                </label>
-
-                <label>
-                  Sort
-
-                  <select
-                    data-testid="notification-sort"
-                    onchange="handleNotificationSort(
-                      this.value
-                    )"
-                  >
-                    <option
-                      value="newest"
-                      ${
-                        query.sort === "newest"
-                          ? "selected"
-                          : ""
-                      }
-                    >
-                      Newest
-                    </option>
-
-                    <option
-                      value="oldest"
-                      ${
-                        query.sort === "oldest"
-                          ? "selected"
-                          : ""
-                      }
-                    >
-                      Oldest
-                    </option>
-                  </select>
-                </label>
-              </div>
-
-              <div
                 class="notification-center-actions responsive-actions"
                 data-testid="notification-bulk-actions"
               >
@@ -746,7 +651,7 @@ function renderNotifications() {
                   }
                   onclick="handleClearNotificationSelection()"
                 >
-                  Clear Selection
+                  Clear Selections
                 </button>
 
                 <button
@@ -786,16 +691,7 @@ function renderNotifications() {
                           .join("")}
                       </div>
                     `
-                  : `
-                      ${renderEmptyState({
-                        title:
-                          "No matching notifications",
-                        message:
-                          "Adjust the filters or search terms.",
-                        testId:
-                          "notifications-filtered-empty"
-                      })}
-                    `
+                  : ""
               }
             `
       }
@@ -933,21 +829,26 @@ async function handleMarkSelectedNotificationsRead() {
   );
 }
 
-function handleDeleteSelectedNotifications() {
+async function handleDeleteSelectedNotifications() {
   const ids =
     uiStateService
       .getSelectedNotificationIds();
 
   const result =
-    notificationService
+    await notificationService
       .deleteBulk(ids);
 
-  if (!result.success) return;
+  if (!result.success) {
+    toastService?.error?.(result.message || "Selected notifications could not be deleted.");
+    return;
+  }
 
   uiStateService
     .clearNotificationSelection();
 
   refreshNotificationCenter();
+
+  toastService?.success?.(result.message || "Selected notifications deleted.");
 
   announceToScreenReader(
     result.message ||

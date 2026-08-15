@@ -239,7 +239,7 @@ test.describe("Schedule Daily View redesign", () => {
     await rows.first().click();
     const crewCard = page.getByTestId("crew-card-dialog");
     await expect(crewCard).toBeVisible();
-    await expect(crewCard).toContainText("Age Eligibility");
+    await expect(crewCard).toContainText("Eligibility");
     await expect(crewCard).toContainText("Today");
     await expect(crewCard).toContainText("Season");
     await expect(crewCard.getByTestId("crew-card-edit")).toBeVisible();

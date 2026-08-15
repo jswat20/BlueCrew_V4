@@ -1629,6 +1629,7 @@ function renderGameHubQuickActions(
   reviewMode = false,
   game = null
 ) {
+  const isClaimOrigin = gameHubNavigationContext.origin === "claim-games" || gameHubNavigationContext.returnPage === "claim-games";
   return `
     <div
       class="game-hub-actions"
@@ -1640,16 +1641,18 @@ function renderGameHubQuickActions(
         onclick="renderPage('${
           reviewMode
             ? "review-queue"
-            : "my-schedule"
+            : isClaimOrigin ? "claim-games" : "my-schedule"
         }')"
         data-testid="game-hub-back"
       >
         ${
           reviewMode
             ? "← Back to Review Queue"
-            : "← Back to My Schedule"
+            : isClaimOrigin ? "← Back to Claim Games" : "← Back to My Schedule"
         }
       </button>
+
+      ${isClaimOrigin && !reviewMode ? `<button class="button button-primary" type="button" data-testid="game-hub-submit-claim" onclick="claimPortalGame('${escapeGameHubText(game?.id || "")}')">Submit Claim</button>` : ""}
 
       ${
         reviewMode || !isGameHubAdministrativeView()

@@ -19,6 +19,7 @@ test("Action Center renders three distinct centered cells with red centered coun
   await app.loginAsApprovedUmpire(); await app.page.evaluate(() => renderPage("dashboard"));
   const cells = app.page.getByTestId("crew-action-cell");
   await expect(cells).toHaveCount(3);
+  await expect(cells.locator("strong")).toHaveText(["Today's Assignments", "Pending Claims", "Available Games"]);
   for (const cell of await cells.all()) {
     await expect(cell).toHaveCSS("text-align", "center");
     await expect(cell.locator(":scope > b")).toHaveCSS("color", "rgb(217, 45, 32)");
@@ -55,7 +56,9 @@ test("Claim Games is compact, centered, normalized, team-free, and keeps Claim",
   await expect(row).not.toContainText(/Hidden Away|Hidden Home|Lake Shore Athletic Complex - Field 8/);
   await expect(row).toContainText("6:30 PM");
   await expect(row.getByTestId(`claim-game-${gameId}`)).toHaveText("Claim");
-  expect(await row.evaluate(element => element.getBoundingClientRect().height)).toBeLessThanOrEqual(56);
+  await expect(table.getByRole("columnheader", { name: "Status", exact: true })).toBeVisible();
+  await expect(row.getByText(/0 \/ \d+ filled/)).toBeVisible();
+  expect(await row.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
   for (const cell of await table.locator("th, td").all()) await expect(cell).toHaveCSS("text-align", "center");
 });
 
@@ -67,22 +70,18 @@ test("My Schedule centers normalized fields and moves decline into Game Hub", as
   await expect(row).not.toContainText("Lake Shore Athletic Complex - Field 8");
   await expect(row.getByTestId(`my-schedule-status-${gameId}`)).toHaveText("Assigned");
   await expect(row.getByText("Decline Assignment")).toHaveCount(0);
-  const open = row.getByTestId(`my-schedule-open-game-${gameId}`); await expect(open).toHaveText("Open Game Hub");
+  const open = row.getByTestId(`my-schedule-open-game-${gameId}`); await expect(open).toHaveText("Open");
   for (const cell of await table.locator("th, td").all()) await expect(cell).toHaveCSS("text-align", "center");
   await open.click(); await expect(app.page.getByTestId("game-hub-decline-assignment")).toBeVisible();
 });
 
-test("Profile Crew Information uses three facts and hides eligibility/history only there", async ({ app }) => {
+test("Profile uses the full canonical Crew Card with identity eligibility and history modal", async ({ app }) => {
   await app.loginAsApprovedUmpire(); await app.page.evaluate(() => renderPage("profile"));
-  const facts = app.page.getByTestId("profile-credentials").locator(".profile-credential-grid > div");
-  await expect(facts).toHaveCount(3);
-  const tops = await facts.evaluateAll(elements => elements.map(element => Math.round(element.getBoundingClientRect().top)));
-  expect(new Set(tops).size).toBe(1);
-  await expect(app.page.getByTestId("profile-crew-card")).not.toContainText(/Age Eligibility|Official History|6U|8U|10U|12U/);
-  await expect(app.page.getByTestId("profile-credentials")).not.toContainText(/Age Eligibility|Official History/);
+  await expect(app.page.getByTestId("profile-crew-card-experience")).toContainText("Eligibility");
+  await expect(app.page.getByTestId("profile-crew-card-experience").getByTestId("crew-card-view-official-history")).toBeVisible();
   await app.page.evaluate(() => { authService.loginAsAdmin(); document.body.dataset.role = "admin"; renderPage("crew"); });
   await app.page.getByTestId("crew-roster-member").first().click();
-  await expect(app.page.getByTestId("crew-card-back")).toContainText("Age Eligibility");
+  await expect(app.page.getByTestId("crew-card-back")).toContainText("Eligibility");
   await expect(app.page.getByTestId("crew-card-back")).toContainText("Official History");
 });
 

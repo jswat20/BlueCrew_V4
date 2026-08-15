@@ -9,6 +9,7 @@ function refreshNavigationAuthorization() {
   }
 
   const authenticated = typeof loginService !== "undefined" && loginService.isLoggedIn();
+  const hostedMode = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   const logout = document.querySelector('[data-testid="nav-logout"]');
   const login = document.querySelector('[data-testid="nav-login"]');
   if (logout) logout.hidden = !authenticated;
@@ -21,6 +22,10 @@ function refreshNavigationAuthorization() {
       const crewOnly = link.dataset.crewOnly === "true";
       const isCrewRole = authorizationService.currentRole() === "umpire";
       if (page === "login") return;
+      if (page === "notifications" && hostedMode && !authenticated) {
+        link.hidden = true;
+        return;
+      }
       link.hidden = !authorizationService.canView(page) || (crewOnly && !isCrewRole);
     });
 

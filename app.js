@@ -22,8 +22,8 @@ const pages = {
     subtitle: "Assignments, Schedules, and Activity."
   },
   login: {
-    title: "Login",
-    subtitle: "Access your umpire portal."
+    title: "The Slate - Login",
+    subtitle: ""
   },
   "forgot-password": { title: "Forgot Password", subtitle: "Request a secure password reset link." },
   "password-recovery": { title: "Set New Password", subtitle: "Finish your secure password recovery." },
@@ -138,6 +138,7 @@ function initializeApp() {
   document.body.dataset.role = usesSupabaseAuth ? "umpire" : "admin";
 
   setupNavigation();
+  setupInstallHelper?.();
   setupRoleSwitcher();
 
   if (usesSupabaseAuth) {
@@ -186,6 +187,8 @@ function setupNavigation() {
       navigateTo(button.dataset.page);
     });
   });
+  document.querySelector("[data-testid='nav-logout']")
+    ?.addEventListener("click", logoutFromNavigation);
 }
 
 async function retrySharedHydration() {
@@ -412,6 +415,16 @@ window.addEventListener("popstate", event => {
 });
 
 function runPageSetup(page, context = {}) {
+  if (page === "login" && typeof setupLoginForm === "function") {
+    setupLoginForm();
+  }
+  if (["forgot-password", "password-recovery"].includes(page) && typeof setupAccountSecurityPage === "function") {
+    setupAccountSecurityPage(page);
+  }
+  if (page === "settings" && typeof setupSettingsPage === "function") {
+    setupSettingsPage();
+  }
+
   if (
     page === "operations-center" &&
     typeof window
@@ -466,7 +479,9 @@ function renderAdminView(page, context = {}) {
     "game-hub": typeof renderGameHub === "function" ? renderGameHub : null,
     "review-queue": typeof renderReviewQueue === "function" ? renderReviewQueue : null,
  
-    availability: typeof renderAvailability === "function" ? renderAvailability : null,
+    availability: typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+      ? () => placeholderPage("Availability", "Feature Coming Soon. Availability management will be available soon.")
+      : (typeof renderAvailability === "function" ? renderAvailability : null),
   };
 
   const renderer = renderers[page];
@@ -533,9 +548,9 @@ function renderUmpireView(page, context = {}) {
         : placeholderPage("My Claims", "My Claims is unavailable.");
 
     case "availability":
-      return typeof renderAvailability === "function"
-        ? renderAvailability(context)
-        : placeholderPage("Availability", "Availability is unavailable.");
+      return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
+        ? placeholderPage("Availability", "Feature Coming Soon. Availability management will be available soon.")
+        : (typeof renderAvailability === "function" ? renderAvailability(context) : placeholderPage("Availability", "Availability is unavailable."));
 
     default:
       return placeholderPage(

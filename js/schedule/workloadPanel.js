@@ -283,7 +283,7 @@ function openCrewCard(memberId) {
 
       <footer class="crew-profile-card-footer">
         <button type="button" class="button button-secondary" onclick="closeCrewCard()">Close</button>
-        <button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="editCrewFromCard('${escapeCrewOverviewJs(member.id)}')">Edit Crew Member</button>
+        <button type="button" class="button button-primary" data-testid="crew-card-edit" data-crew-id="${escapeCrewOverviewHtml(member.id)}">Edit Crew Member</button>
       </footer>
     </article>
   `;
@@ -322,10 +322,14 @@ function confirmCrewPhoneCall(phone) {
   }
 }
 
-function editCrewFromCard(memberId) {
+function editCrewFromCard(event, memberId) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (!openEditCrewDrawer(memberId)) return false;
   const dialog = document.getElementById("crew-card-dialog");
   if (dialog) {
     dialog.close();
   }
-  openEditCrewDrawer(memberId);
+  document.querySelector("#crew-drawer input:not([readonly])")?.focus();
+  return true;
 }

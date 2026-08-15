@@ -31,12 +31,12 @@ test.describe("My Schedule compact pilot presentation", () => {
     const gameId = await createAssignedGame(app);
     const table = app.page.getByTestId("my-schedule-table");
     const row = app.page.getByTestId(`my-schedule-row-${gameId}`);
-    await expect(row).toContainText("2099-01-15");
+    await expect(row).toContainText("Thursday, 1/15/99");
     await expect(row).toContainText("6:00 PM");
     await expect(row).toContainText("12U");
     await expect(row).toContainText("Schedule Complex");
     await expect(row).toContainText("Field 1");
-    await expect(row).toContainText("Clear · 70°F");
+    await expect(row.getByTestId(`my-schedule-position-${gameId}`)).toHaveText("U1");
     await expect(row).toContainText("Assigned");
     await expect(table.getByRole("columnheader", { name: "Arrival" })).toHaveCount(0);
     await expect(table.getByRole("columnheader", { name: "Checklist" })).toHaveCount(0);

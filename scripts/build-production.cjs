@@ -1,11 +1,25 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const crypto = require("node:crypto");
 
 const root = path.resolve(__dirname, "..");
 const output = path.join(root, "dist");
 const url = String(process.env.SUPABASE_URL || "").trim();
 const publishableKey = String(process.env.SUPABASE_PUBLISHABLE_KEY || "").trim();
 const projectRef = String(process.env.SUPABASE_PROJECT_REF || "").trim();
+const runtimeConfig =
+  `window.BLUECREW_RUNTIME_CONFIG = Object.freeze({"mode":"hosted"});\n` +
+  `window.BLUECREW_SUPABASE_CONFIG = Object.freeze(${JSON.stringify({ mode: "hosted", url, publishableKey })});\n`;
+// Include the application entry document so a corrected deployment always
+// changes the immutable runtime-config URL, even when Supabase values do not.
+// Browsers that cached a failed or stale config request can then recover on a
+// normal revisit without clearing site data.
+const runtimeConfigHash = crypto.createHash("sha256")
+  .update(runtimeConfig)
+  .update(fs.readFileSync(path.join(root, "index.html"), "utf8"))
+  .digest("hex")
+  .slice(0, 12);
+const runtimeConfigFile = `supabase.${runtimeConfigHash}.js`;
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -31,7 +45,7 @@ if (!/^[A-Za-z0-9._-]+$/.test(publishableKey)) {
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 
-for (const entry of ["index.html", "app.js", "styles.css", "assets", "components", "css", "data", "js"]) {
+for (const entry of ["index.html", "manifest.webmanifest", "app.js", "styles.css", "assets", "components", "css", "data", "js"]) {
   fs.cpSync(path.join(root, entry), path.join(output, entry), { recursive: true });
 }
 
@@ -58,26 +72,49 @@ for (const source of [
   const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   index = index.replace(new RegExp(`\\s*<script[^>]+src=["']${escaped}(?:\\?[^"']*)?["'][^>]*><\\/script>`, "g"), "");
 }
+index = index.replace(
+  /\s*<button[^>]+data-page=["']admin["'][^>]*>.*?<\/button>/,
+  ""
+);
+index = index.replace(
+  /config\/supabase(?:\.[a-f0-9]+)?\.js(?:\?[^"']*)?/,
+  `config/${runtimeConfigFile}`
+);
+
+// Query-string versions can be populated with an older body while a custom-domain
+// cache is converging on a new Pages deployment. Give interaction-critical scripts
+// content-addressed physical paths so a new HTML document can only request the
+// exact bytes it was built with.
+for (const source of ["components/crew.js", "js/schedule/workloadPanel.js", "js/ui/crewCard.js"]) {
+  const sourcePath = path.join(output, source);
+  const content = fs.readFileSync(sourcePath);
+  const fingerprint = crypto.createHash("sha256").update(content).digest("hex").slice(0, 12);
+  const fingerprintedSource = source.replace(/\.js$/, `.${fingerprint}.js`);
+  fs.copyFileSync(sourcePath, path.join(output, fingerprintedSource));
+  const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  index = index.replace(new RegExp(`${escaped}(?:\\?[^"']*)?`), `${fingerprintedSource}?v=${fingerprint}`);
+}
 fs.writeFileSync(indexPath, index, "utf8");
 
 fs.mkdirSync(path.join(output, "config"), { recursive: true });
 fs.writeFileSync(
-  path.join(output, "config", "supabase.js"),
-  `window.BLUECREW_RUNTIME_CONFIG = Object.freeze({"mode":"hosted"});\n` +
-    `window.BLUECREW_SUPABASE_CONFIG = Object.freeze(${JSON.stringify({ mode: "hosted", url, publishableKey })});\n`,
+  path.join(output, "config", runtimeConfigFile),
+  runtimeConfig,
   "utf8"
 );
 
 fs.writeFileSync(
   path.join(output, "_headers"),
   `/*\n` +
-    `  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ${url} wss://${new URL(url).host}; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests\n` +
+    `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ${url} wss://${new URL(url).host}; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests\n` +
     `  Strict-Transport-Security: max-age=31536000; includeSubDomains\n` +
     `  X-Content-Type-Options: nosniff\n` +
     `  X-Frame-Options: DENY\n` +
     `  Referrer-Policy: strict-origin-when-cross-origin\n` +
     `  Permissions-Policy: camera=(), microphone=(), geolocation=()\n` +
     `  Cache-Control: no-cache\n\n` +
+    `/config/*\n` +
+    `  Cache-Control: public, max-age=31536000, immutable\n\n` +
     `/assets/*\n` +
     `  Cache-Control: public, max-age=31536000, immutable\n`,
   "utf8"

@@ -2106,6 +2106,9 @@ const portalService = (() => {
       field: gameInformation.field,
       level: game.level,
       crewSize: game.crewSize || gameTypeService.getCrewSize(game),
+      filledPositions: getAssignments(game).filter(assignment =>
+        [AssignmentStatus.ASSIGNED, AssignmentStatus.LOCKED].includes(assignment.status)
+      ).length,
       homeTeam: game.homeTeam,
       awayTeam: game.awayTeam,
       matchup:
@@ -2143,9 +2146,9 @@ const portalService = (() => {
   }
 
   function sortByDateTime(a, b) {
-    return `${a.date} ${a.time}`.localeCompare(
-      `${b.date} ${b.time}`
-    );
+    const difference = dateTimeFormattingService.toSortableDateTime(a.date, a.time) -
+      dateTimeFormattingService.toSortableDateTime(b.date, b.time);
+    return difference || String(a.id || "").localeCompare(String(b.id || ""));
   }
 
   function getMyPendingClaims() {
@@ -2170,7 +2173,8 @@ const portalService = (() => {
             game,
             assignment
           }))
-      );
+      )
+      .sort((a, b) => sortByDateTime(a.game, b.game));
   }
 
   function getProfile() {

@@ -47,14 +47,13 @@ function renderAccounts(context = {}) {
         Review and manage umpire registrations.
       </p>
 
-      ${crewService.isSharedMode() ? `<section class="card account-invitation-card" data-testid="account-invitation-admin"><h3>Umpire Registration Invitation</h3><p class="muted">Create a one-use registration code. The umpire chooses their own Login Email and password; Contact Email is not changed.</p><button type="button" class="button button-secondary" data-testid="create-registration-invitation" onclick="createRegistrationInvitation()">Create One-Use Code</button><div id="registration-invitation-result" role="status" aria-live="polite"></div></section>` : ""}
 
 ${renderAccountFilters(selectedFilter)}
 ${renderRoleFilters()}
       ${
         selectedFilter === "all" ||
         selectedFilter === "pending"
-          ? renderPendingAccountsSection(pendingAccounts)
+          ? renderPendingAccountsSection(pendingAccounts, crewMembers)
           : ""
       }
 
@@ -173,7 +172,7 @@ function setAccountFilter(filter) {
   renderPage("accounts");
 }
 
-function renderPendingAccountsSection(pendingAccounts) {
+function renderPendingAccountsSection(pendingAccounts, crewMembers = []) {
   const hasSelection =
     selectedPendingAccountIds.size > 0;
 
@@ -226,7 +225,7 @@ function renderPendingAccountsSection(pendingAccounts) {
 
             <div data-testid="pending-accounts-list">
               ${pendingAccounts
-                .map(renderPendingAccountRow)
+                .map(account => renderPendingAccountRow(account, crewMembers))
                 .join("")}
             </div>
           `
@@ -337,8 +336,14 @@ function renderLinkedAccountsSection(
   `;
 }
 
-function renderPendingAccountRow(account) {
+function renderPendingAccountRow(account, crewMembers = []) {
   const accountId = String(account.id);
+  const displayName = String(
+    account.name ||
+    `${account.firstName || ""} ${account.lastName || ""}`.trim() ||
+    account.email ||
+    "Pending umpire"
+  );
   const isSelected =
     selectedPendingAccountIds.has(accountId);
 
@@ -362,43 +367,15 @@ function renderPendingAccountRow(account) {
 
       <div class="pending-account-details">
         <strong>
-          ${account.firstName} ${account.lastName}
+          ${displayName}
         </strong>
 
         <div>${account.email}</div>
-<div>
-
-  <label>
-
-    Role
-
-    <select
-      data-testid="account-role-${account.id}"
-      onchange="changePendingAccountRole(
-        '${account.id}',
-        this.value
-      )">
-
-      ${accountService.getRoles().map(role => `
-        <option
-          value="${role}"
-          ${
-            account.role === role
-              ? "selected"
-              : ""
-          }>
-          ${
-            role.charAt(0).toUpperCase() +
-            role.slice(1)
-          }
-        </option>
-      `).join("")}
-
-    </select>
-
-  </label>
-
-</div>
+        <div>${account.phone || "No phone provided"}</div>
+        <div data-testid="pending-account-birthdate-${account.id}">Birthdate: ${account.birthdate ? formatCrewCardDate(account.birthdate) : "Not recorded"}</div>
+        <div data-testid="pending-account-age-${account.id}">Age: ${accountService.deriveAge(account.birthdate) ?? "Not recorded"}</div>
+        <div data-testid="account-verification-${account.id}">Email: Verified</div>
+        <div data-testid="account-role-${account.id}">Role: Umpire</div>
         <small>
           Registered ${formatAccountDate(account.createdAt)}
         </small>
@@ -513,7 +490,7 @@ function renderApprovedAccount(account, crewMembers) {
 
   const resetAction = authService.isAdmin?.() ? `<button type="button" class="button button-secondary" data-testid="send-password-reset-${account.id}" onclick="sendAdministrativePasswordReset('${account.id}')">Send Password Reset</button>` : "";
   if (account.role === "umpire" && typeof renderCrewCardFront === "function") return `<div class="account-security-admin-row">${renderCrewCardFront(account, { testId: `approved-account-${account.id}`, className: "account-crew-card", roleTestId: `account-role-display-${account.id}` })}${resetAction}</div>`;
-  return `<div class="card" data-testid="approved-account-${account.id}"><strong>${account.firstName} ${account.lastName}</strong><div>Login Email: ${account.email}</div><div data-testid="account-role-display-${account.id}">Role: ${formatAccountRole(account.role)}</div><small>${crewMember ? `Linked to ${crewMember.firstName} ${crewMember.lastName}` : "Not linked to a crew member"}</small>${resetAction}</div>`;
+  return `<div class="card" data-testid="approved-account-${account.id}"><strong>${account.firstName} ${account.lastName}</strong><div data-testid="account-personnel-id-${account.id}">Personnel ID: ${account.personnelId || "Not issued"}</div><div>Login Email: ${account.email}</div><div data-testid="account-role-display-${account.id}">Role: ${formatAccountRole(account.role)}</div><small>${crewMember ? `Linked to ${crewMember.firstName} ${crewMember.lastName}` : "Not linked to a crew member"}</small>${resetAction}</div>`;
 }
 
 async function createRegistrationInvitation() {
@@ -545,12 +522,9 @@ function changePendingAccountRole(accountId, role) {
   }
 }
 
-function approvePendingAccount(accountId) {
-  const result =
-    accountService.approveAccount(accountId);
-
-  alert(result.message);
-
+async function approvePendingAccount(accountId) {
+  const result = await accountService.approveAccount(accountId);
+  result.success ? toastService?.success?.(result.message) : toastService?.error?.(result.message);
   renderPage("accounts");
 }
 

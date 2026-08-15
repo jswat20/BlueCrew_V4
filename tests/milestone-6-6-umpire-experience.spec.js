@@ -31,6 +31,13 @@ test.describe("Milestone 6.6 umpire experience polish", () => {
     await seedAssignedUmpireGame(app);
     await app.page.evaluate(() => {
       notificationService.create({ title: "Schedule Updated", message: "Review your assignment.", audience: "umpire" });
+      const crewId = authService.currentCrewId();
+      const account = loginService.getCurrentAccount();
+      const secondGame = gameService.create({ date: "2099-08-13", time: "19:30", level: "6U", locationComplex: "North Complex", locationField: "Field 12", field: "Field 12", homeTeam: "Home Two", awayTeam: "Visitors Two", gameType: "single" }).data;
+      authService.loginAsAdmin();
+      const secondAssignment = assignmentService.getAssignments(secondGame)[0];
+      assignmentService.assignToAssignment(secondGame.id, secondAssignment.id, crewId);
+      authService.useAuthenticatedAccount(account);
       renderPage("dashboard");
     });
 
@@ -44,6 +51,10 @@ test.describe("Milestone 6.6 umpire experience polish", () => {
     await expect(upcoming).toContainText("12U");
     await expect(upcoming).toContainText("Lake Shore Athletic Complex");
     await expect(upcoming.locator(".crew-command-game-row").first()).toHaveCSS("min-height", "48px");
+    expect(await upcoming.locator(".crew-command-game-row b").evaluateAll(elements => elements.every(element => element.scrollWidth <= element.clientWidth + 1))).toBe(true);
+    const columnPositions = await upcoming.locator(".crew-command-game-row").evaluateAll(rows => rows.map(row => [...row.children].map(cell => Math.round(cell.getBoundingClientRect().left))));
+    expect(columnPositions.length).toBeGreaterThan(1);
+    expect(columnPositions.every(positions => positions.every((left, index) => left === columnPositions[0][index]))).toBe(true);
     await expect(app.page.getByTestId("crew-dashboard-notifications").locator(".shared-notification-row").first()).toBeVisible();
   });
 
@@ -70,6 +81,7 @@ test.describe("Milestone 6.6 umpire experience polish", () => {
     await expect(row).not.toContainText("Bears @ Hawks");
     await expect(row.getByTestId(`claim-game-${gameId}`)).toHaveClass(/button-primary/);
     expect(await row.evaluate(element => element.getBoundingClientRect().height)).toBeLessThanOrEqual(55);
+    await expect(row.locator("td").first()).toHaveCSS("border-bottom-style", "solid");
   });
 
   test("My Schedule is compact and opens the retained 6.2 Game Hub", async ({ app }) => {
@@ -81,8 +93,9 @@ test.describe("Milestone 6.6 umpire experience polish", () => {
     await expect(schedule.getByRole("columnheader", { name: "Checklist" })).toHaveCount(0);
     const row = app.page.getByTestId(`my-schedule-row-${gameId}`);
     await expect(row).toContainText("6:00 PM");
-    await expect(row).toContainText("Partly cloudy · 72°F");
+    await expect(row).toContainText(/Plate|U1|Solo/);
     await expect(row).toContainText("Lake Shore Athletic Complex");
+    await expect(row.locator("td").first()).toHaveCSS("border-bottom-style", "solid");
     await row.getByTestId(`my-schedule-open-game-${gameId}`).click();
     const summary = app.page.getByTestId("game-hub-summary");
     await expect(summary).toContainText("Assigned");
@@ -92,12 +105,14 @@ test.describe("Milestone 6.6 umpire experience polish", () => {
     await expect(summary.getByTestId("game-hub-decline-assignment")).toBeVisible();
   });
 
-  test("Profile retains its workflow with aligned shared buttons", async ({ app }) => {
+  test("Profile opens the canonical Crew Card with aligned edit controls", async ({ app }) => {
     await app.loginAsApprovedUmpire();
     await app.page.evaluate(() => renderPage("profile"));
-    await expect(app.page.getByTestId("profile-form")).toBeVisible();
+    await expect(app.page.getByTestId("profile-crew-card-experience")).toBeVisible();
+    await app.page.getByTestId("profile-card-back").click();
+    await app.page.getByTestId("profile-edit-crew-card").click();
     await expect(app.page.getByTestId("profile-save")).toHaveClass(/button-primary/);
-    await expect(app.page.getByTestId("profile-cancel")).toHaveClass(/button-secondary/);
+    await expect(app.page.getByRole("button", { name:"Cancel" }).first()).toHaveClass(/button-secondary/);
     await expect(app.page.getByTestId("profile-communication")).toBeVisible();
   });
 

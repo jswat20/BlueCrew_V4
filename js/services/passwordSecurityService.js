@@ -61,7 +61,11 @@ const passwordSecurityService = (() => {
       if (profileId) body.profileId = String(profileId);
       else body.crewMemberId = String(crewMemberId);
       const { data, error } = await client.functions.invoke("send-account-password-reset", { body });
-      if (error) return result(false, error.message || "Password reset could not be sent.");
+      if (error) {
+        let functionError = null;
+        try { functionError = await error.context?.json?.(); } catch (_) { functionError = null; }
+        return result(false, functionError?.error || functionError?.message || error.message || "Password reset could not be sent.");
+      }
       return result(true, data?.message || GENERIC_RESET_MESSAGE);
     } catch (_) { return result(false, "Password reset could not be sent."); }
   }

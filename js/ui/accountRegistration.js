@@ -18,17 +18,6 @@ function renderAccountRegistration() {
           >
         </div>
 
-        ${usesSupabaseAuth ? `
-        <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="account-password" data-testid="account-password" autocomplete="new-password">
-        </div>
-
-        <div class="form-group">
-          <label>Registration Code</label>
-          <input type="text" id="account-invitation-code" data-testid="account-invitation-code" autocomplete="off">
-        </div>` : ""}
-
         <div class="form-group">
           <label>Last Name</label>
           <input
@@ -56,8 +45,23 @@ function renderAccountRegistration() {
           >
         </div>
 
+        <div class="form-group">
+          <label>Date of Birth</label>
+          <input type="date" id="account-birthdate" data-testid="account-birthdate" required>
+          <small>You must be at least 13 years old to register.</small>
+        </div>
+
+        ${usesSupabaseAuth ? `
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="account-password" data-testid="account-password" autocomplete="new-password">
+        </div>
+
+        ` : ""}
+
         <div class="form-actions">
           <button
+            type="button"
             class="primary"
             data-testid="create-account-button"
             onclick="submitAccountRegistration()">
@@ -90,6 +94,20 @@ async function submitAccountRegistration() {
   const phone =
     document.getElementById("account-phone").value.trim();
 
+  const birthdate = document.getElementById("account-birthdate").value;
+  if (!birthdate) {
+    const message = document.getElementById("account-registration-message");
+    message.textContent = "Enter your date of birth.";
+    message.className = "error";
+    return;
+  }
+  if (!accountService.isAtLeastAge(birthdate, 13)) {
+    const message = document.getElementById("account-registration-message");
+    message.textContent = "You must be at least 13 years old to register.";
+    message.className = "error";
+    return;
+  }
+
   const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   const result = usesSupabaseAuth
     ? await accountService.registerAuthenticatedAccount({
@@ -97,10 +115,10 @@ async function submitAccountRegistration() {
         lastName,
         email,
         phone,
-        password: document.getElementById("account-password").value,
-        invitationCode: document.getElementById("account-invitation-code").value.trim()
+        birthdate,
+        password: document.getElementById("account-password").value
       })
-    : accountService.createAccount({ firstName, lastName, email, phone });
+    : accountService.createAccount({ firstName, lastName, email, phone, birthdate });
 
   const message =
     document.getElementById("account-registration-message");
@@ -118,8 +136,8 @@ async function submitAccountRegistration() {
   document.getElementById("account-last-name").value = "";
   document.getElementById("account-email").value = "";
   document.getElementById("account-phone").value = "";
-  if (usesSupabaseAuth && !result.data?.verificationRequired) {
+  document.getElementById("account-birthdate").value = "";
+  if (usesSupabaseAuth) {
     document.getElementById("account-password").value = "";
-    document.getElementById("account-invitation-code").value = "";
   }
 }
