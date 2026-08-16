@@ -56,6 +56,14 @@ test("newly registered and approved hosted umpire receives persistent Profile se
   await expect(page.getByTestId("profile-front-eligibility").locator(".settings-pill")).toHaveText(["12U"]);
   await expect(page.locator(".unified-profile-card .crew-credential-face-front")).toBeVisible();
   await expect(page.getByTestId("crew-card-back")).toHaveAttribute("aria-hidden", "true");
+  const frontDimensions = await page.locator(".profile-card-stage").evaluate(node => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height }));
+  expect(frontDimensions.width / frontDimensions.height).toBeCloseTo(5 / 7, 2);
+  await expect(page.getByTestId("profile-portrait-front").locator('img[src="assets/the-slate-logo.png"]')).toHaveCount(1);
+  await expect(page.getByTestId("profile-portrait-front")).not.toContainText("THE SLATE");
+  await expect(page.getByTestId("profile-card-role")).toHaveText("UMPIRE");
+  await expect(page.getByTestId("profile-card-name-block")).toContainText("New Umpire");
+  await expect(page.getByTestId("profile-card-crew-id-inset")).toContainText("Crew ID");
+  await expect(page.getByTestId("profile-card-crew-id-inset")).toContainText("CREW-NEW-1");
   expect(await page.locator(".unified-profile-card").evaluate(card => {
     const front = card.querySelector(".crew-credential-face-front");
     const bounds = front.getBoundingClientRect();
@@ -63,8 +71,13 @@ test("newly registered and approved hosted umpire receives persistent Profile se
   })).toBe(true);
   await page.getByTestId("profile-card-back").click();
   await expect(page.getByTestId("profile-card-flipper")).toHaveClass(/is-flipped/);
-  await expect(page.locator(".unified-profile-card .crew-credential-face-front")).not.toBeVisible();
+  await expect(page.locator(".unified-profile-card .crew-credential-face-front")).toHaveAttribute("aria-hidden", "true");
   await expect(page.getByTestId("crew-card-back")).toBeVisible();
+  await expect.poll(() => page.locator(".profile-card-stage").evaluate(node => node.getBoundingClientRect().width / node.getBoundingClientRect().height)).toBeCloseTo(7 / 5, 2);
+  const backDimensions = await page.locator(".profile-card-stage").evaluate(node => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height }));
+  expect(frontDimensions.width / frontDimensions.height).toBeCloseTo(backDimensions.height / backDimensions.width, 2);
+  await expect(page.getByTestId("crew-card-back")).toContainText("Contact Information");
+  await expect(page.getByTestId("crew-card-view-official-history")).toBeVisible();
   await expect(page.getByTestId("profile-edit-crew-card")).toBeVisible();
   await page.getByTestId("profile-edit-crew-card").click();
   await expect(page.getByTestId("crew-card-self-edit-mode")).toBeVisible();
@@ -106,9 +119,25 @@ test("newly approved hosted umpire starts on the front face at mobile width", as
 
   await expect(page.getByTestId("profile-card-flipper")).not.toHaveClass(/is-flipped/);
   await expect(page.locator(".unified-profile-card .crew-credential-face-front")).toBeVisible();
-  await expect(page.getByTestId("crew-card-back")).toBeHidden();
+  await expect(page.getByTestId("crew-card-back")).toHaveAttribute("aria-hidden", "true");
   await expect(page.getByTestId("profile-card-back")).toBeVisible();
+  expect(await page.locator(".profile-card-stage").evaluate(node => node.getBoundingClientRect().width / node.getBoundingClientRect().height)).toBeCloseTo(5 / 7, 2);
   await page.getByTestId("profile-card-back").click();
   await expect(page.getByTestId("crew-card-back")).toBeVisible();
+  await expect.poll(() => page.locator(".profile-card-stage").evaluate(node => node.getBoundingClientRect().width / node.getBoundingClientRect().height)).toBeCloseTo(7 / 5, 2);
   await expect(page.getByTestId("profile-edit-crew-card")).toBeVisible();
+});
+
+test("Profile card respects reduced motion while preserving front and back state", async ({ supabaseAuthApp }) => {
+  const { page } = supabaseAuthApp;
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.evaluate(async () => {
+    await loginService.loginWithPassword("new.umpire@example.com", "password1234");
+    renderPage("profile");
+  });
+  expect(await page.locator(".profile-card-orientation").evaluate(node => getComputedStyle(node).transitionDuration)).toBe("0s");
+  await page.getByTestId("profile-card-back").click();
+  await expect(page.getByTestId("profile-card-flipper")).toHaveClass(/is-flipped/);
+  await page.getByTestId("profile-card-front").click();
+  await expect(page.getByTestId("profile-card-flipper")).not.toHaveClass(/is-flipped/);
 });
