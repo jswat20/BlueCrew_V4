@@ -83,13 +83,13 @@ test("profile and crew controls remain reachable on narrow screens", async ({ ap
 test("pilot Settings preserves controls inside clearer shared cards", async ({ app }) => {
   await app.page.evaluate(() => { authService.loginAsAdmin(); document.body.dataset.role = "admin"; renderPage("settings"); });
   const settingsPage = app.page.getByTestId("settings-page");
-  await expect(settingsPage.getByRole("heading", { name: "Settings" })).toBeVisible();
-  await expect(settingsPage.getByTestId("settings-locations")).toContainText("Location Complexes & Fields");
-  await expect(settingsPage.getByTestId("add-location-complex")).toHaveClass(/button-secondary/);
-  await expect(settingsPage.locator(".settings-card")).toHaveCount(4);
-  await expect(settingsPage).toContainText("Time Slots");
+await expect(settingsPage.getByRole("heading", { name: "Settings" })).toBeVisible();
+await expect(settingsPage.getByTestId("settings-locations")).toContainText("Location Complexes & Fields");
+await expect(settingsPage.getByTestId("add-location-complex")).toHaveClass(/button-secondary/);
+await expect(settingsPage.getByTestId("settings-seasons")).toContainText("Seasons");
+await expect(settingsPage.locator(".settings-card")).toHaveCount(5);
+await expect(settingsPage).toContainText("Time Slots");
 });
-
 test("crew, profile, and settings polish has no automated WCAG A or AA violations", async ({ app }) => {
   await app.page.evaluate(() => { authService.loginAsAdmin(); document.body.dataset.role = "admin"; renderPage("settings"); });
   const result = await new AxeBuilder({ page: app.page }).include("#app-content").withTags(["wcag2a", "wcag2aa"]).analyze();

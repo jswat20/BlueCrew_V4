@@ -10,6 +10,7 @@ const REPOSITORY_STORAGE_KEYS = Object.freeze({
   locations: "bluecrew_location_catalog",
   notifications: "bluecrew_notifications",
   reportPresets: "bluecrew_report_presets",
+  seasons: "bluecrew_seasons",
   session: "bluecrew_session"
 });
 

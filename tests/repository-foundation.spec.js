@@ -78,6 +78,7 @@ test("all compatibility storage keys remain unchanged", async ({ page }) => {
     locations: "bluecrew_location_catalog",
     notifications: "bluecrew_notifications",
     reportPresets: "bluecrew_report_presets",
+    seasons: "bluecrew_seasons",
     session: "bluecrew_session"
   });
 });

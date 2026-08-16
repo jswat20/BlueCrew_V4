@@ -23,6 +23,7 @@ export const test = base.extend({
       availability: [],
       locations: [],
       fields: [],
+      seasons: [],
       games: [],
       assignments: [],
       claims: [],
@@ -85,6 +86,7 @@ export const test = base.extend({
             availability: settings.availability,
             locations: settings.locations,
             fields: settings.fields,
+            seasons: settings.seasons,
             games: settings.games,
             game_assignments: settings.assignments,
             assignment_claims: settings.claims,
@@ -207,6 +209,31 @@ export const test = base.extend({
         async rpc(name, args) {
           calls.push({ operation: "rpc", name, args });
           if (settings.failedRpc === name) return { data: null, error: { message: "Transactional write failed" } };
+          if (name === "create_season") {
+            if (settings.profile.role !== "administrator") return { data: null, error: { message: "administrator_required" } };
+            if (args.p_active) settings.seasons.forEach(season => { season.active = false; });
+            const row = {
+              id: `season-${settings.seasons.length + 1}`,
+              organization_id: settings.profile.organization_id,
+              legacy_season_id: null,
+              name: args.p_name,
+              starts_on: args.p_starts_on,
+              ends_on: args.p_ends_on,
+              active: Boolean(args.p_active),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+            settings.seasons.push(row);
+            return { data: row, error: null };
+          }
+          if (name === "activate_season") {
+            if (settings.profile.role !== "administrator") return { data: null, error: { message: "administrator_required" } };
+            const target = settings.seasons.find(season => String(season.id) === String(args.p_season_id));
+            if (!target) return { data: null, error: { message: "season_not_found" } };
+            settings.seasons.forEach(season => { season.active = String(season.id) === String(target.id); });
+            target.updated_at = new Date().toISOString();
+            return { data: target, error: null };
+          }
           if (name === "list_crew_identity_diagnostics") return { data: settings.identityDiagnostics, error: null };
           if (name === "list_linkable_umpire_profiles") return { data: settings.linkableProfiles, error: null };
           if (name === "list_manageable_accounts") {
