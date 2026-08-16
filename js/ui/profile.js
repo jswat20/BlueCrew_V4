@@ -47,14 +47,15 @@ function renderProfile() {
 function renderUnifiedProfileExperience(profile) {
   const account = accountService.getById(profile.id) || profile;
   const cardModel = getCrewCardModel(account);
-  const frontFace = renderCrewCredentialFrontFace(cardModel, { showEligibility: true, showStatus: false }).replace("<section class=\"crew-credential-face crew-credential-face-front\"", `<section class="crew-credential-face crew-credential-face-front" ${profileCardShowingBack ? 'aria-hidden="true" inert' : ''}`);
-  const backFace = renderCrewCredentialBackFace(cardModel).replace("<section class=\"crew-credential-face crew-credential-face-back\"", `<section class="crew-credential-face crew-credential-face-back" ${profileCardShowingBack ? '' : 'aria-hidden="true" inert'}`);
+  const frontFace = renderCrewCredentialFrontFace(cardModel, { profileDesign: true, hidden: profileCardShowingBack });
+  const backActions = `<button type="button" class="button button-secondary" data-testid="profile-card-front" onclick="showProfileCardSide(false)">Back to Card Front</button><button type="button" class="button button-primary" data-testid="profile-edit-crew-card" onclick="openOwnCrewCardEditMode()">Edit My Information</button>`;
+  const backFace = renderCrewCredentialBackFace(cardModel, { profileDesign: true, hidden: !profileCardShowingBack, actions: backActions });
   const preferences = profile.communicationPreferences || accountService.getDefaultCommunicationPreferences();
   return `<section class="page-section unified-profile-page" data-testid="profile">
     <div class="section-header"><div><h2>My Crew Card</h2><p>View and maintain your authorized contact and emergency information.</p></div></div>
     ${profileFormMessage ? `<div class="success-message" data-testid="profile-success" role="status" aria-live="polite" tabindex="-1">${escapeProfileHtml(profileFormMessage)}</div>` : ""}
     ${profileFormError ? `<div class="validation-message" data-testid="profile-error" role="alert">${escapeProfileHtml(profileFormError)}</div>` : ""}
-    <div class="unified-profile-card profile-baseball-card" data-testid="profile-crew-card-experience"><div class="crew-credential-flipper ${profileCardShowingBack ? "is-flipped" : ""}" data-testid="profile-card-flipper">${frontFace}${backFace}</div><div class="unified-profile-card-actions">${profileCardShowingBack ? `<button type="button" class="button button-secondary" data-testid="profile-card-front" onclick="showProfileCardSide(false)">Back to Card Front</button><button type="button" class="button button-primary" data-testid="profile-edit-crew-card" onclick="openOwnCrewCardEditMode()">Edit My Information</button>` : `<button type="button" class="button button-primary" data-testid="profile-card-back" onclick="showProfileCardSide(true)">View My Information</button>`}</div></div>
+    <div class="unified-profile-card profile-baseball-card ${profileCardShowingBack ? "is-back" : "is-front"}" data-testid="profile-crew-card-experience"><div class="profile-card-stage"><div class="profile-card-orientation"><div class="crew-credential-flipper ${profileCardShowingBack ? "is-flipped" : ""}" data-testid="profile-card-flipper">${frontFace}${backFace}</div></div></div><div class="unified-profile-card-actions"><button type="button" class="button button-primary" data-testid="profile-card-back" onclick="showProfileCardSide(true)">View My Information</button></div></div>
     <section class="settings-section unified-profile-support" id="profile-communication" data-testid="profile-communication"><div class="section-header"><div><h3>Communication</h3><p class="muted">Choose which in-app updates appear in your Notification Center.</p></div></div><div class="settings-options" data-testid="communication-options">${COMMUNICATION_PROFILE_OPTIONS.map(option => renderCommunicationProfileOption(option, preferences)).join("")}</div></section>
     <section class="settings-section unified-profile-support profile-account-security" data-testid="profile-account-security" aria-labelledby="profile-account-security-title"><div class="profile-security-heading"><h3 id="profile-account-security-title">Account Security</h3><p>Manage the password for your verified login identity</p></div><div class="profile-security-actions"><dl><dt>Login Email:</dt><dd data-testid="profile-login-email">${escapeProfileHtml(profile.email)}</dd></dl><button type="button" class="button button-secondary" data-testid="profile-change-password" onclick="openChangePasswordDialog()">Change Password</button></div></section>
   </section>`;
@@ -62,7 +63,21 @@ function renderUnifiedProfileExperience(profile) {
 
 function showProfileCardSide(showBack) {
   profileCardShowingBack = showBack === true;
-  renderPage("profile");
+  const card = document.querySelector('[data-testid="profile-crew-card-experience"]');
+  const flipper = card?.querySelector('[data-testid="profile-card-flipper"]');
+  const front = card?.querySelector(".crew-credential-face-front");
+  const back = card?.querySelector(".crew-credential-face-back");
+  if (!card || !flipper || !front || !back) {
+    renderPage("profile");
+    return;
+  }
+  card.classList.toggle("is-back", profileCardShowingBack);
+  card.classList.toggle("is-front", !profileCardShowingBack);
+  flipper.classList.toggle("is-flipped", profileCardShowingBack);
+  front.toggleAttribute("inert", profileCardShowingBack);
+  front.setAttribute("aria-hidden", String(profileCardShowingBack));
+  back.toggleAttribute("inert", !profileCardShowingBack);
+  back.setAttribute("aria-hidden", String(!profileCardShowingBack));
   focusElementWhenReady(showBack ? '[data-testid="profile-card-front"]' : '[data-testid="profile-card-back"]');
 }
 

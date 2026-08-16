@@ -143,12 +143,15 @@ test.describe("Reusable Crew Card", () => {
       await page.setViewportSize({ width, height: 900 });
       const card = page.getByTestId("profile-crew-card-experience");
       await expect(card.getByTestId("crew-card-back")).toBeVisible();
-      expect(await card.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+      expect(await card.locator(".profile-card-stage").evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return rect.left >= 0 && rect.right <= window.innerWidth;
+      })).toBe(true);
       await expect(card.getByText(/Extremely Long Municipal/)).toBeVisible();
     }
   });
 
-  test("profile back groups photo history and centered identity while hiding login internals", async ({ page }) => {
+  test("profile back groups approved history, workload, eligibility, and contact sections while hiding login internals", async ({ page }) => {
     const seeded = await seedLinkedCrew(page);
     await page.evaluate(async accountId => {
       const account = accountService.getById(accountId);
@@ -156,21 +159,16 @@ test.describe("Reusable Crew Card", () => {
       loginService.login(account.email); authService.loginAsCrew(account.crewId); document.body.dataset.role = "umpire"; renderPage("profile"); showProfileCardSide(true);
     }, seeded.accountId);
     const back = page.getByTestId("crew-card-back");
-    const photoColumn = back.locator(".crew-credential-photo-column");
-    await expect(photoColumn.locator(".crew-credential-photo")).toBeVisible();
-    await expect(photoColumn.getByTestId("crew-card-view-official-history")).toBeVisible();
-    await expect(photoColumn).toContainText("2 Seasons");
-    const identity = back.locator(".crew-credential-identity-details");
-    await expect(identity.locator("h3")).toHaveText("Baseball Umpire");
-    await expect(identity.locator("h2")).toHaveText(/\S+ \S+/);
-    expect(await identity.locator("h2").evaluate(element => element.getBoundingClientRect().height / parseFloat(getComputedStyle(element).lineHeight))).toBeLessThan(1.2);
-    await expect(identity).toContainText("Games Today");
-    await expect(identity).toContainText("Season Total");
-    await expect(identity).not.toContainText("Official Seasons");
+    const summary = back.locator(".profile-card-back-summary");
+    await expect(back.locator(".crew-credential-photo")).toHaveCount(0);
+    await expect(summary.getByTestId("crew-card-view-official-history")).toBeVisible();
+    await expect(summary).toContainText("2 Seasons");
+    await expect(summary).toContainText("Games Today");
+    await expect(summary).toContainText("Season Total");
     const eligibility = back.getByTestId("crew-card-identity-eligibility");
     await expect(eligibility.locator(".settings-pill")).toHaveText(["6U", "8U", "10U", "JR", "SR"]);
-    expect(await eligibility.evaluate((element, detailsElement) => detailsElement.contains(element), await identity.elementHandle())).toBe(true);
-    const centeredValues = await identity.locator(".crew-credential-age > div").evaluateAll(elements => elements.every(element => getComputedStyle(element).textAlign === "center"));
+    expect(await eligibility.evaluate((element, summaryElement) => summaryElement.contains(element), await summary.elementHandle())).toBe(true);
+    const centeredValues = await summary.locator(".crew-credential-age > div").evaluateAll(elements => elements.every(element => getComputedStyle(element).textAlign === "center"));
     expect(centeredValues).toBe(true);
     await expect(back).not.toContainText("Login Identity");
     await expect(back).not.toContainText("Login Email");

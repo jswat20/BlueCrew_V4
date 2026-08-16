@@ -12,13 +12,13 @@ test.describe("Unified Crew Card profile self-service", () => {
     });
   });
 
-  async function edit(page) { const reveal = page.getByTestId("profile-card-back"); if (await reveal.count()) await reveal.click(); await page.getByTestId("profile-edit-crew-card").click(); await expect(page.getByTestId("crew-card-self-edit-mode")).toBeVisible(); }
+  async function edit(page) { const reveal = page.getByTestId("profile-card-back"); if (await reveal.isVisible()) await reveal.click(); await page.getByTestId("profile-edit-crew-card").click(); await expect(page.getByTestId("crew-card-self-edit-mode")).toBeVisible(); }
 
   test("Profile opens the canonical own Crew Card with protected facts", async ({ page }) => {
     await expect(page.getByTestId("profile-crew-card-experience")).toBeVisible();
+    await expect(page.getByTestId("profile-card-name-block")).toContainText("Mike Johnson");
     await expect(page.getByTestId("profile-card-back")).toHaveText("View My Information");
     await page.getByTestId("profile-card-back").click();
-    await expect(page.getByTestId("crew-card-back")).toContainText("Mike Johnson");
     await expect(page.getByTestId("crew-card-back")).toContainText("mike.johnson@example.com");
     await expect(page.getByTestId("crew-card-back")).not.toContainText("profile@test.com");
     await expect(page.getByTestId("crew-card-back")).toContainText("Pat Umpire");

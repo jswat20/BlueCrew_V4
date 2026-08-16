@@ -87,29 +87,28 @@ test.describe("Unified Crew Card umpire security and responsiveness",()=>{
     const {page}=supabaseAuthApp; expect((await page.evaluate(()=>loginService.loginWithPassword("login@unified.test","password"))).success).toBe(true);
     for(const width of [1440,1280,1024,768,430,390]){
       await page.setViewportSize({width,height:900});
-      await page.evaluate(()=>renderPage("profile"));
+      await page.evaluate(()=>{resetProfileCardSide();renderPage("profile");});
       const card=page.getByTestId("profile-crew-card-experience");
       await expect(card).toBeVisible();
       expect(await card.evaluate(n=>n.scrollWidth<=n.clientWidth+1)).toBe(true);
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
+      expect(await card.locator(".profile-card-stage").evaluate(n=>n.getBoundingClientRect().width/n.getBoundingClientRect().height)).toBeCloseTo(5/7,2);
+      await page.getByTestId("profile-card-back").click();
+      await expect.poll(()=>card.locator(".profile-card-stage").evaluate(n=>n.getBoundingClientRect().width/n.getBoundingClientRect().height)).toBeCloseTo(7/5,2);
       if(width>=1280){
         const geometry=await card.evaluate(node=>{
           const face=node.querySelector(".crew-credential-face-back");
-          const identity=node.querySelector(".crew-credential-identity-panel");
-          const name=identity.querySelector("h2");
+          const summary=node.querySelector(".profile-card-back-summary");
           const age=node.querySelector(".crew-credential-age");
           const contact=node.querySelector(".crew-credential-contact");
           const rect=element=>element.getBoundingClientRect();
-          return {card:rect(node).width,face:rect(face).width,identity:rect(identity).width,nameWidth:rect(name).width,nameHeight:rect(name).height,nameLineHeight:parseFloat(getComputedStyle(name).lineHeight),ageWidth:rect(age).width,contactWidth:rect(contact).width};
+          return {card:rect(node).width,face:rect(face).width,summary:rect(summary).width,ageWidth:rect(age).width,contactWidth:rect(contact).width};
         });
-        expect(geometry.identity).toBeGreaterThanOrEqual(400);
-        expect(geometry.nameWidth).toBeGreaterThanOrEqual(200);
-        expect(geometry.nameHeight).toBeLessThanOrEqual(geometry.nameLineHeight*2.2);
+        expect(geometry.summary).toBeGreaterThanOrEqual(245);
         expect(geometry.ageWidth).toBeGreaterThanOrEqual(220);
         expect(geometry.contactWidth).toBeGreaterThanOrEqual(340);
-        expect(geometry.face).toBeGreaterThanOrEqual(geometry.card-2);
+        expect(geometry.face).toBeGreaterThanOrEqual(850);
       }
-      const reveal=page.getByTestId("profile-card-back"); if(await reveal.count()) await reveal.click();
       await page.getByTestId("profile-edit-crew-card").click();
       await expect(page.getByTestId("profile-save")).toBeVisible();
       expect(await page.getByTestId("crew-card-dialog").evaluate(n=>n.scrollWidth<=n.clientWidth+1)).toBe(true);

@@ -31,7 +31,7 @@ function getCrewCardModel(crewOrId) {
     firstName,
     lastName,
     fullName: `${firstName} ${lastName}`.trim() || "Unnamed Crew Member",
-    role: account?.role === "assigner" ? "Assigner" : "Baseball Umpire",
+    role: account?.role === "assigner" ? "Assigner" : "Umpire",
     status: linkedCrew?.active === false || account?.status === "rejected" ? "Inactive" : account?.status === "pending" ? "Pending" : "Active",
     email: linkedCrew?.email || "",
     loginEmail: linkedCrew?.loginEmail || (identityStatus === "linked" ? account?.email || "" : ""),
@@ -84,7 +84,7 @@ function renderCrewCardFront(crewMember, options = {}) {
   const testId = options.testId || "crew-roster-member";
   return `<button type="button" class="crew-credential-front ${options.className || ""}" data-testid="${escapeCrewCardHtml(testId)}" data-crew-id="${escapeCrewCardHtml(model.crewRecordId)}" data-crew-active="${model.status === "Active"}" data-crew-search="${escapeCrewCardHtml(`${model.fullName} ${model.levels.join(" ")}`.toLowerCase())}" onclick="openCrewCredentialCard('${escapeCrewCardHtml(model.crewRecordId || model.accountId)}')" aria-label="Open Crew Card for ${escapeCrewCardHtml(model.fullName)}">
     <span class="crew-credential-front-main"><strong title="${escapeCrewCardHtml(model.fullName)}">${escapeCrewCardHtml(model.fullName)}</strong><span class="crew-credential-contact-summary">${model.email ? `<span title="${escapeCrewCardHtml(model.email)}">${escapeCrewCardHtml(model.email)}</span>` : ""}${model.phone ? `<span>${escapeCrewCardHtml(model.phone)}</span>` : ""}${!model.email && !model.phone ? "No contact recorded" : ""}</span>${options.hideLevels ? "" : `<span class="crew-credential-levels">${model.levels.map(level => `<i class="settings-pill">${escapeCrewCardHtml(formatCrewCardLevel(level))}</i>`).join("")}</span>`}</span>
-    ${options.roleTestId ? `<span class="visually-hidden" data-testid="${escapeCrewCardHtml(options.roleTestId)}">Role: ${escapeCrewCardHtml(model.role === "Baseball Umpire" ? "Umpire" : model.role)}</span>` : ""}
+    ${options.roleTestId ? `<span class="visually-hidden" data-testid="${escapeCrewCardHtml(options.roleTestId)}">Role: ${escapeCrewCardHtml(model.role)}</span>` : ""}
   </button>`;
 }
 
@@ -95,6 +95,20 @@ function formatCrewCardDate(value) {
 }
 
 function renderCrewCredentialFrontFace(model, options = {}) {
+  if (options.profileDesign) {
+    return `<section class="crew-credential-face crew-credential-face-front profile-crew-card-front" data-testid="profile-portrait-front"${options.hidden ? ' aria-hidden="true" inert' : ""}>
+      <div class="profile-card-front-photo">
+        <img class="profile-card-front-logo" src="assets/the-slate-logo.png" alt="The Slate logo">
+        ${renderCrewCardPhoto(model, "profile-card-portrait-photo")}
+        <div class="profile-card-role-tab" data-testid="profile-card-role">${escapeCrewCardHtml(model.role).toUpperCase()}</div>
+      </div>
+      <div class="profile-card-name-block" data-testid="profile-card-name-block">
+        <h2>${escapeCrewCardHtml(model.fullName)}</h2>
+        <div class="profile-card-crew-id-inset" data-testid="profile-card-crew-id-inset"><span>Crew ID</span><b>${escapeCrewCardHtml(model.crewCode)}</b></div>
+      </div>
+      <div class="crew-credential-levels crew-credential-front-eligibility" data-testid="profile-front-eligibility">${model.levels.length ? model.levels.map(level => `<i class="settings-pill">${escapeCrewCardHtml(formatCrewCardEligibilityBadge(level))}</i>`).join("") : `<span>No eligibility levels assigned.</span>`}</div>
+    </section>`;
+  }
   return `<section class="crew-credential-face crew-credential-face-front">
     <div class="crew-credential-brand"><strong>The Slate</strong><span>Crew Card</span></div>
     ${renderCrewCardPhoto(model, "crew-credential-modal-photo")}
@@ -102,12 +116,29 @@ function renderCrewCredentialFrontFace(model, options = {}) {
   </section>`;
 }
 
-function renderCrewCredentialBackFace(model) {
+function renderCrewCredentialBackFace(model, options = {}) {
   const canSeeAdminNotes = authService.isAdmin?.() === true;
   const adminNoteItems = String(model.adminNotes || "")
     .split(/\r?\n|\s*•\s*/)
     .map(note => note.trim())
     .filter(Boolean);
+  if (options.profileDesign) {
+    return `<section class="crew-credential-face crew-credential-face-back profile-crew-card-back" data-testid="crew-card-back"${options.hidden ? ' aria-hidden="true" inert' : ""}>
+      <header class="profile-card-back-header"><div class="profile-card-back-title"><strong>The Slate</strong><span>Crew Card</span></div><i aria-hidden="true"></i><div class="profile-card-back-id"><small>Crew ID</small><b data-testid="crew-card-id">${escapeCrewCardHtml(model.crewCode)}</b></div></header>
+      <p class="profile-card-motto">Professional. Reliable. Game Ready.</p>
+      <div class="profile-card-back-body">
+        <section class="profile-card-back-summary">
+          <dl class="crew-credential-age"><div><dt>Age</dt><dd>${model.age ?? "Not recorded"}</dd></div><div><dt>Birthdate</dt><dd>${formatCrewCardDate(model.birthdate)}</dd></div><div><dt>Games Today</dt><dd>${model.dailyWorkload}</dd></div><div><dt>Season Total</dt><dd>${model.seasonWorkload}</dd></div></dl>
+          <section class="crew-credential-history-launch"><h3>★ Official History ★</h3><strong>${model.yearsOfService} ${model.yearsOfService === 1 ? "Season" : "Seasons"}</strong><button type="button" class="button button-secondary" data-testid="crew-card-view-official-history" onclick="openOfficialHistoryModal('${escapeCrewCardHtml(model.crewRecordId || model.accountId)}')">View Official History</button></section>
+          <section class="crew-credential-eligibility crew-credential-identity-eligibility" data-testid="crew-card-identity-eligibility"><h4>Eligibility</h4><div>${model.levels.length ? model.levels.map(level => `<span class="settings-pill">${escapeCrewCardHtml(formatCrewCardEligibilityBadge(level))}</span>`).join("") : "No eligibility levels assigned."}</div></section>
+        </section>
+        <section class="crew-credential-panel crew-credential-contact"><h3>Contact Information</h3><dl>
+          <div><dt>Phone (Cell)</dt><dd>${model.phone ? `<button type="button" class="crew-contact-action" data-testid="crew-card-call-phone" onclick="confirmCrewPhoneCall('${escapeCrewCardHtml(model.phone)}')">${escapeCrewCardHtml(model.phone)}</button>` : "Not recorded"}</dd></div><div><dt>Phone (Home)</dt><dd>${escapeCrewCardHtml(model.homePhone || "Not recorded")}</dd></div><div><dt>Contact Email</dt><dd>${model.email ? `<button type="button" class="crew-contact-action" data-testid="crew-card-copy-email" onclick="copyCrewEmail('${escapeCrewCardHtml(model.email)}', this)">${escapeCrewCardHtml(model.email)}</button>` : "Not recorded"}</dd></div><div><dt>Address</dt><dd>${escapeCrewCardHtml(model.address || "Not recorded")}</dd></div><div><dt>Preferred Contact</dt><dd>${model.contactPreference === "call" ? "Call" : "Text"}</dd></div><div><dt>Account Status</dt><dd>${escapeCrewCardHtml(model.accountStatus)}</dd></div><div><dt>Emergency Contact</dt><dd data-testid="crew-card-emergency-contact">${escapeCrewCardHtml(model.emergencyContact || "Not recorded")}</dd></div><div><dt>Emergency Phone</dt><dd data-testid="crew-card-emergency-phone">${escapeCrewCardHtml(model.emergencyContactPhone || "Not recorded")}</dd></div>
+        </dl></section>
+      </div>
+      <footer class="profile-card-back-actions">${options.actions || ""}</footer>
+    </section>`;
+  }
   return `<section class="crew-credential-face crew-credential-face-back" data-testid="crew-card-back">
     <header class="crew-credential-back-header"><div><img class="crew-card-site-logo" src="assets/the-slate-logo.png" alt="The Slate logo"><strong>The Slate</strong><span>Crew Card</span></div><div><small>Crew ID</small><b data-testid="crew-card-id">${escapeCrewCardHtml(model.crewCode)}</b></div><p>Professional. Reliable. Game Ready.</p></header>
     <div class="crew-credential-identity-panel">
