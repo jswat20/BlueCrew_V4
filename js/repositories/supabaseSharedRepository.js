@@ -23,6 +23,30 @@ const supabaseSharedRepository = (() => {
     return db.from("organizations").select("id,name,slug,timezone,settings").eq("id", organizationId).maybeSingle();
   }
 
+  async function getSeasons() {
+    const db = await client();
+    return db.from("seasons")
+      .select("id,organization_id,legacy_season_id,name,starts_on,ends_on,active,created_at,updated_at")
+      .order("starts_on", { ascending: false })
+      .order("name")
+      .order("id");
+  }
+
+  async function createSeason({ name, startsOn, endsOn, active = false }) {
+    const db = await client();
+    return db.rpc("create_season", {
+      p_name: name,
+      p_starts_on: startsOn,
+      p_ends_on: endsOn,
+      p_active: Boolean(active)
+    });
+  }
+
+  async function activateSeason(seasonId) {
+    const db = await client();
+    return db.rpc("activate_season", { p_season_id: seasonId });
+  }
+
   const ACTIVITY_COLUMNS = "id,organization_id,actor_profile_id,type,action,subject,object,message,related_legacy_id,metadata,created_at";
   const ACTIVITY_ACTOR_COLUMNS = "id,role,first_name,last_name,email";
 
@@ -293,6 +317,9 @@ const supabaseSharedRepository = (() => {
   return {
     getProfileForAuthUser,
     getCurrentOrganization,
+    getSeasons,
+    createSeason,
+    activateSeason,
     getRecentActivities,
     updateProfile,
     getPendingUmpireProfiles,
