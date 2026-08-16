@@ -86,7 +86,7 @@ test("one umpire cannot write another umpire's photo path", async ({ supabaseAut
 });
 
 test("migration contract scopes private storage writes to auth.uid own canonical path", async () => {
-  const sql = readFileSync("supabase/migrations/202608150001_profile_photo_storage.sql", "utf8");
+  const sql = readFileSync("supabase/migrations/202608150002_profile_photo_storage.sql", "utf8");
   expect(sql).toContain("'profile-photos', 'profile-photos', false, 5242880");
   expect(sql.match(/name = auth\.uid\(\)::text \|\| '\/profile'/g)).toHaveLength(5);
   expect(sql).toContain("profiles.organization_id = public.current_organization_id()");
