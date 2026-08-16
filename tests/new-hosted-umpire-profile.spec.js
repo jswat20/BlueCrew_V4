@@ -53,8 +53,18 @@ test("newly registered and approved hosted umpire receives persistent Profile se
 
   await expect(page.getByTestId("profile-card-back")).toHaveText("View My Information");
   await expect(page.getByTestId("profile-card-flipper")).not.toHaveClass(/is-flipped/);
+  await expect(page.getByTestId("profile-front-eligibility").locator(".settings-pill")).toHaveText(["12U"]);
+  await expect(page.locator(".unified-profile-card .crew-credential-face-front")).toBeVisible();
+  await expect(page.getByTestId("crew-card-back")).toHaveAttribute("aria-hidden", "true");
+  expect(await page.locator(".unified-profile-card").evaluate(card => {
+    const front = card.querySelector(".crew-credential-face-front");
+    const bounds = front.getBoundingClientRect();
+    return front.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2));
+  })).toBe(true);
   await page.getByTestId("profile-card-back").click();
   await expect(page.getByTestId("profile-card-flipper")).toHaveClass(/is-flipped/);
+  await expect(page.locator(".unified-profile-card .crew-credential-face-front")).not.toBeVisible();
+  await expect(page.getByTestId("crew-card-back")).toBeVisible();
   await expect(page.getByTestId("profile-edit-crew-card")).toBeVisible();
   await page.getByTestId("profile-edit-crew-card").click();
   await expect(page.getByTestId("crew-card-self-edit-mode")).toBeVisible();
@@ -69,10 +79,13 @@ test("newly registered and approved hosted umpire receives persistent Profile se
 
   await page.evaluate(async () => {
     await loginService.logoutAuthenticated();
+    renderPage("login");
     await loginService.loginWithPassword("new.umpire@example.com", "password1234");
     renderPage("profile");
   });
-  if (await page.getByTestId("profile-card-back").count()) await page.getByTestId("profile-card-back").click();
+  await expect(page.getByTestId("profile-card-flipper")).not.toHaveClass(/is-flipped/);
+  await expect(page.getByTestId("profile-front-eligibility").locator(".settings-pill")).toHaveText(["12U"]);
+  await page.getByTestId("profile-card-back").click();
   await expect(page.getByTestId("profile-edit-crew-card")).toBeVisible();
   await expect(page.getByTestId("crew-card-back")).toContainText("42 Rookie Lane");
   await expect(page.getByTestId("crew-card-back")).toContainText("Casey Umpire");
@@ -81,4 +94,21 @@ test("newly registered and approved hosted umpire receives persistent Profile se
   await expect(page.getByTestId("profile-address")).toHaveValue("42 Rookie Lane");
   await expect(page.getByTestId("profile-emergency-contact")).toHaveValue("Casey Umpire");
   await expect(page.getByTestId("profile-photo-input")).toBeVisible();
+});
+
+test("newly approved hosted umpire starts on the front face at mobile width", async ({ supabaseAuthApp }) => {
+  const { page } = supabaseAuthApp;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(async () => {
+    await loginService.loginWithPassword("new.umpire@example.com", "password1234");
+    renderPage("profile");
+  });
+
+  await expect(page.getByTestId("profile-card-flipper")).not.toHaveClass(/is-flipped/);
+  await expect(page.locator(".unified-profile-card .crew-credential-face-front")).toBeVisible();
+  await expect(page.getByTestId("crew-card-back")).toBeHidden();
+  await expect(page.getByTestId("profile-card-back")).toBeVisible();
+  await page.getByTestId("profile-card-back").click();
+  await expect(page.getByTestId("crew-card-back")).toBeVisible();
+  await expect(page.getByTestId("profile-edit-crew-card")).toBeVisible();
 });
