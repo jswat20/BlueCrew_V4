@@ -10,7 +10,17 @@ test("forgot password is hosted-only, generic, and calls Supabase recovery", asy
   await expect(page.getByTestId("forgot-password-message")).toHaveText("If an account exists for that email, a password reset link has been sent.");
   const reset = (await calls()).find(call => call.operation === "resetPasswordForEmail");
   expect(reset.email).toBe("person@example.com");
-  expect(reset.options.redirectTo).not.toContain("#");
+  expect(reset.options.redirectTo).toBe("https://app.worktheslate.com/");
+});
+
+test("local development recovery uses the current local origin", async ({ supabaseAuthApp }) => {
+  const { page } = supabaseAuthApp;
+  const redirect = await page.evaluate(() => {
+    window.BLUECREW_RUNTIME_CONFIG = Object.freeze({ mode: "local" });
+    return passwordSecurityService.recoveryRedirectUrl();
+  });
+  expect(redirect).toBe(`${new URL(page.url()).origin}/`);
+  expect(redirect).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+\/$/);
 });
 
 test("password policy requires twelve characters and matching confirmation", async ({ supabaseAuthApp }) => {
@@ -20,6 +30,7 @@ test("password policy requires twelve characters and matching confirmation", asy
 
 test("PASSWORD_RECOVERY isolates navigation and successful update signs out", async ({ supabaseAuthApp }) => {
   const { page, calls } = supabaseAuthApp;
+  await page.evaluate(() => window.history.replaceState({}, "", "/recovery?code=temporary#type=recovery"));
   await page.evaluate(() => window.__bluecrewAuthCallback("PASSWORD_RECOVERY", { user: { id: "auth-user-1" } }));
   await expect(page.getByTestId("password-recovery-page")).toBeVisible();
   await expect(page.getByTestId("dashboard")).toHaveCount(0);
@@ -27,6 +38,8 @@ test("PASSWORD_RECOVERY isolates navigation and successful update signs out", as
   await page.getByTestId("recovery-confirm-password").fill("new-password-123");
   await page.getByTestId("recovery-submit").click();
   await expect(page.getByTestId("login-page")).toBeVisible();
+  expect(page.url()).toBe(`${new URL(page.url()).origin}/`);
+  expect(await page.evaluate(() => supabaseAuthService.isRecoveringPassword())).toBe(false);
   expect((await calls()).some(call => call.operation === "updateUser")).toBe(true);
   expect((await calls()).some(call => call.operation === "signOut")).toBe(true);
 });
@@ -66,6 +79,7 @@ test("administrator reset sends only a profile id to the trusted function", asyn
   expect(reset.name).toBe("send-account-password-reset");
   expect(reset.options.body.profileId).toBeTruthy();
   expect(reset.options.body.email).toBeUndefined();
+  expect(reset.options.body.redirectTo).toBe("https://app.worktheslate.com/");
 });
 
 test("trusted admin reset function enforces actor role, organization, and profile email", async () => {

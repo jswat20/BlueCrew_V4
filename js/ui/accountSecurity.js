@@ -29,9 +29,9 @@ async function handlePasswordRecovery(event) {
   event.preventDefault();
   const response = await passwordSecurityService.completeRecovery(document.querySelector("[data-testid='recovery-new-password']").value, document.querySelector("[data-testid='recovery-confirm-password']").value);
   if (!response.success) { const message = document.querySelector("[data-testid='password-recovery-message']"); message.textContent = response.message; message.className = "validation-message"; return; }
-  passwordRecoveryMessage = response.message; window.history.replaceState({ blueCrewPage: "login", context: {} }, "", passwordSecurityService.recoveryRedirectUrl()); renderPage("login", { passwordMessage: response.message });
+  passwordRecoveryMessage = response.message; window.history.replaceState({ blueCrewPage: "login", context: {} }, "", passwordSecurityService.recoveryCleanupUrl()); renderPage("login", { passwordMessage: response.message });
 }
-async function cancelPasswordRecovery() { await loginService.logoutAuthenticated(); supabaseAuthService.clearRecoveryState(); window.history.replaceState({ blueCrewPage: "login", context: {} }, "", passwordSecurityService.recoveryRedirectUrl()); renderPage("login"); }
+async function cancelPasswordRecovery() { await loginService.logoutAuthenticated(); supabaseAuthService.clearRecoveryState(); window.history.replaceState({ blueCrewPage: "login", context: {} }, "", passwordSecurityService.recoveryCleanupUrl()); renderPage("login"); }
 
 function openChangePasswordDialog() {
   let dialog = document.querySelector("[data-testid='change-password-dialog']");
