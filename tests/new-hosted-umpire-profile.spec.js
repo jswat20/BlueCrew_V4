@@ -64,6 +64,33 @@ test("newly registered and approved hosted umpire receives persistent Profile se
   await expect(page.getByTestId("profile-card-name-block")).toContainText("New Umpire");
   await expect(page.getByTestId("profile-card-crew-id-inset")).toContainText("Crew ID");
   await expect(page.getByTestId("profile-card-crew-id-inset")).toContainText("CREW-NEW-1");
+  const frontIdentityGeometry = await page.getByTestId("profile-portrait-front").evaluate(card => {
+    const rect = element => element.getBoundingClientRect();
+    const cardBounds = rect(card);
+    const nameBounds = rect(card.querySelector(".profile-card-name-block"));
+    const crewIdBounds = rect(card.querySelector(".profile-card-crew-id-inset"));
+    const roleBounds = rect(card.querySelector(".profile-card-role-tab"));
+    const photoBounds = rect(card.querySelector(".profile-card-front-photo"));
+    const eligibilityBounds = rect(card.querySelector(".crew-credential-front-eligibility"));
+    return {
+      nameHeightRatio: nameBounds.height / cardBounds.height,
+      crewIdWidthRatio: crewIdBounds.width / cardBounds.width,
+      roleWidthRatio: roleBounds.width / cardBounds.width,
+      roleHeightRatio: roleBounds.height / cardBounds.height,
+      photoHeightRatio: photoBounds.height / cardBounds.height,
+      eligibilityHeightRatio: eligibilityBounds.height / cardBounds.height
+    };
+  });
+  expect(frontIdentityGeometry.nameHeightRatio).toBeGreaterThan(0.11);
+  expect(frontIdentityGeometry.nameHeightRatio).toBeLessThan(0.18);
+  expect(frontIdentityGeometry.crewIdWidthRatio).toBeGreaterThan(0.4);
+  expect(frontIdentityGeometry.crewIdWidthRatio).toBeLessThan(0.6);
+  expect(frontIdentityGeometry.roleWidthRatio).toBeGreaterThan(0.49);
+  expect(frontIdentityGeometry.roleWidthRatio).toBeLessThan(0.64);
+  expect(frontIdentityGeometry.roleHeightRatio).toBeLessThan(0.07);
+  expect(frontIdentityGeometry.photoHeightRatio).toBeGreaterThan(0.64);
+  expect(frontIdentityGeometry.eligibilityHeightRatio).toBeGreaterThan(0.06);
+  expect(frontIdentityGeometry.eligibilityHeightRatio).toBeLessThan(0.1);
   expect(await page.locator(".unified-profile-card").evaluate(card => {
     const front = card.querySelector(".crew-credential-face-front");
     const bounds = front.getBoundingClientRect();
