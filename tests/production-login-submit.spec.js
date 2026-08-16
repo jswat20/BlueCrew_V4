@@ -103,3 +103,10 @@ base("production recovery forms use CSP-compatible external listeners", () => {
   expect(security).not.toContain('onsubmit="handleForgotPassword(event)"');
   expect(security).not.toContain('onsubmit="handlePasswordRecovery(event)"');
 });
+
+base("production Profile renderer uses a content-addressed script", () => {
+  const build = fs.readFileSync("scripts/build-production.cjs", "utf8");
+  const verify = fs.readFileSync("scripts/verify-production-artifact.cjs", "utf8");
+  expect(build).toContain('"js/ui/crewCard.js", "js/ui/profile.js"');
+  expect(verify).toContain('"js/ui/crewCard", "js/ui/profile"');
+});

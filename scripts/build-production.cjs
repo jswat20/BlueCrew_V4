@@ -85,7 +85,7 @@ index = index.replace(
 // cache is converging on a new Pages deployment. Give interaction-critical scripts
 // content-addressed physical paths so a new HTML document can only request the
 // exact bytes it was built with.
-for (const source of ["components/crew.js", "js/schedule/workloadPanel.js", "js/ui/crewCard.js"]) {
+for (const source of ["components/crew.js", "js/schedule/workloadPanel.js", "js/ui/crewCard.js", "js/ui/profile.js"]) {
   const sourcePath = path.join(output, source);
   const content = fs.readFileSync(sourcePath);
   const fingerprint = crypto.createHash("sha256").update(content).digest("hex").slice(0, 12);
