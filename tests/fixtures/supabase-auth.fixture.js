@@ -45,6 +45,7 @@ export const test = base.extend({
       deniedTable: "",
       failedMutationTable: "",
       failedRpc: "",
+      profilePhotoObjects: {},
       deniedReferencedCrew: false,
       ...supabaseScenario
     };
@@ -160,6 +161,30 @@ export const test = base.extend({
       }
 
       const client = {
+        storage: {
+          from(bucket) {
+            const authorized = path => bucket === "profile-photos" && path === `${user.id}/profile`;
+            return {
+              async upload(path, file, options) {
+                calls.push({ operation: "storage.upload", bucket, path, type: file?.type, size: file?.size, options });
+                if (!authorized(path)) return { data: null, error: { message: "Storage policy denied" } };
+                settings.profilePhotoObjects[path] = { type: file.type, size: file.size };
+                return { data: { path }, error: null };
+              },
+              async remove(paths) {
+                calls.push({ operation: "storage.remove", bucket, paths });
+                if ((paths || []).some(path => !authorized(path))) return { data: null, error: { message: "Storage policy denied" } };
+                for (const path of paths || []) delete settings.profilePhotoObjects[path];
+                return { data: paths || [], error: null };
+              },
+              async createSignedUrl(path) {
+                calls.push({ operation: "storage.createSignedUrl", bucket, path });
+                if (!authorized(path)) return { data: null, error: { message: "Storage policy denied" } };
+                return { data: { signedUrl: `https://fixture.supabase.co/storage/v1/object/sign/${bucket}/${path}?token=fixture` }, error: null };
+              }
+            };
+          }
+        },
         functions: {
           async invoke(name, options) {
             calls.push({ operation: "functions.invoke", name, options });

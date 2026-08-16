@@ -45,7 +45,8 @@ function getCrewCardModel(crewOrId) {
     emergencyContactPhone: formatCrewCardPhone(account?.emergencyContactPhone || linkedCrew?.profileEmergencyContactPhone),
     birthdate: account?.birthdate || linkedCrew?.birthdate || "",
     age: accountService.deriveAge(account?.birthdate || linkedCrew?.birthdate),
-    photoDataUrl: account?.photoDataUrl || "",
+    photoDataUrl: account?.photoUrl || account?.photoDataUrl || "",
+    photoPath: account?.photoPath || "",
     levels: [...(linkedCrew?.levels || [])],
     officialHistory: history.length ? history : (linkedCrew?.officialHistory || []),
     yearsOfService: accountService.deriveYearsOfService(history.length ? history : (linkedCrew?.officialHistory || [])),
@@ -203,7 +204,53 @@ function openCrewCardAdminEditMode(crewMemberId) {
 }
 
 function renderOwnCrewCardEditForm(profile) {
-  return `<form class="unified-crew-self-editor" data-testid="crew-card-self-edit-mode" onsubmit="saveOwnCrewCardEdit(event)"><section><h3>Contact Information</h3><div class="unified-crew-edit-grid"><label>Primary / Cell Phone<input id="profile-phone" data-testid="profile-phone" type="tel" value="${escapeCrewCardHtml(profile.phone || "")}"></label><label>Home Phone<input id="profile-home-phone" data-testid="profile-home-phone" type="tel" value="${escapeCrewCardHtml(profile.homePhone || "")}"></label><label class="wide">Address<input id="profile-address" data-testid="profile-address" value="${escapeCrewCardHtml(profile.address || "")}"></label><label>Preferred Contact<select id="profile-contact-preference" data-testid="profile-contact-preference"><option value="text" ${profile.contactPreference !== "call" ? "selected" : ""}>Text</option><option value="call" ${profile.contactPreference === "call" ? "selected" : ""}>Call</option></select></label><label class="wide">Login Email<input value="${escapeCrewCardHtml(profile.email || "")}" readonly data-testid="profile-login-email-readonly"></label></div></section><section><h3>Emergency Contact</h3><div class="unified-crew-edit-grid"><label>Emergency Contact<input id="profile-emergency-contact" data-testid="profile-emergency-contact" value="${escapeCrewCardHtml(profile.emergencyContact || "")}"></label><label>Emergency Phone<input id="profile-emergency-phone" data-testid="profile-emergency-phone" type="tel" value="${escapeCrewCardHtml(profile.emergencyContactPhone || "")}"></label></div></section><div class="validation-message" data-testid="profile-error" hidden role="alert"></div><footer><button type="button" class="button button-secondary" onclick="cancelCrewCardEditMode()">Cancel</button><button type="submit" class="button button-primary" data-testid="profile-save">Save My Information</button></footer></form>`;
+  const model = getCrewCardModel(accountService.getById(profile.id) || profile);
+  const hostedPhotoControls = supabaseClientService.isConfigured() ? `<section class="profile-photo-editor" aria-labelledby="profile-photo-title"><h3 id="profile-photo-title">Profile Photo</h3><div class="profile-photo-editor-content"><div data-testid="profile-photo-preview">${renderCrewCardPhoto(model, "crew-credential-modal-photo")}</div><div><label for="profile-photo">Choose a photo</label><input id="profile-photo" data-testid="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" capture="user" onchange="handleOwnProfilePhotoSelected(this)"><p class="muted">JPEG, PNG, or WebP. Maximum 5 MB.</p><div class="profile-photo-actions"><button type="button" class="button button-secondary" data-testid="profile-photo-upload" onclick="uploadOwnProfilePhoto()" disabled>Upload Photo</button><button type="button" class="button button-secondary" data-testid="profile-photo-remove" onclick="removeOwnProfilePhoto()" ${profile.photoPath ? "" : "disabled"}>Remove Photo</button></div></div></div><div class="validation-message" data-testid="profile-photo-error" role="alert" hidden></div><div class="success-message" data-testid="profile-photo-status" role="status" aria-live="polite" hidden></div></section>` : "";
+  return `<form class="unified-crew-self-editor" data-testid="crew-card-self-edit-mode" onsubmit="saveOwnCrewCardEdit(event)">${hostedPhotoControls}<section><h3>Contact Information</h3><div class="unified-crew-edit-grid"><label>Primary / Cell Phone<input id="profile-phone" data-testid="profile-phone" type="tel" value="${escapeCrewCardHtml(profile.phone || "")}"></label><label>Home Phone<input id="profile-home-phone" data-testid="profile-home-phone" type="tel" value="${escapeCrewCardHtml(profile.homePhone || "")}"></label><label class="wide">Address<input id="profile-address" data-testid="profile-address" value="${escapeCrewCardHtml(profile.address || "")}"></label><label>Preferred Contact<select id="profile-contact-preference" data-testid="profile-contact-preference"><option value="text" ${profile.contactPreference !== "call" ? "selected" : ""}>Text</option><option value="call" ${profile.contactPreference === "call" ? "selected" : ""}>Call</option></select></label><label class="wide">Login Email<input value="${escapeCrewCardHtml(profile.email || "")}" readonly data-testid="profile-login-email-readonly"></label></div></section><section><h3>Emergency Contact</h3><div class="unified-crew-edit-grid"><label>Emergency Contact<input id="profile-emergency-contact" data-testid="profile-emergency-contact" value="${escapeCrewCardHtml(profile.emergencyContact || "")}"></label><label>Emergency Phone<input id="profile-emergency-phone" data-testid="profile-emergency-phone" type="tel" value="${escapeCrewCardHtml(profile.emergencyContactPhone || "")}"></label></div></section><div class="validation-message" data-testid="profile-error" hidden role="alert"></div><footer><button type="button" class="button button-secondary" onclick="cancelCrewCardEditMode()">Cancel</button><button type="submit" class="button button-primary" data-testid="profile-save">Save My Information</button></footer></form>`;
+}
+
+let pendingOwnProfilePhoto = null;
+
+function setOwnProfilePhotoMessage(message, isError = false) {
+  const error = document.querySelector('[data-testid="profile-photo-error"]');
+  const status = document.querySelector('[data-testid="profile-photo-status"]');
+  if (error) { error.hidden = !isError; error.textContent = isError ? message : ""; }
+  if (status) { status.hidden = isError || !message; status.textContent = !isError ? message : ""; }
+}
+
+function handleOwnProfilePhotoSelected(input) {
+  const validation = profilePhotoService.validateFile(input.files?.[0]);
+  const upload = document.querySelector('[data-testid="profile-photo-upload"]');
+  if (!validation.success) {
+    pendingOwnProfilePhoto = null;
+    input.value = "";
+    upload?.setAttribute("disabled", "");
+    setOwnProfilePhotoMessage(validation.message, true);
+    return;
+  }
+  pendingOwnProfilePhoto = validation.data;
+  const preview = document.querySelector('[data-testid="profile-photo-preview"]');
+  if (preview) preview.innerHTML = `<img class="crew-credential-photo crew-credential-modal-photo" src="${escapeCrewCardHtml(URL.createObjectURL(validation.data))}" alt="Selected profile photo preview">`;
+  upload?.removeAttribute("disabled");
+  setOwnProfilePhotoMessage("Photo ready to upload.");
+}
+
+async function uploadOwnProfilePhoto() {
+  if (!pendingOwnProfilePhoto) return;
+  const result = await profilePhotoService.uploadOwnPhoto(pendingOwnProfilePhoto);
+  if (!result.success) { setOwnProfilePhotoMessage(result.message, true); return; }
+  pendingOwnProfilePhoto = null;
+  renderPage("profile");
+  openOwnCrewCardEditMode();
+  setOwnProfilePhotoMessage(result.message);
+}
+
+async function removeOwnProfilePhoto() {
+  const result = await profilePhotoService.removeOwnPhoto();
+  if (!result.success) { setOwnProfilePhotoMessage(result.message, true); return; }
+  renderPage("profile");
+  openOwnCrewCardEditMode();
+  setOwnProfilePhotoMessage(result.message);
 }
 
 function openOwnCrewCardEditMode() {
