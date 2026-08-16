@@ -129,11 +129,21 @@ function isValidRole(role) {
     const { data, error } = await supabaseSharedRepository.getProfileForAuthUser(user.id);
     if (error) throw error;
     authenticatedProfileSnapshot = sharedDomainMappingService.mapProfile(data, crewId);
+    if (authenticatedProfileSnapshot?.photoPath) {
+      try { authenticatedProfileSnapshot.photoUrl = await profilePhotoService.createDisplayUrl(authenticatedProfileSnapshot.photoPath); } catch (_error) { authenticatedProfileSnapshot.photoUrl = ""; }
+    }
     return authenticatedProfileSnapshot;
   }
 
   function setAuthenticatedCrewId(crewId) {
     if (authenticatedProfileSnapshot) authenticatedProfileSnapshot.crewId = crewId || null;
+    return authenticatedProfileSnapshot;
+  }
+
+  function updateAuthenticatedPhotoState(photoPath, photoUrl) {
+    if (!authenticatedProfileSnapshot) return null;
+    authenticatedProfileSnapshot = { ...authenticatedProfileSnapshot, photoPath: photoPath || "", photoUrl: photoUrl || "" };
+    supabaseAuthService.refreshAuthenticatedAccount(authenticatedProfileSnapshot);
     return authenticatedProfileSnapshot;
   }
 
@@ -851,6 +861,9 @@ function getRoleSummary() {
       birthdate: account.birthdate || "",
       age: deriveAge(account.birthdate),
       photoDataUrl: account.photoDataUrl || "",
+      photoPath: account.photoPath || "",
+      photoUrl: account.photoUrl || "",
+      authUserId: account.authUserId || "",
       officialHistory: normalizeOfficialHistory(account.officialHistory),
       yearsOfService: Number.isInteger(account.yearsOfServiceOverride)
         ? account.yearsOfServiceOverride
@@ -868,6 +881,7 @@ function getRoleSummary() {
           account.communicationPreferences
         ),
       role: normalizeRole(account.role),
+      organizationId: account.organizationId || "",
       crewId: account.crewId || null
     };
   }
@@ -1033,7 +1047,8 @@ function getRoleSummary() {
     };
     const { data, error } = await supabaseSharedRepository.updateProfile(account.id, changes);
     if (error) return profileMutationResult(false, error.message || "Profile could not be saved.", currentProfile);
-    authenticatedProfileSnapshot = sharedDomainMappingService.mapProfile(data, account.crewId);
+    const previousPhotoUrl = account.photoPath === data?.photo_path ? account.photoUrl || "" : "";
+    authenticatedProfileSnapshot = { ...sharedDomainMappingService.mapProfile(data, account.crewId), photoUrl: previousPhotoUrl };
     supabaseAuthService.refreshAuthenticatedAccount(authenticatedProfileSnapshot);
     return profileMutationResult(true, "Profile saved.", getProfile(account.id));
   }
@@ -1134,6 +1149,7 @@ function getRoleSummary() {
     updateAuthenticatedProfile,
     getAuthenticatedProfile,
     setAuthenticatedCrewId,
+    updateAuthenticatedPhotoState,
     clearAuthenticatedProfile,
     updateCrewSelfServiceProfile,
     updateCrewProfileAsAdmin,

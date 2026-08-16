@@ -106,7 +106,7 @@ fs.writeFileSync(
 fs.writeFileSync(
   path.join(output, "_headers"),
   `/*\n` +
-    `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ${url} wss://${new URL(url).host}; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests\n` +
+  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: ${url}; connect-src 'self' ${url} wss://${new URL(url).host}; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests\n` +
     `  Strict-Transport-Security: max-age=31536000; includeSubDomains\n` +
     `  X-Content-Type-Options: nosniff\n` +
     `  X-Frame-Options: DENY\n` +

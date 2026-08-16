@@ -31,6 +31,8 @@ const sharedDomainMappingService = (() => {
       yearsOfServiceOverride: profile.years_of_service_override ?? null,
       adminNotes: profile.admin_notes || "",
       communicationPreferences: profile.communication_preferences || {},
+      photoPath: profile.photo_path || "",
+      photoUrl: profile.photo_url || "",
       role: profile.role,
       status: profile.status,
       crewId,

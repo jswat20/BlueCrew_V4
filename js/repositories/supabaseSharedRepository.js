@@ -13,6 +13,11 @@ const supabaseSharedRepository = (() => {
     return db.from("profiles").update(changes).eq("id", profileId).select("*").single();
   }
 
+  async function updateProfilePhoto(profileId, photoPath) {
+    const db = await client();
+    return db.from("profiles").update({ photo_path: photoPath || null }).eq("id", profileId).select("*").single();
+  }
+
   async function getLinkedCrewMember(profileId) {
     const db = await client();
     return db.from("crew_members").select("*").eq("profile_id", profileId).maybeSingle();
@@ -322,6 +327,7 @@ const supabaseSharedRepository = (() => {
     activateSeason,
     getRecentActivities,
     updateProfile,
+    updateProfilePhoto,
     getPendingUmpireProfiles,
     getManageableAccounts,
     approveUmpireProfile,
