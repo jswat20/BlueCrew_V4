@@ -51,6 +51,42 @@ test("replacement reuses one deterministic object path", async ({ supabaseAuthAp
   expect(await page.evaluate(() => Object.keys(window.__supabaseFixture.settings.profilePhotoObjects))).toEqual(["auth-umpire-1/profile"]);
 });
 
+test("replacement does not require a fallible profile mutation", async ({ supabaseAuthApp }) => {
+  const { page, calls } = supabaseAuthApp;
+  await openPhotoEditor(page);
+  await chooseAndUpload(page, "first.png", "image/png", PNG);
+  await page.evaluate(() => { window.__supabaseFixture.settings.failedMutationTable = "profiles"; });
+  await chooseAndUpload(page, "replacement.webp", "image/webp", WEBP);
+  await expect(page.getByTestId("profile-photo-status")).toContainText("Profile photo updated");
+  expect((await calls()).filter(call => call.table === "profiles" && call.operation === "update")).toHaveLength(1);
+  expect(await page.evaluate(() => window.__supabaseFixture.settings.profile.photo_path)).toBe("auth-umpire-1/profile");
+  expect(await page.evaluate(() => window.__supabaseFixture.settings.profilePhotoObjects["auth-umpire-1/profile"].type)).toBe("image/webp");
+});
+
+test("stale signed URL cache entries are refreshed", async ({ supabaseAuthApp }) => {
+  const { page, calls } = supabaseAuthApp;
+  await page.evaluate(async () => {
+    const originalNow = Date.now;
+    let now = originalNow();
+    Date.now = () => now;
+    try {
+      await profilePhotoService.createDisplayUrl("auth-umpire-1/profile");
+      now += 3600 * 1000;
+      await profilePhotoService.createDisplayUrl("auth-umpire-1/profile");
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+  expect((await calls()).filter(call => call.operation === "storage.createSignedUrl")).toHaveLength(2);
+});
+
+test("mobile picker remains unrestricted to gallery or camera choices", async ({ supabaseAuthApp }) => {
+  const { page } = supabaseAuthApp;
+  await openPhotoEditor(page);
+  await expect(page.getByTestId("profile-photo-input")).not.toHaveAttribute("capture");
+  await expect(page.getByTestId("profile-photo-input")).toHaveAttribute("accept", "image/jpeg,image/png,image/webp");
+});
+
 test("removal clears photo_path and restores fallback", async ({ supabaseAuthApp }) => {
   const { page } = supabaseAuthApp;
   await openPhotoEditor(page);
