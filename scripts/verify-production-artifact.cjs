@@ -87,7 +87,7 @@ if (fs.existsSync(path.join(output, "index.html"))) {
     }
   }
   if (/config\/supabase\.js(?:["'?])/.test(index)) failures.push("production HTML references stale-prone unversioned runtime config");
-  for (const source of ["components/crew", "js/schedule/workloadPanel", "js/ui/crewCard"]) {
+  for (const source of ["components/crew", "js/schedule/workloadPanel", "js/ui/crewCard", "js/ui/profile"]) {
     const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const reference = index.match(new RegExp(`${escaped}\\.([a-f0-9]{12})\\.js`));
     if (!reference) {
