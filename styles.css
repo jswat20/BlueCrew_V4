@@ -2557,7 +2557,8 @@ body[data-page="game-hub"] .game-hub-admin {
 /* Canonical personnel experience: the same Crew Card shell serves Profile and Crew. */
 .unified-profile-page { display: grid; gap: var(--space-large); }
 .unified-profile-card { width: min(100%, 1120px); margin-inline: auto; overflow: hidden; border: 1px solid #4f8290; border-radius: 18px; background: #f7f8f5; box-shadow: 0 18px 45px rgba(5,24,39,.18); }
-.unified-profile-card .crew-credential-face-back { position: relative; inset: auto; min-height: 0; border: 0; border-radius: 0; overflow: visible; transform: none; backface-visibility: visible; }
+.unified-profile-card .crew-credential-flipper { height: auto; min-height: 700px; }
+.unified-profile-card .crew-credential-face { border: 0; border-radius: 0; }
 .unified-profile-card-actions { display: flex; padding: 12px 16px; border-top: 1px solid #b8d6de; background: #eef5f6; justify-content: flex-end; }
 .unified-profile-support { width: min(100%, 960px); margin-inline: auto !important; }
 .crew-card-edit-mode { min-height: 100%; padding: 20px; overflow-y: auto; background: #f7f8f5; color: #071f35; }
@@ -2594,7 +2595,8 @@ body[data-page="game-hub"] .game-hub-admin {
 }
 
 @media (max-width: 900px) {
-  .unified-profile-card .crew-credential-face-back { min-height: 0; display: grid; }
+  .unified-profile-card .crew-credential-flipper { height: auto; min-height: 0; }
+  .unified-profile-card .crew-credential-face-back { min-height: 0; }
   .unified-crew-admin-editor .drawer-body,.unified-crew-edit-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 @media (max-width: 560px) {

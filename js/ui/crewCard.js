@@ -94,11 +94,11 @@ function formatCrewCardDate(value) {
   return Number.isNaN(date.getTime()) ? "Not recorded" : date.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
 }
 
-function renderCrewCredentialFrontFace(model) {
+function renderCrewCredentialFrontFace(model, options = {}) {
   return `<section class="crew-credential-face crew-credential-face-front">
     <div class="crew-credential-brand"><strong>The Slate</strong><span>Crew Card</span></div>
     ${renderCrewCardPhoto(model, "crew-credential-modal-photo")}
-    <div class="crew-credential-front-identity"><small>${escapeCrewCardHtml(model.crewCode)}</small><h2>${escapeCrewCardHtml(model.fullName)}</h2><p>${escapeCrewCardHtml(model.role)}</p><b data-status="${model.status.toLowerCase()}">${escapeCrewCardHtml(model.status)}</b></div>
+    <div class="crew-credential-front-identity"><small>${escapeCrewCardHtml(model.crewCode)}</small><h2>${escapeCrewCardHtml(model.fullName)}</h2><p>${escapeCrewCardHtml(model.role)}</p>${options.showEligibility ? `<div class="crew-credential-levels crew-credential-front-eligibility" data-testid="profile-front-eligibility">${model.levels.length ? model.levels.map(level => `<i class="settings-pill">${escapeCrewCardHtml(formatCrewCardEligibilityBadge(level))}</i>`).join("") : `<span>No eligibility levels assigned.</span>`}</div>` : ""}${options.showStatus === false ? "" : `<b data-status="${model.status.toLowerCase()}">${escapeCrewCardHtml(model.status)}</b>`}</div>
   </section>`;
 }
 

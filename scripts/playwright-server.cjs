@@ -2,7 +2,16 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const root = path.resolve(__dirname, "..");
+const repositoryRoot = path.resolve(__dirname, "..");
+const requestedRoot = String(process.env.PLAYWRIGHT_STATIC_ROOT || ".").trim();
+const root = path.resolve(repositoryRoot, requestedRoot);
+
+if (root !== repositoryRoot && !root.startsWith(repositoryRoot + path.sep)) {
+  throw new Error("PLAYWRIGHT_STATIC_ROOT must stay within the repository.");
+}
+if (!fs.existsSync(path.join(root, "index.html"))) {
+  throw new Error(`Playwright static root has no index.html: ${root}`);
+}
 const port = 5501;
 const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".webm": "video/webm" };
 

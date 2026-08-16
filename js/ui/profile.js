@@ -47,7 +47,7 @@ function renderProfile() {
 function renderUnifiedProfileExperience(profile) {
   const account = accountService.getById(profile.id) || profile;
   const cardModel = getCrewCardModel(account);
-  const frontFace = renderCrewCredentialFrontFace(cardModel).replace("<section class=\"crew-credential-face crew-credential-face-front\"", `<section class="crew-credential-face crew-credential-face-front" ${profileCardShowingBack ? 'aria-hidden="true" inert' : ''}`);
+  const frontFace = renderCrewCredentialFrontFace(cardModel, { showEligibility: true, showStatus: false }).replace("<section class=\"crew-credential-face crew-credential-face-front\"", `<section class="crew-credential-face crew-credential-face-front" ${profileCardShowingBack ? 'aria-hidden="true" inert' : ''}`);
   const backFace = renderCrewCredentialBackFace(cardModel).replace("<section class=\"crew-credential-face crew-credential-face-back\"", `<section class="crew-credential-face crew-credential-face-back" ${profileCardShowingBack ? '' : 'aria-hidden="true" inert'}`);
   const preferences = profile.communicationPreferences || accountService.getDefaultCommunicationPreferences();
   return `<section class="page-section unified-profile-page" data-testid="profile">
@@ -64,6 +64,10 @@ function showProfileCardSide(showBack) {
   profileCardShowingBack = showBack === true;
   renderPage("profile");
   focusElementWhenReady(showBack ? '[data-testid="profile-card-front"]' : '[data-testid="profile-card-back"]');
+}
+
+function resetProfileCardSide() {
+  profileCardShowingBack = false;
 }
 
 const COMMUNICATION_PROFILE_OPTIONS = [

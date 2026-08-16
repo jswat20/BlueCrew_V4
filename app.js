@@ -287,6 +287,10 @@ function renderPage(page, context = {}) {
     refreshNavigationAuthorization();
   }
 
+  if (page === "profile" && currentPage !== "profile" && typeof resetProfileCardSide === "function") {
+    resetProfileCardSide();
+  }
+
   currentPage = page;
   currentPageContext = context;
 
