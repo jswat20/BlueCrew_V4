@@ -48,7 +48,9 @@ test.describe("Milestone 6.4 Assigner Workbench polish", () => {
     const row = page.getByTestId("workbench-needs-assignment-item").filter({ hasText: "Visitors @ Home" }).first();
     await expect(row).toContainText("08/08/99");
     await expect(row).toContainText("6:00 PM");
-    await expect(row).toContainText("12U - North Complex - Field 3");
+    await expect(row.locator(".workbench-mini-game-main")).toContainText("12U");
+    await expect(row.locator(".workbench-mini-game-main")).toContainText("Visitors @ Home");
+    await expect(row.locator(".workbench-mini-game-main")).toContainText("North Complex · Field 3");
     await expect(row).toContainText("0/1 Staffed");
     await expect(row).not.toContainText("Work next");
     await expect(row.locator(".workbench-mini-game-crew")).toHaveCSS("text-align", "right");

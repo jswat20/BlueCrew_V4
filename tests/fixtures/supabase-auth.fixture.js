@@ -164,6 +164,12 @@ export const test = base.extend({
         storage: {
           from(bucket) {
             const authorized = path => bucket === "profile-photos" && path === `${user.id}/profile`;
+            const authorizedRead = path => authorized(path) || (
+              bucket === "profile-photos"
+              && ["administrator", "assigner"].includes(settings.profile.role)
+              && [settings.profile, ...settings.pendingProfiles, ...settings.organizationProfiles]
+                .some(profile => profile.organization_id === settings.profile.organization_id && path === `${profile.auth_user_id}/profile`)
+            );
             return {
               async upload(path, file, options) {
                 calls.push({ operation: "storage.upload", bucket, path, type: file?.type, size: file?.size, options });
@@ -179,7 +185,7 @@ export const test = base.extend({
               },
               async createSignedUrl(path) {
                 calls.push({ operation: "storage.createSignedUrl", bucket, path });
-                if (!authorized(path)) return { data: null, error: { message: "Storage policy denied" } };
+                if (!authorizedRead(path)) return { data: null, error: { message: "Storage policy denied" } };
                 return { data: { signedUrl: `https://fixture.supabase.co/storage/v1/object/sign/${bucket}/${path}?token=fixture` }, error: null };
               }
             };
