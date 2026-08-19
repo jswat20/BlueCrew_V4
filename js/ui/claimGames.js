@@ -67,13 +67,13 @@ function renderClaimGames() {
         <tbody>
           ${games.map(game => `
             <tr data-testid="claim-game-row-${game.id}">
-              <td>${dateTimeFormattingService.formatDayDate(game.date)}</td>
-              <td>${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}</td>
-              <td>${levelTerminologyService.format(game.level)}</td>
-              <td>${getClaimGameLocation(game)}</td>
-              <td>${getClaimGameField(game)}</td>
-              <td><span class="status-badge ${presentationFormattingService.getStatusBadgeClass("Needs Assignment")}">${game.filledPositions || 0} / ${game.crewSize || 1} filled</span></td>
-              <td>
+              <td class="claim-game-date">${dateTimeFormattingService.formatDayDate(game.date)}</td>
+              <td class="claim-game-time">${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}</td>
+              <td class="claim-game-level">${levelTerminologyService.format(game.level)}</td>
+              <td class="claim-game-location">${getClaimGameLocation(game)}</td>
+              <td class="claim-game-field">${getClaimGameField(game)}</td>
+              <td class="claim-game-status"><span class="status-badge ${presentationFormattingService.getStatusBadgeClass("Needs Assignment")}">${game.filledPositions || 0} / ${game.crewSize || 1} filled</span></td>
+              <td class="claim-game-action">
                 <button
                   class="button button-primary"
                   data-testid="claim-game-${game.id}"

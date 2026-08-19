@@ -26,6 +26,10 @@ test("publishes installable mobile metadata and branded icons", async ({ page, r
   ]));
   expect(manifest.icons.some(icon => icon.purpose.split(/\s+/).includes("maskable"))).toBe(true);
 
+  const serviceWorkerResponse = await request.get("/service-worker.js");
+  expect(serviceWorkerResponse.ok()).toBe(true);
+  expect(await serviceWorkerResponse.text()).toContain('addEventListener("fetch"');
+
   for (const icon of ["icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon-32.png"]) {
     const response = await request.get(`/assets/icons/${icon}`);
     expect(response.ok(), icon).toBe(true);

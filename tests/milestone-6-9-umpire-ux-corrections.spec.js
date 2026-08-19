@@ -85,12 +85,13 @@ test("Profile uses the full canonical Crew Card with identity eligibility and hi
   await expect(app.page.getByTestId("crew-card-back")).toContainText("Official History");
 });
 
-test("narrow tables scroll instead of crushing and remain keyboard focusable", async ({ app }) => {
+test("narrow Claim Games reflows into contained game cards and remains keyboard focusable", async ({ app }) => {
   await seedUmpireGame(app); await app.page.evaluate(() => renderPage("claim-games"));
   await app.page.setViewportSize({ width: 600, height: 800 });
   const wrapper = app.page.locator(".claim-games-compact .presentation-table-wrapper");
   const dimensions = await wrapper.evaluate(element => ({ client: element.clientWidth, scroll: element.scrollWidth }));
-  expect(dimensions.scroll).toBeGreaterThan(dimensions.client);
+  expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);
+  await expect(app.page.locator(".claim-games-table tbody tr").first()).toHaveCSS("display", "grid");
   await wrapper.focus(); await expect(wrapper).toBeFocused();
   expect(await app.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });

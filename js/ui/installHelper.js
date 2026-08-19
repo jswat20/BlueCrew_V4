@@ -14,14 +14,16 @@ function detectSlateInstallPlatform() {
   const isAndroid = /Android/i.test(userAgent);
   const isMobile = isIOS || isAndroid || /Mobile|Tablet/i.test(userAgent);
   const isIOSSafari = isIOS && /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(userAgent);
-  return { isIOS, isAndroid, isMobile, isIOSSafari };
+  const isChromiumAndroid = isAndroid && /Chrome|Chromium|EdgA|OPR|SamsungBrowser/i.test(userAgent);
+  return { isIOS, isAndroid, isMobile, isIOSSafari, isChromiumAndroid };
 }
 
 function refreshInstallHelperVisibility() {
   const trigger = document.querySelector("[data-testid='nav-install']");
   if (!trigger) return;
-  const { isMobile } = detectSlateInstallPlatform();
-  trigger.hidden = isSlateStandalone() || (!isMobile && !deferredSlateInstallPrompt);
+  const { isMobile, isIOS, isChromiumAndroid } = detectSlateInstallPlatform();
+  const hasFallback = isIOS || (isMobile && !isChromiumAndroid);
+  trigger.hidden = isSlateStandalone() || (!deferredSlateInstallPrompt && !hasFallback);
 }
 
 function renderInstallHelperContent() {
@@ -65,11 +67,20 @@ function openInstallHelper() {
   dialog.querySelector("button")?.focus();
 }
 
+function handleSlateInstallAction() {
+  if (isSlateStandalone()) return;
+  if (deferredSlateInstallPrompt) {
+    requestSlateInstall();
+    return;
+  }
+  openInstallHelper();
+}
+
 async function requestSlateInstall() {
   if (!deferredSlateInstallPrompt) return;
   const promptEvent = deferredSlateInstallPrompt;
   deferredSlateInstallPrompt = null;
-  const status = document.querySelector("[data-testid='install-status']");
+  let status = document.querySelector("[data-testid='install-status']");
   try {
     await promptEvent.prompt();
   } catch (error) {
@@ -79,12 +90,23 @@ async function requestSlateInstall() {
   }
   const choice = await promptEvent.userChoice.catch(() => null);
   slateInstallAccepted = choice?.outcome === "accepted";
+  if (!slateInstallAccepted && !status) {
+    openInstallHelper();
+    status = document.querySelector("[data-testid='install-status']");
+  }
   if (status) status.textContent = slateInstallAccepted ? "Install accepted. Waiting for your browser to confirm installation." : "Installation was not completed. You can try again when your browser offers Install.";
   refreshInstallHelperVisibility();
 }
 
+function registerSlateServiceWorker() {
+  if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
+  navigator.serviceWorker.register("/service-worker.js", { scope: "/" }).catch(error => {
+    console.warn("The Slate service worker could not be registered.", error);
+  });
+}
+
 function setupInstallHelper() {
-  document.querySelector("[data-testid='nav-install']")?.addEventListener("click", openInstallHelper);
+  document.querySelector("[data-testid='nav-install']")?.addEventListener("click", handleSlateInstallAction);
   window.addEventListener("beforeinstallprompt", event => {
     event.preventDefault();
     deferredSlateInstallPrompt = event;
@@ -99,5 +121,6 @@ function setupInstallHelper() {
     setTimeout(() => document.querySelector("[data-testid='install-helper-dialog']")?.close(), 0);
     refreshInstallHelperVisibility();
   });
+  registerSlateServiceWorker();
   refreshInstallHelperVisibility();
 }

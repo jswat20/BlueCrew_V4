@@ -45,7 +45,7 @@ if (!/^[A-Za-z0-9._-]+$/.test(publishableKey)) {
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 
-for (const entry of ["index.html", "manifest.webmanifest", "app.js", "styles.css", "assets", "components", "css", "data", "js"]) {
+for (const entry of ["index.html", "manifest.webmanifest", "service-worker.js", "app.js", "styles.css", "assets", "components", "css", "data", "js"]) {
   fs.cpSync(path.join(root, entry), path.join(output, entry), { recursive: true });
 }
 
