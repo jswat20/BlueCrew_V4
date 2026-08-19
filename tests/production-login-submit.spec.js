@@ -64,7 +64,7 @@ base("curated production build contains CSP-compatible login wiring", () => {
   expect(login).not.toContain('onsubmit="handleLoginSubmit(event)"');
   expect(app).toContain('page === "login" && typeof setupLoginForm === "function"');
   expect(build).toContain("script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net");
-  expect(build).toContain('for (const entry of ["index.html", "manifest.webmanifest", "app.js", "styles.css", "assets", "components", "css", "data", "js"])');
+  expect(build).toContain('for (const entry of ["index.html", "manifest.webmanifest", "service-worker.js", "app.js", "styles.css", "assets", "components", "css", "data", "js"])');
 });
 
 base("production CSP permits the established inline interaction bindings", () => {

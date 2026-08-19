@@ -151,8 +151,21 @@ test("newly approved hosted umpire starts on the front face at mobile width", as
   expect(await page.locator(".profile-card-stage").evaluate(node => node.getBoundingClientRect().width / node.getBoundingClientRect().height)).toBeCloseTo(5 / 7, 2);
   await page.getByTestId("profile-card-back").click();
   await expect(page.getByTestId("crew-card-back")).toBeVisible();
-  await expect.poll(() => page.locator(".profile-card-stage").evaluate(node => node.getBoundingClientRect().width / node.getBoundingClientRect().height)).toBeCloseTo(7 / 5, 2);
+  await expect.poll(() => page.locator(".profile-card-stage").evaluate(node => node.getBoundingClientRect().height / node.getBoundingClientRect().width)).toBeGreaterThan(2);
   await expect(page.getByTestId("profile-edit-crew-card")).toBeVisible();
+  await page.getByTestId("profile-edit-crew-card").click();
+  const dialog = page.getByTestId("crew-card-dialog");
+  const editor = page.getByTestId("crew-card-self-edit-mode");
+  await expect(editor).toBeVisible();
+  const dialogBounds = await dialog.boundingBox();
+  expect(dialogBounds.width).toBeLessThanOrEqual(390);
+  expect(dialogBounds.height).toBeLessThanOrEqual(844);
+  await editor.getByTestId("profile-photo-input").scrollIntoViewIfNeeded();
+  await expect(editor.getByTestId("profile-photo-input")).toBeVisible();
+  await expect(editor.getByTestId("profile-photo-upload")).toBeVisible();
+  await expect(editor.getByTestId("profile-photo-remove")).toBeVisible();
+  await editor.getByTestId("profile-save").scrollIntoViewIfNeeded();
+  await expect(editor.getByTestId("profile-save")).toBeVisible();
 });
 
 test("Profile card respects reduced motion while preserving front and back state", async ({ supabaseAuthApp }) => {

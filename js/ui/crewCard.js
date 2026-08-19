@@ -303,7 +303,7 @@ function openOwnCrewCardEditMode() {
   dialog.dataset.editMode = "self";
   dialog.dataset.crewId = String(account.crewId || "");
   dialog.innerHTML = renderCrewCardEditShell("Edit My Information", "Only your authorized profile fields can be changed.", renderOwnCrewCardEditForm(profile), "crew-card-self-edit-shell");
-  dialog.querySelector("input:not([readonly])")?.focus();
+  dialog.querySelector(".crew-card-edit-header .button")?.focus();
   return true;
 }
 

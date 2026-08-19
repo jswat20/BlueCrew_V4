@@ -17,7 +17,7 @@ for (const relative of forbiddenPaths) {
 }
 
 const required = [
-  "index.html", "manifest.webmanifest", "app.js", "styles.css",
+  "index.html", "manifest.webmanifest", "service-worker.js", "app.js", "styles.css",
   "js/ui/login.js", "js/ui/installHelper.js", "assets/icons/icon-192.png", "assets/icons/icon-512.png",
   "assets/icons/apple-touch-icon.png", "assets/icons/favicon-32.png", "_headers"
 ];
@@ -137,6 +137,11 @@ if (fs.existsSync(path.join(output, "manifest.webmanifest"))) {
   } catch (error) {
     failures.push(`production manifest is invalid JSON: ${error.message}`);
   }
+}
+
+if (fs.existsSync(path.join(output, "service-worker.js"))) {
+  const serviceWorker = fs.readFileSync(path.join(output, "service-worker.js"), "utf8");
+  if (!/addEventListener\(["']fetch["']/.test(serviceWorker)) failures.push("production service worker is missing a fetch handler");
 }
 
 if (failures.length) {

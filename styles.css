@@ -663,7 +663,7 @@ body {
   line-height: 1.5;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .app-shell {
     flex-direction: column;
   }
@@ -7700,6 +7700,7 @@ body[data-page="profile"] .form-actions { margin: 0; padding: 14px var(--space-l
 .claim-games-table td { height: auto; padding: 2px 8px; line-height: 1.15; white-space: nowrap; }
 .claim-games-table tbody tr { height: 42px; }
 .claim-games-table .button { min-height: 30px; padding-block: 3px; }
+.claim-games-table .button { white-space: nowrap; }
 .claim-games-table .status-badge { min-height: 26px; padding-block: 2px; }
 .claim-games-table th:nth-child(1), .claim-games-table td:nth-child(1) { min-width: 105px; }
 .claim-games-table th:nth-child(2), .claim-games-table td:nth-child(2) { min-width: 90px; }
@@ -8925,4 +8926,223 @@ body[data-page="profile"] .unified-profile-card.is-back .unified-profile-card-ac
   body[data-page="profile"] .profile-card-stage,
   body[data-page="profile"] .profile-card-orientation,
   body[data-page="profile"] .unified-profile-card .crew-credential-flipper { transition: none; }
+}
+
+/* Mobile hardening: deliberate reflow for umpire workflows instead of compressed desktop geometry. */
+.nav-group-toggle {
+  border: 1px solid rgba(91, 201, 214, .2);
+  border-inline-color: transparent;
+  background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(0,0,0,.08));
+  box-shadow: inset 0 1px rgba(255,255,255,.06), 0 1px rgba(0,0,0,.18);
+  cursor: pointer;
+}
+.nav-group-toggle:hover,
+.nav-group-toggle:focus-visible { border-color: rgba(91,201,214,.42); background: rgba(21,143,160,.18); }
+.nav-group-toggle:active { background: rgba(21,143,160,.28); box-shadow: inset 0 1px 3px rgba(0,0,0,.3); }
+.nav-group-chevron { width: 1.25rem; justify-content: center; color: #65d2dc; font-size: 1rem; }
+
+@media (max-width: 900px) {
+  body[data-page="claim-games"] .claim-games-compact { overflow: visible; }
+  body[data-page="claim-games"] .claim-games-compact .presentation-table-wrapper { max-width: 100%; overflow: visible; }
+  body[data-page="claim-games"] .claim-games-table,
+  body[data-page="claim-games"] .claim-games-table tbody { display: block; width: 100%; min-width: 0; }
+  body[data-page="claim-games"] .claim-games-table thead { display: none; }
+  body[data-page="claim-games"] .claim-games-table tbody tr {
+    display: grid; width: auto; height: auto; min-height: 0; margin: 10px; padding: 10px;
+    border: 1px solid #b8d6de; border-radius: 10px; background: #fff;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas: "date date time time" "level level field field" "location location location location" "status status action action";
+    gap: 4px 8px;
+  }
+  body[data-page="claim-games"] .claim-games-table tbody td {
+    display: flex; width: auto; min-width: 0; min-height: 36px; padding: 4px; border: 0;
+    align-items: center; justify-content: center; line-height: 1.25; white-space: normal;
+    overflow-wrap: normal; word-break: normal; hyphens: none;
+  }
+  body[data-page="claim-games"] .claim-game-date { grid-area: date; justify-content: flex-start; font-weight: 850; text-align: left; }
+  body[data-page="claim-games"] .claim-game-time { grid-area: time; justify-content: flex-end; font-weight: 850; text-align: right; }
+  body[data-page="claim-games"] .claim-game-level { grid-area: level; justify-content: flex-start; color: #07596b; font-weight: 900; text-align: left; }
+  body[data-page="claim-games"] .claim-game-location { grid-area: location; justify-content: flex-start; text-align: left; }
+  body[data-page="claim-games"] .claim-game-field { grid-area: field; }
+  body[data-page="claim-games"] .claim-game-status { grid-area: status; justify-content: flex-start; }
+  body[data-page="claim-games"] .claim-game-action { grid-area: action; }
+  body[data-page="claim-games"] .claim-game-status .status-badge { white-space: nowrap; font-size: .78rem; }
+  body[data-page="claim-games"] .claim-game-action .button { width: 100%; min-height: 44px; white-space: nowrap; }
+  body[data-page="claim-games"] .game-list-filter-options fieldset > div { gap: 8px 12px; }
+  body[data-page="claim-games"] .game-list-filter-actions { gap: 12px; }
+}
+
+@media (min-width: 700px) and (max-width: 900px) and (orientation: landscape) {
+  body[data-page="claim-games"] .claim-games-table tbody tr {
+    grid-template-columns: max-content max-content max-content minmax(150px,1fr) max-content max-content max-content;
+    grid-template-areas: "date time level location field status action";
+    align-items: center; gap: 8px 12px;
+  }
+  body[data-page="claim-games"] .claim-game-location { justify-content: center; text-align: center; }
+  body[data-page="claim-games"] .claim-game-status { justify-content: center; }
+}
+
+/* Phone schedules are cards, not a horizontally clipped desktop table. */
+@media (max-width: 900px) {
+  body[data-page="my-schedule"] .my-schedule-table-wrapper {
+    width: 100%; max-width: 100%; overflow: visible; scrollbar-gutter: auto;
+  }
+  body[data-page="my-schedule"] .my-schedule-compact-table,
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody {
+    display: block; width: 100%; min-width: 0;
+  }
+  body[data-page="my-schedule"] .my-schedule-compact-table thead { display: none; }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody tr {
+    display: grid; width: 100%; min-width: 0; height: auto; margin-block: 10px; padding: 12px;
+    border: 1px solid #b8d6de; border-radius: 10px; background: #fff;
+    grid-template-columns: repeat(4,minmax(0,1fr));
+    grid-template-areas: "date date time time" "level field field position" "location location location location" "status status action action";
+    align-items: center; gap: 7px 10px; box-sizing: border-box;
+  }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td {
+    display: flex; width: auto; min-width: 0; min-height: 0; height: auto; padding: 0; border: 0;
+    align-items: center; justify-content: flex-start; line-height: 1.3; text-align: left;
+    white-space: normal; overflow-wrap: anywhere;
+  }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(1) { grid-area: date; font-weight: 900; white-space: nowrap; }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(2) { grid-area: time; justify-content: flex-end; font-weight: 900; white-space: nowrap; }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(3) { grid-area: level; color: #07596b; font-weight: 900; }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(4) { grid-area: location; padding-top: 7px; border-top: 1px solid #d7e6ea; }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(5) { grid-area: field; justify-content: center; }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(6) { grid-area: position; justify-content: flex-end; }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(7) { grid-area: status; padding-top: 7px; border-top: 1px solid #d7e6ea; }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(8) { grid-area: action; padding-top: 7px; border-top: 1px solid #d7e6ea; }
+  body[data-page="my-schedule"] .my-schedule-compact-table .status-badge { white-space: nowrap; }
+  body[data-page="my-schedule"] .my-schedule-compact-table .button { width: auto; min-width: 88px; min-height: 44px; white-space: nowrap; }
+}
+
+@media (min-width: 700px) and (max-width: 900px) and (orientation: landscape) {
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody tr {
+    grid-template-columns: max-content max-content max-content minmax(150px,1fr) max-content max-content;
+    grid-template-areas: "date time level location status action" "field field position location status action";
+    gap: 5px 14px;
+  }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(4),
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(7),
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(8) { padding-top: 0; border-top: 0; }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(5) { justify-content: flex-start; }
+  body[data-page="my-schedule"] .my-schedule-compact-table tbody td:nth-child(6) { justify-content: flex-start; }
+}
+
+/* The self-service back becomes content-sized below the desktop-card boundary. */
+@media (max-width: 900px) {
+  body[data-page="profile"] .unified-profile-card.is-back .profile-card-stage {
+    width: min(100%, 760px); height: auto; min-height: 0; aspect-ratio: auto;
+  }
+  body[data-page="profile"] .unified-profile-card.is-back .profile-card-orientation,
+  body[data-page="profile"] .unified-profile-card.is-back .crew-credential-flipper,
+  body[data-page="profile"] .unified-profile-card.is-back .crew-credential-flipper.is-flipped {
+    position: relative; top: auto; left: auto; width: 100%; height: auto; min-height: 0;
+    transform: none; transition: none;
+  }
+  body[data-page="profile"] .unified-profile-card.is-back .profile-crew-card-front { display: none; }
+  body[data-page="profile"] .unified-profile-card.is-back .profile-crew-card-back {
+    position: relative; inset: auto; display: grid; width: 100%; height: auto; min-height: 0; padding: 12px;
+    overflow: visible; backface-visibility: visible; grid-template-rows: auto auto auto auto;
+    transform: none;
+  }
+  body[data-page="profile"] .profile-card-back-body {
+    display: grid; min-height: 0; padding: 10px; overflow: visible;
+    grid-template-columns: minmax(0,.9fr) minmax(0,1.1fr); align-content: start; gap: 12px;
+  }
+  body[data-page="profile"] .profile-card-back-summary { min-width: 0; padding-right: 12px; gap: 8px; }
+  body[data-page="profile"] .profile-card-back-summary .crew-credential-age { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  body[data-page="profile"] .profile-card-back-summary .crew-credential-age > div { min-height: 52px; padding: 6px; }
+  body[data-page="profile"] .profile-card-back-summary .crew-credential-age dt { font-size: .62rem; }
+  body[data-page="profile"] .profile-card-back-summary .crew-credential-age dd { margin-top: 3px; font-size: 1rem; }
+  body[data-page="profile"] .profile-card-back-summary .crew-credential-history-launch { padding: 6px; gap: 3px; }
+  body[data-page="profile"] .profile-card-back-summary .crew-credential-history-launch h3 { font-size: .82rem; }
+  body[data-page="profile"] .profile-card-back-summary .crew-credential-history-launch strong,
+  body[data-page="profile"] .profile-card-back-summary .crew-credential-history-launch .button { font-size: .78rem; }
+  body[data-page="profile"] .profile-card-back-summary .crew-credential-eligibility h4,
+  body[data-page="profile"] .profile-crew-card-back .crew-credential-contact h3 { padding: 5px; font-size: .78rem; }
+  body[data-page="profile"] .profile-crew-card-back .crew-credential-eligibility .settings-pill { width: 34px; height: 34px; font-size: .65rem; }
+  body[data-page="profile"] .profile-card-back-summary .crew-credential-eligibility > div { gap: 6px; }
+  body[data-page="profile"] .profile-crew-card-back .crew-credential-contact { min-height: 0; }
+  body[data-page="profile"] .profile-crew-card-back .crew-credential-contact dl { padding: 7px 9px; grid-template-rows: none; }
+  body[data-page="profile"] .profile-crew-card-back .crew-credential-contact dl > div {
+    min-height: 38px; padding: 4px 0; grid-template-columns: minmax(105px,38%) minmax(0,1fr);
+  }
+  body[data-page="profile"] .profile-crew-card-back .crew-credential-contact dt { font-size: .68rem; }
+  body[data-page="profile"] .profile-crew-card-back .crew-credential-contact dd { min-width: 0; padding-left: 7px; font-size: .8rem; overflow-wrap: anywhere; }
+  body[data-page="profile"] .profile-crew-card-back .crew-contact-action { max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: break-word; text-align: left; }
+  body[data-page="profile"] .profile-card-back-actions {
+    position: static; display: grid; padding: 10px 4px 4px; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  body[data-page="profile"] .profile-card-back-actions .button { width: 100%; min-height: 44px; padding: 6px 8px; font-size: .75rem; white-space: normal; }
+}
+
+@media (max-width: 600px) {
+  body[data-page="profile"] .unified-profile-card.is-back .profile-card-stage { width: min(100%, 440px); }
+  body[data-page="profile"] .unified-profile-card.is-back .profile-crew-card-back { padding: 10px; }
+  body[data-page="profile"] .profile-card-back-header { grid-template-columns: minmax(0,1fr) 38px minmax(92px, .65fr); }
+  body[data-page="profile"] .profile-card-back-title { padding-left: 10px; gap: 9px; }
+  body[data-page="profile"] .profile-card-back-title strong { font-size: clamp(.9rem,4vw,1.15rem); }
+  body[data-page="profile"] .profile-card-back-title span { font-size: clamp(.72rem,3vw,.9rem); }
+  body[data-page="profile"] .profile-card-back-header > i { width: 20px; height: 72px; }
+  body[data-page="profile"] .profile-card-back-id { padding-right: 6px; font-size: .68rem; }
+  body[data-page="profile"] .profile-card-back-id b { font-size: .78rem; }
+  body[data-page="profile"] .profile-card-motto { padding: 9px 7px; font-size: .85rem; }
+  body[data-page="profile"] .profile-card-back-body { grid-template-columns: 1fr; padding: 10px; gap: 10px; }
+  body[data-page="profile"] .profile-card-back-summary { padding: 0 0 10px; border-right: 0; border-bottom: 1px solid #82735c; gap: 8px; }
+  body[data-page="profile"] .profile-crew-card-back .crew-credential-contact dl > div { grid-template-columns: 1fr; gap: 2px; }
+  body[data-page="profile"] .profile-crew-card-back .crew-credential-contact dd { padding: 0 0 5px; border-left: 0; }
+}
+
+@media (max-width: 900px) {
+  #crew-credential-dialog[data-edit-mode="self"] {
+    width: calc(100vw - 8px); max-width: calc(100vw - 8px); height: calc(100dvh - 8px); max-height: calc(100dvh - 8px);
+    margin: auto; overflow: hidden; border-radius: 12px;
+  }
+  #crew-credential-dialog[data-edit-mode="self"] .crew-card-edit-mode {
+    display: block; height: 100%; min-height: 0; padding: 0; overflow-y: auto;
+    scroll-padding-top: 92px; overscroll-behavior: contain;
+  }
+  #crew-credential-dialog[data-edit-mode="self"] .crew-card-edit-header {
+    position: sticky; top: 0; z-index: 5; display: grid; margin: 0; padding: 12px;
+    grid-template-columns: minmax(0,1fr) auto; align-items: start; gap: 10px;
+  }
+  #crew-credential-dialog[data-edit-mode="self"] .crew-card-edit-header span { display: none; }
+  #crew-credential-dialog[data-edit-mode="self"] .crew-card-edit-header > div { min-width: 0; }
+  #crew-credential-dialog[data-edit-mode="self"] .crew-card-edit-header h2 { font-size: 1.25rem; line-height: 1.15; }
+  #crew-credential-dialog[data-edit-mode="self"] .crew-card-edit-header p { margin-top: 3px; font-size: .8rem; line-height: 1.25; }
+  #crew-credential-dialog[data-edit-mode="self"] .crew-card-edit-header > .button { width: auto; min-height: 44px; padding-inline: 14px; white-space: nowrap; }
+  #crew-credential-dialog[data-edit-mode="self"] .unified-crew-self-editor { padding: 12px; gap: 12px; }
+  #crew-credential-dialog[data-edit-mode="self"] .unified-crew-edit-grid { grid-template-columns: 1fr; padding: 12px; }
+  #crew-credential-dialog[data-edit-mode="self"] .unified-crew-edit-grid .wide { grid-column: 1; }
+  #crew-credential-dialog[data-edit-mode="self"] .profile-photo-editor-content { grid-template-columns: 1fr; padding: 12px; justify-items: stretch; }
+  #crew-credential-dialog[data-edit-mode="self"] .profile-photo-editor { scroll-margin-top: 92px; }
+  #crew-credential-dialog[data-edit-mode="self"] .profile-photo-editor > h3 { position: relative; z-index: 1; margin: 0; padding: 10px 12px; line-height: 1.2; }
+  #crew-credential-dialog[data-edit-mode="self"] .profile-photo-editor-content > *,
+  #crew-credential-dialog[data-edit-mode="self"] .profile-photo-editor-content > div { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  #crew-credential-dialog[data-edit-mode="self"] [data-testid="profile-photo-preview"] { justify-self: center; }
+  #crew-credential-dialog[data-edit-mode="self"] .profile-photo-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  #crew-credential-dialog[data-edit-mode="self"] .profile-photo-actions .button,
+  #crew-credential-dialog[data-edit-mode="self"] input,
+  #crew-credential-dialog[data-edit-mode="self"] select { width: 100%; max-width: 100%; }
+  #crew-credential-dialog[data-edit-mode="self"] .unified-crew-self-editor > footer {
+    position: sticky; z-index: 4; bottom: -12px; display: grid; margin: 0 -12px -12px; padding: 12px;
+    border-top: 1px solid #b8d6de; background: rgba(247,248,245,.98); grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  #crew-credential-dialog[data-edit-mode="self"] .unified-crew-self-editor > footer .button { width: 100%; min-height: 44px; }
+}
+
+@media (min-width: 601px) and (max-width: 900px) and (orientation: landscape) {
+  #crew-credential-dialog[data-edit-mode="self"] .profile-photo-editor-content {
+    grid-template-columns: minmax(120px,180px) minmax(0,1fr); align-items: center;
+  }
+  #crew-credential-dialog[data-edit-mode="self"] .unified-crew-edit-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #crew-credential-dialog[data-edit-mode="self"] .unified-crew-edit-grid .wide { grid-column: 1 / -1; }
+}
+
+@media (max-width: 380px) {
+  #crew-credential-dialog[data-edit-mode="self"] .crew-card-edit-header { grid-template-columns: 1fr; }
+  #crew-credential-dialog[data-edit-mode="self"] .crew-card-edit-header > .button { width: 100%; }
+  #crew-credential-dialog[data-edit-mode="self"] .profile-photo-actions,
+  #crew-credential-dialog[data-edit-mode="self"] .unified-crew-self-editor > footer { grid-template-columns: 1fr; }
 }

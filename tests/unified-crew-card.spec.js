@@ -94,7 +94,12 @@ test.describe("Unified Crew Card umpire security and responsiveness",()=>{
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
       expect(await card.locator(".profile-card-stage").evaluate(n=>n.getBoundingClientRect().width/n.getBoundingClientRect().height)).toBeCloseTo(5/7,2);
       await page.getByTestId("profile-card-back").click();
-      await expect.poll(()=>card.locator(".profile-card-stage").evaluate(n=>n.getBoundingClientRect().width/n.getBoundingClientRect().height)).toBeCloseTo(7/5,2);
+      if(width<=600) await expect.poll(()=>card.locator(".profile-card-stage").evaluate(n=>n.getBoundingClientRect().height/n.getBoundingClientRect().width)).toBeGreaterThan(2);
+      else if(width<=900) {
+        const mobileBack=await card.locator(".profile-card-stage").evaluate(n=>({height:n.getBoundingClientRect().height,columns:getComputedStyle(n.querySelector(".profile-card-back-body")).gridTemplateColumns.split(" ").length}));
+        expect(mobileBack.height).toBeGreaterThan(500);
+        expect(mobileBack.columns).toBe(2);
+      } else await expect.poll(()=>card.locator(".profile-card-stage").evaluate(n=>n.getBoundingClientRect().width/n.getBoundingClientRect().height)).toBeCloseTo(7/5,2);
       if(width>=1280){
         const geometry=await card.evaluate(node=>{
           const face=node.querySelector(".crew-credential-face-back");

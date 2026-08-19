@@ -38,12 +38,10 @@ test("Android uses the direct browser install prompt when available", async ({ p
     window.dispatchEvent(event);
   });
   await page.getByTestId("nav-install").click();
-  await expect(page.getByTestId("install-confirm")).toBeVisible();
-  await page.getByTestId("install-confirm").click();
   await expect.poll(() => page.evaluate(() => window.__slateInstallPrompted)).toBe(true);
-  await expect(page.getByTestId("install-status")).toContainText("Waiting for your browser to confirm");
+  await expect(page.getByTestId("install-helper-dialog")).toHaveCount(0);
   await page.evaluate(() => window.dispatchEvent(new Event("appinstalled")));
-  await expect(page.getByTestId("install-helper-dialog")).not.toBeVisible();
+  await expect(page.getByTestId("nav-install")).toBeHidden();
 });
 
 test("an accepted choice never reports installed before appinstalled", async ({ page }) => {
@@ -55,8 +53,8 @@ test("an accepted choice never reports installed before appinstalled", async ({ 
     window.dispatchEvent(event);
   });
   await page.getByTestId("nav-install").click();
-  await page.getByTestId("install-confirm").click();
-  await expect(page.getByTestId("install-status")).not.toContainText("is installed");
+  await expect(page.getByTestId("install-helper-dialog")).toHaveCount(0);
+  await expect(page.getByTestId("nav-install")).toBeHidden();
 });
 
 test("a dismissed install choice gives retry-safe feedback", async ({ page }) => {
@@ -68,12 +66,18 @@ test("a dismissed install choice gives retry-safe feedback", async ({ page }) =>
     window.dispatchEvent(event);
   });
   await page.getByTestId("nav-install").click();
-  await page.getByTestId("install-confirm").click();
   await expect(page.getByTestId("install-status")).toContainText("not completed");
 });
 
+test("Chromium Android does not show fallback instructions before the native event is available", async ({ page }) => {
+  await overrideInstallEnvironment(page, { userAgent: "Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36", platform: "Linux armv8l", maxTouchPoints: 5 });
+  await page.goto("/");
+  await expect(page.getByTestId("nav-install")).toBeHidden();
+  await expect(page.getByTestId("install-helper-dialog")).toHaveCount(0);
+});
+
 test("Android shows browser menu instructions when direct install is unavailable", async ({ page }) => {
-  await overrideInstallEnvironment(page, { userAgent: "Mozilla/5.0 (Linux; Android 15; Tablet) AppleWebKit/537.36 Chrome/140.0 Safari/537.36", platform: "Linux armv8l", maxTouchPoints: 5 });
+  await overrideInstallEnvironment(page, { userAgent: "Mozilla/5.0 (Android 15; Mobile; rv:141.0) Gecko/141.0 Firefox/141.0", platform: "Linux armv8l", maxTouchPoints: 5 });
   await page.goto("/");
   await page.getByTestId("nav-install").click();
   await expect(page.getByTestId("install-instructions")).toContainText("Install app");
