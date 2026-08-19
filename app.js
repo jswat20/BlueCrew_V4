@@ -606,6 +606,13 @@ function updateHeader(page) {
 
   const title = document.getElementById("page-title");
   const subtitle = document.getElementById("page-subtitle");
+  const portalIdentity = document.querySelector('[data-testid="portal-identity"]');
+  const activeRole = authService.getCurrentUser?.()?.role || document.body.dataset.role || "umpire";
+  const portalRole = typeof authenticatedIdentityService !== "undefined"
+    ? authenticatedIdentityService.roleLabel(activeRole)
+    : activeRole === "assigner" ? "Assigner" : activeRole === "administrator" ? "Administrator" : "Umpire";
+
+  if (portalIdentity) portalIdentity.textContent = `${portalRole} Portal`;
 
   if (title) {
     title.textContent = page === "operations-center"

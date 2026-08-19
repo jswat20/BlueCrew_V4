@@ -57,7 +57,15 @@ const crewService = {
       administrativeCrewState = { status: "error", message: profiles.error.message || "Linked Crew profiles could not be loaded." };
       return { success: false, message: administrativeCrewState.message };
     }
-    const profileById = new Map((profiles.data || []).map(item => [String(item.id), item]));
+    const hydratedProfiles = await Promise.all((profiles.data || []).map(async item => {
+      if (!item.photo_path || typeof profilePhotoService === "undefined") return item;
+      try {
+        return { ...item, photo_url: await profilePhotoService.createDisplayUrl(item.photo_path) };
+      } catch (_error) {
+        return { ...item, photo_url: "" };
+      }
+    }));
+    const profileById = new Map(hydratedProfiles.map(item => [String(item.id), item]));
     const identityByCrew = new Map((diagnostics.data || []).map(item => [String(item.crew_member_id), item]));
     administrativeCrewSnapshot = (data || []).map(row => {
       const identity = identityByCrew.get(String(row.id)) || {};

@@ -190,7 +190,8 @@ test.describe("Hosted linked Crew card editing", () => {
   const linkedProfile = {
     id: "profile-linked-1", auth_user_id: "auth-linked-1", organization_id: "organization-1",
     first_name: "Linked", last_name: "Official", email: "linked@example.com", phone: "5550103000",
-    role: "umpire", status: "approved", communication_preferences: {}
+    role: "umpire", status: "approved", communication_preferences: {}, crew_code: "UMP-204",
+    photo_path: "auth-linked-1/profile"
   };
   const linkedCrew = {
     ...existingCrew, id: "crew-linked", profile_id: linkedProfile.id, first_name: "Linked",
@@ -198,6 +199,22 @@ test.describe("Hosted linked Crew card editing", () => {
   };
 
   test.use({ supabaseScenario: { profile: administrator, crewId: null, pendingProfiles: [linkedProfile], crewMembers: [linkedCrew] } });
+
+  test("hydrates the linked profile photo into the administrator Crew detail", async ({ supabaseAuthApp }) => {
+    const { page, calls } = supabaseAuthApp;
+    await openCrew(page);
+    await page.getByRole("button", { name: "Open Crew Card for Linked Official" }).click();
+    const photo = page.getByTestId("crew-card-dialog").locator(".crew-credential-modal-photo").first();
+    await expect(photo).toHaveAttribute("src", /profile-photos\/auth-linked-1\/profile\?token=fixture/);
+    await expect(page.getByTestId("crew-card-id")).toHaveText("UMP-204");
+    const recordedCalls = await calls();
+    expect(recordedCalls.some(call => call.operation === "storage.createSignedUrl" && call.path === "auth-linked-1/profile")).toBe(true);
+    const profileProjection = recordedCalls.find(call => call.operation === "selectColumns" && call.table === "profiles" && call.columns.includes("photo_path"));
+    expect(profileProjection).toBeTruthy();
+    expect(profileProjection.columns).toContain("crew_code");
+    expect(profileProjection.columns).toContain("crew_code_issued_at");
+    expect(profileProjection.columns).not.toContain("personnel_id");
+  });
 
   test("persists a linked Crew edit through the hosted repository and retains identity linkage", async ({ supabaseAuthApp }) => {
     const { page, calls } = supabaseAuthApp;

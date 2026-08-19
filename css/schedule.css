@@ -1234,8 +1234,12 @@ color:#991b1b;
   }
   .schedule-date-nav > *, .schedule-toolbar button, .schedule-view-controls button { min-height: 44px; }
   .schedule-filter-grid { grid-template-columns: 1fr; }
-  .schedule-calendar { overflow-x: auto; }
-  .schedule-calendar-grid { min-width: 560px; }
+  .schedule-calendar { overflow-x: hidden; padding: 7px; }
+  .schedule-calendar-weekdays,
+  .schedule-calendar-grid { width: 100%; min-width: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .schedule-calendar-weekdays span { min-width: 0; padding-inline: 1px; font-size: .58rem; }
+  .schedule-calendar-day { min-width: 0; min-height: 36px; padding: 2px; font-size: .82rem; }
+  .schedule-calendar-day small { right: 1px; bottom: 0; font-size: .48rem; }
   .schedule-game-card { grid-template-columns: 1fr; grid-template-areas: "when" "details" "crew" "status" "actions"; }
   .schedule-game-card .game-card-actions { display: grid; grid-template-columns: 1fr; }
   .schedule-game-card .game-card-actions button { width: 100%; min-height: 44px; }

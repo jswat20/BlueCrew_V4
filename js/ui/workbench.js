@@ -217,7 +217,7 @@ function renderWorkbenchItem(
         ${isNeedsAssignment ? `
           <span class="workbench-mini-game-date">${escapeWorkbenchHtml(formatWorkbenchCompactDate(game?.date))}</span>
           <span class="workbench-mini-game-time">${escapeWorkbenchHtml(dateTimeFormattingService.formatTime12Hour(game?.time, "Time TBD"))}</span>
-          <span class="workbench-mini-game-main"><strong>${escapeWorkbenchHtml(`${level} - ${complex} - ${field}`)}</strong><small>${escapeWorkbenchHtml(label)}</small></span>
+          <span class="workbench-mini-game-main"><strong>${escapeWorkbenchHtml(level)}</strong><span>${escapeWorkbenchHtml(label)}</span><small>${escapeWorkbenchHtml(`${complex} · ${field}`)}</small></span>
           <span class="workbench-mini-game-crew">${isCancelled
             ? `<strong class="workbench-staffing-count status-badge ${presentationFormattingService.getStatusBadgeClass("Cancelled")}" data-status="cancelled">Cancelled</strong>`
             : `<strong class="workbench-staffing-count status-badge ${presentationFormattingService.getStatusBadgeClass("Needs Assignment")}" data-incomplete="${assignedCount < staffingTotal}">${assignedCount}/${staffingTotal} Staffed</strong>`}</span>
@@ -515,12 +515,12 @@ function renderWorkbenchOpenPositions(games = []) {
               const openAssignments = assignmentService.getAssignments(game).filter(assignment => !assignment.crewId);
               return `
                 <tr data-testid="workbench-open-game-${escapeWorkbenchHtml(game.id)}">
-                  <td>${escapeWorkbenchHtml(game.date || "—")}</td>
-                  <td>${escapeWorkbenchHtml(dateTimeFormattingService.formatTime12Hour(game.time, "TBD"))}</td>
-                  <td><strong>${escapeWorkbenchHtml(getWorkbenchItemLabel(game))}</strong><br><span class="muted">${escapeWorkbenchHtml(levelTerminologyService.format(game.level) || "")}</span></td>
-                  <td>${escapeWorkbenchHtml(locationService.getDisplayName(game) || "Location TBD")}</td>
-                  <td><div class="workbench-open-position-list">${openAssignments.map(assignment => `<span class="status-badge status-badge-open">${escapeWorkbenchHtml(presentationFormattingService.formatAssignmentPosition(assignment.position))}</span>`).join("")}</div></td>
-                  <td><button type="button" class="button button-primary" data-testid="workbench-manage-crew-${escapeWorkbenchHtml(game.id)}" onclick="openAssignmentDrawer('${escapeWorkbenchHtml(game.id)}')">Manage Crew</button></td>
+                  <td data-label="Date">${escapeWorkbenchHtml(game.date || "—")}</td>
+                  <td data-label="Time">${escapeWorkbenchHtml(dateTimeFormattingService.formatTime12Hour(game.time, "TBD"))}</td>
+                  <td data-label="Game"><strong>${escapeWorkbenchHtml(getWorkbenchItemLabel(game))}</strong><br><span class="muted">${escapeWorkbenchHtml(levelTerminologyService.format(game.level) || "")}</span></td>
+                  <td data-label="Location">${escapeWorkbenchHtml(locationService.getDisplayName(game) || "Location TBD")}</td>
+                  <td data-label="Open Positions"><div class="workbench-open-position-list">${openAssignments.map(assignment => `<span class="status-badge status-badge-open">${escapeWorkbenchHtml(presentationFormattingService.formatAssignmentPosition(assignment.position))}</span>`).join("")}</div></td>
+                  <td class="workbench-open-action"><button type="button" class="button button-primary" data-testid="workbench-manage-crew-${escapeWorkbenchHtml(game.id)}" onclick="openAssignmentDrawer('${escapeWorkbenchHtml(game.id)}')">Manage Crew</button></td>
                 </tr>
               `;
             }).join("") : `<tr><td colspan="6"><div class="presentation-empty-state" role="status">No games currently have open positions.</div></td></tr>`}

@@ -76,8 +76,10 @@ const sharedDomainMappingService = (() => {
       ,profileEmergencyContactPhone: formatPhone(linkedProfile.emergency_contact_phone)
       ,birthdate: linkedProfile.birthdate || ""
       ,officialHistory: linkedProfile.official_history || []
-      ,personnelId: linkedProfile.personnel_id || ""
-      ,personnelIdIssuedAt: linkedProfile.personnel_id_issued_at || null
+      ,profilePhotoPath: linkedProfile.photo_path || ""
+      ,profilePhotoUrl: linkedProfile.photo_url || ""
+      ,personnelId: linkedProfile.crew_code || ""
+      ,personnelIdIssuedAt: linkedProfile.crew_code_issued_at || null
       ,linkedRole: linkedProfile.role || row.linked_role || ""
     };
   }

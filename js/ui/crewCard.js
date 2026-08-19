@@ -31,7 +31,11 @@ function getCrewCardModel(crewOrId) {
     firstName,
     lastName,
     fullName: `${firstName} ${lastName}`.trim() || "Unnamed Crew Member",
-    role: account?.role === "assigner" ? "Assigner" : "Umpire",
+    role: account?.role === "administrator" || linkedCrew?.linkedRole === "administrator"
+      ? "Administrator"
+      : account?.role === "assigner" || linkedCrew?.linkedRole === "assigner"
+        ? "Assigner"
+        : "Umpire",
     status: linkedCrew?.active === false || account?.status === "rejected" ? "Inactive" : account?.status === "pending" ? "Pending" : "Active",
     email: linkedCrew?.email || "",
     loginEmail: linkedCrew?.loginEmail || (identityStatus === "linked" ? account?.email || "" : ""),
@@ -45,8 +49,8 @@ function getCrewCardModel(crewOrId) {
     emergencyContactPhone: formatCrewCardPhone(account?.emergencyContactPhone || linkedCrew?.profileEmergencyContactPhone),
     birthdate: account?.birthdate || linkedCrew?.birthdate || "",
     age: accountService.deriveAge(account?.birthdate || linkedCrew?.birthdate),
-    photoDataUrl: account?.photoUrl || account?.photoDataUrl || "",
-    photoPath: account?.photoPath || "",
+    photoDataUrl: account?.photoUrl || account?.photoDataUrl || linkedCrew?.profilePhotoUrl || "",
+    photoPath: account?.photoPath || linkedCrew?.profilePhotoPath || "",
     levels: [...(linkedCrew?.levels || [])],
     officialHistory: history.length ? history : (linkedCrew?.officialHistory || []),
     yearsOfService: accountService.deriveYearsOfService(history.length ? history : (linkedCrew?.officialHistory || [])),
@@ -96,7 +100,7 @@ function formatCrewCardDate(value) {
 
 function renderCrewCredentialFrontFace(model, options = {}) {
   if (options.profileDesign) {
-    return `<section class="crew-credential-face crew-credential-face-front profile-crew-card-front" data-testid="profile-portrait-front"${options.hidden ? ' aria-hidden="true" inert' : ""}>
+    return `<section class="crew-credential-face crew-credential-face-front profile-crew-card-front" data-card-role="${escapeCrewCardHtml(String(model.role || "").toLowerCase())}" data-testid="profile-portrait-front"${options.hidden ? ' aria-hidden="true" inert' : ""}>
       <div class="profile-card-front-photo">
         <img class="profile-card-front-logo" src="assets/the-slate-logo.png" alt="The Slate logo">
         ${renderCrewCardPhoto(model, "profile-card-portrait-photo")}
@@ -218,7 +222,7 @@ function openHostedCrewEditorFromCard(event, crewMemberId) {
 }
 
 function renderCrewCardEditShell(title, subtitle, body, testId) {
-  return `<article class="crew-credential-modal crew-card-edit-mode" data-testid="${testId}"><header class="crew-card-edit-header"><div><span>Crew Card</span><h2>${escapeCrewCardHtml(title)}</h2><p>${escapeCrewCardHtml(subtitle)}</p></div><button type="button" class="button button-secondary" onclick="cancelCrewCardEditMode()">Cancel</button></header>${body}</article>`;
+  return `<article class="crew-credential-modal crew-card-edit-mode" data-testid="${testId}"><header class="crew-card-edit-header"><div><h2>${escapeCrewCardHtml(title)}</h2><p>${escapeCrewCardHtml(subtitle)}</p></div><button type="button" class="button button-secondary" onclick="cancelCrewCardEditMode()">Cancel</button></header>${body}</article>`;
 }
 
 function openCrewCardAdminEditMode(crewMemberId) {
