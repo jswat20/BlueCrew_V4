@@ -413,7 +413,7 @@ function renderEditCrewDrawerContent(member) {
       </div>
 
       <div class="form-group crew-field-personnel-id">
-        <label>Personnel ID</label>
+        <label>Crew ID</label>
         <input id="crew-personnel-id" value="${escapeCrewComponentHtml(member.personnelId || "Not issued")}" readonly data-testid="crew-personnel-id" />
       </div>
 

@@ -93,7 +93,7 @@ export const test = base.extend({
             assignment_claims: settings.claims,
             activities: settings.activities,
             notifications: settings.notifications,
-            crew_members: settings.crewMembers.filter(member => !selectedIds.length || selectedIds.map(String).includes(String(member.id)))
+            crew_members: settings.crewMembers.filter(member => !selectedIds.length || selectedIds.map(id => String(id).toLowerCase()).includes(String(member.id).toLowerCase()))
             ,profiles: [settings.profile, ...settings.pendingProfiles, ...settings.organizationProfiles, ...settings.activityActors].filter((row, index, all) => row && all.findIndex(candidate => String(candidate?.id) === String(row.id)) === index).filter(row => String(row.organization_id) === String(settings.profile.organization_id) && (!selectedIds.length || selectedIds.map(String).includes(String(row.id))) && Object.entries(equality).every(([column, value]) => String(row[column]) === String(value)))
           };
           if (table === "notifications") {
@@ -326,6 +326,25 @@ export const test = base.extend({
               (settings.crewId ? { active: true, eligible_levels: ["12U"] } : null);
             if (!claimant?.active || !claimant.eligible_levels?.includes(game?.level)) {
               return { data: null, error: { message: "claim_level_ineligible" } };
+            }
+            if (settings.claims.some(claim => String(claim.assignment_id) === String(assignment?.id) && claim.status === "pending")) {
+              return { data: null, error: { message: "assignment_position_reserved" } };
+            }
+            if (settings.claims.some(claim => {
+              const claimedAssignment = settings.assignments.find(item => String(item.id) === String(claim.assignment_id));
+              return claim.status === "pending" && String(claim.claimant_crew_member_id) === String(settings.crewId) && String(claimedAssignment?.game_id) === String(game?.id);
+            })) {
+              return { data: null, error: { message: "claimant_already_has_pending_game_claim" } };
+            }
+            const assignedGames = settings.assignments
+              .filter(item => String(item.assigned_crew_member_id) === String(settings.crewId) && ["assigned", "locked"].includes(item.status))
+              .map(item => settings.games.find(candidate => String(candidate.id) === String(item.game_id)))
+              .filter(Boolean);
+            if (assignedGames.some(item => item.id !== game?.id && item.game_date === game?.game_date && item.game_time === game?.game_time)) {
+              return { data: null, error: { message: "claim_schedule_conflict" } };
+            }
+            if (new Set(assignedGames.filter(item => item.id !== game?.id && item.game_date === game?.game_date).map(item => item.id)).size >= 2) {
+              return { data: null, error: { message: "claim_daily_limit_reached" } };
             }
             if (!assignment || !["open_for_claim", "needs_assignment"].includes(assignment.status) || assignment.assigned_crew_member_id || assignment.locked) {
               return { data: null, error: { message: "assignment_already_claimed" } };

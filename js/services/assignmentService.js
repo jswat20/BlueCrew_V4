@@ -91,8 +91,23 @@ const assignmentService = (() => {
 
   function sharedClaimError(error, fallback) {
     const message = String(error?.message || "");
+    if (message.includes("assignment_position_reserved")) {
+      return "This position has already been claimed and is awaiting approval.";
+    }
+    if (message.includes("claimant_already_has_pending_game_claim")) {
+      return "You already have a claim awaiting approval for this game.";
+    }
+    if (message.includes("claimant_already_assigned_to_game")) {
+      return "You are already assigned to this game.";
+    }
+    if (message.includes("claim_schedule_conflict")) {
+      return "You are already assigned to another game at this time.";
+    }
+    if (message.includes("claim_daily_limit_reached")) {
+      return "You have reached the maximum number of games for this day.";
+    }
     if (message.includes("assignment_already_claimed")) {
-      return "This assignment has already been claimed by another official.";
+      return "This position has already been claimed and is awaiting approval.";
     }
     if (message.includes("claim_no_longer_pending")) return "This claim is no longer pending.";
     if (message.includes("claim_identity_required")) return "An approved linked umpire account is required.";
@@ -121,6 +136,8 @@ const assignmentService = (() => {
     if (!crewService.isActive(crew) || !crewService.canWorkLevel(crew, game.level)) {
       return mutationResult(false, "You are not certified for this game's level.");
     }
+    const availability = availabilityService.canAssign(crewId, game);
+    if (!availability.success) return mutationResult(false, availability.message);
     const assignment = getAssignments(game).find(item =>
       !item.locked && (item.status === STATUS.OPEN_FOR_CLAIM || item.status === STATUS.NEEDS_ASSIGNMENT)
     );
@@ -1439,13 +1456,20 @@ assignment.status = STATUS.OPEN_FOR_CLAIM;
     const sharedMode = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
     const crewId = authService.currentCrewId();
     const crew = crewService.getById(crewId);
-    return normalizeAllGames().filter(game =>
+    return normalizeAllGames().filter(game => {
+      const assignments = getAssignments(game);
+      const alreadyEngaged = assignments.some(assignment =>
+        String(assignment.claimedBy || assignment.crewId || "") === String(crewId || "") &&
+        [STATUS.PENDING_APPROVAL, STATUS.ASSIGNED, STATUS.LOCKED].includes(assignment.status)
+      );
+      return !alreadyEngaged &&
       (!sharedMode || (crewService.isActive(crew) && crewService.canWorkLevel(crew, game.level))) &&
-      getAssignments(game).some(assignment =>
+      (!sharedMode || availabilityService.canAssign(crewId, game).success) &&
+      assignments.some(assignment =>
         !assignment.locked && (assignment.status === STATUS.OPEN_FOR_CLAIM ||
         (sharedMode && assignment.status === STATUS.NEEDS_ASSIGNMENT))
-      )
-    );
+      );
+    });
   }
 
   async function declineSharedAssignment(gameId, crewId, reason) {

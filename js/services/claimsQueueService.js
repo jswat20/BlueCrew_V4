@@ -9,12 +9,21 @@ const claimsQueueService = (() => {
 
     return null;
   }
-    function mutationResult(success, message, data = null) {
+  function mutationResult(success, message, data = null) {
     return {
       success,
       message,
       data
     };
+  }
+  function resolveClaimantName(crewMemberId) {
+    if (!crewMemberId || typeof crewService === "undefined") return "Unknown Umpire";
+    const member = typeof crewService.getById === "function"
+      ? crewService.getById(String(crewMemberId))
+      : null;
+    return member && typeof crewService.getName === "function"
+      ? crewService.getName(member)
+      : "Unknown Umpire";
   }
   function getClaimsByStatus(status) {
     return gameService
@@ -39,13 +48,7 @@ const claimsQueueService = (() => {
             claimedBy: assignment.claimedBy,
             claimedByName:
               assignment.claimedByName ||
-              (assignment.claimedBy &&
-                typeof crewService !== "undefined" &&
-                typeof crewService.getDisplayName === "function"
-                  ? crewService.getDisplayName(assignment.claimedBy)
-                  : "") ||
-              assignment.claimedBy ||
-              "Unknown Umpire",
+              resolveClaimantName(assignment.claimedBy),
             status: assignment.status
           }))
       );
