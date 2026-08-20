@@ -107,7 +107,10 @@ const pages = {
 };
 
 function initializeApp() {
-  if (typeof supabaseClientService === "undefined" || supabaseClientService.hasConfigurationError()) {
+  const supabaseServiceMissing = typeof supabaseClientService === "undefined";
+  const hostedDependencyError = supabaseServiceMissing || supabaseClientService.hasDependencyError?.();
+  const hostedConfigurationError = !supabaseServiceMissing && supabaseClientService.hasConfigurationError();
+  if (hostedDependencyError || hostedConfigurationError) {
     games = [];
     crew = [];
     authService.clearAuthenticatedAccount?.();
@@ -116,8 +119,12 @@ function initializeApp() {
     document.querySelector(".sidebar")?.setAttribute("hidden", "");
     document.querySelector(".topbar")?.setAttribute("hidden", "");
     const content = document.getElementById("app-content");
-    if (content) content.innerHTML = `<div class="page-wrapper" data-testid="hosted-configuration-error"><section class="page-section"><h2>The Slate could not connect to its hosted configuration.</h2><p>Do not continue with schedule or account changes. Restart the hosted application or contact the administrator.</p></section></div>`;
-    window.BlueCrew.test.currentPage = "configuration-error";
+    const errorType = hostedDependencyError ? "dependency" : "configuration";
+    const heading = hostedDependencyError
+      ? "The Slate could not load a required application component."
+      : "The Slate could not connect to its hosted configuration.";
+    if (content) content.innerHTML = `<div class="page-wrapper" data-testid="hosted-${errorType}-error"><section class="page-section"><h2>${heading}</h2><p>Do not continue with schedule or account changes. Restart the hosted application or contact the administrator.</p></section></div>`;
+    window.BlueCrew.test.currentPage = `${errorType}-error`;
     window.BlueCrew.test.currentRole = "none";
     window.BlueCrew.test.initialized = true;
     return;

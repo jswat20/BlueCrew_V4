@@ -20,6 +20,26 @@ base("missing hosted configuration blocks local and demo data", async ({ page })
   expect(await page.evaluate(() => ({ games: gameService.getAll().length, crew: crewService.getAll().length, user: authService.getCurrentUser() }))).toEqual({ games: 0, crew: 0, user: null });
 });
 
+base("missing hosted browser dependency is distinct from invalid configuration", async ({ browser }) => {
+  const context = await browser.newContext({ serviceWorkers: "block" });
+  const page = await context.newPage();
+  try {
+    await page.route("**/*", route => decodeURIComponent(route.request().url()).includes("/node_modules/@supabase/supabase-js/dist/umd/supabase.js")
+      ? route.abort()
+      : route.continue());
+    await page.addInitScript(() => {
+      window.BLUECREW_RUNTIME_CONFIG = Object.freeze({ mode: "hosted" });
+      window.BLUECREW_SUPABASE_CONFIG = Object.freeze({ mode: "hosted", url: "https://fixture.supabase.co", publishableKey: "sb_publishable_fixture" });
+    });
+    await page.goto("http://127.0.0.1:5501/");
+    await expect(page.getByTestId("hosted-dependency-error")).toBeVisible();
+    await expect(page.getByText("The Slate could not load a required application component.")).toBeVisible();
+    await expect(page.getByTestId("hosted-configuration-error")).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
+
 hostedTest.describe("hosted runtime reload", () => {
   const profile = { id: "profile-runtime", auth_user_id: "auth-runtime", organization_id: "organization-1", first_name: "Hosted", last_name: "Admin", email: "hosted@example.com", role: "administrator", status: "approved", communication_preferences: {} };
   const game = { id: "game-runtime", organization_id: "organization-1", season_id: "season-1", location_id: "location-runtime", field_id: "field-runtime", game_date: "2099-09-10", game_time: "18:00:00", home_team: "Home", away_team: "Away", level: "12U", game_type: "single", lifecycle_status: "scheduled", review: {}, report: {}, source_metadata: {} };

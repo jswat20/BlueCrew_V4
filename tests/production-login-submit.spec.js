@@ -63,7 +63,8 @@ base("curated production build contains CSP-compatible login wiring", () => {
   expect(login).toContain("event.preventDefault()");
   expect(login).not.toContain('onsubmit="handleLoginSubmit(event)"');
   expect(app).toContain('page === "login" && typeof setupLoginForm === "function"');
-  expect(build).toContain("script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net");
+  expect(build).toContain("script-src 'self' 'unsafe-inline';");
+  expect(build).not.toContain("cdn.jsdelivr.net");
   expect(build).toContain('for (const entry of ["index.html", "manifest.webmanifest", "service-worker.js", "app.js", "styles.css", "assets", "components", "css", "data", "js"])');
 });
 
@@ -71,7 +72,8 @@ base("production CSP permits the established inline interaction bindings", () =>
   const build = fs.readFileSync("scripts/build-production.cjs", "utf8");
   const settings = fs.readFileSync("components/settings.js", "utf8");
   expect(settings).toContain('onclick="addLocationComplexFromSettings()"');
-  expect(build).toContain("script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net");
+  expect(build).toContain("script-src 'self' 'unsafe-inline';");
+  expect(build).not.toContain("cdn.jsdelivr.net");
   expect(build).toContain("object-src 'none'");
   expect(build).toContain("frame-ancestors 'none'");
 });
