@@ -171,9 +171,9 @@ const crewService = {
 
   getById(crewId) {
     if (!crewId) return null;
-
+    const normalizedCrewId = String(crewId).trim().toLowerCase();
     return this.getAll().find(member =>
-      String(member.id) === String(crewId)
+      String(member.id || "").trim().toLowerCase() === normalizedCrewId
     ) || null;
   },
 

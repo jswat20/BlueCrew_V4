@@ -78,8 +78,8 @@ const sharedDomainMappingService = (() => {
       ,officialHistory: linkedProfile.official_history || []
       ,profilePhotoPath: linkedProfile.photo_path || ""
       ,profilePhotoUrl: linkedProfile.photo_url || ""
-      ,personnelId: linkedProfile.crew_code || ""
-      ,personnelIdIssuedAt: linkedProfile.crew_code_issued_at || null
+      ,personnelId: linkedProfile.personnel_id || linkedProfile.crew_code || ""
+      ,personnelIdIssuedAt: linkedProfile.personnel_id_issued_at || linkedProfile.crew_code_issued_at || null
       ,linkedRole: linkedProfile.role || row.linked_role || ""
     };
   }
@@ -136,7 +136,7 @@ const sharedDomainMappingService = (() => {
       status: row.status,
       crewId: row.assigned_crew_member_id || "",
       locked: row.locked === true || row.status === "locked",
-      claimedBy: pendingClaim?.claimant_crew_member_id || "",
+      claimedBy: pendingClaim?.claimant_crew_member_id || processedClaim?.claimant_crew_member_id || "",
       claimId: pendingClaim?.id || processedClaim?.id || "",
       claimStatus: pendingClaim?.status || processedClaim?.status || "",
       claimProcessed: Boolean(processedClaim),

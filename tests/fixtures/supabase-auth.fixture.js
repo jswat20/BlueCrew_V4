@@ -93,7 +93,7 @@ export const test = base.extend({
             assignment_claims: settings.claims,
             activities: settings.activities,
             notifications: settings.notifications,
-            crew_members: settings.crewMembers.filter(member => !selectedIds.length || selectedIds.map(String).includes(String(member.id)))
+            crew_members: settings.crewMembers.filter(member => !selectedIds.length || selectedIds.map(id => String(id).toLowerCase()).includes(String(member.id).toLowerCase()))
             ,profiles: [settings.profile, ...settings.pendingProfiles, ...settings.organizationProfiles, ...settings.activityActors].filter((row, index, all) => row && all.findIndex(candidate => String(candidate?.id) === String(row.id)) === index).filter(row => String(row.organization_id) === String(settings.profile.organization_id) && (!selectedIds.length || selectedIds.map(String).includes(String(row.id))) && Object.entries(equality).every(([column, value]) => String(row[column]) === String(value)))
           };
           if (table === "notifications") {

@@ -190,7 +190,8 @@ test.describe("Hosted linked Crew card editing", () => {
   const linkedProfile = {
     id: "profile-linked-1", auth_user_id: "auth-linked-1", organization_id: "organization-1",
     first_name: "Linked", last_name: "Official", email: "linked@example.com", phone: "5550103000",
-    role: "umpire", status: "approved", communication_preferences: {}, crew_code: "UMP-204",
+    role: "umpire", status: "approved", communication_preferences: {}, crew_code: "BC-2026-0204",
+    personnel_id: "UMP-204", personnel_id_issued_at: "2026-08-14T00:00:00.000Z",
     photo_path: "auth-linked-1/profile"
   };
   const linkedCrew = {
@@ -213,7 +214,22 @@ test.describe("Hosted linked Crew card editing", () => {
     expect(profileProjection).toBeTruthy();
     expect(profileProjection.columns).toContain("crew_code");
     expect(profileProjection.columns).toContain("crew_code_issued_at");
-    expect(profileProjection.columns).not.toContain("personnel_id");
+    expect(profileProjection.columns).toContain("personnel_id");
+    expect(profileProjection.columns).toContain("personnel_id_issued_at");
+  });
+
+  test("uses the permanent Personnel ID as the read-only Crew ID in both card and editor", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await openCrew(page);
+    await page.getByRole("button", { name: "Open Crew Card for Linked Official" }).click();
+    await expect(page.getByTestId("crew-card-id")).toHaveText("UMP-204");
+    await page.getByTestId("crew-card-edit").press("Enter");
+    await expect(page.getByTestId("crew-personnel-id")).toHaveValue("UMP-204");
+    await expect(page.getByTestId("crew-personnel-id")).toHaveAttribute("readonly", "");
+    await expect(page.locator(".crew-field-personnel-id label")).toHaveText("Crew ID");
+    await expect(page.getByTestId("crew-card-admin-edit-mode")).not.toContainText("BC-2026-0204");
+    await expect(page.getByTestId("crew-card-admin-edit-mode")).not.toContainText(linkedProfile.id);
+    await expect(page.getByTestId("crew-card-admin-edit-mode")).not.toContainText(linkedProfile.auth_user_id);
   });
 
   test("persists a linked Crew edit through the hosted repository and retains identity linkage", async ({ supabaseAuthApp }) => {
