@@ -20,7 +20,8 @@ function sharedRows() {
     fields: [{ id: "61000000-0000-4000-8000-000000000001", organization_id: organizationId, location_id: "60000000-0000-4000-8000-000000000001", name: "Field 1", active: true }],
     games: [{ id: gameId, organization_id: organizationId, season_id: "20000000-0000-4000-8000-000000000001", location_id: "60000000-0000-4000-8000-000000000001", field_id: "61000000-0000-4000-8000-000000000001", game_date: "2099-08-20", game_time: "18:00:00", home_team: "Home", away_team: "Away", level: "12U", game_type: "single", lifecycle_status: "scheduled", review: {}, report: {}, source_metadata: {} }],
     assignments: [{ id: assignmentId, organization_id: organizationId, game_id: gameId, position: "Plate", status: "open_for_claim", assigned_crew_member_id: null, locked: false }],
-    claims: []
+    claims: [],
+    events: []
   };
 }
 
@@ -63,9 +64,19 @@ async function openSharedSession(browser, rows, authUserId) {
     }
     const assignment = rows.assignments.find(item => item.id === args.p_assignment_id);
     if (name === "submit_assignment_claim") {
+      const game = rows.games.find(item => item.id === assignment?.game_id);
+      if (rows.claims.some(item => item.assignment_id === assignment?.id && item.status === "pending")) return { data: null, error: { message: "assignment_position_reserved" } };
+      if (rows.claims.some(item => item.claimant_crew_member_id === crew?.id && item.status === "pending" && rows.assignments.find(candidate => candidate.id === item.assignment_id)?.game_id === game?.id)) return { data: null, error: { message: "claimant_already_has_pending_game_claim" } };
+      const assignedGames = rows.assignments
+        .filter(item => item.assigned_crew_member_id === crew?.id && ["assigned", "locked"].includes(item.status))
+        .map(item => rows.games.find(candidate => candidate.id === item.game_id))
+        .filter(Boolean);
+      if (assignedGames.some(item => item.id !== game?.id && item.game_date === game?.game_date && item.game_time === game?.game_time)) return { data: null, error: { message: "claim_schedule_conflict" } };
+      if (new Set(assignedGames.filter(item => item.id !== game?.id && item.game_date === game?.game_date).map(item => item.id)).size >= 2) return { data: null, error: { message: "claim_daily_limit_reached" } };
       if (!crew || !assignment || assignment.status !== "open_for_claim" || assignment.locked) return { data: null, error: { message: "assignment_already_claimed" } };
       const claim = { id: `90000000-0000-4000-8000-${String(rows.claims.length + 1).padStart(12, "0")}`, organization_id: organizationId, assignment_id: assignment.id, claimant_crew_member_id: crew.id, status: "pending", claimed_at: new Date().toISOString(), decided_at: null };
       rows.claims.push(claim);
+      rows.events.push({ type: "claim-submitted", claimId: claim.id });
       assignment.status = "pending_approval";
       return { data: structuredClone(claim), error: null };
     }
@@ -161,11 +172,87 @@ test("two umpires claiming concurrently produce one persisted winner and one fri
     second.page.evaluate(gameId => portalService.claimGame(gameId), gameId)
   ]);
   expect([left.success, right.success].sort()).toEqual([false, true]);
-  expect([left, right].find(result => !result.success).message).toBe("This assignment has already been claimed by another official.");
+  expect([left, right].find(result => !result.success).message).toBe("This position has already been claimed and is awaiting approval.");
+  expect([left, right].find(result => !result.success).message).not.toMatch(/Uma|Ivy/);
   expect(rows.claims).toHaveLength(1);
+  expect(rows.events).toHaveLength(1);
   expect(rows.assignments[0].status).toBe("pending_approval");
   await first.context.close();
   await second.context.close();
+});
+
+test("a reservation covers one position while another umpire may claim a different position", async ({ browser }) => {
+  const rows = sharedRows();
+  const baseAssignmentId = "80000000-0000-4000-8000-000000000002";
+  rows.assignments.push({ id: baseAssignmentId, organization_id: organizationId, game_id: gameId, position: "Base", status: "open_for_claim", assigned_crew_member_id: null, locked: false });
+  const first = await openSharedSession(browser, rows, rows.profiles[1].auth_user_id);
+  const second = await openSharedSession(browser, rows, rows.profiles[2].auth_user_id);
+
+  expect((await first.page.evaluate(id => portalService.claimGame(id), gameId)).success).toBe(true);
+  await second.page.reload();
+  await expect.poll(() => second.page.evaluate(() => supabaseAuthService.getHydrationState().status)).toBe("ready");
+  expect(await second.page.evaluate(id => portalService.getClaimableGames().some(game => game.id === id), gameId)).toBe(true);
+  expect((await second.page.evaluate(id => portalService.claimGame(id), gameId)).success).toBe(true);
+
+  expect(rows.claims).toHaveLength(2);
+  expect(new Set(rows.claims.map(claim => claim.assignment_id))).toEqual(new Set([assignmentId, baseAssignmentId]));
+  expect(rows.assignments.filter(item => item.status === "assigned")).toHaveLength(0);
+  expect(rows.events).toHaveLength(2);
+  await second.page.reload();
+  await expect.poll(() => second.page.evaluate(() => supabaseAuthService.getHydrationState().status)).toBe("ready");
+  expect(await second.page.evaluate(id => portalService.getClaimableGames().some(game => game.id === id), gameId)).toBe(false);
+
+  await first.context.close();
+  await second.context.close();
+});
+
+test("one umpire cannot reserve two positions in the same game", async ({ browser }) => {
+  const rows = sharedRows();
+  const secondAssignmentId = "80000000-0000-4000-8000-000000000002";
+  rows.assignments.push({ id: secondAssignmentId, organization_id: organizationId, game_id: gameId, position: "Base", status: "open_for_claim", assigned_crew_member_id: null, locked: false });
+  const umpire = await openSharedSession(browser, rows, rows.profiles[1].auth_user_id);
+  expect((await umpire.page.evaluate(id => supabaseSharedRepository.submitAssignmentClaim(id), assignmentId)).error).toBeNull();
+  const duplicate = await umpire.page.evaluate(id => supabaseSharedRepository.submitAssignmentClaim(id), secondAssignmentId);
+  expect(duplicate.error?.message).toBe("claimant_already_has_pending_game_claim");
+  expect(rows.claims).toHaveLength(1);
+  expect(rows.events).toHaveLength(1);
+  await umpire.context.close();
+});
+
+test("Claim Games excludes exact-time conflicts and rejects the hosted submission", async ({ browser }) => {
+  const rows = sharedRows();
+  const crewId = rows.crews[0].id;
+  rows.games.push({ ...rows.games[0], id: "70000000-0000-4000-8000-000000000002", home_team: "Conflict Home" });
+  rows.assignments.push({ id: "80000000-0000-4000-8000-000000000003", organization_id: organizationId, game_id: rows.games[1].id, position: "Plate", status: "assigned", assigned_crew_member_id: crewId, locked: false });
+  const umpire = await openSharedSession(browser, rows, rows.profiles[1].auth_user_id);
+
+  expect(await umpire.page.evaluate(id => portalService.getClaimableGames().some(game => game.id === id), gameId)).toBe(false);
+  const result = await umpire.page.evaluate(id => supabaseSharedRepository.submitAssignmentClaim(id), assignmentId);
+  expect(result.error?.message).toBe("claim_schedule_conflict");
+  expect(rows.claims).toHaveLength(0);
+  expect(rows.events).toHaveLength(0);
+  await umpire.context.close();
+});
+
+test("Claim Games excludes a third same-day game at the established daily limit", async ({ browser }) => {
+  const rows = sharedRows();
+  const crewId = rows.crews[0].id;
+  rows.games.push(
+    { ...rows.games[0], id: "70000000-0000-4000-8000-000000000003", game_time: "12:00:00", home_team: "Noon Home" },
+    { ...rows.games[0], id: "70000000-0000-4000-8000-000000000004", game_time: "15:00:00", home_team: "Afternoon Home" }
+  );
+  rows.assignments.push(
+    { id: "80000000-0000-4000-8000-000000000004", organization_id: organizationId, game_id: rows.games[1].id, position: "Plate", status: "assigned", assigned_crew_member_id: crewId, locked: false },
+    { id: "80000000-0000-4000-8000-000000000005", organization_id: organizationId, game_id: rows.games[2].id, position: "Plate", status: "assigned", assigned_crew_member_id: crewId, locked: false }
+  );
+  const umpire = await openSharedSession(browser, rows, rows.profiles[1].auth_user_id);
+
+  expect(await umpire.page.evaluate(id => portalService.getClaimableGames().some(game => game.id === id), gameId)).toBe(false);
+  const result = await umpire.page.evaluate(id => supabaseSharedRepository.submitAssignmentClaim(id), assignmentId);
+  expect(result.error?.message).toBe("claim_daily_limit_reached");
+  expect(rows.claims).toHaveLength(0);
+  expect(rows.events).toHaveLength(0);
+  await umpire.context.close();
 });
 
 fixtureTest.describe("shared claim failures", () => {

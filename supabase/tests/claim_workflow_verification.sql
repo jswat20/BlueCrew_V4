@@ -71,6 +71,20 @@ end $$;
 
 select set_config('request.jwt.claim.sub', 'a1000000-0000-4000-8000-000000000002', true);
 set local role authenticated;
+do $$
+begin
+  begin
+    perform public.submit_assignment_claim('a8000000-0000-4000-8000-000000000002');
+    raise exception 'already assigned claimant unexpectedly claimed another position';
+  exception when raise_exception then
+    if sqlerrm = 'already assigned claimant unexpectedly claimed another position' then raise; end if;
+    if sqlerrm <> 'claimant_already_assigned_to_game' then raise; end if;
+  end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', 'a1000000-0000-4000-8000-000000000003', true);
+set local role authenticated;
 select public.submit_assignment_claim('a8000000-0000-4000-8000-000000000002');
 reset role;
 
@@ -120,6 +134,19 @@ begin
   if (select status from public.game_assignments where id = 'a8000000-0000-4000-8000-000000000002') <> 'open_for_claim'
     or (select status from public.assignment_claims where assignment_id = 'a8000000-0000-4000-8000-000000000002') <> 'rejected' then
     raise exception 'claim rejection did not reopen consistently';
+  end if;
+end $$;
+
+do $$
+begin
+  if exists (
+    select 1 from public.assignment_claims
+    where status = 'pending'
+    group by organization_id, assignment_id
+    having count(*) > 1
+  ) then raise exception 'multiple active reservations exist for one position'; end if;
+  if to_regclass('public.assignment_claims_one_pending_per_assignment') is null then
+    raise exception 'exclusive pending reservation index is missing';
   end if;
 end $$;
 
