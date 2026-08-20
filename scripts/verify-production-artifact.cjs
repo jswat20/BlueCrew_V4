@@ -73,6 +73,23 @@ if (fs.existsSync(path.join(output, "index.html"))) {
     if (!metadata.test(index)) failures.push(`production HTML is missing required mobile metadata: ${metadata}`);
   }
   if (!/js\/ui\/installHelper\.js/.test(index)) failures.push("production HTML is missing install guidance");
+  if (/cdn\.jsdelivr\.net|esm\.sh|unpkg\.com/i.test(index)) failures.push("production HTML loads a critical script from an external module host");
+  const supabaseClientReference = index.match(/vendor\/(supabase\.([a-f0-9]{12})\.js)/);
+  if (!supabaseClientReference) {
+    failures.push("production HTML does not reference a fingerprinted local Supabase browser client");
+  } else {
+    const clientPath = path.join(output, "vendor", supabaseClientReference[1]);
+    if (!fs.existsSync(clientPath)) failures.push(`fingerprinted Supabase browser client is missing: vendor/${supabaseClientReference[1]}`);
+    else {
+      const clientContent = fs.readFileSync(clientPath);
+      const actualHash = crypto.createHash("sha256").update(clientContent).digest("hex").slice(0, 12);
+      if (actualHash !== supabaseClientReference[2]) failures.push("Supabase browser client fingerprint does not match content");
+      if (index.indexOf(`vendor/${supabaseClientReference[1]}`) > index.indexOf("js/services/supabaseClientService.js")) {
+        failures.push("Supabase browser client loads after the client service");
+      }
+    }
+  }
+  if (/node_modules\/@supabase\/supabase-js/i.test(index)) failures.push("production HTML references node_modules directly");
   const configReference = index.match(/config\/(supabase\.([a-f0-9]{12})\.js)/);
   if (!configReference) {
     failures.push("production HTML does not reference a fingerprinted Supabase runtime config");
@@ -116,8 +133,12 @@ if (fs.existsSync(configDirectory)) {
 
 if (fs.existsSync(path.join(output, "_headers"))) {
   const headers = fs.readFileSync(path.join(output, "_headers"), "utf8");
+  if (/cdn\.jsdelivr\.net|esm\.sh|unpkg\.com/i.test(headers)) failures.push("production CSP permits an external module host");
   if (!/\/config\/\*[\s\S]*Cache-Control:\s*public,\s*max-age=31536000,\s*immutable/i.test(headers)) {
     failures.push("fingerprinted runtime config does not have an immutable cache policy");
+  }
+  if (!/\/vendor\/\*[\s\S]*Cache-Control:\s*public,\s*max-age=31536000,\s*immutable/i.test(headers)) {
+    failures.push("fingerprinted browser dependencies do not have an immutable cache policy");
   }
 }
 
@@ -142,6 +163,12 @@ if (fs.existsSync(path.join(output, "manifest.webmanifest"))) {
 if (fs.existsSync(path.join(output, "service-worker.js"))) {
   const serviceWorker = fs.readFileSync(path.join(output, "service-worker.js"), "utf8");
   if (!/addEventListener\(["']fetch["']/.test(serviceWorker)) failures.push("production service worker is missing a fetch handler");
+  if (!/the-slate-shell-v2/.test(serviceWorker)) failures.push("production service worker cache version was not rotated for the startup dependency change");
+}
+
+if (fs.existsSync(path.join(output, "js/services/supabaseClientService.js"))) {
+  const clientService = fs.readFileSync(path.join(output, "js/services/supabaseClientService.js"), "utf8");
+  if (/cdn\.jsdelivr\.net|esm\.sh|unpkg\.com|import\s*\(/i.test(clientService)) failures.push("production Supabase client service retains a remote dynamic import");
 }
 
 if (failures.length) {

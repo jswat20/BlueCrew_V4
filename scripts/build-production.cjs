@@ -20,6 +20,7 @@ const runtimeConfigHash = crypto.createHash("sha256")
   .digest("hex")
   .slice(0, 12);
 const runtimeConfigFile = `supabase.${runtimeConfigHash}.js`;
+const supabaseBrowserBundleSource = path.join(root, "node_modules", "@supabase", "supabase-js", "dist", "umd", "supabase.js");
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -40,6 +41,9 @@ if (!publishableKey || /service[_-]?role|sb_secret_/i.test(publishableKey)) {
 }
 if (!/^[A-Za-z0-9._-]+$/.test(publishableKey)) {
   fail("SUPABASE_PUBLISHABLE_KEY contains unexpected characters.");
+}
+if (!fs.existsSync(supabaseBrowserBundleSource)) {
+  fail("The pinned Supabase browser client is unavailable; run npm ci before building.");
 }
 
 fs.rmSync(output, { recursive: true, force: true });
@@ -62,6 +66,15 @@ fs.writeFileSync(path.join(output, "data", "crew.js"), "let crew = [];\n", "utf8
 
 const indexPath = path.join(output, "index.html");
 let index = fs.readFileSync(indexPath, "utf8");
+const supabaseBrowserBundle = fs.readFileSync(supabaseBrowserBundleSource);
+const supabaseBrowserHash = crypto.createHash("sha256").update(supabaseBrowserBundle).digest("hex").slice(0, 12);
+const supabaseBrowserFile = `supabase.${supabaseBrowserHash}.js`;
+fs.mkdirSync(path.join(output, "vendor"), { recursive: true });
+fs.writeFileSync(path.join(output, "vendor", supabaseBrowserFile), supabaseBrowserBundle);
+index = index.replace(
+  "node_modules/@supabase/supabase-js/dist/umd/supabase.js",
+  `vendor/${supabaseBrowserFile}?v=${supabaseBrowserHash}`
+);
 for (const source of [
   "components/admin.js",
   "js/demo/demoCrew.js",
@@ -106,7 +119,7 @@ fs.writeFileSync(
 fs.writeFileSync(
   path.join(output, "_headers"),
   `/*\n` +
-  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: ${url}; connect-src 'self' ${url} wss://${new URL(url).host}; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests\n` +
+  `  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: ${url}; connect-src 'self' ${url} wss://${new URL(url).host}; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests\n` +
     `  Strict-Transport-Security: max-age=31536000; includeSubDomains\n` +
     `  X-Content-Type-Options: nosniff\n` +
     `  X-Frame-Options: DENY\n` +
@@ -114,6 +127,8 @@ fs.writeFileSync(
     `  Permissions-Policy: camera=(), microphone=(), geolocation=()\n` +
     `  Cache-Control: no-cache\n\n` +
     `/config/*\n` +
+    `  Cache-Control: public, max-age=31536000, immutable\n\n` +
+    `/vendor/*\n` +
     `  Cache-Control: public, max-age=31536000, immutable\n\n` +
     `/assets/*\n` +
     `  Cache-Control: public, max-age=31536000, immutable\n`,

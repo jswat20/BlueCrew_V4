@@ -1,5 +1,4 @@
 const supabaseClientService = (() => {
-  const CLIENT_MODULE_URL = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.1/+esm";
   let clientPromise = null;
   let clientFactory = null;
 
@@ -24,7 +23,7 @@ const supabaseClientService = (() => {
     }
 
     if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(config.url)) {
-      return { configured: true, valid: false, message: "Supabase project URL is invalid." };
+      return { mode, configured: true, valid: false, message: "Supabase project URL is invalid." };
     }
 
     if (
@@ -32,10 +31,10 @@ const supabaseClientService = (() => {
       /service[_-]?role|sb_secret_/i.test(config.publishableKey) ||
       !/^[A-Za-z0-9._-]+$/.test(config.publishableKey)
     ) {
-      return { configured: true, valid: false, message: "Supabase publishable key is invalid." };
+      return { mode, configured: true, valid: false, message: "Supabase publishable key is invalid." };
     }
 
-    return { configured: true, valid: true, message: "" };
+    return { mode, configured: true, valid: true, message: "" };
   }
 
   function isConfigured() {
@@ -46,6 +45,13 @@ const supabaseClientService = (() => {
   function hasConfigurationError() {
     const validation = validateConfig();
     return validation.mode === "hosted" && (!validation.configured || !validation.valid);
+  }
+
+  function hasDependencyError() {
+    const validation = validateConfig();
+    if (validation.mode !== "hosted" || !validation.configured || !validation.valid) return false;
+    const configuredFactory = clientFactory || window.BLUECREW_SUPABASE_CLIENT_FACTORY;
+    return !configuredFactory && typeof window.supabase?.createClient !== "function";
   }
 
   async function getClient() {
@@ -67,7 +73,10 @@ const supabaseClientService = (() => {
           return configuredFactory(config);
         }
 
-        const { createClient } = await import(CLIENT_MODULE_URL);
+        const createClient = window.supabase?.createClient;
+        if (typeof createClient !== "function") {
+          throw new Error("The Slate could not load its hosted application dependency.");
+        }
         return createClient(config.url, config.publishableKey, {
           auth: {
             persistSession: true,
@@ -100,6 +109,7 @@ const supabaseClientService = (() => {
     validateConfig,
     isConfigured,
     hasConfigurationError,
+    hasDependencyError,
     getClient,
     useClientFactory,
     reset

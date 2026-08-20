@@ -1,4 +1,4 @@
-const SLATE_CACHE = "the-slate-shell-v1";
+const SLATE_CACHE = "the-slate-shell-v2";
 const SLATE_SHELL = ["/", "/manifest.webmanifest", "/styles.css"];
 
 self.addEventListener("install", event => {
