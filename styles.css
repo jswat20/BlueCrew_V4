@@ -9513,3 +9513,39 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
   .crew-credential-dialog .crew-credential-modal-footer { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   #crew-credential-dialog[data-edit-mode="administrator"] .unified-crew-admin-editor .drawer-body.crew-editor-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+/* Rules & Regulations */
+.rules-page { max-width: 1100px; margin: 0 auto; }
+.rules-introduction { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; padding: 1.5rem; color: #fff; background: linear-gradient(135deg, var(--navy, #08233f), #0b6b78); border-radius: 18px 18px 0 0; }
+.rules-introduction h2 { margin: .15rem 0; font-size: clamp(1.8rem, 4vw, 2.6rem); color: #fff; }
+.rules-eyebrow, .rules-revised { margin: 0; }
+.rules-eyebrow { color: #83d7df; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.rules-revised { color: #e3f6f7; }
+.rules-source-link { flex: 0 0 auto; background: #fff; color: #08233f; }
+.rules-tabs { display: flex; gap: .5rem; padding: 1rem 1.5rem 0; background: #fff; border-inline: 1px solid #c8dadd; }
+.rules-tab { min-width: 8rem; min-height: 44px; padding: .65rem 1.25rem; border: 1px solid #9bbdc2; border-bottom: 0; border-radius: 10px 10px 0 0; background: #eaf4f5; color: #08233f; font-weight: 800; }
+.rules-tab.active { background: #0b6b78; border-color: #0b6b78; color: #fff; }
+.rules-panel { padding: 1.5rem; background: #fff; border: 1px solid #c8dadd; border-top: 4px solid #0b6b78; border-radius: 0 0 18px 18px; }
+.rules-division-header h3 { margin: 0; color: #08233f; font-size: 1.8rem; }
+.rules-division-header p { margin: .15rem 0 0; color: #566b7d; font-weight: 700; }
+.rules-coop-notice { margin: 1.25rem 0; padding: 1rem 1.1rem; border-left: 5px solid #0b8797; background: #eaf7f8; color: #08233f; }
+.rules-coop-notice strong { display: block; margin-bottom: .25rem; }
+.rules-coop-notice p { margin: 0; }
+.rules-sections { display: grid; gap: 1rem; }
+.rules-section { padding: 1.1rem 1.25rem; border: 1px solid #d2e0e2; border-radius: 12px; background: #fbfdfd; }
+.rules-section h4 { display: flex; align-items: center; gap: .7rem; margin: 0 0 .8rem; color: #08233f; font-size: 1.2rem; }
+.rules-section h4 span { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: #0b6b78; color: #fff; font-size: 1rem; }
+.rules-list, .rules-sublist { margin: 0; padding-left: 1.65rem; }
+.rules-list > li { padding-left: .25rem; margin-bottom: .65rem; }
+.rules-list p { margin: 0; line-height: 1.55; }
+.rules-sublist { margin-top: .55rem; }
+.rules-sublist li { margin-bottom: .45rem; line-height: 1.5; }
+.rules-source-note { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #c8dadd; color: #566b7d; font-size: .9rem; }
+@media (max-width: 640px) {
+  .rules-introduction { align-items: stretch; flex-direction: column; padding: 1.1rem; }
+  .rules-source-link { width: 100%; text-align: center; }
+  .rules-tabs { padding-inline: .8rem; }
+  .rules-tab { flex: 1; min-width: 0; }
+  .rules-panel { padding: .9rem; }
+  .rules-section { padding: .9rem; }
+  .rules-list { padding-left: 1.4rem; }
+}

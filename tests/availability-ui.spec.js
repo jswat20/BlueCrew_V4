@@ -66,8 +66,9 @@ test.describe("Availability Management UI", () => {
     await app.page.evaluate(() => {
       authService.loginAsAdmin();
       document.body.dataset.role = "admin";
-      renderPage("availability");
     });
+    const availabilityPage = new AvailabilityPage(app.page);
+    await availabilityPage.open();
     await expect(app.page.getByTestId("availability-form")).toHaveCount(0);
     await expect(app.page.getByTestId("availability-finder")).toBeVisible();
     await app.page.getByTestId("identify-available-crew").click();
@@ -77,7 +78,8 @@ test.describe("Availability Management UI", () => {
   test("creates a granular availability time window", async ({ app }) => {
     await app.loginAsApprovedUmpire();
 
-    await app.page.evaluate(() => navigateTo("availability"));
+    const availabilityPage = new AvailabilityPage(app.page);
+    await availabilityPage.open();
     await app.page.getByTestId("availability-date-input").fill("2026-09-12");
     await app.page.getByTestId("availability-start-time").fill("13:00");
     await app.page.getByTestId("availability-end-time").fill("17:30");

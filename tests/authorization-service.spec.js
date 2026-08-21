@@ -150,7 +150,7 @@ test.describe("Authorization Service", () => {
       claimGames: true,
       editSchedule: false,
       accounts: false,
-      availability: true
+      availability: false
     });
   });
 
@@ -305,7 +305,7 @@ test.describe("Authorization Service", () => {
 
     expect(access).toEqual({
       dashboard: true,
-      availability: true,
+      availability: false,
       notifications: true,
       claimGames: true,
       myClaims: true,
@@ -324,6 +324,26 @@ test.describe("Authorization Service", () => {
     });
 
     expect(access).toBe(false);
+  });
+
+  test("disabled pages remain denied independently of retained role mappings", async ({ page }) => {
+    const access = await page.evaluate(() => ({
+      disabled: authorizationService.isPageDisabled("availability"),
+      administrator: authorizationService.canView("availability", "administrator"),
+      assigner: authorizationService.canView("availability", "assigner"),
+      umpire: authorizationService.canView("availability", "umpire"),
+      rulesAdministrator: authorizationService.canView("rules-and-regulations", "administrator"),
+      rulesUmpire: authorizationService.canView("rules-and-regulations", "umpire")
+    }));
+
+    expect(access).toEqual({
+      disabled: true,
+      administrator: false,
+      assigner: false,
+      umpire: false,
+      rulesAdministrator: true,
+      rulesUmpire: true
+    });
   });
 
   test("denies unknown permissions", async ({ page }) => {

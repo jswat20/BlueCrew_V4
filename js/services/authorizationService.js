@@ -9,6 +9,13 @@ const authorizationService = (() => {
 
   const VALID_ROLES = Object.freeze(Object.values(ROLES));
 
+  // Disabled destinations stay fail-closed even if a future role mapping is
+  // added or retained in PAGE_ACCESS. Re-enabling one requires an explicit
+  // product decision here as well as navigation and authorization changes.
+  const DISABLED_PAGES = Object.freeze([
+    "availability"
+  ]);
+
   const PERMISSIONS = Object.freeze({
     [ROLES.ADMINISTRATOR]: Object.freeze({
       editSchedule: true,
@@ -105,6 +112,11 @@ const authorizationService = (() => {
 "my-schedule": Object.freeze([
   ROLES.UMPIRE
 ]),
+    "rules-and-regulations": Object.freeze([
+      ROLES.ADMINISTRATOR,
+      ROLES.ASSIGNER,
+      ROLES.UMPIRE
+    ]),
     "profile": Object.freeze([
       ROLES.ADMINISTRATOR,
       ROLES.ASSIGNER,
@@ -216,6 +228,10 @@ const authorizationService = (() => {
   function canView(page, role = currentRole()) {
     const normalizedPage = String(page || "").trim().toLowerCase();
 
+    if (DISABLED_PAGES.includes(normalizedPage)) {
+      return false;
+    }
+
     if (
       typeof supabaseClientService !== "undefined" &&
       supabaseClientService.isConfigured() &&
@@ -229,6 +245,12 @@ const authorizationService = (() => {
 
     return Array.isArray(allowedRoles) &&
       allowedRoles.includes(normalizedRole);
+  }
+
+  function isPageDisabled(page) {
+    return DISABLED_PAGES.includes(
+      String(page || "").trim().toLowerCase()
+    );
   }
 
   function resolveNotificationDestination(notification = {}, role = currentRole()) {
@@ -305,8 +327,9 @@ const authorizationService = (() => {
     canApproveClaims,
     canManageAccounts,
     canAssignGames,
-    canManageCrew,
-    canManageAvailability,
-    canClaimGames
-  };
+      canManageCrew,
+      canManageAvailability,
+      canClaimGames,
+      isPageDisabled
+    };
 })();

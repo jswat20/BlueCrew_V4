@@ -35,6 +35,10 @@ const pages = {
     title: "Claim Games",
     subtitle: "Review and claim available assignments."
   },
+  "rules-and-regulations": {
+    title: "Rules & Regulations",
+    subtitle: "Lake Shore Youth Baseball division playing rules."
+  },
   profile: {
     title: "Profile",
     subtitle: "Manage your contact information."
@@ -460,6 +464,7 @@ function runPageSetup(page, context = {}) {
 function renderAdminView(page, context = {}) {
   const renderers = {
     dashboard: typeof renderDashboard === "function" ? renderDashboard : null,
+    "rules-and-regulations": typeof renderRulesAndRegulations === "function" ? renderRulesAndRegulations : null,
     profile:
       typeof renderProfile === "function"
         ? renderProfile
@@ -533,6 +538,11 @@ function renderUmpireView(page, context = {}) {
             "Profile",
             "Profile is unavailable."
           );
+
+    case "rules-and-regulations":
+      return typeof renderRulesAndRegulations === "function"
+        ? renderRulesAndRegulations(context)
+        : placeholderPage("Rules & Regulations", "Rules are unavailable.");
 
         case "game-hub":
   return typeof renderGameHub === "function"
