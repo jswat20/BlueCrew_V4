@@ -123,6 +123,23 @@ test.describe("Page Authorization", () => {
     ).toContainText("not-a-real-page");
   });
 
+  for (const [role, login] of [
+    ["administrator", "loginAsAdmin"],
+    ["assigner", "loginAsAssigner"],
+    ["umpire", "loginAsUmpire"]
+  ]) {
+    test(`blocks direct Availability navigation for ${role}`, async ({ page }) => {
+      await page.evaluate(loginMethod => {
+        authService[loginMethod]();
+        renderPage("availability");
+      }, login);
+
+      await expect(page.getByTestId("access-denied")).toBeVisible();
+      await expect(page.getByTestId("availability-page")).toHaveCount(0);
+      await expect(page.getByTestId("page-title")).toHaveText("Access Denied");
+    });
+  }
+
   test("restores normal rendering after an unauthorized request", async ({
     page
   }) => {

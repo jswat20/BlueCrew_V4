@@ -26,7 +26,8 @@ test.describe("Role-Aware Navigation", () => {
     await expect(page.getByTestId("nav-accounts")).toBeVisible();
     await expect(page.getByTestId("nav-claims-queue")).toBeVisible();
     await expect(page.getByTestId("nav-claim-history")).toBeVisible();
-    await expect(page.getByTestId("nav-availability")).toBeVisible();
+    await expect(page.getByTestId("nav-availability")).toHaveCount(0);
+    await expect(page.getByTestId("nav-rules-and-regulations")).toBeVisible();
     await expect(page.getByTestId("nav-notifications")).toBeVisible();
 
     await expect(page.getByTestId("nav-claim-games")).toBeHidden();
@@ -48,7 +49,8 @@ test.describe("Role-Aware Navigation", () => {
     await expect(page.getByTestId("nav-claim-games")).toBeVisible();
     await expect(page.getByTestId("nav-my-schedule")).toBeVisible();
     await expect(page.getByTestId("nav-my-claims")).toBeVisible();
-    await expect(page.getByTestId("nav-availability")).toBeVisible();
+    await expect(page.getByTestId("nav-availability")).toHaveCount(0);
+    await expect(page.getByTestId("nav-rules-and-regulations")).toBeVisible();
     await expect(page.getByTestId("nav-notifications")).toBeVisible();
     await expect(page.getByTestId("nav-login")).toBeVisible();
 

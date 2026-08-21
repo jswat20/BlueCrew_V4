@@ -137,7 +137,7 @@ test.describe(
     );
 
     test(
-      "notification opens availability with exact context",
+      "disabled availability notification destination is not actionable",
       async ({ page }) => {
         const notificationId =
           await page.evaluate(() => {
@@ -173,12 +173,10 @@ test.describe(
             return result.data.id;
           });
 
-        await page
-          .locator(
-            `[data-testid="notification-action"]` +
-            `[data-notification-id="${notificationId}"]`
-          )
-          .click();
+        await expect(page.locator(
+          `[data-testid="notification-action"]` +
+          `[data-notification-id="${notificationId}"]`
+        )).toHaveCount(0);
 
         const state =
           await page.evaluate(() => ({
@@ -188,10 +186,8 @@ test.describe(
           }));
 
         expect(state).toEqual({
-          page: "availability",
-          context: expect.objectContaining({
-            date: "2099-11-03"
-          })
+          page: "notifications",
+          context: {}
         });
       }
     );

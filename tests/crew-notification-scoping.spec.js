@@ -53,7 +53,7 @@ test.describe("Crew notification targeting", () => {
   test("availability is locked to the authenticated crew identity", async ({ page }) => {
     await page.evaluate(() => {
       authService.loginAsUmpire();
-      renderPage("availability");
+      document.getElementById("app-content").innerHTML = renderAvailability();
     });
     await expect(page.getByTestId("availability-logged-in-crew")).toContainText("Verified from your login");
     await expect(page.getByTestId("availability-crew-select")).toHaveCount(0);

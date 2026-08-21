@@ -26,7 +26,22 @@ class AvailabilityPage {
   }
 
   async open() {
-    await this.navButton.click();
+    // Availability is intentionally not routable. These implementation-level
+    // tests render the dormant feature directly so its behavior remains
+    // covered without weakening the production navigation boundary.
+    await this.page.evaluate(() => {
+      if (!window.__availabilityImplementationRenderPage) {
+        const applicationRenderPage = renderPage;
+        window.__availabilityImplementationRenderPage = true;
+        window.renderPage = (page, context = {}) => {
+          if (page !== "availability") {
+            return applicationRenderPage(page, context);
+          }
+          document.getElementById("app-content").innerHTML = renderAvailability(context);
+        };
+      }
+      window.renderPage("availability");
+    });
     await this.expectLoaded();
   }
 
