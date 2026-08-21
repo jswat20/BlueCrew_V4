@@ -105,6 +105,11 @@ const authorizationService = (() => {
 "my-schedule": Object.freeze([
   ROLES.UMPIRE
 ]),
+    "rules-and-regulations": Object.freeze([
+      ROLES.ADMINISTRATOR,
+      ROLES.ASSIGNER,
+      ROLES.UMPIRE
+    ]),
     "profile": Object.freeze([
       ROLES.ADMINISTRATOR,
       ROLES.ASSIGNER,
