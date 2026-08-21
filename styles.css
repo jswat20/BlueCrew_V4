@@ -9521,7 +9521,7 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
 .rules-eyebrow { color: #83d7df; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .rules-revised { color: #e3f6f7; }
 .rules-source-link { flex: 0 0 auto; background: #fff; color: #08233f; }
-.rules-tabs { display: flex; gap: .5rem; padding: 1rem 1.5rem 0; background: #fff; border-inline: 1px solid #c8dadd; }
+.rules-tabs { display: flex; flex-wrap: wrap; gap: .5rem; padding: 1rem 1.5rem 0; background: #fff; border-inline: 1px solid #c8dadd; }
 .rules-tab { min-width: 8rem; min-height: 44px; padding: .65rem 1.25rem; border: 1px solid #9bbdc2; border-bottom: 0; border-radius: 10px 10px 0 0; background: #eaf4f5; color: #08233f; font-weight: 800; }
 .rules-tab.active { background: #0b6b78; border-color: #0b6b78; color: #fff; }
 .rules-panel { padding: 1.5rem; background: #fff; border: 1px solid #c8dadd; border-top: 4px solid #0b6b78; border-radius: 0 0 18px 18px; }
@@ -9540,12 +9540,44 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
 .rules-sublist { margin-top: .55rem; }
 .rules-sublist li { margin-bottom: .45rem; line-height: 1.5; }
 .rules-source-note { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #c8dadd; color: #566b7d; font-size: .9rem; }
+.responsibilities-panel { overflow: hidden; }
+.responsibilities-header { margin-bottom: 1.25rem; }
+.responsibilities-sections { display: grid; gap: 1.25rem; }
+.responsibilities-section { padding: 1.15rem 1.25rem; border: 1px solid #d2e0e2; border-radius: 12px; background: #fbfdfd; }
+.responsibilities-section h4 { margin: 0 0 .85rem; color: #08233f; font-size: 1.3rem; }
+.responsibilities-section h5 { margin: 0 0 .75rem; color: #08233f; font-size: 1.05rem; text-decoration: underline; }
+.responsibilities-section-note { margin: -.35rem 0 1rem; color: #3f5364; font-style: italic; font-weight: 700; }
+.responsibilities-list { margin: 0; padding-left: 1.4rem; }
+.responsibilities-list li { margin-bottom: .65rem; padding-left: .15rem; line-height: 1.55; }
+.responsibilities-list li:last-child { margin-bottom: 0; }
+.responsibilities-list p { margin: 0; overflow-wrap: anywhere; }
+.responsibilities-list-nested { margin-top: .55rem; }
+.responsibilities-item-note { margin-top: .35rem !important; color: #3f5364; font-style: italic; }
+.responsibilities-signals h4 { text-align: center; }
+.responsibilities-signal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: start; gap: 1rem; }
+.responsibilities-signal { width: 100%; max-width: 260px; margin: 0 auto; padding: .6rem; border: 1px solid #c8dadd; border-radius: 10px; background: #fff; }
+.responsibilities-signal img { display: block; width: 100%; height: auto; }
+.responsibilities-signal figcaption { display: grid; gap: .2rem; margin-top: .55rem; color: #34495a; line-height: 1.35; }
+.responsibilities-signal figcaption strong { color: #08233f; font-size: 1.05rem; }
+.responsibilities-closing { margin-top: 1.25rem; padding: 1.15rem 1.25rem; border-left: 5px solid #0b8797; background: #eaf7f8; color: #08233f; }
+.responsibilities-closing p { margin: 0 0 .8rem; line-height: 1.55; }
+.responsibilities-closing address { margin-top: 1.2rem; font-style: normal; line-height: 1.55; }
+.responsibilities-source-note a { overflow-wrap: anywhere; font-weight: 800; }
 @media (max-width: 640px) {
   .rules-introduction { align-items: stretch; flex-direction: column; padding: 1.1rem; }
   .rules-source-link { width: 100%; text-align: center; }
   .rules-tabs { padding-inline: .8rem; }
-  .rules-tab { flex: 1; min-width: 0; }
+  .rules-tab { flex: 1 1 100%; min-width: 0; border-bottom: 1px solid #9bbdc2; border-radius: 10px; }
   .rules-panel { padding: .9rem; }
   .rules-section { padding: .9rem; }
   .rules-list { padding-left: 1.4rem; }
+  .responsibilities-section, .responsibilities-closing { padding: .9rem; }
+  .responsibilities-list { padding-left: 1.15rem; }
+  .responsibilities-signal-grid { grid-template-columns: minmax(0, 1fr); }
+  .responsibilities-signal { max-width: 280px; }
+}
+
+@media (min-width: 641px) and (max-width: 900px) {
+  .rules-tab { flex: 1 1 0; min-width: 0; }
+  .responsibilities-signal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

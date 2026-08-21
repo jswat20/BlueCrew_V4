@@ -301,6 +301,9 @@ function renderPage(page, context = {}) {
   if (page === "profile" && currentPage !== "profile" && typeof resetProfileCardSide === "function") {
     resetProfileCardSide();
   }
+  if (page === "rules-and-regulations" && currentPage !== "rules-and-regulations" && typeof resetRulesDivision === "function") {
+    resetRulesDivision();
+  }
 
   currentPage = page;
   currentPageContext = context;
@@ -411,6 +414,9 @@ async function logoutFromNavigation() {
 window.logoutFromNavigation = logoutFromNavigation;
 
 function navigateTo(page, context = {}) {
+  if (page === "rules-and-regulations" && typeof resetRulesDivision === "function") {
+    resetRulesDivision();
+  }
   window.history.pushState(
     { blueCrewPage: page, context },
     "",
