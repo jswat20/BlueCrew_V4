@@ -54,8 +54,8 @@ function getCrewCardModel(crewOrId) {
     levels: [...(linkedCrew?.levels || [])],
     officialHistory: history.length ? history : (linkedCrew?.officialHistory || []),
     yearsOfService: accountService.deriveYearsOfService(history.length ? history : (linkedCrew?.officialHistory || [])),
-    adminNotes: account?.adminNotes || linkedCrew?.notes || "",
-    accountStatus: account?.status || (identityStatus === "conflict" ? "Identity Conflict" : identityStatus === "linked" ? "Linked" : "Unlinked roster record")
+    adminNotes: account?.adminNotes || linkedCrew?.adminNotes || linkedCrew?.notes || "",
+    accountStatus: account?.status || linkedCrew?.profileStatus || (identityStatus === "conflict" ? "Identity Conflict" : identityStatus === "linked" ? "Linked" : "Unlinked roster record")
     ,dailyWorkload: linkedCrew ? workloadService.getCrewWorkloadForDate(linkedCrew.id, new Date().toISOString().split("T")[0]).count : 0
     ,seasonWorkload: linkedCrew ? workloadService.getSeasonAssignments(linkedCrew.id) : 0
   };
@@ -121,7 +121,7 @@ function renderCrewCredentialFrontFace(model, options = {}) {
 }
 
 function renderCrewCredentialBackFace(model, options = {}) {
-  const canSeeAdminNotes = authService.isAdmin?.() === true;
+  const canSeeAdminNotes = authService.isAdmin?.() === true || authService.isLeagueViewer?.() === true;
   const adminNoteItems = String(model.adminNotes || "")
     .split(/\r?\n|\s*•\s*/)
     .map(note => note.trim())

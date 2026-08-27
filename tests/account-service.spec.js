@@ -546,7 +546,8 @@ test("summarizes account roles", async ({ page }) => {
   expect(summary).toEqual({
     administrator: 1,
     assigner: 1,
-    umpire: 2
+    umpire: 2,
+    league_viewer: 0
   });
 });
 test.describe("Account Service Authorization", () => {

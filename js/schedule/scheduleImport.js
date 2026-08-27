@@ -3,6 +3,7 @@
 let currentScheduleImportPreview = null;
 
 function openScheduleImport() {
+  if (!authorizationService.canEditSchedule()) return false;
   closeScheduleImport();
 
   currentScheduleImportPreview = null;
@@ -140,6 +141,7 @@ function updateScheduleImportButton() {
 }
 
 async function importSchedulePreview() {
+  if (!authorizationService.canEditSchedule()) return { success: false, message: "Unauthorized." };
   const games =
     currentScheduleImportPreview?.games || [];
 

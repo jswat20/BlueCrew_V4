@@ -4,7 +4,8 @@ const authorizationService = (() => {
   const ROLES = Object.freeze({
     ADMINISTRATOR: "administrator",
     ASSIGNER: "assigner",
-    UMPIRE: "umpire"
+    UMPIRE: "umpire",
+    LEAGUE_VIEWER: "league_viewer"
   });
 
   const VALID_ROLES = Object.freeze(Object.values(ROLES));
@@ -45,6 +46,16 @@ const authorizationService = (() => {
       manageCrew: false,
       manageAvailability: false,
       claimGames: true
+    }),
+
+    [ROLES.LEAGUE_VIEWER]: Object.freeze({
+      editSchedule: false,
+      approveClaims: false,
+      manageAccounts: false,
+      assignGames: false,
+      manageCrew: false,
+      manageAvailability: false,
+      claimGames: false
     })
   });
 
@@ -57,11 +68,13 @@ const authorizationService = (() => {
 
     schedule: Object.freeze([
       ROLES.ADMINISTRATOR,
-      ROLES.ASSIGNER
+      ROLES.ASSIGNER,
+      ROLES.LEAGUE_VIEWER
     ]),
 
     crew: Object.freeze([
-      ROLES.ADMINISTRATOR
+      ROLES.ADMINISTRATOR,
+      ROLES.LEAGUE_VIEWER
     ]),
 
     reports: Object.freeze([

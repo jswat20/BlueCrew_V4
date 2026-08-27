@@ -43,7 +43,7 @@ const supabaseAuthService = (() => {
     if (organizationError) throw organizationError;
     levelTerminologyService.configure(organization?.settings || {});
     organizationContactService.configure(organization?.settings || {}, organization || {});
-    const crewMember = await crewService.loadAuthenticatedCrewMember(profile.id);
+    const crewMember = profile.role === "league_viewer" ? null : await crewService.loadAuthenticatedCrewMember(profile.id);
     accountService.setAuthenticatedCrewId(crewMember?.id || null);
     if (profile.role === "umpire" && !crewMember) throw new Error("Approved umpire has no linked crew member.");
     if (crewMember) await availabilityService.loadAuthenticatedAvailability(crewMember.id);
@@ -52,6 +52,10 @@ const supabaseAuthService = (() => {
         accountService.loadPendingAuthenticatedAccounts(),
         crewService.loadAdministrativeCrew()
       ]);
+    }
+    if (profile.role === "league_viewer") {
+      const viewerCrew = await crewService.loadLeagueViewerCrew();
+      if (!viewerCrew.success) throw new Error(viewerCrew.message);
     }
     await notificationService?.hydrateAuthenticatedNotifications?.();
     if (["administrator", "assigner"].includes(profile.role)) {

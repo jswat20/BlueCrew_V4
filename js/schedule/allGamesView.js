@@ -165,13 +165,13 @@ const isHighlighted =
       </td>
 
       <td>
-        <button
+        ${authService.isLeagueViewer?.() ? "" : `<button
   class="button button-primary"
   data-testid="view-game-${game.id}"
   onclick="openScheduleGameHub('${game.id}')"
 >
   View Game Hub
-</button>
+</button>`}
       </td>
     </tr>
   `;

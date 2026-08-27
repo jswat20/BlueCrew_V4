@@ -77,6 +77,33 @@ const crewService = {
     return { success: true, data: structuredClone(administrativeCrewSnapshot) };
   },
 
+  async loadLeagueViewerCrew() {
+    if (!this.isSharedMode()) return { success: false, message: "League Viewer access requires hosted mode." };
+    administrativeCrewState = { status: "loading", message: "" };
+    const { data, error } = await supabaseSharedRepository.getCrewMembers();
+    if (error) {
+      administrativeCrewState = { status: "error", message: error.message || "Crew roster could not be loaded." };
+      return { success: false, message: administrativeCrewState.message };
+    }
+    const profiles = await supabaseSharedRepository.getCrewProfiles((data || []).map(row => row.profile_id));
+    if (profiles.error) {
+      administrativeCrewState = { status: "error", message: profiles.error.message || "Crew profiles could not be loaded." };
+      return { success: false, message: administrativeCrewState.message };
+    }
+    const hydratedProfiles = await Promise.all((profiles.data || []).map(async profile => {
+      if (!profile.photo_path || typeof profilePhotoService === "undefined") return profile;
+      try { return { ...profile, photo_url: await profilePhotoService.createDisplayUrl(profile.photo_path) }; }
+      catch (_error) { return { ...profile, photo_url: "" }; }
+    }));
+    const profileById = new Map(hydratedProfiles.map(profile => [String(profile.id), profile]));
+    administrativeCrewSnapshot = (data || []).map(row => sharedDomainMappingService.mapCrewMember({
+      ...row,
+      linked_profile: row.profile_id ? profileById.get(String(row.profile_id)) || {} : {}
+    })).filter(Boolean).sort((left, right) => `${left.lastName}\u0000${left.firstName}\u0000${left.id}`.localeCompare(`${right.lastName}\u0000${right.firstName}\u0000${right.id}`));
+    administrativeCrewState = { status: "ready", message: "" };
+    return { success: true, data: structuredClone(administrativeCrewSnapshot) };
+  },
+
   toHostedChanges(member = {}) {
     return {
       first_name: String(member.firstName || "").trim(),
@@ -93,6 +120,7 @@ const crewService = {
   },
 
   async create(member) {
+    if (!authorizationService.canManageCrew()) return { success: false, message: "Unauthorized." };
     if (!this.isSharedMode()) {
       const created = { ...member, id: Date.now() };
       crew.push(created);
@@ -106,6 +134,7 @@ const crewService = {
   },
 
   async updateMember(crewMemberId, changes) {
+    if (!authorizationService.canManageCrew()) return { success: false, message: "Unauthorized." };
     if (!this.isSharedMode()) {
       const member = crew.find(item => String(item.id) === String(crewMemberId));
       if (!member) return { success: false, message: "Crew member not found." };
@@ -128,6 +157,7 @@ const crewService = {
   },
 
   async manageLoginIdentity(crewMemberId, action, profileId = null) {
+    if (!authorizationService.canManageCrew()) return { success: false, message: "Unauthorized." };
     if (!this.isSharedMode()) return { success: false, message: "Trusted identity linking requires hosted mode." };
     const { error } = await supabaseSharedRepository.manageCrewLoginIdentity(crewMemberId, action, profileId);
     if (error) return { success: false, message: error.message || "Login identity could not be updated." };
