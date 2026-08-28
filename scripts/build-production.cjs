@@ -98,9 +98,24 @@ index = index.replace(
 // cache is converging on a new Pages deployment. Give interaction-critical scripts
 // content-addressed physical paths so a new HTML document can only request the
 // exact bytes it was built with.
-for (const source of ["components/crew.js", "js/schedule/workloadPanel.js", "js/ui/crewCard.js", "js/ui/profile.js"]) {
+const releaseContents = [];
+for (const source of [
+  "components/crew.js",
+  "js/schedule/workloadPanel.js",
+  "js/services/accountService.js",
+  "js/services/authService.js",
+  "js/services/authenticatedIdentityService.js",
+  "js/services/authorizationService.js",
+  "js/services/sharedDomainMappingService.js",
+  "js/services/supabaseAuthService.js",
+  "js/ui/crewCard.js",
+  "js/ui/navigationAuthorization.js",
+  "js/ui/profile.js",
+  "app.js"
+]) {
   const sourcePath = path.join(output, source);
   const content = fs.readFileSync(sourcePath);
+  releaseContents.push(content);
   const fingerprint = crypto.createHash("sha256").update(content).digest("hex").slice(0, 12);
   const fingerprintedSource = source.replace(/\.js$/, `.${fingerprint}.js`);
   fs.copyFileSync(sourcePath, path.join(output, fingerprintedSource));
@@ -115,6 +130,18 @@ fs.writeFileSync(
   runtimeConfig,
   "utf8"
 );
+
+const releaseHash = crypto.createHash("sha256")
+  .update(index)
+  .update(runtimeConfig)
+  .update(fs.readFileSync(path.join(output, "styles.css")))
+  .update(Buffer.concat(releaseContents))
+  .digest("hex")
+  .slice(0, 12);
+const serviceWorkerPath = path.join(output, "service-worker.js");
+const serviceWorker = fs.readFileSync(serviceWorkerPath, "utf8")
+  .replaceAll("__SLATE_RELEASE__", releaseHash);
+fs.writeFileSync(serviceWorkerPath, serviceWorker, "utf8");
 
 fs.writeFileSync(
   path.join(output, "_headers"),

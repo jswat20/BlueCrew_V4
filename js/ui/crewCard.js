@@ -113,7 +113,7 @@ function renderCrewCredentialFrontFace(model, options = {}) {
       <div class="crew-credential-levels crew-credential-front-eligibility" data-testid="profile-front-eligibility">${model.levels.length ? model.levels.map(level => `<i class="settings-pill">${escapeCrewCardHtml(formatCrewCardEligibilityBadge(level))}</i>`).join("") : `<span>No eligibility levels assigned.</span>`}</div>
     </section>`;
   }
-  return `<section class="crew-credential-face crew-credential-face-front">
+  return `<section class="crew-credential-face crew-credential-face-front"${options.hidden ? ' aria-hidden="true" inert' : ""}>
     <div class="crew-credential-brand"><strong>The Slate</strong><span>Crew Card</span></div>
     ${renderCrewCardPhoto(model, "crew-credential-modal-photo")}
     <div class="crew-credential-front-identity"><small>${escapeCrewCardHtml(model.crewCode)}</small><h2>${escapeCrewCardHtml(model.fullName)}</h2><p>${escapeCrewCardHtml(model.role)}</p>${options.showEligibility ? `<div class="crew-credential-levels crew-credential-front-eligibility" data-testid="profile-front-eligibility">${model.levels.length ? model.levels.map(level => `<i class="settings-pill">${escapeCrewCardHtml(formatCrewCardEligibilityBadge(level))}</i>`).join("") : `<span>No eligibility levels assigned.</span>`}</div>` : ""}${options.showStatus === false ? "" : `<b data-status="${model.status.toLowerCase()}">${escapeCrewCardHtml(model.status)}</b>`}</div>
@@ -143,7 +143,7 @@ function renderCrewCredentialBackFace(model, options = {}) {
       <footer class="profile-card-back-actions">${options.actions || ""}</footer>
     </section>`;
   }
-  return `<section class="crew-credential-face crew-credential-face-back" data-testid="crew-card-back">
+  return `<section class="crew-credential-face crew-credential-face-back" data-testid="crew-card-back"${options.hidden ? ' aria-hidden="true" inert' : ""}>
     <header class="crew-credential-back-header"><div><img class="crew-card-site-logo" src="assets/the-slate-logo.png" alt="The Slate logo"><strong>The Slate</strong><span>Crew Card</span></div><div><small>Crew ID</small><b data-testid="crew-card-id">${escapeCrewCardHtml(model.crewCode)}</b></div><p>Professional. Reliable. Game Ready.</p></header>
     <div class="crew-credential-identity-panel">
       <div class="crew-credential-photo-column"><div class="crew-credential-photo-block">${renderCrewCardPhoto(model, "crew-credential-modal-photo")}<b data-status="${model.status.toLowerCase()}">${escapeCrewCardHtml(model.status)}</b></div><section class="crew-credential-history-launch"><h3>Official History</h3><strong>${model.yearsOfService} ${model.yearsOfService === 1 ? "Season" : "Seasons"}</strong><button type="button" class="button button-secondary" data-testid="crew-card-view-official-history" onclick="openOfficialHistoryModal('${escapeCrewCardHtml(model.crewRecordId || model.accountId)}')">View Official History</button></section></div>
@@ -202,14 +202,34 @@ function openCrewCredentialCard(memberId) {
   const resetDisabled = model.identityStatus !== "linked";
   const identityAction = model.identityStatus === "unlinked" ? "link" : "relink";
   const useHostedCrewEditor = crewService.isSharedMode?.() && model.crewRecordId;
-  dialog.innerHTML = `<article class="crew-credential-modal"><div class="crew-credential-dialog-actions"><button type="button" class="button button-secondary" onclick="closeCrewCard()">Close</button></div><div class="crew-credential-flipper" data-testid="crew-card-flipper">${renderCrewCredentialFrontFace(model)}${renderCrewCredentialBackFace(model)}</div><footer class="crew-credential-modal-footer">${authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-secondary" data-testid="crew-card-password-reset" ${resetDisabled ? `disabled title="This crew member's login identity needs review before a password reset can be sent."` : `onclick="sendAdministrativePasswordReset('${escapeCrewCardHtml(model.profileId)}','${escapeCrewCardHtml(model.crewRecordId)}')"`}>Send Password Reset</button><button type="button" class="button button-secondary" data-testid="crew-card-${identityAction}-identity" onclick="openCrewIdentityManager('${escapeCrewCardHtml(model.crewRecordId)}','${identityAction}')">${identityAction === "link" ? "Link" : "Relink"} Login Account</button>${model.profileId ? `<button type="button" class="button button-secondary" data-testid="crew-card-unlink-identity" onclick="manageCrewIdentity('${escapeCrewCardHtml(model.crewRecordId)}','unlink')">Unlink Login Account</button>` : ""}` : ""}${authService.isAdmin?.() && useHostedCrewEditor ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" data-crew-id="${escapeCrewCardHtml(model.crewRecordId)}">Edit Crew Profile</button>` : authService.isAdmin?.() && model.accountId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="openCrewCardAdminEditor('${escapeCrewCardHtml(model.accountId)}')">Edit Crew Profile</button>` : authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" data-crew-id="${escapeCrewCardHtml(model.crewRecordId)}">Edit Crew Profile</button>` : ""}</footer></article>`;
+  const isLeagueViewer = authService.isLeagueViewer?.() === true;
+  const viewerFlipAction = isLeagueViewer ? `<button type="button" class="button button-primary" data-testid="crew-card-view-information" onclick="showCrewCredentialSide(true)">View My Information</button>` : "";
+  dialog.innerHTML = `<article class="crew-credential-modal"><div class="crew-credential-dialog-actions"><button type="button" class="button button-secondary" onclick="closeCrewCard()">Close</button></div><div class="crew-credential-flipper" data-testid="crew-card-flipper">${renderCrewCredentialFrontFace(model, { hidden: false })}${renderCrewCredentialBackFace(model, { hidden: isLeagueViewer })}</div><footer class="crew-credential-modal-footer">${viewerFlipAction}${authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-secondary" data-testid="crew-card-password-reset" ${resetDisabled ? `disabled title="This crew member's login identity needs review before a password reset can be sent."` : `onclick="sendAdministrativePasswordReset('${escapeCrewCardHtml(model.profileId)}','${escapeCrewCardHtml(model.crewRecordId)}')"`}>Send Password Reset</button><button type="button" class="button button-secondary" data-testid="crew-card-${identityAction}-identity" onclick="openCrewIdentityManager('${escapeCrewCardHtml(model.crewRecordId)}','${identityAction}')">${identityAction === "link" ? "Link" : "Relink"} Login Account</button>${model.profileId ? `<button type="button" class="button button-secondary" data-testid="crew-card-unlink-identity" onclick="manageCrewIdentity('${escapeCrewCardHtml(model.crewRecordId)}','unlink')">Unlink Login Account</button>` : ""}` : ""}${authService.isAdmin?.() && useHostedCrewEditor ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" data-crew-id="${escapeCrewCardHtml(model.crewRecordId)}">Edit Crew Profile</button>` : authService.isAdmin?.() && model.accountId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" onclick="openCrewCardAdminEditor('${escapeCrewCardHtml(model.accountId)}')">Edit Crew Profile</button>` : authService.isAdmin?.() && model.crewRecordId ? `<button type="button" class="button button-primary" data-testid="crew-card-edit" data-crew-id="${escapeCrewCardHtml(model.crewRecordId)}">Edit Crew Profile</button>` : ""}</footer></article>`;
   dialog.addEventListener("click", event => { if (event.target === dialog) closeCrewCard(); });
   dialog.addEventListener("keydown", handleCrewCardDialogKeydown);
   dialog.addEventListener("close", () => { dialog.remove(); crewCardOrigin?.focus?.(); crewCardOrigin = null; }, { once: true });
   document.body.appendChild(dialog);
   dialog.showModal();
   dialog.querySelector("button")?.focus();
-  requestAnimationFrame(() => dialog.querySelector(".crew-credential-flipper")?.classList.add("is-flipped"));
+  if (!isLeagueViewer) requestAnimationFrame(() => dialog.querySelector(".crew-credential-flipper")?.classList.add("is-flipped"));
+}
+
+function showCrewCredentialSide(showBack) {
+  if (!authService.isLeagueViewer?.()) return false;
+  const dialog = document.getElementById("crew-credential-dialog");
+  const flipper = dialog?.querySelector('[data-testid="crew-card-flipper"]');
+  const footer = dialog?.querySelector(".crew-credential-modal-footer");
+  if (!dialog || !flipper || !footer) return false;
+  flipper.classList.toggle("is-flipped", showBack === true);
+  const front = flipper.querySelector(".crew-credential-face-front");
+  const back = flipper.querySelector(".crew-credential-face-back");
+  front?.toggleAttribute("inert", showBack === true);
+  front?.setAttribute("aria-hidden", String(showBack === true));
+  back?.toggleAttribute("inert", showBack !== true);
+  back?.setAttribute("aria-hidden", String(showBack !== true));
+  footer.innerHTML = `<button type="button" class="button ${showBack ? "button-secondary" : "button-primary"}" data-testid="${showBack ? "crew-card-view-front" : "crew-card-view-information"}" onclick="showCrewCredentialSide(${showBack ? "false" : "true"})">${showBack ? "Back to Card Front" : "View My Information"}</button>`;
+  footer.querySelector("button")?.focus();
+  return true;
 }
 
 function openHostedCrewEditorFromCard(event, crewMemberId) {

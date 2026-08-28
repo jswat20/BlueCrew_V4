@@ -29,9 +29,11 @@ test("publishes installable mobile metadata and branded icons", async ({ page, r
   const serviceWorkerResponse = await request.get("/service-worker.js");
   expect(serviceWorkerResponse.ok()).toBe(true);
   const serviceWorker = await serviceWorkerResponse.text();
-  expect(serviceWorker).toContain('const SLATE_CACHE = "the-slate-shell-v2"');
+  expect(serviceWorker).toContain('const SLATE_CACHE_PREFIX = "the-slate-shell-v3-"');
+  expect(serviceWorker).toContain('const SLATE_CACHE = `${SLATE_CACHE_PREFIX}${SLATE_RELEASE}`');
   expect(serviceWorker).toContain('addEventListener("fetch"');
-  expect(serviceWorker).toContain("keys.filter(key => key !== SLATE_CACHE)");
+  expect(serviceWorker).toContain('key.startsWith("the-slate-shell-") && key !== SLATE_CACHE');
+  expect(serviceWorker).toContain("cache.put(\"/\", copy)");
 
   for (const icon of ["icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon-32.png"]) {
     const response = await request.get(`/assets/icons/${icon}`);
