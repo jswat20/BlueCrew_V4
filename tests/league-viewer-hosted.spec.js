@@ -35,6 +35,7 @@ test.describe("hosted League Viewer lifecycle", () => {
     const login = await page.evaluate(() => loginService.loginWithPassword("viewer@example.test", "password"));
     expect(login.success).toBe(true);
     expect(await page.evaluate(() => authorizationService.currentRole())).toBe("league_viewer");
+    expect(await page.evaluate(() => document.body.dataset.role)).toBe("league_viewer");
     await page.evaluate(() => renderPage("dashboard"));
     await expect(page.getByTestId("schedule-page")).toBeVisible();
     expect(await page.evaluate(() => document.body.dataset.page)).toBe("schedule");
@@ -43,8 +44,16 @@ test.describe("hosted League Viewer lifecycle", () => {
     await page.evaluate(() => renderPage("crew"));
     await expect(page.getByTestId("league-viewer-crew-crew-visible-1")).toBeVisible();
     await page.getByTestId("league-viewer-crew-crew-visible-1").click();
+    await expect(page.getByTestId("crew-card-flipper")).not.toHaveClass(/is-flipped/);
+    await expect(page.getByTestId("crew-card-back")).toHaveAttribute("aria-hidden", "true");
+    await expect(page.getByTestId("crew-card-view-information")).toBeVisible();
+    await page.getByTestId("crew-card-view-information").click();
+    await expect(page.getByTestId("crew-card-flipper")).toHaveClass(/is-flipped/);
+    await expect(page.getByTestId("crew-card-back")).toHaveAttribute("aria-hidden", "false");
     await expect(page.getByTestId("crew-card-emergency-contact")).toContainText("Emergency Person");
     await expect(page.getByText("123 League Way")).toBeVisible();
+    await expect(page.getByTestId("crew-card-view-front")).toBeVisible();
     await expect(page.getByTestId("crew-card-edit")).toHaveCount(0);
+    await expect(page.getByTestId("crew-card-password-reset")).toHaveCount(0);
   });
 });

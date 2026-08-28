@@ -104,7 +104,20 @@ if (fs.existsSync(path.join(output, "index.html"))) {
     }
   }
   if (/config\/supabase\.js(?:["'?])/.test(index)) failures.push("production HTML references stale-prone unversioned runtime config");
-  for (const source of ["components/crew", "js/schedule/workloadPanel", "js/ui/crewCard", "js/ui/profile"]) {
+  for (const source of [
+    "components/crew",
+    "js/schedule/workloadPanel",
+    "js/services/accountService",
+    "js/services/authService",
+    "js/services/authenticatedIdentityService",
+    "js/services/authorizationService",
+    "js/services/sharedDomainMappingService",
+    "js/services/supabaseAuthService",
+    "js/ui/crewCard",
+    "js/ui/navigationAuthorization",
+    "js/ui/profile",
+    "app"
+  ]) {
     const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const reference = index.match(new RegExp(`${escaped}\\.([a-f0-9]{12})\\.js`));
     if (!reference) {
@@ -163,7 +176,9 @@ if (fs.existsSync(path.join(output, "manifest.webmanifest"))) {
 if (fs.existsSync(path.join(output, "service-worker.js"))) {
   const serviceWorker = fs.readFileSync(path.join(output, "service-worker.js"), "utf8");
   if (!/addEventListener\(["']fetch["']/.test(serviceWorker)) failures.push("production service worker is missing a fetch handler");
-  if (!/the-slate-shell-v2/.test(serviceWorker)) failures.push("production service worker cache version was not rotated for the startup dependency change");
+  if (!/const SLATE_RELEASE = "[a-f0-9]{12}"/.test(serviceWorker) || !/const SLATE_CACHE_PREFIX = "the-slate-shell-v3-"/.test(serviceWorker)) failures.push("production service worker cache is not scoped to the built release");
+  if (/__SLATE_RELEASE__/.test(serviceWorker)) failures.push("production service worker retains its release placeholder");
+  if (!/self\.skipWaiting\(\)/.test(serviceWorker) || !/self\.clients\.claim\(\)/.test(serviceWorker)) failures.push("production service worker cannot immediately activate and control existing clients");
 }
 
 if (fs.existsSync(path.join(output, "js/services/supabaseClientService.js"))) {

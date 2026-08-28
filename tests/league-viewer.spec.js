@@ -61,8 +61,26 @@ test.describe("League Viewer client authorization", () => {
     await expect(firstCard).toBeVisible();
     await firstCard.click();
     await expect(page.getByTestId("crew-card-dialog")).toBeVisible();
+    await expect(page.getByTestId("crew-card-flipper")).not.toHaveClass(/is-flipped/);
+    await expect(page.getByTestId("crew-card-view-information")).toBeVisible();
+    await page.getByTestId("crew-card-view-information").click();
+    await expect(page.getByTestId("crew-card-flipper")).toHaveClass(/is-flipped/);
+    await page.getByTestId("crew-card-view-front").click();
+    await expect(page.getByTestId("crew-card-flipper")).not.toHaveClass(/is-flipped/);
     await expect(page.getByTestId("crew-card-edit")).toHaveCount(0);
     await expect(page.getByTestId("crew-card-password-reset")).toHaveCount(0);
+  });
+
+  test("keeps the read-only Crew Card contained on a mobile viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => renderPage("crew"));
+    await page.locator('[data-testid^="league-viewer-crew-"]').first().click();
+    const dialog = page.getByTestId("crew-card-dialog");
+    await expect(dialog).toBeVisible();
+    await page.getByTestId("crew-card-view-information").click();
+    await expect(page.getByTestId("crew-card-back")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await expect(page.getByTestId("crew-card-edit")).toHaveCount(0);
   });
 
   test("denies direct administrative routes and mutation entry points", async ({ page }) => {

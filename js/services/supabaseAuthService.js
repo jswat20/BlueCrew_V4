@@ -125,6 +125,12 @@ const supabaseAuthService = (() => {
     } else if (typeof authService !== "undefined" && authService.clearAuthenticatedAccount) {
       authService.clearAuthenticatedAccount();
     }
+    if (document?.body) {
+      const supportedRoles = ["administrator", "assigner", "umpire", "league_viewer"];
+      const role = supportedRoles.includes(account?.role) ? account.role : account ? "umpire" : "none";
+      document.body.dataset.role = role;
+      if (window.BlueCrew?.test) window.BlueCrew.test.currentRole = role;
+    }
     return account;
   }
 

@@ -50,8 +50,8 @@ base("production artifact packages a fingerprinted same-origin Supabase client",
 
 base("service worker rotates the shell cache and deletes incompatible predecessors", () => {
   const serviceWorker = fs.readFileSync("service-worker.js", "utf8");
-  expect(serviceWorker).toContain('const SLATE_CACHE = "the-slate-shell-v2"');
-  expect(serviceWorker).toContain("keys.filter(key => key !== SLATE_CACHE)");
+  expect(serviceWorker).toContain('const SLATE_CACHE_PREFIX = "the-slate-shell-v3-"');
+  expect(serviceWorker).toContain('key.startsWith("the-slate-shell-") && key !== SLATE_CACHE');
   expect(serviceWorker).toContain("self.skipWaiting()");
   expect(serviceWorker).toContain("self.clients.claim()");
 });
