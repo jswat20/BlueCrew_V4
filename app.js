@@ -293,6 +293,10 @@ function renderPage(page, context = {}) {
     context = {};
     window.history.replaceState({ blueCrewPage: "login", context: {} }, "", window.location.href);
   }
+  if (authService.isLeagueViewer?.() && page === "dashboard") {
+    page = "schedule";
+    context = {};
+  }
   authenticatedIdentityService.updateDocumentTitle(page === "login" ? null : loginService.getCurrentAccount());
   if (typeof refreshNavigationAuthorization === "function") {
     refreshNavigationAuthorization();
@@ -363,9 +367,11 @@ function renderPage(page, context = {}) {
     return;
   }
 
-  const viewHtml = authService.isUmpire()
-    ? renderUmpireView(page, context)
-    : renderAdminView(page, context);
+  const viewHtml = authService.isLeagueViewer?.()
+    ? renderLeagueViewerView(page, context)
+    : authService.isUmpire()
+      ? renderUmpireView(page, context)
+      : renderAdminView(page, context);
 
   content.innerHTML = `
     <div
@@ -379,6 +385,17 @@ updateNotificationBadge();
 
   runPageSetup(page, context);
   requestAnimationFrame(() => enhanceResponsiveSurfaces(content, page));
+}
+
+function renderLeagueViewerView(page, context = {}) {
+  switch (page) {
+    case "schedule":
+      return typeof renderSchedule === "function" ? renderSchedule(context) : placeholderPage("Schedule", "Schedule is unavailable.");
+    case "crew":
+      return typeof renderLeagueViewerCrew === "function" ? renderLeagueViewerCrew(context) : placeholderPage("Crew", "Crew is unavailable.");
+    default:
+      return renderAccessDenied(page);
+  }
 }
 
 function enhanceResponsiveSurfaces(root, page) {
@@ -452,7 +469,7 @@ function runPageSetup(page, context = {}) {
 
   if (page !== "schedule") return;
 
-  if (authService.isAdmin()) {
+  if (authService.isAdmin() || authService.isLeagueViewer?.()) {
     currentScheduleDate =
       currentScheduleDate ||
       gameService.getFirstDateOrToday();

@@ -128,6 +128,16 @@ function renderCrew() {
   `;
 }
 
+function renderLeagueViewerCrew() {
+  const roster = crewService.getAll();
+  return `<section class="card crew-page-shell league-viewer-crew" data-testid="league-viewer-crew">
+    <div class="page-section-header"><div><h3>Crew</h3><p class="placeholder">Read-only umpire directory.</p></div></div>
+    <div class="crew-credential-roster" data-testid="league-viewer-crew-list">
+      ${roster.length ? roster.map(member => renderCrewCardFront(member, { testId: `league-viewer-crew-${member.id}` })).join("") : "<p>No crew members are visible in your assigned scope.</p>"}
+    </div>
+  </section>`;
+}
+
 function renderCrewCard(member) {
   const statusClass = member.active ? "status-assigned" : "status-unassigned";
   const statusText = member.active ? "Active" : "Inactive";

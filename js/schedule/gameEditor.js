@@ -3,6 +3,7 @@
 let gameEditorReturnFocus = null;
 
 function openGameEditor(gameId = null) {
+  if (!authorizationService.canEditSchedule()) return false;
   const isEditing = gameId !== null && gameId !== undefined;
   const game = isEditing ? gameService.getById(gameId) : createBlankGame();
 
@@ -39,6 +40,7 @@ function openGameEditor(gameId = null) {
 }
 
 function editGame(gameId) {
+  if (!authorizationService.canEditSchedule()) return false;
   openGameEditor(gameId);
 }
 
@@ -210,6 +212,7 @@ function renderNewGameAssignmentNote() {
 }
 
 async function saveGameEditor(gameId, isEditing) {
+  if (!authorizationService.canEditSchedule()) return { success: false, message: "Unauthorized." };
   const updates = readGameEditorValues();
 
   if (!validateGameEditorValues(updates)) return;
@@ -321,6 +324,7 @@ function updateExistingGame(gameId, updates) {
 }
 
 function deleteGame(gameId) {
+  if (!authorizationService.canEditSchedule()) return false;
   const game = gameService.getById(gameId);
   if (!game) return;
 
@@ -495,6 +499,7 @@ function refreshScheduleAfterLifecycleAction() {
 }
 
 async function cancelGameFromEditor(gameId) {
+  if (!authorizationService.canEditSchedule()) return { success: false, message: "Unauthorized." };
   const confirmed =
     window.confirm(
       "Cancel this game? Assigned umpires will be notified."
@@ -520,6 +525,7 @@ async function cancelGameFromEditor(gameId) {
 }
 
 async function restoreGameFromEditor(gameId) {
+  if (!authorizationService.canEditSchedule()) return { success: false, message: "Unauthorized." };
   const confirmed = window.confirm("Restore this game? Assigned umpires will be notified.");
   if (!confirmed) return;
   const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()

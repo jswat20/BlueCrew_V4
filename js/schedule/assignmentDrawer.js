@@ -120,6 +120,7 @@ function renderAssignmentAvailabilityBadge(
 }
 
 function openAssignmentDrawer(gameId) {
+  if (!authorizationService.canAssignGames()) return false;
   const game = gameService.getById(gameId);
 
   if (!game) {

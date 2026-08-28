@@ -126,6 +126,7 @@ function clearScheduleAdvancedFilters() {
 }
 
 function renderSchedule() {
+  const canEdit = authorizationService.canEditSchedule();
   return `
     <div
       class="schedule-page"
@@ -168,7 +169,7 @@ function renderSchedule() {
     ◀ Previous
   </button>
 
-  <button
+  ${canEdit ? `<button
     type="button"
     class="button button-primary"
     data-testid="add-game"
@@ -182,7 +183,7 @@ function renderSchedule() {
     data-testid="import-schedule"
     onclick="openScheduleImport()">
     Import CSV
-  </button>
+  </button>` : ""}
 
   <button
     type="button"

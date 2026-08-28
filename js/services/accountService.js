@@ -13,7 +13,8 @@ const accountService = (() => {
 const ACCOUNT_ROLES = Object.freeze({
   ADMINISTRATOR: "administrator",
   ASSIGNER: "assigner",
-  UMPIRE: "umpire"
+  UMPIRE: "umpire",
+  LEAGUE_VIEWER: "league_viewer"
 });
 
   const VALID_ACCOUNT_ROLES = Object.values(ACCOUNT_ROLES);
@@ -745,7 +746,8 @@ function getRoleSummary() {
     {
       administrator: 0,
       assigner: 0,
-      umpire: 0
+      umpire: 0,
+      league_viewer: 0
     }
   );
 }

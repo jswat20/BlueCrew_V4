@@ -78,6 +78,9 @@ const sharedDomainMappingService = (() => {
       ,officialHistory: linkedProfile.official_history || []
       ,profilePhotoPath: linkedProfile.photo_path || ""
       ,profilePhotoUrl: linkedProfile.photo_url || ""
+      ,profileStatus: linkedProfile.status || ""
+      ,adminNotes: linkedProfile.admin_notes || row.notes || ""
+      ,communicationPreferences: linkedProfile.communication_preferences || {}
       ,personnelId: linkedProfile.personnel_id || linkedProfile.crew_code || ""
       ,personnelIdIssuedAt: linkedProfile.personnel_id_issued_at || linkedProfile.crew_code_issued_at || null
       ,linkedRole: linkedProfile.role || row.linked_role || ""

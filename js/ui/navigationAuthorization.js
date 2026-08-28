@@ -35,7 +35,7 @@ function refreshNavigationAuthorization() {
       const hasVisibleLink =
         Array.from(
           group.querySelectorAll(
-            ".nav-link[data-page]"
+            ".nav-link"
           )
         ).some(link => !link.hidden);
 

@@ -20,6 +20,10 @@ const authService = (() => {
     return currentUser?.role === "umpire";
   }
 
+  function isLeagueViewer() {
+    return currentUser?.role === "league_viewer";
+  }
+
   function currentCrewId() {
     return currentUser?.crewId || null;
   }
@@ -93,6 +97,7 @@ const authService = (() => {
     getCurrentUser,
     isAdmin,
     isUmpire,
+    isLeagueViewer,
     currentCrewId,
     currentUserName,
     loginAsAdmin,

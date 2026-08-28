@@ -111,7 +111,7 @@ const supabaseSharedRepository = (() => {
     return db.from("crew_members").select(CREW_COLUMNS).order("last_name").order("first_name").order("id");
   }
 
-  const CREW_PROFILE_COLUMNS = "id,organization_id,role,email,phone,home_phone,address,contact_preference,birthdate,emergency_contact,emergency_contact_phone,crew_code,crew_code_issued_at,personnel_id,personnel_id_issued_at,official_history,photo_path";
+  const CREW_PROFILE_COLUMNS = "id,organization_id,role,status,first_name,last_name,email,phone,home_phone,address,contact_preference,birthdate,emergency_contact,emergency_contact_phone,crew_code,crew_code_issued_at,personnel_id,personnel_id_issued_at,official_history,years_of_service_override,photo_path,admin_notes,communication_preferences,approved_at,created_at,updated_at";
 
   async function getCrewProfiles(profileIds = []) {
     const ids = [...new Set(profileIds.filter(Boolean).map(String))];

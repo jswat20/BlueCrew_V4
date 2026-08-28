@@ -134,7 +134,8 @@ function getRoleSummary() {
     return {
       administrator: 0,
       assigner: 0,
-      umpire: 0
+      umpire: 0,
+      league_viewer: 0
     };
   }
 

@@ -106,14 +106,14 @@ ${
     : ""
 }
 
-<button
+${authService.isLeagueViewer?.() ? "" : `<button
   type="button"
   class="button button-secondary"
   data-testid="game-hub-${game.id}"
   aria-label="View Game Hub"
   onclick="openScheduleGameHub('${game.id}')">
   View Game Hub
-</button>
+</button>`}
       </div>
     </article>
   `;
