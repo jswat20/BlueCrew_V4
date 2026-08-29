@@ -83,6 +83,18 @@ function formatCrewCardEligibilityBadge(level) {
   return canonical;
 }
 
+function renderCrewCardFrontName(model) {
+  const nameParts = [model.firstName, model.lastName].map(value => String(value || "").trim()).filter(Boolean);
+  const parts = nameParts.length ? nameParts : String(model.fullName || "Unnamed Crew Member").trim().split(/\s+/).filter(Boolean);
+  const longestPartLength = Math.max(0, ...parts.map(part => part.length));
+  const fitClass = longestPartLength >= 18
+    ? "profile-card-name-extra-long"
+    : longestPartLength >= 10
+      ? "profile-card-name-long"
+      : "profile-card-name-standard";
+  return `<h2 class="${fitClass}" data-testid="profile-card-name">${parts.map(part => `<span>${escapeCrewCardHtml(part)}</span>`).join(" ")}</h2>`;
+}
+
 function renderCrewCardFront(crewMember, options = {}) {
   const model = getCrewCardModel(crewMember);
   const testId = options.testId || "crew-roster-member";
@@ -107,7 +119,7 @@ function renderCrewCredentialFrontFace(model, options = {}) {
         <div class="profile-card-role-tab" data-testid="profile-card-role">${escapeCrewCardHtml(model.role).toUpperCase()}</div>
       </div>
       <div class="profile-card-name-block" data-testid="profile-card-name-block">
-        <h2>${escapeCrewCardHtml(model.fullName)}</h2>
+        ${renderCrewCardFrontName(model)}
         <div class="profile-card-crew-id-inset" data-testid="profile-card-crew-id-inset"><span>Crew ID</span><b>${escapeCrewCardHtml(model.crewCode)}</b></div>
       </div>
       <div class="crew-credential-levels crew-credential-front-eligibility" data-testid="profile-front-eligibility">${model.levels.length ? model.levels.map(level => `<i class="settings-pill">${escapeCrewCardHtml(formatCrewCardEligibilityBadge(level))}</i>`).join("") : `<span>No eligibility levels assigned.</span>`}</div>
