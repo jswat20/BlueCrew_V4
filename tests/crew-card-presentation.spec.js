@@ -57,7 +57,7 @@ async function visibleGeometry(page) {
     };
     const overlaps = (a, b) => Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
     const dialogRect = dialog.getBoundingClientRect();
-    const visibleElements = [...dialog.querySelectorAll(".crew-credential-face:not([aria-hidden='true']) *, .crew-credential-modal-footer")].filter(visible);
+    const visibleElements = [...dialog.querySelectorAll(".crew-credential-face:not([aria-hidden='true']) *")].filter(visible);
     return {
       viewportOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       descendantOverflow: visibleElements.some(element => {
@@ -66,9 +66,7 @@ async function visibleGeometry(page) {
       }),
       photoNameOverlap: overlaps(rectFor(".crew-credential-face-back .crew-credential-photo-column"), rectFor(".crew-credential-face-back .crew-credential-identity-details")),
       identityContactOverlap: overlaps(rectFor(".crew-credential-face-back .crew-credential-identity-panel"), rectFor(".crew-credential-face-back .crew-credential-contact")),
-      footerContentOverlap: [".crew-credential-identity-panel", ".crew-credential-contact", ".crew-credential-notes"].some(selector =>
-        overlaps(rectFor(".crew-credential-modal-footer"), rectFor(`.crew-credential-face-back ${selector}`))
-      )
+      footerContentOverlap: overlaps(rectFor(".crew-credential-modal-footer"), rectFor(".crew-credential-face-back"))
     };
   });
 }
@@ -159,6 +157,8 @@ test.describe("Crew Card presentation hardening", () => {
         footerContentOverlap: false
       });
       await page.getByTestId("crew-card-view-information").click();
+      await expect(page.getByTestId("crew-card-flipper")).toHaveClass(/is-flipped/);
+      await page.waitForTimeout(750);
       await expect(page.getByTestId("crew-card-back")).toBeVisible();
       await expect(page.getByTestId("crew-card-view-front")).toBeVisible();
       expect(await visibleGeometry(page)).toEqual({

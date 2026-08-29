@@ -77,6 +77,13 @@ test.describe("League Viewer client authorization", () => {
     await page.locator('[data-testid^="league-viewer-crew-"]').first().click();
     const dialog = page.getByTestId("crew-card-dialog");
     await expect(dialog).toBeVisible();
+    const frontGeometry = await dialog.evaluate(root => {
+      const face = root.querySelector(".profile-crew-card-front").getBoundingClientRect();
+      const photo = root.querySelector(".profile-card-front-photo").getBoundingClientRect();
+      return { faceRatio: face.width / face.height, photoWidthRatio: photo.width / face.width };
+    });
+    expect(frontGeometry.faceRatio).toBeCloseTo(5 / 7, 2);
+    expect(frontGeometry.photoWidthRatio).toBeGreaterThan(.72);
     await page.getByTestId("crew-card-view-information").click();
     await expect(page.getByTestId("crew-card-back")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

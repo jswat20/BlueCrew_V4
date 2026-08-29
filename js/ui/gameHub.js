@@ -1601,7 +1601,7 @@ function renderAdministrativeGameHub(game) {
     <div class="game-hub-command-layout" data-testid="game-hub-admin-view">
       <section class="game-hub-command-card presentation-card game-hub-command-summary" data-testid="game-hub-admin-details">
         <header class="game-hub-command-summary-header" data-testid="game-hub-admin-statuses">
-          <div class="game-hub-command-title"><h3>Game Details</h3></div>
+          <div class="game-hub-command-title"><h3>Game Details</h3><small class="game-hub-reference" data-testid="game-hub-game-id">Game ID: ${escapeGameHubText(presentationFormattingService.getGameReference(game))}</small></div>
           <div class="game-hub-command-lifecycle" data-testid="game-hub-admin-lifecycle-status">${renderGameHubLifecycleBadge(game)}</div>
           <div class="game-hub-command-assignment" data-testid="game-hub-admin-assignment-status">${renderGameHubAssignmentBadge(game)}</div>
         </header>
@@ -1797,6 +1797,7 @@ function renderGameHub(context = {}) {
       ${renderGameHubQuickActions(reviewMode, game)}
 
       <h2>Game Hub</h2>
+      <small class="game-hub-reference" data-testid="game-hub-game-id">Game ID: ${escapeGameHubText(presentationFormattingService.getGameReference(game))}</small>
 
       ${renderUmpireGameSummary(game)}
 

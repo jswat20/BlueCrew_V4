@@ -22,19 +22,12 @@ function getDashboardActivityStartTime() {
 function getDashboardRecentActivity() {
   if (
     typeof dashboardService === "undefined" ||
-    typeof dashboardService.getRecentOperationalActivity !== "function"
+    typeof dashboardService.getCurrentOperationalActivity !== "function"
   ) {
     return [];
   }
 
-  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-
-  return dashboardService
-    .getRecentOperationalActivity(50)
-    .filter(activity => {
-      const timestamp = new Date(activity.createdAt || "").getTime();
-      return Number.isFinite(timestamp) && timestamp >= cutoff;
-    });
+  return dashboardService.getCurrentOperationalActivity(50);
 }
 
 function getDashboardActivityHeading() {
@@ -47,7 +40,7 @@ function getDashboardActivityHeading() {
 
   return session?.previousLoginAt
     ? "Since your last login"
-    : "Activity from the last 24 hours";
+    : "Activity from the last 7 days";
 }
 
 function renderRecentAssignmentActivity() {

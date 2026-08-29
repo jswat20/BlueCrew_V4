@@ -19,8 +19,16 @@ function renderClaimHistory(context = {}) {
     claim => claim.assignment.claimStatus === "rejected"
   );
   const filteredWithdrawnClaims = claims.filter(claim => claim.assignment.claimStatus === "withdrawn");
+  const declinedAssignments = (typeof activityService !== "undefined" ? activityService.getRecent(50) : [])
+    .filter(activity => activity.type === "assignment" && activity.action === "assignment_declined")
+    .filter(activity => isClaimHistoryDateVisible(activity.createdAt));
 
-  if (!claims.length) {
+  const showApproved = claimHistoryStatusFilter === "all" || claimHistoryStatusFilter === "approved";
+  const showRejected = claimHistoryStatusFilter === "all" || claimHistoryStatusFilter === "rejected";
+  const showWithdrawn = claimHistoryStatusFilter === "all";
+  const showDeclined = claimHistoryStatusFilter === "all" || claimHistoryStatusFilter === "declined";
+
+  if (!claims.length && !declinedAssignments.length) {
     return `
       <section class="page-section" data-testid="claim-history">
         <h2>Claim History</h2>
@@ -39,19 +47,23 @@ function renderClaimHistory(context = {}) {
       ${renderClaimHistorySummary(summary)}
       ${renderClaimHistoryFilters()}
 
-      <details class="claim-history-section" data-testid="claim-history-approved" tabindex="0" aria-label="Approved claim history" open>
+      ${showApproved ? `<details class="claim-history-section" data-testid="claim-history-approved" tabindex="0" aria-label="Approved claim history" open>
         <summary><h3>Approved Claims</h3><span>${filteredApprovedClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredApprovedClaims.map(claim => renderClaimHistoryCard(claim, "approved", highlightedId)).join("")}</div>
-      </details>
+      </details>` : ""}
 
-      <details class="claim-history-section" data-testid="claim-history-rejected" tabindex="0" aria-label="Rejected claim history" open>
+      ${showRejected ? `<details class="claim-history-section" data-testid="claim-history-rejected" tabindex="0" aria-label="Rejected claim history" open>
         <summary><h3>Rejected Claims</h3><span>${filteredRejectedClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredRejectedClaims.map(claim => renderClaimHistoryCard(claim, "rejected", highlightedId)).join("")}</div>
-      </details>
-      <details class="claim-history-section" data-testid="claim-history-withdrawn" tabindex="0" aria-label="Withdrawn claim history" open>
+      </details>` : ""}
+      ${showWithdrawn ? `<details class="claim-history-section" data-testid="claim-history-withdrawn" tabindex="0" aria-label="Withdrawn claim history" open>
         <summary><h3>Withdrawn Claims</h3><span>${filteredWithdrawnClaims.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
         <div class="claim-history-list">${filteredWithdrawnClaims.map(claim => renderClaimHistoryCard(claim, "withdrawn", highlightedId)).join("")}</div>
-      </details>
+      </details>` : ""}
+      ${showDeclined ? `<details class="claim-history-section" data-testid="claim-history-declined-assignments" tabindex="0" aria-label="Declined assignment history" open>
+        <summary><h3>Declined Assignments</h3><span>${declinedAssignments.length}</span><span class="claim-history-chevron" aria-hidden="true"></span></summary>
+        <div class="claim-history-list">${declinedAssignments.map(renderDeclinedAssignmentHistoryCard).join("")}</div>
+      </details>` : ""}
     </section>
   `;
 }
@@ -82,6 +94,7 @@ function renderClaimHistoryFilters() {
         onclick="setClaimHistoryStatusFilter('rejected')">
         Rejected
       </button>
+      <button type="button" data-testid="claim-history-filter-declined" class="${claimHistoryStatusFilter === "declined" ? "active" : ""}" onclick="setClaimHistoryStatusFilter('declined')">Declined Assignments</button>
     </div>
 
     <div class="claim-history-date-filters" data-testid="claim-history-date-filters">
@@ -118,6 +131,25 @@ function renderClaimHistoryFilters() {
       </button>
     </div>
   `;
+}
+
+function isClaimHistoryDateVisible(value) {
+  if (claimHistoryDateRangeFilter === "all") return true;
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return false;
+  const now = new Date();
+  if (claimHistoryDateRangeFilter === "today") {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return timestamp >= start;
+  }
+  const days = Number(claimHistoryDateRangeFilter);
+  return Number.isFinite(days) && timestamp >= now.getTime() - days * 86400000;
+}
+
+function renderDeclinedAssignmentHistoryCard(activity) {
+  const game = activity.gameId ? gameService.getById(activity.gameId) : null;
+  const position = presentationFormattingService.formatAssignmentPosition(activity.metadata?.position || activity.subject, "Position");
+  return `<article class="claim-history-card shared-notification-row presentation-card" data-testid="declined-assignment-card"><div class="claim-history-card-details"><span><strong>Declined by</strong><span>${activityService.formatActor(activity)}</span></span><span><strong>Game</strong><span>${game ? `${game.awayTeam || "Away"} @ ${game.homeTeam || "Home"}` : "Game unavailable"}</span></span><span><strong>Game ID</strong><span>${presentationFormattingService.getGameReference(game || { id: activity.gameId })}</span></span><span><strong>Date / Time</strong><span>${game ? `${game.date} · ${dateTimeFormattingService.formatTime12Hour(game.time, "TBD")}` : "Not available"}</span></span><span><strong>Position</strong><span>${position}</span></span><span class="claim-history-status status-badge status-badge-cancelled" data-status="declined">Declined</span></div><small class="claim-history-supporting">Declined ${new Date(activity.createdAt).toLocaleString()}</small></article>`;
 }
 
 function setClaimHistoryStatusFilter(filter) {

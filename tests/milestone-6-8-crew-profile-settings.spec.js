@@ -24,6 +24,8 @@ test("crew card keeps keyboard flip/open behavior and admin cards show canonical
   await card.focus(); await card.press("Enter");
   const dialog = app.page.getByTestId("crew-card-dialog");
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId("crew-card-flipper")).not.toHaveClass(/is-flipped/);
+  await dialog.getByTestId("crew-card-view-information").click();
   await expect(dialog.getByTestId("crew-card-flipper")).toHaveClass(/is-flipped/);
   await expect(dialog.locator(".crew-credential-eligibility")).not.toContainText(/Pinto|Bronco/);
   await app.page.keyboard.press("Escape");

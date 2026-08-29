@@ -44,6 +44,7 @@ const supabaseAuthService = (() => {
     if (organizationError) throw organizationError;
     levelTerminologyService.configure(organization?.settings || {});
     organizationContactService.configure(organization?.settings || {}, organization || {});
+    if (typeof document !== "undefined") document.body.dataset.organizationName = organization?.name || "";
     const crewMember = profile.role === "league_viewer" ? null : await crewService.loadAuthenticatedCrewMember(profile.id);
     accountService.setAuthenticatedCrewId(crewMember?.id || null);
     if (profile.role === "umpire" && !crewMember) throw new Error("Approved umpire has no linked crew member.");

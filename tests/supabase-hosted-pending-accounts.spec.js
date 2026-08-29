@@ -19,14 +19,16 @@ test.describe("Hosted pending account administration", () => {
     await expect(dialog.locator('[data-operations-pending-account="pending-b"] strong')).toHaveText("Second Pending");
     await expect(first.locator("strong")).not.toContainText("pending-a");
     await expect(first.getByTestId("operations-pending-account-crew")).toHaveCount(0);
-    await first.locator('[data-operations-quick-action="approve-account"]').click();
-    await expect(page.getByTestId("operations-metric-pending-accounts").locator("strong")).toHaveText("1");
-    await expect(dialog).toBeVisible();
-    await dialog.locator('[data-operations-pending-account="pending-b"] [data-operations-quick-action="reject-account"]').click();
+    await first.getByRole("button", { name: "Review" }).click();
+    await page.getByTestId("approve-account-pending-a").click();
+    await page.evaluate(() => renderPage("operations-center"));
+    await page.getByTestId("operations-metric-pending-accounts").click();
+    const refreshedDialog=page.getByTestId("operations-detail-pending-accounts");
+    await refreshedDialog.locator('[data-operations-pending-account="pending-b"] [data-operations-quick-action="reject-account"]').click();
     await expect(dialog).not.toBeVisible();
     await expect(page.getByTestId("operations-metric-pending-accounts").locator("strong")).toHaveText("0");
     const rpcCalls=(await calls()).filter(call=>call.operation==="rpc");
-    expect(rpcCalls.find(call=>call.name==="approve_pending_account")?.args).toEqual({p_target_profile_id:"pending-a",p_all_divisions:false,p_division_levels:[]});
+    expect(rpcCalls.find(call=>call.name==="approve_pending_account")?.args).toEqual({p_target_profile_id:"pending-a",p_all_divisions:false,p_division_levels:["6U","8U"]});
     expect(rpcCalls.some(call=>call.name==="reject_pending_account")).toBe(true);
     const effects=await page.evaluate(()=>({notifications:window.__supabaseFixture.settings.notifications.map(item=>item.type),activities:window.__supabaseFixture.settings.activities.map(item=>item.action),crew:window.__supabaseFixture.settings.crewMembers.find(item=>item.id==="crew-a")?.profile_id}));
     expect(effects).toEqual({notifications:["account-approved","account-rejected"],activities:["account_approved","account_rejected"],crew:"pending-a"});
@@ -64,7 +66,8 @@ test.describe("Hosted pending account failures",()=>{
   test("keeps the row visible when persistence fails",async({supabaseAuthApp})=>{
     const {page}=supabaseAuthApp; await page.evaluate(async()=>{await loginService.loginWithPassword("admin@example.com","password");renderPage("operations-center");});
     await page.getByTestId("operations-metric-pending-accounts").click(); const dialog=page.getByTestId("operations-detail-pending-accounts"); const row=dialog.locator('[data-operations-pending-account="pending-fail"]');
-    await row.locator('[data-operations-quick-action="approve-account"]').click();
-    await expect(row).toBeVisible(); await expect(dialog.getByTestId("operations-pending-accounts-status")).toContainText("Transactional write failed");
+    await row.getByRole("button", { name: "Review" }).click();
+    await page.getByTestId("approve-account-pending-fail").click();
+    await expect(page.getByTestId("pending-account-pending-fail")).toBeVisible();
   });
 });

@@ -23,7 +23,7 @@ const myCrewId = authService.currentCrewId();
         <div class="game-time" data-testid="game-time-${game.id}">${dateTimeFormattingService.formatTime12Hour(game.time, "Time TBD")}</div>
 
         <div
-    class="game-status status-badge ${displayStatus.className}"
+    class="game-status"
     data-testid="game-status-${game.id}">
   ${
     typeof renderAssignmentStatusBadge === "function"
@@ -46,16 +46,6 @@ const myCrewId = authService.currentCrewId();
         <div class="game-location">${locationService.getDisplayName(game) || "Location TBD"}</div>
 
         ${
-          workload
-            ? `
-              <div class="workload-badge ${workload.level}">
-                ${workload.label}
-              </div>
-            `
-            : ""
-        }
-
-        ${
           warnings.length
             ? `
               <div class="game-warning-row">
@@ -73,8 +63,8 @@ const myCrewId = authService.currentCrewId();
 
       <div class="game-card-crew ${assignedCrew.length ? "" : "missing"}">
         ${assignedCrew.length
-          ? assignedCrew.map(assignment => `
-              <span><small>${assignments.length === 1 ? "Solo" : presentationFormattingService.formatAssignmentPosition(assignment.position)}</small><button type="button" class="game-card-crew-link" onclick="openCrewCard('${assignment.crewId}')">${crewService.getDisplayName(assignment.crewId)}</button></span>
+          ? assignedCrew.map((assignment, assignmentIndex) => `
+              <span class="game-card-assignee"><small>${assignments.length === 1 ? "Solo" : presentationFormattingService.formatAssignmentPosition(assignment.position)}</small><button type="button" class="game-card-crew-link" onclick="openCrewCard('${assignment.crewId}')">${crewService.getDisplayName(assignment.crewId)}</button>${workload && assignmentIndex === 0 ? `<span class="workload-badge ${workload.level}">${workload.label}</span>` : ""}</span>
             `).join("")
           : `<strong data-testid="game-crew-${game.id}">No crew assigned</strong>`}
       </div>

@@ -132,7 +132,8 @@ function renderRoleFilters() {
     ["all", "All Roles"],
     ["administrator", "Administrator"],
     ["assigner", "Assigner"],
-    ["umpire", "Umpire"]
+    ["umpire", "Umpire"],
+    ["league_viewer", "League Viewers"]
   ];
 
   return `
@@ -346,6 +347,11 @@ function renderPendingAccountRow(account, crewMembers = []) {
   );
   const isSelected =
     selectedPendingAccountIds.has(accountId);
+  const isUmpireRequest = (account.requestedRole || account.role) === "umpire";
+  const defaultEligibility = new Set(["6U", "8U"]);
+  const eligibilityOptions = typeof levelTerminologyService !== "undefined"
+    ? levelTerminologyService.checkboxOptions(settings.levels)
+    : ["6U", "8U", "10U", "12U", "14U", "16U", "Juniors", "Seniors"].map(value => ({ value, canonical: value, label: value }));
 
   return `
     <div
@@ -378,6 +384,7 @@ function renderPendingAccountRow(account, crewMembers = []) {
         <div data-testid="account-role-${account.id}">Requested role: ${formatAccountRole(account.requestedRole || account.role)}</div>
         ${account.requestedRole === "league_viewer" ? `<label for="account-scope-${account.id}">League Viewer scope<select id="account-scope-${account.id}" data-testid="account-scope-${account.id}"><option value="">Select scope...</option><option value="all">All Divisions</option></select></label>` : ""}
         ${account.requestedRole === "administrator" ? `<label><input type="checkbox" id="account-role-confirm-${account.id}" data-testid="account-role-confirm-${account.id}"> Confirm Administrator access</label>` : ""}
+        ${isUmpireRequest ? `<fieldset class="pending-account-eligibility" data-testid="account-eligibility-${account.id}"><legend>Certification / eligibility</legend><label class="pending-account-select-all"><input type="checkbox" data-testid="account-level-select-all-${account.id}" onchange="togglePendingAccountLevels('${account.id}', this.checked)"> Select All</label>${eligibilityOptions.map(option => `<label><input type="checkbox" class="pending-account-level" data-account-id="${account.id}" value="${option.canonical}" ${defaultEligibility.has(option.canonical) ? "checked" : ""} onchange="updatePendingAccountApproval('${account.id}')">${option.label}</label>`).join("")}</fieldset>` : ""}
         <small>
           Registered ${formatAccountDate(account.createdAt)}
         </small>
@@ -386,6 +393,7 @@ function renderPendingAccountRow(account, crewMembers = []) {
       <div class="pending-account-actions">
         <button
           data-testid="approve-account-${account.id}"
+          ${isUmpireRequest && defaultEligibility.size === 0 ? "disabled" : ""}
           onclick="approvePendingAccount('${account.id}')">
           Approve
         </button>
@@ -398,6 +406,39 @@ function renderPendingAccountRow(account, crewMembers = []) {
       </div>
     </div>
   `;
+}
+
+function setupAccountsPage(context = {}) {
+  const accountId = context.focusAccountId || context.highlightId || context.accountId;
+  if (!accountId) return;
+  const row = document.querySelector(`[data-testid="pending-account-${CSS.escape(String(accountId))}"]`);
+  if (!row) return;
+  row.classList.add("is-highlighted");
+  row.setAttribute("tabindex", "-1");
+  row.scrollIntoView({ block: "center" });
+  row.focus({ preventScroll: true });
+}
+
+function getPendingAccountLevels(accountId) {
+  return [...document.querySelectorAll(`.pending-account-level[data-account-id="${CSS.escape(String(accountId))}"]:checked`)]
+    .map(input => input.value);
+}
+
+function updatePendingAccountApproval(accountId) {
+  const selected = getPendingAccountLevels(accountId);
+  const button = document.querySelector(`[data-testid="approve-account-${CSS.escape(String(accountId))}"]`);
+  if (button) button.disabled = selected.length === 0;
+  const all = document.querySelectorAll(`.pending-account-level[data-account-id="${CSS.escape(String(accountId))}"]`);
+  const selectAll = document.querySelector(`[data-testid="account-level-select-all-${CSS.escape(String(accountId))}"]`);
+  if (selectAll) {
+    selectAll.checked = all.length > 0 && selected.length === all.length;
+    selectAll.indeterminate = selected.length > 0 && selected.length < all.length;
+  }
+}
+
+function togglePendingAccountLevels(accountId, checked) {
+  document.querySelectorAll(`.pending-account-level[data-account-id="${CSS.escape(String(accountId))}"]`).forEach(input => { input.checked = checked; });
+  updatePendingAccountApproval(accountId);
 }
 
 function togglePendingAccountSelection(accountId, selected) {
@@ -525,6 +566,14 @@ function changePendingAccountRole(accountId, role) {
 
 async function approvePendingAccount(accountId) {
   const account = accountService.getById(accountId);
+  const eligibleLevels = account && (account.requestedRole || account.role) === "umpire"
+    ? getPendingAccountLevels(accountId)
+    : [];
+  if (account && (account.requestedRole || account.role) === "umpire" && eligibleLevels.length === 0) {
+    toastService?.error?.("Select at least one certification or eligibility level before approval.");
+    updatePendingAccountApproval(accountId);
+    return;
+  }
   const scope = document.getElementById(`account-scope-${accountId}`)?.value || "";
   if (account?.requestedRole === "league_viewer" && scope !== "all") {
     toastService?.error?.("Select and confirm the League Viewer scope before approval.");
@@ -534,7 +583,7 @@ async function approvePendingAccount(accountId) {
     toastService?.error?.("Confirm Administrator access before approval.");
     return;
   }
-  const result = await accountService.approveAccount(accountId, { allDivisions: scope === "all", divisionLevels: [] });
+  const result = await accountService.approveAccount(accountId, { allDivisions: scope === "all", divisionLevels: [], eligibleLevels });
   result.success ? toastService?.success?.(result.message) : toastService?.error?.(result.message);
   renderPage("accounts");
 }

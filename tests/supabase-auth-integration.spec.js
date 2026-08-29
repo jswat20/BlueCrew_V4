@@ -212,14 +212,18 @@ test("hosted crew creation uses the trusted organization-scoped RPC", async ({ s
   expect(creation?.args).not.toHaveProperty("organization_id");
 });
 
-test("hosted pending approval is one click and automatically matches Crew by verified email", async ({ supabaseAuthApp }) => {
+test("hosted pending Umpire approval requires reviewed eligibility and matches Crew by verified email", async ({ supabaseAuthApp }) => {
   const { page } = supabaseAuthApp;
   await page.evaluate(() => renderPage("accounts"));
   await expect(page.getByTestId("pending-crew-select-profile-umpire-1")).toHaveCount(0);
+  const levels = page.locator('.pending-account-level[data-account-id="profile-umpire-1"]:checked');
+  await expect(levels).toHaveCount(2);
+  await expect(levels.nth(0)).toHaveValue("6U");
+  await expect(levels.nth(1)).toHaveValue("8U");
   await page.getByTestId("approve-account-profile-umpire-1").click();
   await expect(page.getByTestId("pending-accounts-empty")).toBeVisible();
   const approval = (await supabaseAuthApp.calls()).find(call => call.name === "approve_pending_account");
-  expect(approval?.args).toEqual({ p_target_profile_id: "profile-umpire-1", p_all_divisions: false, p_division_levels: [] });
+  expect(approval?.args).toEqual({ p_target_profile_id: "profile-umpire-1", p_all_divisions: false, p_division_levels: ["6U", "8U"] });
 });
 
 test("hosted settings create an organization-scoped complex and field", async ({ supabaseAuthApp }) => {
