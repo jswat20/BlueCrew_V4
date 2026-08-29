@@ -9549,3 +9549,194 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
   .rules-section { padding: .9rem; }
   .rules-list { padding-left: 1.4rem; }
 }
+
+/* Crew Card modal presentation: one authoritative responsive layout. */
+.crew-credential-dialog:not([data-edit-mode="administrator"]) {
+  width: min(1180px, calc(100vw - 24px));
+  height: min(760px, calc(100dvh - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-modal {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-flipper {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-face-front {
+  padding: clamp(60px, 7vw, 82px);
+  grid-template-columns: minmax(210px, 30%) minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 58px);
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-face-front > *,
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-front-identity {
+  min-width: 0;
+  max-width: 100%;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-face-front .crew-credential-modal-photo {
+  width: min(100%, 270px);
+  height: auto;
+  aspect-ratio: 27 / 35;
+  justify-self: center;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-front-identity h2 {
+  max-width: 100%;
+  font-size: clamp(2rem, 4.4vw, 3.5rem);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-face-back {
+  grid-template-columns: minmax(330px, 42%) minmax(0, 58%);
+  grid-template-rows: auto auto auto auto;
+  align-content: start;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-back-header { grid-column: 1 / -1; }
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-identity-panel { grid-column: 1; }
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-contact { grid-column: 2; }
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-history { grid-column: 2; }
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-notes { grid-column: 1 / -1; }
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-identity-panel {
+  grid-template-columns: minmax(112px, 145px) minmax(0, 1fr);
+  gap: 12px 16px;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-photo-column { gap: 10px; }
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-identity-details { padding-left: 0; gap: 7px; }
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-identity-details > h2 {
+  font-size: clamp(1.15rem, calc(2.45rem - var(--crew-name-length) * .055rem), 2rem);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-age {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-contact dl div {
+  grid-template-columns: minmax(110px, 34%) minmax(0, 1fr);
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-contact dd,
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-contact-action {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-modal-footer {
+  position: relative;
+  inset: auto;
+  display: flex;
+  width: 100%;
+  margin: 0;
+  padding: 10px;
+  background: #f7f8f5;
+  border-top: 1px solid #c8dadd;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+@media (max-width: 900px) {
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-modal {
+    height: auto;
+    min-height: 100%;
+    grid-template-rows: auto auto;
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-flipper,
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-flipper.is-flipped {
+    height: auto;
+    min-height: 0;
+    transform: none;
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-face {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    overflow: visible;
+    backface-visibility: visible;
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-face-front {
+    min-height: calc(100dvh - 92px);
+    padding: 58px clamp(22px, 6vw, 46px) 34px;
+    grid-template-columns: minmax(150px, 32%) minmax(0, 1fr);
+    gap: clamp(18px, 4vw, 34px);
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-face-back {
+    display: none;
+    min-height: 0;
+    padding: 14px;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    gap: 10px;
+    transform: none;
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-flipper.is-flipped .crew-credential-face-front { display: none; }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-flipper.is-flipped .crew-credential-face-back { display: grid; }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-back-header,
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-identity-panel,
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-contact,
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-history,
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-notes { grid-column: 1; }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-modal-footer .button { min-height: 44px; }
+}
+
+@media (max-width: 560px) {
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-face-front {
+    min-height: calc(100dvh - 92px);
+    padding: 58px 20px 28px;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-face-front .crew-credential-modal-photo {
+    width: min(54vw, 190px);
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-front-identity h2 {
+    font-size: clamp(1.65rem, 9vw, 2.5rem);
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-back-header { grid-template-columns: 1fr; }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-back-header > div:first-child { min-height: 76px; }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-identity-panel {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+    text-align: left;
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-photo-column {
+    grid-template-columns: minmax(92px, 118px) minmax(0, 1fr);
+    align-items: center;
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-photo-column .crew-credential-modal-photo {
+    width: 92px;
+    height: 118px;
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-contact dl div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-contact dt {
+    min-height: 0;
+    padding-right: 0;
+  }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-contact dt::after { display: none; }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-contact dd { padding: 0 0 5px; }
+  .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-modal-footer .button { width: 100%; }
+}
