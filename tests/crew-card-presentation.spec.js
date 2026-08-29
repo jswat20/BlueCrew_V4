@@ -99,6 +99,53 @@ test.describe("Crew Card presentation hardening", () => {
   });
 
   for (const width of [320, 360, 390, 430, 768, 1280]) {
+    test(`front name fitting preserves sensible name parts at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width >= 1000 ? 800 : 900 });
+      for (const name of [
+        { firstName: "Pam", lastName: "Blades" },
+        { firstName: "Ryan", lastName: "Shaughnessy" },
+        { firstName: "Alexandria", lastName: "Montgomery-Worthington" }
+      ]) {
+        for (const role of ["administrator", "umpire", "league_viewer"]) {
+          const measurement = await page.evaluate(({ requestedName, viewerRole }) => {
+            document.body.dataset.page = "profile";
+            document.body.dataset.role = viewerRole;
+            const model = getCrewCardModel({
+              id: `name-fit-${viewerRole}`,
+              role: viewerRole === "administrator" ? "administrator" : "umpire",
+              firstName: requestedName.firstName,
+              lastName: requestedName.lastName,
+              status: "approved"
+            });
+            document.querySelector("main").innerHTML = `<section class="unified-profile-page"><div class="unified-profile-card profile-baseball-card is-front"><div class="profile-card-stage"><div class="profile-card-orientation"><div class="crew-credential-flipper">${renderCrewCredentialFrontFace(model, { profileDesign: true })}</div></div></div></div></section>`;
+            const element = document.querySelector('[data-testid="profile-card-name"]');
+            const block = element.closest(".profile-card-name-block");
+            const words = [...element.querySelectorAll(":scope > span")].map(word => {
+              const rects = [...word.getClientRects()];
+              return { text: word.textContent, lineCount: rects.length, left: rects[0]?.left || 0, right: rects.at(-1)?.right || 0 };
+            });
+            const blockRect = block.getBoundingClientRect();
+            const photoRect = block.previousElementSibling.getBoundingClientRect();
+            return {
+              words,
+              noHorizontalOverflow: words.every(word => word.left >= blockRect.left - 1 && word.right <= blockRect.right + 1),
+              noPhotoCollision: blockRect.top >= photoRect.bottom - 1,
+              viewportOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
+            };
+          }, { requestedName: name, viewerRole: role });
+          expect(measurement.noHorizontalOverflow).toBe(true);
+          expect(measurement.noPhotoCollision).toBe(true);
+          expect(measurement.viewportOverflow).toBe(false);
+          if (name.lastName === "Shaughnessy") {
+            expect(measurement.words).toEqual([
+              expect.objectContaining({ text: "Ryan", lineCount: 1 }),
+              expect.objectContaining({ text: "Shaughnessy", lineCount: 1 })
+            ]);
+          }
+        }
+      }
+    });
+
     test(`front and back remain contained without collisions at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: width >= 1000 ? 800 : 900 });
       const crewId = await seedPresentationCrew(page);
