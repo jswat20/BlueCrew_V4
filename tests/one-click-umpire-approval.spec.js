@@ -38,10 +38,10 @@ test.describe("one-click umpire approval", () => {
   test("public registration ignores attempted organization, role, status, and Crew injection", async ({ supabaseAuthApp }) => {
     await supabaseAuthApp.page.evaluate(() => accountService.registerAuthenticatedAccount({
       firstName: "Public", lastName: "Applicant", email: "public@example.com", phone: "5550109010", birthdate: "2000-01-15", password: "password1234",
-      organizationId: "attacker-organization", role: "administrator", status: "approved", crewId: "attacker-crew"
+      organizationId: "attacker-organization", role: "administrator", requestedRole: "umpire", status: "approved", crewId: "attacker-crew"
     }));
-    const call = (await supabaseAuthApp.calls()).find(item => item.name === "provision_public_pending_umpire");
-    expect(call.args).toEqual({ p_first_name: "Public", p_last_name: "Applicant", p_phone: "5550109010", p_birthdate: "2000-01-15" });
+    const call = (await supabaseAuthApp.calls()).find(item => item.name === "provision_public_pending_account");
+    expect(call.args).toEqual({ p_first_name: "Public", p_last_name: "Applicant", p_phone: "5550109010", p_birthdate: "2000-01-15", p_requested_role: "umpire" });
   });
 });
 

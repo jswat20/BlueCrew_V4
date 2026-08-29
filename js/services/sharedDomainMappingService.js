@@ -34,6 +34,7 @@ const sharedDomainMappingService = (() => {
       photoPath: profile.photo_path || "",
       photoUrl: profile.photo_url || "",
       role: profile.role,
+      requestedRole: profile.requested_role || profile.role,
       status: profile.status,
       crewId,
       crewCode: profile.crew_code || "",

@@ -59,7 +59,8 @@ function isValidRole(role) {
       firstName: String(accountData.firstName || "").trim(),
       lastName: String(accountData.lastName || "").trim(),
       phone: String(accountData.phone || "").trim(),
-      birthdate: String(accountData.birthdate || "")
+      birthdate: String(accountData.birthdate || ""),
+      requestedRole: String(accountData.requestedRole || "")
     });
   }
 
@@ -75,11 +76,11 @@ function isValidRole(role) {
       : mutationResult(true, "Registration invitation created.", { id: data });
   }
 
-  async function approveAuthenticatedAccount(profileId) {
+  async function approveAuthenticatedAccount(profileId, approval = {}) {
     const authorization = requireManageAccounts();
     if (authorization) return authorization;
 
-    const { data, error } = await supabaseSharedRepository.approveUmpireProfile(profileId);
+    const { data, error } = await supabaseSharedRepository.approveUmpireProfile(profileId, approval);
     return error
       ? mutationResult(false, ({
           crew_email_match_ambiguous: "Multiple Crew records use this verified email. Resolve the duplicate Crew records before approval.",
@@ -87,7 +88,7 @@ function isValidRole(role) {
           crew_email_match_inactive: "The matching Crew record is inactive. Review and reactivate it before approval.",
           verified_email_identity_conflict: "The verified login email conflicts with the pending profile. Review the account identity before approval."
         })[error.message] || error.message)
-      : mutationResult(true, "Account approved and linked to crew.", sharedDomainMappingService.mapProfile(data));
+      : mutationResult(true, "Account approved.", sharedDomainMappingService.mapProfile(data));
   }
 
   async function loadPendingAuthenticatedAccounts() {
@@ -263,7 +264,10 @@ function generateId() {
       createdAt: account.createdAt || new Date().toISOString(),
       approvedAt: account.approvedAt || null,
       rejectedAt: account.rejectedAt || null,
-role: normalizeRole(account.role),
+      role: normalizeRole(account.role),
+      requestedRole: [ACCOUNT_ROLES.UMPIRE, ACCOUNT_ROLES.LEAGUE_VIEWER, ACCOUNT_ROLES.ADMINISTRATOR].includes(account.requestedRole)
+        ? account.requestedRole
+        : normalizeRole(account.role),
       lastLogin: account.lastLogin || null,
       communicationPreferences:
         normalizeCommunicationPreferences(
@@ -272,7 +276,7 @@ role: normalizeRole(account.role),
       crewCode: account.crewCode || "",
       crewCodeIssuedAt: account.crewCodeIssuedAt || null
     };
-    if (normalized.role === ACCOUNT_ROLES.UMPIRE && !normalized.crewCode) {
+    if (normalized.role === ACCOUNT_ROLES.UMPIRE && normalized.requestedRole === ACCOUNT_ROLES.UMPIRE && !normalized.crewCode) {
       normalized.crewCode = generateUniqueCrewId(readAll(), normalized.createdAt);
       normalized.crewCodeIssuedAt = normalized.createdAt;
     }
@@ -366,7 +370,7 @@ role: normalizeRole(account.role),
     return mutationResult(true, "Account created and pending approval.", account);
   }
 
- function approveAccount(accountId, crewId = null) {
+ function approveAccount(accountId, approval = {}) {
     const authorization = requireManageAccounts();
 
     if (authorization) {
@@ -374,7 +378,7 @@ role: normalizeRole(account.role),
     }
 
   if (isSharedMode()) {
-    return approveAuthenticatedAccount(accountId, crewId).then(async result => {
+    return approveAuthenticatedAccount(accountId, approval).then(async result => {
       if (result.success) await Promise.all([loadPendingAuthenticatedAccounts(), crewService.loadAdministrativeCrew()]);
       return result;
     });
@@ -388,6 +392,10 @@ role: normalizeRole(account.role),
   }
 
   account.status = "approved";
+  if (account.role === ACCOUNT_ROLES.UMPIRE && [ACCOUNT_ROLES.LEAGUE_VIEWER, ACCOUNT_ROLES.ADMINISTRATOR].includes(account.requestedRole)) {
+    account.role = account.requestedRole;
+  }
+  const crewId = approval && typeof approval !== "object" ? approval : null;
   account.crewId = crewId || account.crewId || null;
   account.approvedAt = new Date().toISOString();
   account.rejectedAt = null;
@@ -444,9 +452,27 @@ function approveAccounts(accountIds = []) {
     failed: 0
   };
 
+  if (isSharedMode()) {
+    return Promise.all(accountIds.map(async accountId => {
+      const account = getById(accountId);
+      if ((account?.requestedRole || account?.role) !== ACCOUNT_ROLES.UMPIRE) return false;
+      return (await approveAccount(accountId)).success === true;
+    })).then(results => {
+      summary.processed = results.length;
+      summary.approved = results.filter(Boolean).length;
+      summary.failed = results.length - summary.approved;
+      return mutationResult(true, `${summary.approved} account(s) approved.`, summary);
+    });
+  }
+
   for (const accountId of accountIds) {
     summary.processed++;
 
+    const account = getById(accountId);
+    if ((account?.requestedRole || account?.role) !== ACCOUNT_ROLES.UMPIRE) {
+      summary.failed++;
+      continue;
+    }
     const result = approveAccount(accountId);
 
     if (result.success) {

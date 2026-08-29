@@ -21,7 +21,7 @@ test.describe("DOB registration and calendar rules", () => {
     const under13 = dateForAge(13, 1);
     const adult = "1990-06-15";
     const results = await supabaseAuthApp.page.evaluate(async ({ exactly13, under13, adult }) => ({
-      exact: await accountService.registerAuthenticatedAccount({ firstName: "Exact", lastName: "Thirteen", email: "exact@example.com", password: "password1234", birthdate: exactly13 }),
+      exact: await accountService.registerAuthenticatedAccount({ firstName: "Exact", lastName: "Thirteen", email: "exact@example.com", password: "password1234", birthdate: exactly13, requestedRole: "umpire" }),
       under: accountService.isAtLeastAge(under13, 13),
       adult: accountService.isAtLeastAge(adult, 13)
     }), { exactly13, under13, adult });

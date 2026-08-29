@@ -9745,3 +9745,6 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
   .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-contact dd { padding: 0 0 5px; }
   .crew-credential-dialog:not([data-edit-mode="administrator"]) .crew-credential-modal-footer .button { width: 100%; }
 }
+.account-registration [hidden] {
+  display: none !important;
+}
