@@ -16,7 +16,7 @@ test("unauthenticated login presents the focused pilot entry experience", async 
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByRole("heading", { name: "Become an Umpire" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Request an Account" })).toBeVisible();
 
   const inputOrder = await panel.locator("input").evaluateAll(inputs =>
     inputs.map(input => input.getAttribute("data-testid"))
@@ -27,7 +27,8 @@ test("unauthenticated login presents the focused pilot entry experience", async 
     "account-email",
     "account-phone",
     "account-birthdate",
-    "account-password"
+    "account-password",
+    "account-password-confirmation"
   ]);
   await expect(page.getByText("Registration Code", { exact: true })).toHaveCount(0);
 
@@ -38,7 +39,7 @@ test("unauthenticated login presents the focused pilot entry experience", async 
   await toggle.click();
   await toggle.focus();
   await page.keyboard.press("Tab");
-  await expect(page.getByTestId("account-first-name")).toBeFocused();
+  await expect(page.getByTestId("account-requested-role")).toBeFocused();
 });
 
 test("notifications return after authentication", async ({ supabaseAuthApp }) => {

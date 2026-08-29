@@ -26,8 +26,8 @@ test.describe("Hosted pending account administration", () => {
     await expect(dialog).not.toBeVisible();
     await expect(page.getByTestId("operations-metric-pending-accounts").locator("strong")).toHaveText("0");
     const rpcCalls=(await calls()).filter(call=>call.operation==="rpc");
-    expect(rpcCalls.find(call=>call.name==="approve_pending_umpire")?.args).toEqual({p_target_profile_id:"pending-a"});
-    expect(rpcCalls.some(call=>call.name==="reject_umpire_profile")).toBe(true);
+    expect(rpcCalls.find(call=>call.name==="approve_pending_account")?.args).toEqual({p_target_profile_id:"pending-a",p_all_divisions:false,p_division_levels:[]});
+    expect(rpcCalls.some(call=>call.name==="reject_pending_account")).toBe(true);
     const effects=await page.evaluate(()=>({notifications:window.__supabaseFixture.settings.notifications.map(item=>item.type),activities:window.__supabaseFixture.settings.activities.map(item=>item.action),crew:window.__supabaseFixture.settings.crewMembers.find(item=>item.id==="crew-a")?.profile_id}));
     expect(effects).toEqual({notifications:["account-approved","account-rejected"],activities:["account_approved","account_rejected"],crew:"pending-a"});
   });
@@ -55,12 +55,12 @@ test.describe("Hosted pending account identity display", () => {
     await expect(accountRow).toContainText("ryan@example.com");
     await expect(page.getByTestId("pending-account-missing-last").locator("strong")).toHaveText("Single");
     await page.getByTestId(`reject-account-${uuid}`).click();
-    expect((await calls()).find(call=>call.name==="reject_umpire_profile")?.args).toEqual({p_target_profile_id:uuid,p_reason:null});
+    expect((await calls()).find(call=>call.name==="reject_pending_account")?.args).toEqual({p_target_profile_id:uuid,p_reason:null});
   });
 });
 
 test.describe("Hosted pending account failures",()=>{
-  test.use({supabaseScenario:{profile:admin,crewId:null,pendingProfiles:[pending("pending-fail","Failure","2026-01-01")],crewMembers:[crew("crew-a","failure@example.com")],failedRpc:"approve_pending_umpire"}});
+  test.use({supabaseScenario:{profile:admin,crewId:null,pendingProfiles:[pending("pending-fail","Failure","2026-01-01")],crewMembers:[crew("crew-a","failure@example.com")],failedRpc:"approve_pending_account"}});
   test("keeps the row visible when persistence fails",async({supabaseAuthApp})=>{
     const {page}=supabaseAuthApp; await page.evaluate(async()=>{await loginService.loginWithPassword("admin@example.com","password");renderPage("operations-center");});
     await page.getByTestId("operations-metric-pending-accounts").click(); const dialog=page.getByTestId("operations-detail-pending-accounts"); const row=dialog.locator('[data-operations-pending-account="pending-fail"]');

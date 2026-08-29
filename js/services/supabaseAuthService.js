@@ -20,11 +20,12 @@ const supabaseAuthService = (() => {
     const pendingRegistration = user.user_metadata?.slate_pending_registration;
     if (!profile && pendingRegistration) {
       const client = await supabaseClientService.getClient();
-      const { error: provisionError } = await client.rpc("provision_public_pending_umpire", {
+      const { error: provisionError } = await client.rpc("provision_public_pending_account", {
         p_first_name: pendingRegistration.firstName || "",
         p_last_name: pendingRegistration.lastName || "",
         p_phone: pendingRegistration.phone || "",
-        p_birthdate: pendingRegistration.birthdate || null
+        p_birthdate: pendingRegistration.birthdate || null,
+        p_requested_role: pendingRegistration.requestedRole || ""
       });
       if (provisionError) throw provisionError;
       await client.auth.updateUser({ data: { slate_pending_registration: null } });
@@ -205,13 +206,13 @@ const supabaseAuthService = (() => {
     }
   }
 
-  async function signUpAndProvision({ email, password, firstName, lastName, phone = "", birthdate = "" }) {
+  async function signUpAndProvision({ email, password, firstName, lastName, phone = "", birthdate = "", requestedRole = "" }) {
     const client = await supabaseClientService.getClient();
     const { data: existingSessionData, error: sessionError } = await client.auth.getSession();
     if (sessionError) return mutationResult(false, sessionError.message);
 
     if (existingSessionData.session?.user) {
-      return completeVerifiedRegistration({ firstName, lastName, phone, birthdate });
+      return completeVerifiedRegistration({ firstName, lastName, phone, birthdate, requestedRole });
     }
 
     const { data, error } = await client.auth.signUp({
@@ -220,7 +221,7 @@ const supabaseAuthService = (() => {
       options: {
         emailRedirectTo: `${window.location.origin}/`,
         data: {
-          slate_pending_registration: { firstName, lastName, phone, birthdate }
+          slate_pending_registration: { firstName, lastName, phone, birthdate, requestedRole }
         }
       }
     });
@@ -235,12 +236,13 @@ const supabaseAuthService = (() => {
     }
 
     const { data: profile, error: provisionError } = await client.rpc(
-      "provision_public_pending_umpire",
+      "provision_public_pending_account",
       {
         p_first_name: firstName,
         p_last_name: lastName,
         p_phone: phone,
-        p_birthdate: birthdate
+        p_birthdate: birthdate || null,
+        p_requested_role: requestedRole
       }
     );
 
@@ -250,13 +252,14 @@ const supabaseAuthService = (() => {
     return mutationResult(true, PENDING_APPROVAL_MESSAGE, mapProfile(profile));
   }
 
-  async function completeVerifiedRegistration({ firstName, lastName, phone = "", birthdate = "" }) {
+  async function completeVerifiedRegistration({ firstName, lastName, phone = "", birthdate = "", requestedRole = "" }) {
     const client = await supabaseClientService.getClient();
-    const { data: profile, error } = await client.rpc("provision_public_pending_umpire", {
+    const { data: profile, error } = await client.rpc("provision_public_pending_account", {
       p_first_name: firstName,
       p_last_name: lastName,
       p_phone: phone,
-      p_birthdate: birthdate
+      p_birthdate: birthdate || null,
+      p_requested_role: requestedRole
     });
     if (error) return mutationResult(false, error.message);
     await client.auth.signOut();

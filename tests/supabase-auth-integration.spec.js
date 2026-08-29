@@ -61,6 +61,7 @@ test("authenticated registration provisions only through the controlled RPC", as
       email: "new@example.com",
       phone: "5550102222",
       birthdate: "2000-01-15",
+      requestedRole: "umpire",
       password: "password1234"
     })
   );
@@ -73,15 +74,17 @@ test("authenticated registration provisions only through the controlled RPC", as
       firstName: "New",
       lastName: "Umpire",
       phone: "5550102222",
-      birthdate: "2000-01-15"
+      birthdate: "2000-01-15",
+      requestedRole: "umpire"
     }
   });
   expect(calls.find(call => call.operation === "signUp")?.credentials.options.emailRedirectTo).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/);
-  expect(calls.find(call => call.name === "provision_public_pending_umpire")?.args).toEqual({
+  expect(calls.find(call => call.name === "provision_public_pending_account")?.args).toEqual({
     p_first_name: "New",
     p_last_name: "Umpire",
     p_phone: "5550102222",
-    p_birthdate: "2000-01-15"
+    p_birthdate: "2000-01-15",
+    p_requested_role: "umpire"
   });
 });
 
@@ -96,6 +99,7 @@ test.describe("email-confirmed registration", () => {
         email: "verified@example.com",
         phone: "5550103333",
         birthdate: "2000-01-15",
+        requestedRole: "umpire",
         password: "password1234"
       })
     );
@@ -106,11 +110,12 @@ test.describe("email-confirmed registration", () => {
     );
     expect(login).toMatchObject({ success: false, message: "Your account has been created and is awaiting administrator approval. You do not need to register again. You will receive an email when your account is approved." });
     const calls = await supabaseAuthApp.calls();
-    expect(calls.find(call => call.name === "provision_public_pending_umpire")?.args).toEqual({
+    expect(calls.find(call => call.name === "provision_public_pending_account")?.args).toEqual({
       p_first_name: "Verified",
       p_last_name: "Umpire",
       p_phone: "5550103333",
-      p_birthdate: "2000-01-15"
+      p_birthdate: "2000-01-15",
+      p_requested_role: "umpire"
     });
     expect(calls.some(call => call.operation === "updateUser" && call.attributes.data.slate_pending_registration === null)).toBe(true);
   });
@@ -122,14 +127,16 @@ test.describe("email-confirmed registration", () => {
     await page.getByTestId("account-last-name").fill("Umpire");
     await page.getByTestId("account-email").fill("verified@example.com");
     await page.getByTestId("account-phone").fill("5550103333");
+    await page.getByTestId("account-requested-role").selectOption("umpire");
     await page.getByTestId("account-birthdate").fill("2000-01-15");
     await page.getByTestId("account-password").fill("password1234");
+    await page.getByTestId("account-password-confirmation").fill("password1234");
     await page.getByTestId("create-account-button").click();
 
     await expect(page.getByTestId("account-registration-message")).toHaveText(
       "Check your email to verify your account, then return to the login page and sign in."
     );
-    for (const id of ["account-first-name", "account-last-name", "account-email", "account-phone", "account-birthdate", "account-password"]) {
+    for (const id of ["account-first-name", "account-last-name", "account-email", "account-phone", "account-birthdate", "account-password", "account-password-confirmation"]) {
       await expect(page.getByTestId(id)).toHaveValue("");
     }
 
@@ -183,7 +190,7 @@ test("accountService owns transactional one-click approval while invitation comp
   expect(await supabaseAuthApp.page.evaluate(() => window.__supabaseFixture.settings.crewMembers.find(member => member.id === "crew-umpire-1")?.profile_id)).toBe("profile-umpire-1");
   const calls = await supabaseAuthApp.calls();
   expect(calls.some(call => call.name === "create_umpire_invitation")).toBe(true);
-  expect(calls.some(call => call.name === "approve_pending_umpire")).toBe(true);
+  expect(calls.some(call => call.name === "approve_pending_account")).toBe(true);
 });
 
 test("hosted crew creation uses the trusted organization-scoped RPC", async ({ supabaseAuthApp }) => {
@@ -211,8 +218,8 @@ test("hosted pending approval is one click and automatically matches Crew by ver
   await expect(page.getByTestId("pending-crew-select-profile-umpire-1")).toHaveCount(0);
   await page.getByTestId("approve-account-profile-umpire-1").click();
   await expect(page.getByTestId("pending-accounts-empty")).toBeVisible();
-  const approval = (await supabaseAuthApp.calls()).find(call => call.name === "approve_pending_umpire");
-  expect(approval?.args).toEqual({ p_target_profile_id: "profile-umpire-1" });
+  const approval = (await supabaseAuthApp.calls()).find(call => call.name === "approve_pending_account");
+  expect(approval?.args).toEqual({ p_target_profile_id: "profile-umpire-1", p_all_divisions: false, p_division_levels: [] });
 });
 
 test("hosted settings create an organization-scoped complex and field", async ({ supabaseAuthApp }) => {

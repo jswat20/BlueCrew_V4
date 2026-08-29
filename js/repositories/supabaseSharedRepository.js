@@ -65,12 +65,12 @@ const supabaseSharedRepository = (() => {
     return { activities: activityResult.data || [], profiles: profileResult.data || [], error: profileResult.error || null };
   }
 
-  const PENDING_PROFILE_COLUMNS = "id,organization_id,role,status,first_name,last_name,email,phone,birthdate,personnel_id,created_at";
+  const PENDING_PROFILE_COLUMNS = "id,organization_id,role,requested_role,status,first_name,last_name,email,phone,birthdate,personnel_id,created_at";
 
   async function getPendingUmpireProfiles() {
     const db = await client();
     return db.from("profiles").select(PENDING_PROFILE_COLUMNS)
-      .eq("role", "umpire").eq("status", "pending")
+      .eq("status", "pending")
       .order("created_at").order("last_name").order("first_name").order("id");
   }
 
@@ -79,14 +79,18 @@ const supabaseSharedRepository = (() => {
     return db.rpc("list_manageable_accounts");
   }
 
-  async function approveUmpireProfile(profileId) {
+  async function approveUmpireProfile(profileId, approval = {}) {
     const db = await client();
-    return db.rpc("approve_pending_umpire", { p_target_profile_id: profileId });
+    return db.rpc("approve_pending_account", {
+      p_target_profile_id: profileId,
+      p_all_divisions: approval.allDivisions === true,
+      p_division_levels: approval.divisionLevels || []
+    });
   }
 
   async function rejectUmpireProfile(profileId, reason = "") {
     const db = await client();
-    return db.rpc("reject_umpire_profile", { p_target_profile_id: profileId, p_reason: reason || null });
+    return db.rpc("reject_pending_account", { p_target_profile_id: profileId, p_reason: reason || null });
   }
 
   async function removeGameAssignmentCrew(assignmentId) {

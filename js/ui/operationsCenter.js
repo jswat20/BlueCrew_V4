@@ -2180,8 +2180,10 @@ function renderOperationsCenterMetricDialogs(
                     <button type="button" class="button button-primary" data-operations-quick-action="approve-claim" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Approve</button>
                     <button type="button" class="button button-secondary" data-operations-quick-action="reject-claim" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Deny</button>
                   ` : ""}
-                  ${metric.id === "pending-accounts" ? `
+                  ${metric.id === "pending-accounts" && (item.requestedRole || item.role) === "umpire" ? `
                     <button type="button" class="button button-primary" data-operations-quick-action="approve-account" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Approve</button>
+                  ` : ""}
+                  ${metric.id === "pending-accounts" ? `
                     <button type="button" class="button button-secondary" data-operations-quick-action="reject-account" data-operations-payload="${escapeOperationsCenterHtml(JSON.stringify(item))}">Deny</button>
                   ` : ""}
                   <button

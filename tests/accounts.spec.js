@@ -309,7 +309,7 @@ test("does not offer privileged role selection for a pending public account", as
   });
 
   const role = app.page.getByTestId(`account-role-${account.id}`);
-  await expect(role).toHaveText("Role: Umpire");
+  await expect(role).toHaveText("Requested role: Umpire");
   await expect(role.locator("select")).toHaveCount(0);
 });
 
@@ -402,7 +402,7 @@ test.describe("Account Roles UI", () => {
     const roleDisplay = app.page.getByTestId(
       `account-role-${account.id}`
     );
-    await expect(roleDisplay).toHaveText("Role: Umpire");
+    await expect(roleDisplay).toHaveText("Requested role: Umpire");
     await expect(roleDisplay.locator("select")).toHaveCount(0);
   });
 

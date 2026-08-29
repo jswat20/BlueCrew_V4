@@ -342,7 +342,7 @@ function renderPendingAccountRow(account, crewMembers = []) {
     account.name ||
     `${account.firstName || ""} ${account.lastName || ""}`.trim() ||
     account.email ||
-    "Pending umpire"
+    "Pending account"
   );
   const isSelected =
     selectedPendingAccountIds.has(accountId);
@@ -352,7 +352,7 @@ function renderPendingAccountRow(account, crewMembers = []) {
       class="card pending-account"
       data-testid="pending-account-${account.id}">
 
-      <label>
+      ${(account.requestedRole || account.role) === "umpire" ? `<label>
         <input
           type="checkbox"
           data-testid="select-account-${account.id}"
@@ -363,7 +363,7 @@ function renderPendingAccountRow(account, crewMembers = []) {
             this.checked
           )">
         Select
-      </label>
+      </label>` : ""}
 
       <div class="pending-account-details">
         <strong>
@@ -375,7 +375,9 @@ function renderPendingAccountRow(account, crewMembers = []) {
         <div data-testid="pending-account-birthdate-${account.id}">Birthdate: ${account.birthdate ? formatCrewCardDate(account.birthdate) : "Not recorded"}</div>
         <div data-testid="pending-account-age-${account.id}">Age: ${accountService.deriveAge(account.birthdate) ?? "Not recorded"}</div>
         <div data-testid="account-verification-${account.id}">Email: Verified</div>
-        <div data-testid="account-role-${account.id}">Role: Umpire</div>
+        <div data-testid="account-role-${account.id}">Requested role: ${formatAccountRole(account.requestedRole || account.role)}</div>
+        ${account.requestedRole === "league_viewer" ? `<label for="account-scope-${account.id}">League Viewer scope<select id="account-scope-${account.id}" data-testid="account-scope-${account.id}"><option value="">Select scope...</option><option value="all">All Divisions</option></select></label>` : ""}
+        ${account.requestedRole === "administrator" ? `<label><input type="checkbox" id="account-role-confirm-${account.id}" data-testid="account-role-confirm-${account.id}"> Confirm Administrator access</label>` : ""}
         <small>
           Registered ${formatAccountDate(account.createdAt)}
         </small>
@@ -453,14 +455,13 @@ function clearPendingAccountSelection() {
   renderPage("accounts");
 }
 
-function approveSelectedAccounts() {
+async function approveSelectedAccounts() {
   const accountIds =
     Array.from(selectedPendingAccountIds);
 
   if (!accountIds.length) return;
 
-  const result =
-    accountService.approveAccounts(accountIds);
+  const result = await accountService.approveAccounts(accountIds);
 
   selectedPendingAccountIds.clear();
 
@@ -523,7 +524,17 @@ function changePendingAccountRole(accountId, role) {
 }
 
 async function approvePendingAccount(accountId) {
-  const result = await accountService.approveAccount(accountId);
+  const account = accountService.getById(accountId);
+  const scope = document.getElementById(`account-scope-${accountId}`)?.value || "";
+  if (account?.requestedRole === "league_viewer" && scope !== "all") {
+    toastService?.error?.("Select and confirm the League Viewer scope before approval.");
+    return;
+  }
+  if (account?.requestedRole === "administrator" && !document.getElementById(`account-role-confirm-${accountId}`)?.checked) {
+    toastService?.error?.("Confirm Administrator access before approval.");
+    return;
+  }
+  const result = await accountService.approveAccount(accountId, { allDivisions: scope === "all", divisionLevels: [] });
   result.success ? toastService?.success?.(result.message) : toastService?.error?.(result.message);
   renderPage("accounts");
 }

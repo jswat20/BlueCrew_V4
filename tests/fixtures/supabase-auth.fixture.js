@@ -501,16 +501,21 @@ export const test = base.extend({
               error: null
             };
           }
-          if (name === "provision_pending_umpire" || name === "provision_public_pending_umpire") {
+          if (name === "provision_pending_umpire" || name === "provision_public_pending_umpire" || name === "provision_public_pending_account") {
             settings.profileMissingUntilProvision = false;
-            if (!args.p_birthdate) return { data: null, error: { message: "date_of_birth_required" } };
-            const today = new Date();
-            const birthdate = new Date(`${args.p_birthdate}T12:00:00`);
-            let age = today.getFullYear() - birthdate.getFullYear();
-            if (today.getMonth() < birthdate.getMonth() || (today.getMonth() === birthdate.getMonth() && today.getDate() < birthdate.getDate())) age -= 1;
-            if (age < 13) return { data: null, error: { message: "minimum_age_13_required" } };
-            settings.profile = { ...settings.profile, first_name: args.p_first_name, last_name: args.p_last_name, phone: args.p_phone, birthdate: args.p_birthdate, status: "pending" };
-            if (name === "provision_public_pending_umpire") {
+            const requestedRole = name === "provision_public_pending_account" ? args.p_requested_role : "umpire";
+            if (!["umpire", "league_viewer", "administrator"].includes(requestedRole)) return { data: null, error: { message: "valid_requested_account_type_required" } };
+            if (requestedRole === "umpire") {
+              if (!args.p_birthdate) return { data: null, error: { message: "date_of_birth_required" } };
+              const today = new Date();
+              const birthdate = new Date(`${args.p_birthdate}T12:00:00`);
+              let age = today.getFullYear() - birthdate.getFullYear();
+              if (today.getMonth() < birthdate.getMonth() || (today.getMonth() === birthdate.getMonth() && today.getDate() < birthdate.getDate())) age -= 1;
+              if (age < 13) return { data: null, error: { message: "minimum_age_13_required" } };
+            }
+            if (requestedRole !== "umpire" && args.p_birthdate) return { data: null, error: { message: "date_of_birth_not_permitted_for_requested_role" } };
+            settings.profile = { ...settings.profile, first_name: args.p_first_name, last_name: args.p_last_name, phone: args.p_phone, birthdate: requestedRole === "umpire" ? args.p_birthdate : null, requested_role: requestedRole, role: "umpire", status: "pending" };
+            if (name === "provision_public_pending_umpire" || name === "provision_public_pending_account") {
               for (const administrator of settings.organizationProfiles.filter(candidate =>
                 candidate.organization_id === settings.profile.organization_id &&
                 candidate.role === "administrator" && candidate.status === "approved" && candidate.email
@@ -585,7 +590,21 @@ export const test = base.extend({
             settings.fields.push(row);
             return { data: row, error: null };
           }
-          if (name === "approve_umpire_profile" || name === "approve_pending_umpire") {
+          if (name === "approve_pending_account") {
+            const target = settings.pendingProfiles.find(row => String(row.id) === String(args.p_target_profile_id));
+            if (!target) return { data: null, error: { message: "pending_profile_not_found" } };
+            const requestedRole = target.requested_role || target.role;
+            if (requestedRole === "league_viewer" && !args.p_all_divisions && !(args.p_division_levels || []).length) return { data: null, error: { message: "league_viewer_scope_required" } };
+            if (requestedRole !== "umpire") {
+              target.role = requestedRole; target.status = "approved";
+              settings.notifications.push({ type: "account-approved", recipient_profile_id: target.id });
+              settings.activities.push({ action: "account_approved", metadata: { profileId: target.id, approvedRole: requestedRole } });
+              settings.leagueViewerScopes ||= [];
+              if (requestedRole === "league_viewer") settings.leagueViewerScopes.push({ profile_id: target.id, organization_id: target.organization_id, all_divisions: args.p_all_divisions, division_levels: args.p_all_divisions ? [] : args.p_division_levels });
+              return { data: { ...target }, error: null };
+            }
+          }
+          if (name === "approve_umpire_profile" || name === "approve_pending_umpire" || name === "approve_pending_account") {
             const target = settings.pendingProfiles.find(row => String(row.id) === String(args.p_target_profile_id));
             if (!target) {
               const approved = settings.pendingProfiles.find(row => String(row.id) === String(args.p_target_profile_id) && row.status === "approved");
@@ -636,7 +655,7 @@ export const test = base.extend({
             }
             return { data: { importedCount: args.p_games.length, skippedCount: 0, errorCount: 0 }, error: null };
           }
-          if (name === "reject_umpire_profile") {
+          if (name === "reject_umpire_profile" || name === "reject_pending_account") {
             if (settings.profile.role !== "administrator") return { data: null, error: { message: "account_rejection_unauthorized" } };
             const target = settings.pendingProfiles.find(row => String(row.id) === String(args.p_target_profile_id));
             if (!target) return { data: null, error: { message: "Pending profile not found" } };
