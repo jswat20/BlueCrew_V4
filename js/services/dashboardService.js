@@ -335,6 +335,14 @@ function getRoleSummary() {
       );
   }
 
+  function getCurrentOperationalActivity(limit = 50) {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return getRecentOperationalActivity(limit).filter(activity => {
+      const timestamp = new Date(activity.createdAt || "").getTime();
+      return Number.isFinite(timestamp) && timestamp >= cutoff;
+    });
+  }
+
   function normalizeOperationalActivity(
     activity = {}
   ) {
@@ -544,6 +552,7 @@ function getRoleSummary() {
       game_cancelled: "Game Cancelled",
       game_deleted: "Game Removed",
       assignment_removed: "Crew Removed",
+      assignment_declined: "Assignment Declined",
       conflict_detected:
         "Conflict Detected",
       conflict_resolved:
@@ -827,6 +836,13 @@ function getRoleSummary() {
     if (type === "assignment" && ["cleared", "assignment_removed"].includes(action) && position) {
       const removed = metadata.previousCrewName || String(activity.message || "").match(/:\s*([^:]+?)\s+removed from/i)?.[1] || "Crew member";
       return `${removed} removed from ${displayPosition}${gameContext}`;
+    }
+    if (type === "assignment" && action === "assignment_declined" && relatedGame) {
+      const gameId = presentationFormattingService.getGameReference(relatedGame);
+      const date = relatedGame.date ? new Date(`${relatedGame.date}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Date unavailable";
+      const time = dateTimeFormattingService.formatTime12Hour(relatedGame.time, "Time unavailable");
+      const location = [relatedGame.locationComplex || relatedGame.venue, relatedGame.locationField || relatedGame.field].filter(Boolean).join(" • ");
+      return `${activity.actor || "Umpire"} declined ${displayPosition} for ${relatedGame.awayTeam || "Away"} @ ${relatedGame.homeTeam || "Home"} • ${levelTerminologyService.format(relatedGame.level)} • ${date} • ${time}${location ? ` • ${location}` : ""} • Game ID: ${gameId}`;
     }
     return getOperationalActivityMessage(type, action, activity).replace(/^([^:]+):\s*/, "").replace(/\.$/, "");
   }
@@ -1980,7 +1996,8 @@ function getOperationsCenter(
   getWorkbench,
   getAvailabilityReminder,
   getRecentAssignmentActivity,
-  getRecentOperationalActivity,
+    getRecentOperationalActivity,
+    getCurrentOperationalActivity,
   getNeedsAttention,
   getUpcomingGames,
   getUpcomingGameCount,

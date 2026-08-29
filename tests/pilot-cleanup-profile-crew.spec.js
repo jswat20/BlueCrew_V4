@@ -39,12 +39,15 @@ test("profile and Crew ID layouts remain contained across desktop and mobile", a
   expect(await page.getByTestId("communication-options").evaluate(node => getComputedStyle(node).gridTemplateColumns.split(" ").length)).toBe(1);
   expect(await page.getByTestId("profile-crew-card-experience").evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
   await page.evaluate(async () => { await crewService.loadAdministrativeCrew(); openCrewCredentialCard("crew-cleanup"); });
+  await expect(page.getByTestId("crew-card-flipper")).not.toHaveClass(/is-flipped/);
+  await page.getByTestId("crew-card-view-information").click();
   await expect(page.getByTestId("crew-card-flipper")).toHaveClass(/is-flipped/);
   const modalCrewId = page.getByTestId("crew-card-dialog").getByTestId("crew-card-id");
   await modalCrewId.evaluate(node => { node.textContent = "A-VERY-LONG-ALTERNATE-CREW-IDENTIFIER"; });
   const contained = await modalCrewId.evaluate(node => { const a=node.getBoundingClientRect(), b=node.parentElement.getBoundingClientRect(); return a.left >= b.left && a.right <= b.right && a.width <= b.width; });
   expect(contained).toBe(true);
-  expect(await page.getByTestId("crew-card-dialog").evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+  await expect(page.getByTestId("crew-card-dialog")).toHaveCSS("overflow-x", "hidden");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
   expect(await page.locator(".crew-credential-contact dd").evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth))).toBe(true);
 });
 

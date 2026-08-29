@@ -1058,7 +1058,8 @@ function getRoleSummary() {
     if (updates.contactPreference && !["text", "call"].includes(updates.contactPreference)) {
       return profileMutationResult(false, "Select text or call as the contact preference.");
     }
-    const restrictedFields = ["crewCode", "firstName", "lastName", "birthdate", "age", "levels", "eligibility", "officialHistory", "yearsOfServiceOverride", "adminNotes", "status", "role", "crewId", "photoDataUrl"];
+    const restrictedFields = ["crewCode", "firstName", "lastName", "age", "levels", "eligibility", "officialHistory", "yearsOfServiceOverride", "adminNotes", "status", "role", "crewId", "photoDataUrl"];
+    if (account.role !== "administrator") restrictedFields.push("birthdate");
     const currentProfile = getProfile(account.id);
     const submittedRestricted = restrictedFields.filter(field => Object.prototype.hasOwnProperty.call(updates, field) && JSON.stringify(updates[field] ?? null) !== JSON.stringify(currentProfile?.[field] ?? null));
     if (submittedRestricted.length) return profileMutationResult(false, "One or more profile fields are administrator-managed.", currentProfile, Object.fromEntries(submittedRestricted.map(field => [field, "This field cannot be changed in self-service."])));
@@ -1071,6 +1072,7 @@ function getRoleSummary() {
       contact_preference: updates.contactPreference || account.contactPreference || "text",
       emergency_contact: normalizeProfileValue(updates.emergencyContact),
       emergency_contact_phone: emergencyContactPhone,
+      ...(account.role === "administrator" && Object.prototype.hasOwnProperty.call(updates, "birthdate") ? { birthdate: updates.birthdate || null } : {}),
       communication_preferences: normalizeCommunicationPreferences({ ...account.communicationPreferences, ...(updates.communicationPreferences || {}) })
     };
     const { data, error } = await supabaseSharedRepository.updateProfile(account.id, changes);

@@ -110,6 +110,16 @@ const notificationActionConfig = {
     label: "Open Profile",
     page: "profile",
     context: () => ({})
+  },
+  "account-request": {
+    label: "Review",
+    page: "accounts",
+    context: relatedId => ({ filter: "pending", highlightId: relatedId, focusAccountId: relatedId })
+  },
+  "account-pending": {
+    label: "Review",
+    page: "accounts",
+    context: relatedId => ({ filter: "pending", highlightId: relatedId, focusAccountId: relatedId })
   }
 };
 
@@ -238,8 +248,9 @@ function getNotificationGameIdentifier(game, notification) {
 }
 
 function getNotificationPresentation(notification) {
-  const game = notification.relatedId && typeof gameService !== "undefined"
-    ? gameService.getById(notification.relatedId)
+  const relatedGameId = notification.destinationContext?.gameId || notification.destination?.context?.gameId || notification.relatedId;
+  const game = relatedGameId && typeof gameService !== "undefined"
+    ? gameService.getById(relatedGameId)
     : null;
   const type = String(notification.type || "").toLowerCase();
   const gameIdentifier = getNotificationGameIdentifier(game, notification);
@@ -272,6 +283,15 @@ function getNotificationPresentation(notification) {
 function getNotificationAction(
   notification
 ) {
+  if (notification.type === "registration-submitted") {
+    const pending = accountService?.getPendingAccounts?.() || [];
+    const target = pending.find(account => notification.message?.includes(`${account.firstName || ""} ${account.lastName || ""}`.trim()));
+    return {
+      label: "Review",
+      page: "accounts",
+      context: { filter: "pending", highlightId: target?.id || "", focusAccountId: target?.id || "" }
+    };
+  }
   if (notification.destination?.page) {
     const destination = typeof authorizationService !== "undefined" &&
       typeof authorizationService.resolveNotificationDestination === "function"
@@ -920,16 +940,6 @@ async function handleNotificationAction(
     );
   }
 
-  if (
-    notification &&
-    !notification.virtual &&
-    !notification.read
-  ) {
-    await notificationService.markAsRead(
-      notification.id
-    );
-  }
-
   const action = notification
     ? getNotificationAction(notification)
     : notificationActionConfig[type]
@@ -950,6 +960,22 @@ async function handleNotificationAction(
       : null;
 
   if (!action) return;
+
+  if (notification && !notification.virtual && !notification.read) {
+    const readResult = await notificationService.markAsRead(notification.id);
+    if (!readResult.success) return;
+    updateNotificationBadge?.();
+  }
+
+  if (type === "assignment-declined" && game) {
+    const position = notification.destinationContext?.position || "Assignment";
+    const location = [game.locationComplex || game.venue, game.locationField || game.field].filter(Boolean).join(" • ");
+    return {
+      title: "Assignment Declined",
+      message: `${position}: ${game.awayTeam || "Away"} @ ${game.homeTeam || "Home"} • ${formatNotificationDate(game.date)} • ${dateTimeFormattingService.formatTime12Hour(game.time, "Time TBD")} • ${levelTerminologyService.format(game.level)}${location ? ` • ${location}` : ""}`,
+      supporting: `Game ID: ${presentationFormattingService.getGameReference(game)}`
+    };
+  }
 
   navigateTo(
     action.page,

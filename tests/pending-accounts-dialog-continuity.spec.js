@@ -23,42 +23,43 @@ async function openDialog(page) {
 }
 
 test.describe("Pending Accounts dialog continuity", () => {
-  test("supports consecutive approve and deny decisions", async ({ app }) => {
+  test("supports consecutive deny decisions without exposing Umpire approval", async ({ app }) => {
     const accounts = await seedPending(app.page, ["First", "Second", "Third"]);
     const { dialog } = await openDialog(app.page);
     await expect(dialog.getByTestId("operations-pending-accounts-remaining")).toHaveText("3 remaining");
 
-    await dialog.locator(`[data-operations-pending-account="${accounts[0].id}"] [data-operations-quick-action="approve-account"]`).click();
+    await expect(dialog.locator('[data-operations-quick-action="approve-account"]')).toHaveCount(0);
+    await dialog.locator(`[data-operations-pending-account="${accounts[0].id}"] [data-operations-quick-action="reject-account"]`).click();
     await expect(dialog).toBeVisible();
     await expect(dialog.locator(`[data-operations-pending-account="${accounts[0].id}"]`)).toHaveCount(0);
     await expect(dialog.getByTestId("operations-pending-accounts-remaining")).toHaveText("2 remaining");
     await expect(dialog.locator(`[data-operations-pending-account="${accounts[1].id}"]`)).toBeVisible();
-    await expect(dialog.locator('[data-operations-quick-action="approve-account"]').first()).toBeFocused();
+    await expect(dialog.locator('[data-operations-quick-action="reject-account"]').first()).toBeFocused();
 
     await dialog.locator(`[data-operations-pending-account="${accounts[1].id}"] [data-operations-quick-action="reject-account"]`).click();
     await expect(dialog).toBeVisible();
     await expect(dialog.getByTestId("operations-pending-accounts-remaining")).toHaveText("1 remaining");
 
-    await dialog.locator(`[data-operations-pending-account="${accounts[2].id}"] [data-operations-quick-action="approve-account"]`).click();
+    await dialog.locator(`[data-operations-pending-account="${accounts[2].id}"] [data-operations-quick-action="reject-account"]`).click();
     await expect(dialog).not.toBeVisible();
     const statuses = await app.page.evaluate(ids => ids.map(id => accountService.getById(id)?.status), accounts.map(account => account.id));
-    expect(statuses).toEqual(["approved", "rejected", "approved"]);
+    expect(statuses).toEqual(["rejected", "rejected", "rejected"]);
   });
 
   test("failed mutation keeps the current account and shows an error", async ({ app }) => {
     const [account] = await seedPending(app.page, ["Failure"]);
     const { dialog } = await openDialog(app.page);
     await app.page.evaluate(() => {
-      window.__originalApproveAccount = accountService.approveAccount;
-      accountService.approveAccount = () => ({ success: false, message: "Hosted approval failed." });
+      window.__originalRejectAccount = accountService.rejectAccount;
+      accountService.rejectAccount = () => ({ success: false, message: "Hosted rejection failed." });
     });
-    const button = dialog.locator(`[data-operations-pending-account="${account.id}"] [data-operations-quick-action="approve-account"]`);
+    const button = dialog.locator(`[data-operations-pending-account="${account.id}"] [data-operations-quick-action="reject-account"]`);
     await button.click();
     await expect(dialog).toBeVisible();
     await expect(dialog.locator(`[data-operations-pending-account="${account.id}"]`)).toBeVisible();
-    await expect(dialog.getByTestId("operations-pending-accounts-status")).toContainText("Hosted approval failed");
+    await expect(dialog.getByTestId("operations-pending-accounts-status")).toContainText("Hosted rejection failed");
     await expect(button).toBeFocused();
-    await app.page.evaluate(() => { accountService.approveAccount = window.__originalApproveAccount; });
+    await app.page.evaluate(() => { accountService.rejectAccount = window.__originalRejectAccount; });
   });
 
   test("Escape and Close preserve native dialog focus restoration", async ({ app }) => {

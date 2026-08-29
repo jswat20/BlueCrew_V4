@@ -60,6 +60,13 @@ const presentationFormattingService = (() => {
     return parts.length ? parts.join("-") : "Game ID unavailable";
   }
 
+  function getGameReference(game = {}) {
+    const existing = String(game.legacyGameId || game.gameIdentifier || game.gameCode || "").trim();
+    if (existing) return existing;
+    const canonicalId = String(game.id || "").trim().replaceAll("-", "").toUpperCase();
+    return canonicalId ? `SLT-${canonicalId.slice(0, 8)}` : "Game ID unavailable";
+  }
+
   return Object.freeze({
     assignmentLabels: ASSIGNMENT_LABELS,
     statusClasses: STATUS_CLASSES,
@@ -67,6 +74,7 @@ const presentationFormattingService = (() => {
     formatGreeting,
     formatAssignmentPosition,
     getStatusBadgeClass,
-    formatGameIdentifier
+    formatGameIdentifier,
+    getGameReference
   });
 })();

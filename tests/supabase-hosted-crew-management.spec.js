@@ -205,7 +205,7 @@ test.describe("Hosted linked Crew card editing", () => {
     const { page, calls } = supabaseAuthApp;
     await openCrew(page);
     await page.getByRole("button", { name: "Open Crew Card for Linked Official" }).click();
-    const photo = page.getByTestId("crew-card-dialog").locator(".crew-credential-modal-photo").first();
+    const photo = page.getByTestId("crew-card-dialog").locator(".profile-card-portrait-photo").first();
     await expect(photo).toHaveAttribute("src", /profile-photos\/auth-linked-1\/profile\?token=fixture/);
     await expect(page.getByTestId("crew-card-id")).toHaveText("UMP-204");
     const recordedCalls = await calls();

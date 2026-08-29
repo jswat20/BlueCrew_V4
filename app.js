@@ -456,6 +456,9 @@ function runPageSetup(page, context = {}) {
   if (page === "settings" && typeof setupSettingsPage === "function") {
     setupSettingsPage();
   }
+  if (page === "accounts" && typeof setupAccountsPage === "function") {
+    setupAccountsPage(context);
+  }
 
   if (
     page === "operations-center" &&

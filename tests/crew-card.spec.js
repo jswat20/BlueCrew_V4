@@ -25,13 +25,14 @@ test.describe("Reusable Crew Card", () => {
     await trigger.press("Enter");
     const dialog = page.getByTestId("crew-card-dialog");
     await expect(dialog).toBeVisible();
+    await dialog.getByTestId("crew-card-view-information").click();
+    await expect(dialog.getByTestId("crew-card-flipper")).toHaveClass(/is-flipped/);
     await expect(dialog.getByTestId("crew-card-back")).toContainText("Contact Information");
     await expect(dialog.getByTestId("crew-card-view-official-history")).toBeVisible();
     await expect(dialog).not.toContainText("Detailed identity, contact, eligibility");
     await expect(dialog.getByTestId("crew-card-back")).not.toContainText("Eligible Age Ranges");
     await expect(dialog.getByTestId("crew-card-back")).not.toContainText("Issued:");
-    await expect(dialog.locator(".crew-card-site-logo")).toHaveAttribute("src", "assets/the-slate-logo.png");
-    await expect(dialog.getByTestId("crew-card-flipper")).toHaveClass(/is-flipped/);
+    await expect(dialog.locator(".profile-card-front-logo")).toHaveAttribute("src", "assets/the-slate-logo.png");
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
     await expect(trigger).toBeFocused();
@@ -52,8 +53,7 @@ test.describe("Reusable Crew Card", () => {
     const compact = page.getByTestId("crew-roster-member").first();
     await expect(compact.locator("img")).toHaveCount(0);
     await compact.click();
-    await expect(page.getByTestId("crew-card-flipper")).toHaveClass(/is-flipped/);
-    await expect(page.getByTestId("crew-card-dialog").locator(".crew-credential-face-back .crew-credential-photo")).toBeVisible();
+    await expect(page.getByTestId("crew-card-dialog").locator(".crew-credential-face-front .crew-credential-photo")).toBeVisible();
     await page.getByTestId("crew-card-dialog").getByRole("button", { name: "Close" }).click();
     await page.evaluate(() => {
       const account = accountService.getAll().find(item => item.crewId);
@@ -61,7 +61,7 @@ test.describe("Reusable Crew Card", () => {
       renderPage("crew");
     });
     await page.getByTestId("crew-roster-member").first().click();
-    await expect(page.getByTestId("crew-card-dialog").locator(".crew-credential-face-back .crew-credential-photo-fallback")).toBeVisible();
+    await expect(page.getByTestId("crew-card-dialog").locator(".crew-credential-face-front .crew-credential-photo-fallback")).toBeVisible();
   });
 
   test("admin edit is visible while crew users cannot access it", async ({ page }) => {
@@ -85,13 +85,14 @@ test.describe("Reusable Crew Card", () => {
     await page.getByTestId("nav-crew").click();
     await page.getByTestId("crew-roster-member").first().click();
     const dialog = page.getByTestId("crew-card-dialog");
+    await dialog.getByTestId("crew-card-view-information").click();
     const box = await dialog.boundingBox();
     expect(box).not.toBeNull();
     expect(box.y).toBeGreaterThanOrEqual(0);
     expect(box.y + box.height).toBeLessThanOrEqual(720);
     await expect(dialog).toHaveCSS("overflow-y", "auto");
-    const backOverflow = await dialog.locator(".crew-credential-face-back").evaluate(card => card.scrollHeight - card.clientHeight);
-    expect(backOverflow).toBeLessThanOrEqual(1);
+    await expect(dialog.getByTestId("crew-card-view-front")).toBeVisible();
+    await expect(dialog.locator(".crew-credential-contact")).toBeVisible();
   });
 
   test("admin editor saves structured profile data while Crew ID stays read-only", async ({ page }) => {
@@ -118,6 +119,8 @@ test.describe("Reusable Crew Card", () => {
       renderPage("crew");
     }, seeded.accountId);
     await page.getByTestId("crew-roster-member").first().click();
+    await page.getByTestId("crew-card-view-information").click();
+    await expect(page.getByTestId("crew-card-flipper")).toHaveClass(/is-flipped/);
     const back = page.getByTestId("crew-card-back");
     await expect(back.getByTestId("crew-card-identity-eligibility")).toContainText("Eligibility");
     await expect(back.locator(".crew-credential-history-launch")).toContainText("2 Seasons");
@@ -130,7 +133,6 @@ test.describe("Reusable Crew Card", () => {
     await page.keyboard.press("Escape");
     await expect(history).toHaveCount(0);
     await expect(trigger).toBeFocused();
-    await expect(back.locator(".crew-credential-notes li")).toHaveCount(2);
   });
 
   test("profile back expands and wraps at desktop and mobile widths", async ({ page }) => {

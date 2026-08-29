@@ -84,7 +84,7 @@ const supabaseSharedRepository = (() => {
     return db.rpc("approve_pending_account", {
       p_target_profile_id: profileId,
       p_all_divisions: approval.allDivisions === true,
-      p_division_levels: approval.divisionLevels || []
+      p_division_levels: approval.eligibleLevels || approval.divisionLevels || []
     });
   }
 

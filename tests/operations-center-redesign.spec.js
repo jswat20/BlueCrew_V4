@@ -151,12 +151,12 @@ test.describe("Operations Center redesign", () => {
     const accountsDialog = page.getByTestId("operations-detail-pending-accounts");
     await expect(accountsDialog).toBeVisible();
     if (await accountsDialog.getByRole("button", { name: "Review" }).count()) {
-      await expect(accountsDialog.getByRole("button", { name: "Approve" }).first()).toBeVisible();
+      await expect(accountsDialog.getByRole("button", { name: "Approve" })).toHaveCount(0);
       await expect(accountsDialog.getByRole("button", { name: "Deny" }).first()).toBeVisible();
     }
   });
 
-  test("pending account decisions complete inside the dialog", async ({ page }) => {
+  test("pending Umpire review leaves the dialog for required eligibility review", async ({ page }) => {
     const accountId = await page.evaluate(() => {
       const created = accountService.createAccount({
         firstName: "Operations",
@@ -169,12 +169,18 @@ test.describe("Operations Center redesign", () => {
 
     await page.getByTestId("operations-metric-pending-accounts").click();
     const dialog = page.getByTestId("operations-detail-pending-accounts");
-    await dialog.locator(
-      `[data-operations-quick-action="approve-account"][data-operations-payload*="${accountId}"]`
-    ).click();
+    const account = dialog.locator(`[data-operations-pending-account="${accountId}"]`);
+    await expect(account.locator('[data-operations-quick-action="approve-account"]')).toHaveCount(0);
+    await account.getByRole("button", { name: "Review" }).click();
 
-    await expect.poll(() => page.evaluate(id => accountService.getById(id)?.status, accountId)).toBe("approved");
-    await expect(page.getByTestId("operations-action-message")).toContainText("Account approved");
+    await expect(page.locator("body")).toHaveAttribute("data-page", "accounts");
+    await expect(page.getByTestId(`pending-account-${accountId}`)).toHaveClass(/is-highlighted/);
+    await expect(page.getByTestId(`approve-account-${accountId}`)).toBeEnabled();
+    const selected = page.locator(`.pending-account-level[data-account-id="${accountId}"]:checked`);
+    await expect(selected).toHaveCount(2);
+    await expect(selected.nth(0)).toHaveValue("6U");
+    await expect(selected.nth(1)).toHaveValue("8U");
+    await expect.poll(() => page.evaluate(id => accountService.getById(id)?.status, accountId)).toBe("pending");
   });
 
   test("legacy workflow telemetry is not visually exposed", async ({ page }) => {

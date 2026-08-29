@@ -242,14 +242,14 @@ test.describe(
       );
     });
 
-    test("excludes operational activity older than 24 hours", async ({ app }) => {
+    test("uses the same seven-day activity window as Operations Center", async ({ app }) => {
       await app.page.evaluate(() => {
         activityService.log({
           id: "older-than-dashboard-window",
           type: "assignment",
           action: "assigned",
           message: "Old dashboard activity",
-          createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString()
+          createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
         });
         activityService.log({
           id: "within-dashboard-window",

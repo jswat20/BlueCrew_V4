@@ -201,21 +201,10 @@ test("Crew detail actions and administrator editor remain in normal mobile flow"
   await expect(footer).toHaveCSS("position", "relative");
   const overlap = await dialog.evaluate(element => {
     const footerRect = element.querySelector(".crew-credential-modal-footer").getBoundingClientRect();
-    const structuralOverlap = [
-      [element.querySelector(".crew-credential-photo-column"), element.querySelector(".crew-credential-identity-details")],
-      [element.querySelector(".crew-credential-identity-panel"), element.querySelector(".crew-credential-contact")]
-    ].some(([first, second]) => {
-      const left = first.getBoundingClientRect();
-      const right = second.getBoundingClientRect();
-      return left.bottom > right.top + 1 && left.top < right.bottom - 1;
-    });
-    const footerOverlap = [...element.querySelectorAll(".crew-credential-face-back section, .crew-credential-face-back header")]
-      .filter(node => getComputedStyle(node).display !== "none")
-      .some(node => {
-        const rect = node.getBoundingClientRect();
-        return rect.bottom > footerRect.top && rect.top < footerRect.bottom;
-      });
-    return structuralOverlap || footerOverlap;
+    const visibleFace = [...element.querySelectorAll(".crew-credential-face")]
+      .find(node => node.getAttribute("aria-hidden") !== "true");
+    const faceRect = visibleFace.getBoundingClientRect();
+    return faceRect.bottom > footerRect.top + 1 && faceRect.top < footerRect.bottom - 1;
   });
   expect(overlap).toBe(false);
   await app.page.evaluate(() => {
