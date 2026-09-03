@@ -165,6 +165,11 @@ const authorizationService = (() => {
       ROLES.ADMINISTRATOR,
       ROLES.ASSIGNER,
       ROLES.UMPIRE
+    ]),
+
+    messages: Object.freeze([
+      ROLES.ADMINISTRATOR,
+      ROLES.UMPIRE
     ])
   });
 
@@ -173,9 +178,7 @@ const authorizationService = (() => {
       return ROLES.ADMINISTRATOR;
     }
 
-    return VALID_ROLES.includes(role)
-      ? role
-      : ROLES.UMPIRE;
+    return VALID_ROLES.includes(role) ? role : null;
   }
 
   function getRoleFromLoginService() {

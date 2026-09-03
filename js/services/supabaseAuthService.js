@@ -16,6 +16,7 @@ const supabaseAuthService = (() => {
   async function loadAccountForUser(user) {
     if (!user?.id) return null;
     hydrationState = { status: "loading", message: "" };
+    messagingService?.clear?.();
     let profile = await accountService.loadAuthenticatedProfile(user);
     const pendingRegistration = user.user_metadata?.slate_pending_registration;
     if (!profile && pendingRegistration) {
@@ -36,6 +37,7 @@ const supabaseAuthService = (() => {
       crewService?.clearAllSharedCrew?.();
       availabilityService?.clearAuthenticatedAvailability?.();
       notificationService?.clearAuthenticatedNotifications?.();
+      messagingService?.clear?.();
       clearSchedulingState();
       hydrationState = { status: "ready", message: "" };
       return profile;
@@ -93,6 +95,7 @@ const supabaseAuthService = (() => {
     crewService?.clearAllSharedCrew?.();
     availabilityService?.clearAuthenticatedAvailability?.();
     notificationService?.clearAuthenticatedNotifications?.();
+    messagingService?.clear?.();
     activityService?.clearAuthenticatedActivities?.();
     clearSchedulingState();
     if (typeof uiStateService !== "undefined") uiStateService.clearSelections?.();
@@ -136,6 +139,13 @@ const supabaseAuthService = (() => {
     return account;
   }
 
+  async function activateMessaging(account) {
+    if (["administrator", "umpire"].includes(account?.role)) {
+      await messagingService?.hydrate?.();
+      await messagingService?.subscribe?.();
+    } else messagingService?.clear?.();
+  }
+
   function refreshAuthenticatedAccount(account) {
     return applyIdentity(account);
   }
@@ -173,6 +183,7 @@ const supabaseAuthService = (() => {
         return mutationResult(false, account?.status === "pending" ? PENDING_APPROVAL_MESSAGE : "Account not found or unavailable.", account);
       }
       applyIdentity(account);
+      await activateMessaging(account);
       return mutationResult(true, "Session restored.", account);
     } catch (error) {
       if (error.isSchedulingHydrationError) {
@@ -196,6 +207,7 @@ const supabaseAuthService = (() => {
         return mutationResult(false, account?.status === "pending" ? PENDING_APPROVAL_MESSAGE : "Account not found or unavailable.");
       }
       applyIdentity(account);
+      await activateMessaging(account);
       return mutationResult(true, "Login successful.", account);
     } catch (loadError) {
       if (loadError.isSchedulingHydrationError) {
@@ -301,7 +313,10 @@ const supabaseAuthService = (() => {
         if (!recoveryState && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED")) {
           try {
             const account = await loadAccountForUser(session.user);
-            if (account?.status === "approved") applyIdentity(account);
+            if (account?.status === "approved") {
+              applyIdentity(account);
+              await activateMessaging(account);
+            }
           } catch (error) {
             if (!error.isSchedulingHydrationError) failHydration(error);
           }

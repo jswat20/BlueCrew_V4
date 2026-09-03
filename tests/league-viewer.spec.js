@@ -109,11 +109,11 @@ test.describe("League Viewer client authorization", () => {
     expect(result.updateCrew.success).toBe(false);
   });
 
-  test("unknown roles still fail closed to umpire capabilities", async ({ page }) => {
+  test("unknown roles fail closed without inheriting umpire capabilities", async ({ page }) => {
     expect(await page.evaluate(() => ({
       schedule: authorizationService.canView("schedule", "unexpected-role"),
       crew: authorizationService.canView("crew", "unexpected-role"),
       claim: authorizationService.canClaimGames("unexpected-role")
-    }))).toEqual({ schedule: false, crew: false, claim: true });
+    }))).toEqual({ schedule: false, crew: false, claim: false });
   });
 });

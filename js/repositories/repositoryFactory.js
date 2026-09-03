@@ -8,6 +8,7 @@ const REPOSITORY_STORAGE_KEYS = Object.freeze({
   legacyDatabase: "bluecrewDatabase_v1",
   legacyGames: "bluecrew_games",
   locations: "bluecrew_location_catalog",
+  messages: "bluecrew_messages_v1",
   notifications: "bluecrew_notifications",
   reportPresets: "bluecrew_report_presets",
   seasons: "bluecrew_seasons",
