@@ -58,6 +58,7 @@ export const test = base.extend({
       });
 
       const calls = [];
+      const realtimeChannels = [];
       const user = { id: settings.profile.auth_user_id, email: settings.profile.email, user_metadata: {} };
 
       function queryFor(table) {
@@ -161,6 +162,39 @@ export const test = base.extend({
       }
 
       const client = {
+        realtime: {
+          async setAuth(token) {
+            calls.push({ operation: "realtime.setAuth", authenticated: Boolean(token) });
+          }
+        },
+        channel(name) {
+          const handlers = [];
+          const channel = {
+            name,
+            on(type, filter, callback) {
+              handlers.push({ type, filter, callback });
+              calls.push({ operation: "realtime.on", name, type, filter });
+              return channel;
+            },
+            subscribe(callback) {
+              channel.subscribeCallback = callback;
+              calls.push({ operation: "realtime.subscribe", name });
+              callback?.("SUBSCRIBED");
+              return channel;
+            },
+            handlers
+          };
+          realtimeChannels.push(channel);
+          calls.push({ operation: "realtime.channel", name });
+          return channel;
+        },
+        async removeChannel(channel) {
+          calls.push({ operation: "realtime.removeChannel", name: channel?.name });
+          const index = realtimeChannels.indexOf(channel);
+          if (index >= 0) realtimeChannels.splice(index, 1);
+          return "ok";
+        },
+        getChannels() { return [...realtimeChannels]; },
         storage: {
           from(bucket) {
             const authorized = path => bucket === "profile-photos" && path === `${user.id}/profile`;
@@ -202,14 +236,15 @@ export const test = base.extend({
           async getSession() {
             calls.push({ operation: "getSession" });
             return {
-              data: { session: settings.initialSession ? { user } : null },
+              data: { session: settings.initialSession ? { user, access_token: "fixture-access-token" } : null },
               error: null
             };
           },
           async signInWithPassword(credentials) {
             calls.push({ operation: "signInWithPassword", credentials });
             if (settings.signInError || credentials.password === "wrong-password") return { data: { user: null, session: null }, error: { message: settings.signInError || "Invalid login credentials" } };
-            return { data: { user, session: { user } }, error: null };
+            settings.initialSession = true;
+            return { data: { user, session: { user, access_token: "fixture-access-token" } }, error: null };
           },
           async resetPasswordForEmail(email, options) {
             calls.push({ operation: "resetPasswordForEmail", email, options });
@@ -226,6 +261,7 @@ export const test = base.extend({
           },
           async signOut() {
             calls.push({ operation: "signOut" });
+            settings.initialSession = false;
             return { error: null };
           },
           onAuthStateChange(callback) {
@@ -240,6 +276,7 @@ export const test = base.extend({
         async rpc(name, args) {
           calls.push({ operation: "rpc", name, args });
           if (settings.failedRpc === name) return { data: null, error: { message: "Transactional write failed" } };
+          if (name === "get_message_center") return { data: { conversations: [], announcements: [], recipients: [] }, error: null };
           if (name === "create_season") {
             if (settings.profile.role !== "administrator") return { data: null, error: { message: "administrator_required" } };
             if (args.p_active) settings.seasons.forEach(season => { season.active = false; });
@@ -725,7 +762,7 @@ export const test = base.extend({
         }
       };
 
-      window.__supabaseFixture = { calls, client, settings };
+      window.__supabaseFixture = { calls, client, settings, realtimeChannels };
       window.BLUECREW_SUPABASE_CLIENT_FACTORY = () => client;
     };
 

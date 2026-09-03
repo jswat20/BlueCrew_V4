@@ -12,6 +12,7 @@ const assignments = [
 test.use({ supabaseScenario: { locations: [location], fields: [field], games: [assignedGame, openGame], assignments } });
 
 test("hydrates service-owned location, game, open-game, dashboard, and My Schedule reads", async ({ supabaseAuthApp }) => {
+  await supabaseAuthApp.page.clock.setFixedTime("2026-08-19T12:00:00Z");
   const result = await supabaseAuthApp.page.evaluate(async () => {
     localStorage.setItem("bluecrew-games-v2", JSON.stringify([{ id: "poison-game" }]));
     localStorage.setItem("bluecrew_location_catalog", JSON.stringify([{ name: "Poison Complex", fields: ["Poison Field"] }]));

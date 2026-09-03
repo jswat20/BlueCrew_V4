@@ -63,6 +63,7 @@
         <section class="nav-group" data-testid="nav-group-account" aria-labelledby="nav-group-account-toggle">
           <button type="button" class="nav-group-toggle" id="nav-group-account-toggle" aria-expanded="true" aria-controls="nav-group-account-items"><span>Account</span><span class="nav-group-chevron" aria-hidden="true">⌄</span></button>
           <div class="nav-group-items" id="nav-group-account-items">
+          <button type="button" class="nav-link nav-notifications-link" data-page="messages" data-testid="nav-messages"><span>Messages</span><span class="sidebar-notification-badge" data-testid="messages-badge"></span></button>
           <button type="button" class="nav-link nav-notifications-link" data-page="notifications" data-testid="nav-notifications"><span>Notifications</span><span class="sidebar-notification-badge" data-testid="notifications-badge"></span></button>
           <button type="button" class="nav-link install-helper-trigger" data-testid="nav-install" hidden>Install The Slate</button>
           <button type="button" class="nav-link" data-page="rules-and-regulations" data-testid="nav-rules-and-regulations">📖 Rules &amp; Regulations</button>
@@ -103,6 +104,7 @@
 <script src="js/services/supabaseClientService.js"></script>
 <script src="js/repositories/supabaseSharedRepository.js?v=20260814-personnel-data"></script>
 <script src="js/repositories/supabaseNotificationRepository.js?v=20260814-notification-delete"></script>
+<script src="js/repositories/supabaseMessagingRepository.js?v=20260903-messaging"></script>
 <script src="js/services/levelTerminologyService.js"></script>
 <script src="js/services/authenticatedIdentityService.js"></script>
 <script src="js/services/dateTimeFormattingService.js"></script>
@@ -159,6 +161,7 @@
 <script src="js/services/portalService.js"></script>
 <script src="js/services/claimsQueueService.js"></script>
 <script src="js/services/notificationService.js?v=20260814-notification-delete"></script>
+<script src="js/services/messagingService.js?v=20260903-messaging"></script>
 <script src="js/services/communicationEventCatalog.js?v=20260811-game-reminders"></script>
 <script src="js/services/communicationPreferenceService.js"></script>
 <script src="js/services/communicationRecipientService.js"></script>
@@ -190,6 +193,7 @@
 <script src="js/ui/claimHistory.js?v=20260719-collapsible"></script>
 <script src="js/ui/interactionState.js"></script>
 <script src="js/ui/notifications.js?v=20260814-notification-delete"></script>
+<script src="js/ui/messages.js?v=20260903-messaging"></script>
 <script src="js/ui/profile.js?v=20260814-unified-crew-card"></script>
 <script src="js/ui/rulesAndRegulations.js"></script>
 

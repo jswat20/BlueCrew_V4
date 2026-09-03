@@ -125,7 +125,7 @@ test.describe("Authorization Service", () => {
     });
   });
 
-  test("defaults unknown roles to umpire permissions", async ({ page }) => {
+  test("fails closed for unknown roles", async ({ page }) => {
     const permissions = await page.evaluate(() => ({
       claimGames:
         authorizationService.canClaimGames("unknown-role"),
@@ -147,7 +147,7 @@ test.describe("Authorization Service", () => {
     }));
 
     expect(permissions).toEqual({
-      claimGames: true,
+      claimGames: false,
       editSchedule: false,
       accounts: false,
       availability: false

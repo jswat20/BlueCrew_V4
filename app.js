@@ -91,6 +91,10 @@ const pages = {
     title: "Notifications",
     subtitle: "Review recent alerts and updates."
   },
+  messages: {
+    title: "Messages",
+    subtitle: "Private operational communication and announcements."
+  },
   "claims-queue": {
     title: "Claims Queue",
     subtitle: "Review and manage pending umpire claims."
@@ -144,6 +148,7 @@ function initializeApp() {
 
   if (!usesSupabaseAuth) migrationService.migrateGames();
   if (!usesSupabaseAuth) migrationService.migrateCrewAccounts();
+  if (!usesSupabaseAuth) messagingService?.hydrate?.();
 
   document.body.dataset.page = usesSupabaseAuth ? "login" : "dashboard";
   document.body.dataset.role = usesSupabaseAuth ? "umpire" : "admin";
@@ -382,6 +387,7 @@ function renderPage(page, context = {}) {
   `;
 
 updateNotificationBadge();
+updateMessageBadge();
 
   runPageSetup(page, context);
   requestAnimationFrame(() => enhanceResponsiveSurfaces(content, page));
@@ -459,6 +465,9 @@ function runPageSetup(page, context = {}) {
   if (page === "accounts" && typeof setupAccountsPage === "function") {
     setupAccountsPage(context);
   }
+  if (page === "messages" && typeof setupMessagesPage === "function") {
+    setupMessagesPage(context);
+  }
 
   if (
     page === "operations-center" &&
@@ -508,6 +517,7 @@ function renderAdminView(page, context = {}) {
     settings: typeof renderSettings === "function" ? renderSettings : null,
     admin: typeof renderAdmin === "function" ? renderAdmin : null,
     notifications: typeof renderNotifications === "function" ? renderNotifications : null,
+    messages: typeof renderMessages === "function" ? renderMessages : null,
     accounts: typeof renderAccounts === "function" ? renderAccounts : null,
     "my-schedule": typeof renderMySchedule === "function" ? renderMySchedule : null,
     "claims-queue": typeof renderClaimsQueue === "function" ? renderClaimsQueue : null,
@@ -578,6 +588,10 @@ function renderUmpireView(page, context = {}) {
         "Notifications",
         "Notifications are unavailable."
       );
+    case "messages":
+      return typeof renderMessages === "function"
+        ? renderMessages(context)
+        : placeholderPage("Messages", "Messages are unavailable.");
     case "claim-games":
       return typeof renderClaimGames === "function"
         ? renderClaimGames(context)
@@ -627,6 +641,14 @@ const unreadCount =
 
   badge.textContent = String(unreadCount);
   badge.hidden = false;
+}
+
+function updateMessageBadge() {
+  const badge = document.querySelector('[data-testid="messages-badge"]');
+  if (!badge || typeof messagingService === "undefined") return;
+  const unreadCount = messagingService.getUnreadCount();
+  badge.textContent = unreadCount ? String(unreadCount) : "";
+  badge.hidden = !unreadCount;
 }
 
 function updateActiveNav(page) {
@@ -721,6 +743,7 @@ function placeholderPage(title, message) {
 
 window.updateNotificationBadge =
   updateNotificationBadge;
+window.updateMessageBadge = updateMessageBadge;
 
 // ----------------------------------------------------
 // QA Error Tracking

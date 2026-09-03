@@ -22,7 +22,7 @@ function refreshNavigationAuthorization() {
       const crewOnly = link.dataset.crewOnly === "true";
       const isCrewRole = authorizationService.currentRole() === "umpire";
       if (page === "login") return;
-      if (page === "notifications" && hostedMode && !authenticated) {
+      if (["notifications", "messages"].includes(page) && hostedMode && !authenticated) {
         link.hidden = true;
         return;
       }
