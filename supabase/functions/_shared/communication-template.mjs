@@ -3,7 +3,8 @@ const TITLES = Object.freeze({
   "claim-rejected": "Claim Rejected", "claim-withdrawn": "Claim Withdrawn", "assignment-created": "Assignment Confirmed", "assignment-removed": "Assignment Removed",
   "assignment-declined": "Assignment Declined", "game-cancelled": "Game Cancelled", "game-restored": "Game Restored", "game-date-changed": "Game Date Changed",
   "game-time-changed": "Game Time Changed", "game-location-changed": "Location Changed", "game-field-changed": "Field Changed",
-  "game-reminder-24-hour": "Game Tomorrow", "game-reminder-2-hour": "Game in 2 Hours", "game-reminder-30-minute": "Game Starts Soon", "availability-reminder": "Availability Reminder", "birthday": "Happy Birthday"
+  "game-reminder-24-hour": "Game Tomorrow", "game-reminder-2-hour": "Game in 2 Hours", "game-reminder-30-minute": "Game Starts Soon", "availability-reminder": "Availability Reminder", "birthday": "Happy Birthday",
+  "message-received": "New Message", "announcement-received": "New Announcement"
 });
 const GAME_CHANGES = new Set(["game-cancelled", "game-restored", "game-date-changed", "game-time-changed", "game-location-changed", "game-field-changed"]);
 const POSITION = Object.freeze({ Plate: "U1", Base: "U2", U3: "U3", U4: "U4" });
@@ -14,6 +15,8 @@ function gameId(metadata, fallback) { const clean = value => String(value ?? "")
 function actionUrl(baseUrl, path) { if (!baseUrl || /localhost|127\.0\.0\.1/i.test(baseUrl)) return ""; try { return new URL(String(path || "").replace(/^\//, ""), `${String(baseUrl).replace(/\/$/, "")}/`).toString(); } catch { return ""; } }
 function leadFor(type, title) {
   if (type === "birthday") return "Happy birthday from everyone at The Slate!";
+  if (type === "message-received") return "You have a new message waiting in The Slate. Sign in to view and reply.";
+  if (type === "announcement-received") return "A new announcement is waiting for you in The Slate. Sign in to view it.";
   if (type === "account-pending-approval") return "A new umpire has verified their email and is waiting for administrator approval.";
   if (type === "account-approved") return "Your Slate account has been approved. You can now sign in to The Slate.";
   if (type === "account-rejected") return "Your Slate account registration was not approved.";
@@ -39,10 +42,14 @@ export function renderCommunicationEmail(row, { appUrl = "" } = {}) {
     : [["Game", gameId(metadata, row.game_id)], ["Division", metadata.divisionAlias || aliases[level] || level], ["Date", metadata.date ? longDate(metadata.date) : ""], ["Time", metadata.time ? time12(metadata.time) : ""], ["Location", metadata.location], ["Field", metadata.field], ["Assignment", metadata.position ? POSITION[metadata.position] || metadata.position : ""]].filter(([, value]) => value);
   const link = actionUrl(appUrl, metadata.actionPath); const textFacts = facts.map(([label, value]) => `${label}: ${value}`).join("\n");
   const changeText = metadata.changeLabel && (metadata.oldValue !== undefined || metadata.newValue !== undefined) ? `${metadata.changeLabel} changed from:\n${metadata.oldValue || "not set"}\n\nto\n\n${metadata.newValue || "not set"}` : "";
-  const actionLabel = row.event_type === "account-pending-approval" ? "Review Pending Accounts" : "Open The Slate";
+  const actionLabel = row.event_type === "account-pending-approval" ? "Review Pending Accounts"
+    : row.event_type === "message-received" ? "View Message"
+    : row.event_type === "announcement-received" ? "View Announcement" : "Open The Slate";
+  const subject = row.event_type === "message-received" ? "You have a new message in The Slate"
+    : row.event_type === "announcement-received" ? "New announcement in The Slate" : `The Slate — ${title}`;
   const text = [`Hi ${row.recipient_display_name || "The Slate user"},`, "", lead, "", changeText, changeText ? "" : null, textFacts, "", link ? `${actionLabel}: ${link}` : `${actionLabel} in The Slate.`].filter((value, index, values) => value !== null && (value !== "" || values[index - 1] !== "")).join("\n");
   const changeBlock = changeText ? `<p><strong>${escapeHtml(metadata.changeLabel)} changed</strong></p><p>${escapeHtml(metadata.oldValue || "not set")}<br aria-hidden="true">↓<br aria-hidden="true">${escapeHtml(metadata.newValue || "not set")}</p>` : "";
   const factRows = facts.map(([label, value]) => `<tr><td style="padding:4px 12px 4px 0;color:#526b7a;font-weight:700">${escapeHtml(label)}</td><td style="padding:4px 0;color:#0f2942">${escapeHtml(value)}</td></tr>`).join("");
   const action = link ? `<p style="margin:24px 0"><a href="${escapeHtml(link)}" style="background:#0f2942;color:#fff;padding:10px 16px;text-decoration:none;border-radius:4px">${escapeHtml(actionLabel)}</a></p>` : "";
-  return { subject: `The Slate — ${title}`, text, html: `<div style="font-family:Arial,sans-serif;max-width:600px;color:#0f2942"><div style="border-top:5px solid #18a7b8;padding-top:18px"><h1 style="font-size:22px;margin:0 0 18px">The Slate</h1><p>Hi ${escapeHtml(row.recipient_display_name || "The Slate user")},</p><p>${escapeHtml(lead)}</p>${changeBlock}<table role="presentation" style="border-collapse:collapse">${factRows}</table>${action}<p style="color:#526b7a;font-size:13px">This transactional message was sent by The Slate.</p></div></div>` };
+  return { subject, text, html: `<div style="font-family:Arial,sans-serif;max-width:600px;color:#0f2942"><div style="border-top:5px solid #18a7b8;padding-top:18px"><h1 style="font-size:22px;margin:0 0 18px">The Slate</h1><p>Hi ${escapeHtml(row.recipient_display_name || "The Slate user")},</p><p>${escapeHtml(lead)}</p>${changeBlock}<table role="presentation" style="border-collapse:collapse">${factRows}</table>${action}<p style="color:#526b7a;font-size:13px">This transactional message was sent by The Slate.</p></div></div>` };
 }
