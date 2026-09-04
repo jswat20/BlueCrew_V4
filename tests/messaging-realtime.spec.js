@@ -48,6 +48,26 @@ test.describe("authorized messaging Realtime lifecycle", () => {
     });
   });
 
+  test("Realtime refresh preserves the active tab and expanded conversation", async ({ supabaseAuthApp }) => {
+    const result = await supabaseAuthApp.page.evaluate(async () => {
+      await supabaseAuthService.login("admin@example.com", "valid-password");
+      currentPage = "messages";
+      document.body.dataset.page = "messages";
+      currentPageContext = { tab: "sent", expandedConversationId: "conversation-1", composerOpen: false };
+      const fixture = window.__supabaseFixture;
+      await fixture.realtimeChannels[0].handlers[0].callback({ eventType: "INSERT" });
+      return {
+        context: currentPageContext,
+        activeTab: document.querySelector('[data-testid="message-center"]')?.dataset.activeTab
+      };
+    });
+
+    expect(result).toEqual({
+      context: { tab: "sent", expandedConversationId: "conversation-1", composerOpen: false },
+      activeTab: "sent"
+    });
+  });
+
   test("logout invalidates stale callbacks and re-login creates exactly one channel", async ({ supabaseAuthApp }) => {
     const result = await supabaseAuthApp.page.evaluate(async () => {
       await supabaseAuthService.login("admin@example.com", "valid-password");
