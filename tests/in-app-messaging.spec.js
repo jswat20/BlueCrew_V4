@@ -23,6 +23,7 @@ test("administrator sends a private message and the selected umpire can reply", 
   await page.locator('[name="subject"]').fill("Saturday coverage");
   await page.locator('[data-testid="message-compose-form"] textarea').fill("Can you cover the 10:00 game?");
   await page.locator('[data-testid="message-compose-form"] button[type="submit"]').click();
+  await page.locator("[data-conversation-toggle]").click();
   await expect(page.getByText("Can you cover the 10:00 game?").first()).toBeVisible();
 
   const hiddenFromOtherUmpire = await page.evaluate(async () => {
@@ -37,10 +38,11 @@ test("administrator sends a private message and the selected umpire can reply", 
     messagingService.hydrate();
     renderPage("messages");
   });
+  await page.locator("[data-conversation-toggle]").click();
   await expect(page.getByText("Can you cover the 10:00 game?").first()).toBeVisible();
   await page.locator(".message-reply-form textarea").fill("Yes, I can work it.");
   await page.locator('.message-reply-form button[type="submit"]').click();
-  await expect(page.getByText("Yes, I can work it.")).toBeVisible();
+  await expect(page.locator(".message-history p", { hasText: "Yes, I can work it." })).toBeVisible();
 });
 
 test("group announcement snapshots only currently eligible active umpires", async ({ app }) => {
@@ -51,6 +53,7 @@ test("group announcement snapshots only currently eligible active umpires", asyn
   await page.locator('[name="subject"]').fill("8U schedule update");
   await page.locator('[data-testid="message-compose-form"] textarea').fill("Two games were added.");
   await page.locator('[data-testid="message-compose-form"] button[type="submit"]').click();
+  await page.locator("[data-announcement-toggle]").click();
   await expect(page.getByText("0 of 1 viewed")).toBeVisible();
 
   const visibility = await page.evaluate(async () => {
@@ -116,6 +119,140 @@ test("navigation excludes assigners and League Viewers while allowing administra
     umpire: authorizationService.canView("messages", "umpire")
   }));
   expect(result).toEqual({ admin: true, assigner: false, leagueViewer: false, umpire: true });
+});
+
+test("composer modes enable only the authoritative Recipient or Group control", async ({ app }) => {
+  const page = app.page;
+  await expect(page.getByTestId("message-compose")).toHaveCount(0);
+  await expect(page.getByTestId("new-message")).toHaveAttribute("aria-expanded", "false");
+  await page.getByTestId("new-message").click();
+
+  const recipient = page.getByLabel("Recipient");
+  const group = page.locator('[name="group"]');
+  await expect(recipient).toBeEnabled();
+  await expect(recipient).toHaveAttribute("required", "");
+  await expect(group).toBeDisabled();
+  await expect(page.locator("[data-compose-group]")).toHaveClass(/is-disabled/);
+
+  await page.locator('input[name="kind"][value="group"]').check();
+  await expect(recipient).toBeDisabled();
+  await expect(group).toBeEnabled();
+  await expect(page.locator("[data-compose-individual]")).toHaveClass(/is-disabled/);
+
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByTestId("message-compose")).toHaveCount(0);
+  await page.getByTestId("new-message").click();
+  await expect(recipient).toBeEnabled();
+  await expect(group).toBeDisabled();
+});
+
+test("message tabs render one mutually exclusive panel without duplicate threads", async ({ app }) => {
+  const page = app.page;
+  await page.evaluate(async () => {
+    await messagingService.sendDirect({ umpireProfileId: 2, subject: "Private", body: "Inbox body" });
+    await messagingService.sendAnnouncement({ targetType: "all_umpires", subject: "Notice", body: "Announcement body" });
+    renderPage("messages");
+  });
+
+  await expect(page.getByTestId("message-panel-inbox")).toHaveCount(1);
+  await expect(page.locator(".message-panel")).toHaveCount(1);
+  await expect(page.locator(".message-thread")).toHaveCount(1);
+  await expect(page.locator(".message-announcement")).toHaveCount(0);
+
+  await page.getByRole("tab", { name: "Announcements" }).click();
+  await expect(page.getByTestId("message-panel-announcements")).toHaveCount(1);
+  await expect(page.locator(".message-panel")).toHaveCount(1);
+  await expect(page.locator(".message-thread")).toHaveCount(0);
+  await expect(page.locator(".message-announcement")).toHaveCount(1);
+
+  await page.getByRole("tab", { name: "Sent" }).click();
+  await expect(page.getByTestId("message-panel-sent")).toHaveCount(1);
+  await expect(page.locator(".message-panel")).toHaveCount(1);
+  await expect(page.locator(".message-thread")).toHaveCount(1);
+  await expect(page.locator(".message-announcement")).toHaveCount(0);
+});
+
+test("conversation accordion marks read only when opened and hides the reply body when collapsed", async ({ app }) => {
+  const page = app.page;
+  await page.evaluate(async () => {
+    await messagingService.sendDirect({ umpireProfileId: 2, subject: "Accordion", body: "Thread detail" });
+    window.__markReadCalls = [];
+    const original = messagingService.markRead;
+    messagingService.markRead = async input => { window.__markReadCalls.push(input); return original(input); };
+    renderPage("messages");
+  });
+
+  const toggle = page.locator("[data-conversation-toggle]");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator(".message-history")).toHaveCount(0);
+  await expect(page.locator(".message-reply-form")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__markReadCalls.length)).toBe(0);
+
+  await toggle.click();
+  await expect(page.locator("[data-conversation-toggle]")).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(".message-history p", { hasText: "Thread detail" })).toBeVisible();
+  await expect(page.locator(".message-reply-form")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__markReadCalls.length)).toBe(1);
+
+  await page.locator("[data-conversation-toggle]").click();
+  await expect(page.locator(".message-history")).toHaveCount(0);
+  await expect(page.locator(".message-reply-form")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__markReadCalls.length)).toBe(1);
+});
+
+test("announcement cards collapse and private reply opens the Umpire composer", async ({ app }) => {
+  const page = app.page;
+  await page.evaluate(async () => {
+    await messagingService.sendAnnouncement({ targetType: "all_umpires", subject: "Expandable", body: "Announcement detail" });
+    authService.loginAsCrew(2);
+    document.body.dataset.role = "umpire";
+    await messagingService.hydrate();
+    renderPage("messages", { tab: "announcements" });
+  });
+
+  await expect(page.locator("[data-announcement-toggle]")).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator(".message-announcement-body")).toHaveCount(0);
+  await page.locator("[data-announcement-toggle]").click();
+  await expect(page.locator(".message-announcement-body", { hasText: "Announcement detail" })).toBeVisible();
+  await page.getByRole("button", { name: "Reply Privately to Admin" }).click();
+  await expect(page.getByTestId("message-compose")).toBeVisible();
+  await expect(page.locator('[data-testid="message-compose-form"] select')).toHaveCount(0);
+});
+
+test("successful send closes and resets the composer without duplicating its conversation", async ({ app }) => {
+  const page = app.page;
+  await page.getByTestId("new-message").click();
+  await page.getByLabel("Recipient").selectOption("2");
+  await page.locator('[name="subject"]').fill("Single thread");
+  await page.locator('[data-testid="message-compose-form"] textarea').fill("Only once");
+  await page.locator('[data-testid="message-compose-form"] button[type="submit"]').click();
+  await expect(page.getByTestId("message-compose")).toHaveCount(0);
+  await expect(page.locator(".message-thread")).toHaveCount(1);
+  await expect(page.getByTestId("new-message")).toHaveAttribute("aria-expanded", "false");
+});
+
+test("Administrator and Umpire message accordions remain contained at mobile width", async ({ app }) => {
+  const page = app.page;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(async () => {
+    await messagingService.sendDirect({ umpireProfileId: 2, subject: "Mobile", body: "A compact mobile conversation" });
+    renderPage("messages");
+  });
+  await page.locator("[data-conversation-toggle]").click();
+
+  const adminOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(adminOverflow).toBe(false);
+  await expect(page.locator(".message-reply-form")).toBeVisible();
+
+  await page.evaluate(async () => {
+    authService.loginAsCrew(2);
+    document.body.dataset.role = "umpire";
+    await messagingService.hydrate();
+    renderPage("messages");
+  });
+  const umpireOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(umpireOverflow).toBe(false);
+  await expect(page.locator("[data-conversation-toggle]")).toHaveAttribute("aria-expanded", "false");
 });
 
 test("League Viewer cannot call messaging mutations through the client service", async ({ app }) => {
