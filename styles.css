@@ -9545,6 +9545,27 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
 .rules-sublist { margin-top: .55rem; }
 .rules-sublist li { margin-bottom: .45rem; line-height: 1.5; }
 .rules-source-note { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #c8dadd; color: #566b7d; font-size: .9rem; }
+.junior-umpire-documents { margin-top: 1.5rem; padding: 1.5rem; border: 1px solid #c8dadd; border-radius: 18px; background: #fff; }
+.junior-umpire-documents > header h3 { margin: 0; color: #08233f; font-size: 1.5rem; }
+.junior-umpire-documents > header p { margin: .35rem 0 0; color: #566b7d; line-height: 1.5; }
+.junior-document-list { display: grid; gap: .75rem; margin-top: 1.25rem; }
+.junior-document { overflow: clip; border: 1px solid #c8dadd; border-radius: 12px; background: #fbfdfd; }
+.junior-document summary { display: flex; align-items: center; min-height: 44px; padding: .9rem 1rem; color: #08233f; cursor: pointer; }
+.junior-document summary::marker { color: #0b6b78; }
+.junior-document summary span { display: grid; gap: .2rem; margin-left: .35rem; }
+.junior-document summary strong { font-size: 1.05rem; }
+.junior-document summary small { color: #566b7d; font-size: .9rem; font-weight: 500; line-height: 1.4; }
+.junior-document[open] summary { border-bottom: 1px solid #d2e0e2; background: #eaf7f8; }
+.junior-document-content { padding: 1rem 1.15rem 1.25rem; color: #263b4b; }
+.junior-document-introduction { margin: 0 0 1rem; line-height: 1.6; }
+.junior-document-content section + section { margin-top: 1.25rem; }
+.junior-document-content h5 { margin: 0 0 .65rem; color: #08233f; font-size: 1.05rem; }
+.junior-document-content ul { margin: 0; padding-left: 1.35rem; }
+.junior-document-content li { margin-bottom: .65rem; line-height: 1.55; }
+.junior-document-content li > p { display: inline; margin: 0 0 0 .25rem; }
+.junior-document-group { margin: .55rem 0 0 .25rem; }
+.junior-document-group ul { margin-top: .35rem; }
+.junior-document-note { display: block !important; margin: .55rem 0 0 .25rem !important; font-weight: 700; }
 @media (max-width: 640px) {
   .rules-introduction { align-items: stretch; flex-direction: column; padding: 1.1rem; }
   .rules-source-link { width: 100%; text-align: center; }
@@ -9553,6 +9574,9 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
   .rules-panel { padding: .9rem; }
   .rules-section { padding: .9rem; }
   .rules-list { padding-left: 1.4rem; }
+  .junior-umpire-documents { padding: 1rem; }
+  .junior-document summary { padding: .85rem; }
+  .junior-document-content { padding: .9rem; }
 }
 
 /* Crew Card modal presentation: one authoritative responsive layout. */

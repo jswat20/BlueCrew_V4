@@ -12,6 +12,29 @@ function renderRuleItem(rule) {
   return `<li><p>${escapeRulesHtml(item.text)}</p>${subrules}</li>`;
 }
 
+function renderJuniorUmpireItem(item) {
+  const normalized = typeof item === "string" ? { text: item } : item;
+  const groups = normalized.groups?.map(group => `
+    <div class="junior-document-group">
+      <strong>${escapeRulesHtml(group.label)}</strong>
+      <ul>${group.items.map(groupItem => `<li>${escapeRulesHtml(groupItem)}</li>`).join("")}</ul>
+    </div>`).join("") || "";
+  return `<li>${normalized.label ? `<strong>${escapeRulesHtml(normalized.label)}</strong>` : ""}<p>${escapeRulesHtml(normalized.text)}</p>${groups}${normalized.note ? `<p class="junior-document-note">${escapeRulesHtml(normalized.note)}</p>` : ""}</li>`;
+}
+
+function renderJuniorUmpireDocument(document) {
+  return `
+    <details class="junior-document" data-testid="junior-umpire-document-${escapeRulesHtml(document.id)}">
+      <summary>
+        <span><strong>${escapeRulesHtml(document.title)}</strong><small>${escapeRulesHtml(document.description)}</small></span>
+      </summary>
+      <div class="junior-document-content">
+        ${document.introduction ? `<p class="junior-document-introduction">${escapeRulesHtml(document.introduction)}</p>` : ""}
+        ${document.sections.map(section => `<section><h5>${escapeRulesHtml(section.title)}</h5><ul>${section.items.map(renderJuniorUmpireItem).join("")}</ul></section>`).join("")}
+      </div>
+    </details>`;
+}
+
 function selectRulesDivision(divisionId) {
   if (!RULES_AND_REGULATIONS.divisions.some(division => division.id === divisionId)) return;
   selectedRulesDivision = divisionId;
@@ -36,6 +59,12 @@ function renderRulesAndRegulations() {
           ${division.sections.map((section, index) => `<article class="rules-section" data-testid="rules-section-${index + 1}"><h4><span>${index + 1}</span>${escapeRulesHtml(section.title)}</h4><ol type="a" class="rules-list">${section.rules.map(renderRuleItem).join("")}</ol></article>`).join("")}
         </div>
         <footer class="rules-source-note">${escapeRulesHtml(RULES_AND_REGULATIONS.sourceNote)}</footer>
+      </section>
+      <section class="junior-umpire-documents" aria-labelledby="junior-umpire-documents-heading" data-testid="junior-umpire-documents">
+        <header><h3 id="junior-umpire-documents-heading">Junior Umpire Program Documents</h3><p>Program expectations, conduct standards, and parent/guardian guidance for Lake Shore Junior Umpires.</p></header>
+        <div class="junior-document-list">
+          ${RULES_AND_REGULATIONS.juniorUmpireDocuments.map(renderJuniorUmpireDocument).join("")}
+        </div>
       </section>
     </div>`;
 }
