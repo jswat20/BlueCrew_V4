@@ -1,3 +1,134 @@
+// Authoritative junior umpire responsibilities supplied August 2026.
+const UMPIRE_RESPONSIBILITIES = Object.freeze({
+  id: "umpire-responsibilities",
+  name: "Umpire Responsibilities",
+  title: "Jr. Umpire Responsibilities",
+  revised: "August 2026",
+  sourceUrl: "assets/rules/umpire-responsibilities/junior-umpire-responsibilities-august-2026.pdf",
+  sections: Object.freeze([
+    Object.freeze({
+      id: "pregame",
+      title: "PREGAME",
+      items: Object.freeze([
+        { text: "Prepare ------- Know the Rules", children: [
+          { text: "Before the season, take some time and read thru the official rules a couple times." },
+          { text: "Before each game, a quick refresher review of the rules, specifically for the level you’re working." }
+        ]},
+        { text: "Be Prompt ------- Arrive at least 15 minutes prior to the scheduled start of the game." },
+        { text: "Be Ready ------- Make sure you have your indicator, ball bag, brush, and gear (as required for that game)" },
+        { text: "Safety Review ------- Inspect the playing area for any safety concerns.", children: [
+          { text: "While teams are warming up, take a quick walk around the field and (outside the fence is fine) and briefly inspect the field area and fences for any safety hazards.", children: [
+            { text: "Ex. Holes in the fence, fence sticking out at the bottom, holes in the field, etc." }
+          ]}
+        ]},
+        { text: "Plate Meeting ------- Begin 7-10 min before scheduled game start", note: "(This may seem like a lot but it goes really quickly. You’re setting the tone for the game, showing you’re in charge, and you know what’s going on. Also, that you will treat them w/ respect & expect the same from them)", children: [
+          { text: "Walk out and stand at the point of home plate and yell “COACHES!!”" },
+          { text: "Introduce yourself ------- “Good afternoon coaches, my name is [YOUR NAME]”", children: [
+            { text: "Look them in the eye, shake their hand, & say “nice to meet you [NAME]” *use their name*" }
+          ]},
+          { text: "Verify that you are speaking to the head coach.", children: [
+            { text: "After the greetings, ask each coach “Are you the head coach?”", children: [
+              { text: "If not, request that the head coach attend the plate conference because you’re only going to be talking with whomever is at the plate conference." }
+            ]}
+          ]},
+          { text: "Ask each coach “Are your players properly and legally equipped?”", children: [
+            { text: "You must receive a verbal “YES” from each coach." }
+          ]},
+          { text: "Go over and verify the playing rules for the game (Clinic example)", children: [
+            { text: "“Just to verify, we’re playing by Lake Shore Clinic rules”" },
+            { text: "“5-run max per inning” except the last inning where it’s unlimited”" },
+            { text: "“No new inning will begin after 90 minutes from the documented game start time”" }
+          ]},
+          { text: "Ask the coaches if there are any questions ------- “Coaches, do you have any questions?”" },
+          { text: "Confirm the home team ------- “Who’s the home team tonight?”" },
+          { text: "Finish up the plate conference", children: [
+            { text: "“Coaches, I’m looking forward to working with each of you.”" },
+            { text: "“I expect respectful communication and behavior tonight from all players, coaches, and fans”" },
+            { text: "“If you have any questions during the game, please call time and walk over to me and we can have a quick conversation about the specific situation” *(ONLY TALK W/ THE HEAD COACH)*" }
+          ]},
+          { text: "Confirm game start time", children: [
+            { text: "“Game start time is [SCHEDULED GAME START TIME]” (Ex. “Game start time is 6pm”)" },
+            { text: "“Good luck coaches”" },
+            { text: "Again, Look them in the eye and confidently shake each coach’s hand." },
+            { text: "If you remember, again, use their first names when you address them. (this builds rapport)" }
+          ]}
+        ]}
+      ])
+    }),
+    Object.freeze({
+      id: "in-game",
+      title: "IN-GAME",
+      subheading: "Professionalism & Mechanics",
+      items: Object.freeze([
+        { text: "Act professional and with integrity.  Basically, Act like you want to be there.", children: [
+          { text: "You’re getting paid to be there. They’ve all paid to be there…", children: [
+            { text: "Remain engaged for the entire game and show up ready to do your job to the best of your ability.  What does that mean?", children: [
+              { text: "Present yourself with confidence and integrity." },
+              { text: "Hustle. Hustle. Hustle." },
+              { text: "Use good, loud verbal calls so everyone, even fans, can hear." },
+              { text: "Use proper hand signals when making a call." }
+            ]}
+          ]}
+        ]}
+      ])
+    }),
+    Object.freeze({
+      id: "uniform",
+      title: "UNIFORM",
+      note: "Look Good, Feel Good, Perform Good",
+      items: Object.freeze([
+        { text: "Lake Shore Jr. Umpire Shirt" },
+        { text: "Lake Shore Jr. Umpire Hat (or LS hat I provided)" },
+        { text: "Gray Shorts or Pants (if possible)" },
+        { text: "Black shoes (if possible)" }
+      ])
+    }),
+    Object.freeze({
+      id: "postgame",
+      title: "POSTGAME",
+      items: Object.freeze([
+        { text: "Maintain Professionalism – Continue to act professionally, with pride and integrity.", children: [
+          { text: "Do this regardless of how the game went.", children: [
+            { text: "If you missed some calls, or made a mistake, or a coach was giving you a hard time… none of that matters." },
+            { text: "All umpires have a rough game from time to time, miss calls, or goof something up… even the pros. Just focus on doing your best, if you can walk off the field feeling that, you’ve done well." },
+            { text: "Plus, everyone should understand you’re beginning your journey and learning how to umpire. That’s the basis of the entire Jr. Umpire program.", children: [
+              { text: "In all seriousness, if you have ANY issues with ANY coach, parent, or fan – report it to me as soon as possible and I’ll have it investigated and make sure it doesn’t happen again. I’ve got your back 100%. When I know you’re working hard and doing your best, it’s easy for me to call someone and set them straight." }
+            ]}
+          ]}
+        ]},
+        { text: "As soon as the game ends, walk directly off the field.", children: [
+          { text: "If a kid or coach wants to give you a five, handshake, or fist bump, obviously, you can do that, but you’re not obligated to stick around once the final out has been made, your job is done." }
+        ]},
+        { text: "Head up to the Snack Shack to pick-up your money and meal." },
+        { text: "Log back in to The Slate app, navigate to the game you just finished, and press the “Complete Game” button.", children: [
+          { text: "You can leave a note in the “Game Notes” area if there’s anything you want to report back", children: [
+            { text: "For instance: “Cardinals coach was on me a little bit” or “this person (fan, coach, whomever) was constantly questioning my strike zone” etc." }
+          ]},
+          { text: "These are the types of things I can follow-up on and even go to the next game for that team and monitor." }
+        ]}
+      ])
+    })
+  ]),
+  signals: Object.freeze([
+    Object.freeze({ id: "out", title: "Out", description: "Right arm raised with a clenched fist at least at the top of head height.", image: "assets/rules/umpire-responsibilities/out.jpg?v=20260821" }),
+    Object.freeze({ id: "safe", title: "Safe", description: "Both arms extended horizontally to the side, perpendicular to the body.", image: "assets/rules/umpire-responsibilities/safe.jpg?v=20260821" }),
+    Object.freeze({ id: "fair", title: "Fair", description: "Right arm fully extended pointing toward the field of play.", image: "assets/rules/umpire-responsibilities/fair.jpg?v=20260821" }),
+    Object.freeze({ id: "foul", title: "Foul", description: "Both arms raised wide apart, palms open (almost forming a “V”).", image: "assets/rules/umpire-responsibilities/foul.jpg?v=20260821" }),
+    Object.freeze({ id: "strike", title: "Strike", description: "Right arm extended to the side with index finger out.", image: "assets/rules/umpire-responsibilities/strike.jpg?v=20260821" }),
+    Object.freeze({ id: "time", title: "Time", description: "Both arms raised above the head, palms open.", image: "assets/rules/umpire-responsibilities/time.jpg?v=20260821" }),
+    Object.freeze({ id: "play", title: "Play", description: "Point directly at the pitcher.", image: "assets/rules/umpire-responsibilities/play.jpg?v=20260821" })
+  ]),
+  closing: Object.freeze([
+    "And that’s it!  From that point if you feel like you need to reach out and talk about something, discuss a situation, or just vent about something or someone, feel free to reach out at any time.",
+    "John"
+  ]),
+  contact: Object.freeze({
+    name: "John Switala",
+    phone: "(410) 627-6250",
+    email: "Juniorumps@gmail.com"
+  })
+});
+
 // Authoritative Lake Shore Youth Baseball rules displayed in The Slate.
 // Source: LSYB Playing Rules, revised March 19, 2026.
 const RULES_AND_REGULATIONS = Object.freeze({
@@ -5,6 +136,7 @@ const RULES_AND_REGULATIONS = Object.freeze({
   sourceUrl: "https://cdn2.sportngin.com/attachments/document/60a0-3547856/LSYB_Playing_Rules_3-17-2026__1_.pdf",
   sourceNote: "Source: Lake Shore Youth Baseball Playing Rules, revised March 19, 2026.",
   coOpNotice: "The Lake Shore playing rules will be in effect for all in-house games. Games between Lake Shore teams and Co-Op teams will be governed by the Co-Op rules and Lake Shore Rule Extensions, Additions, and Exceptions will not apply.",
+  responsibilities: UMPIRE_RESPONSIBILITIES,
   divisions: Object.freeze([
     Object.freeze({
       id: "clinic",
