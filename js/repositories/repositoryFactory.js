@@ -10,7 +10,7 @@ const REPOSITORY_STORAGE_KEYS = Object.freeze({
   locations: "bluecrew_location_catalog",
   messages: "bluecrew_messages_v1",
   notifications: "bluecrew_notifications",
-  reportPresets: "bluecrew_report_presets",
+  reportPresets: "slate_report_presets",
   seasons: "bluecrew_seasons",
   session: "bluecrew_session"
 });
@@ -32,6 +32,45 @@ class LocalStorageRepository {
 
   remove() {
     this.storage.removeItem(this.key);
+  }
+}
+
+class ReportPresetLocalStorageRepository extends LocalStorageRepository {
+  constructor(storage, key) {
+    super(storage, key);
+
+    // LEGACY_COMPAT: preserve BlueCrew browser storage during Slate naming migration.
+    this.legacyKey = "bluecrew_report_presets";
+  }
+
+  readValue(key) {
+    try {
+      const stored = this.storage.getItem(key);
+      if (stored === null) return { valid: false, value: null };
+
+      const value = JSON.parse(stored);
+      return Array.isArray(value)
+        ? { valid: true, value }
+        : { valid: false, value: null };
+    } catch (_) {
+      return { valid: false, value: null };
+    }
+  }
+
+  read() {
+    const canonical = this.readValue(this.key);
+    if (canonical.valid) return canonical.value;
+
+    const legacy = this.readValue(this.legacyKey);
+    if (!legacy.valid) return null;
+
+    try {
+      this.write(legacy.value);
+    } catch (_) {
+      // A failed copy-forward must not hide otherwise usable legacy presets.
+    }
+
+    return legacy.value;
   }
 }
 
@@ -60,6 +99,9 @@ function createLocalStorageRepositoryFactory(storage = localStorage) {
     getRepository(name) {
       const key = REPOSITORY_STORAGE_KEYS[name];
       if (!key) throw new Error(`Unknown repository: ${name}`);
+      if (name === "reportPresets") {
+        return new ReportPresetLocalStorageRepository(storage, key);
+      }
       return new LocalStorageRepository(storage, key);
     }
   };
