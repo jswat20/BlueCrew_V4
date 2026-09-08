@@ -5,6 +5,70 @@ const RULES_AND_REGULATIONS = Object.freeze({
   sourceUrl: "https://cdn2.sportngin.com/attachments/document/60a0-3547856/LSYB_Playing_Rules_3-17-2026__1_.pdf",
   sourceNote: "Source: Lake Shore Youth Baseball Playing Rules, revised March 19, 2026.",
   coOpNotice: "The Lake Shore playing rules will be in effect for all in-house games. Games between Lake Shore teams and Co-Op teams will be governed by the Co-Op rules and Lake Shore Rule Extensions, Additions, and Exceptions will not apply.",
+  juniorUmpireDocuments: Object.freeze([
+    Object.freeze({
+      id: "responsibilities",
+      title: "Junior Umpire Responsibilities",
+      description: "Standards for preparation, game management, conduct, and reliability.",
+      introduction: "As a Junior Umpire, you are an official representative of Lake Shore Youth Baseball. Your primary role is to ensure the game is played fairly, safely, and within the spirit of sportsmanship. By joining our Jr. Umpire crew, you agree to the following standards:",
+      sections: Object.freeze([
+        { title: "1. Professionalism & Punctuality", items: [
+          { label: "Arrival", text: "Arrive at the field at least 10 minutes prior to the scheduled start time." },
+          { label: "Uniform", text: "Wear appropriate attire", groups: [
+            { label: "Mandatory", items: ["LSYB Jr. Umpire T-shirt", "LSYB hat"] },
+            { label: "Preferred", items: ["Gray Shorts/Pants", "Black athletic shoes (No Filp-Flops, Sandals, Crocs, etc.)"] }
+          ], note: "Remember: Appearance reflects authority" },
+          { label: "Focus", text: "I will refrain from using my cell phone or other electronic devices while on the field or between innings." }
+        ]},
+        { title: "2. Game Management & Integrity", items: [
+          { label: "Rules Knowledge", text: "Learning the playing rules and applying them consistently." },
+          { label: "Impartiality", text: "Remain neutral at all times." },
+          { label: "Hustle", text: "Move into the proper position, as required, to make the best possible call. Even if a call is missed, I will show effort and engagement." }
+        ]},
+        { title: "3. Conduct & Communication", items: [
+          { label: "Respect", text: "Treat all players, coaches, and parents with respect. Use a loud, clear voice for calls and remain calm if a coach asks for a rule clarification." },
+          { label: "Conflict Resolution", text: "Jr. Umpires will not engage in arguments with spectators. If a coach or parent becomes aggressive, I will immediately notify the Jr. Umpire Coordinator or a League Board Member." },
+          { label: "Language", text: "Always use appropriate language. Profanity or derogatory remarks will result in immediate removal from the program." }
+        ]},
+        { title: "4. Reliability", items: [
+          { label: "Communication", text: "Manage your schedule through the appropriate tools (The Slate)." },
+          { text: "If you cannot make a game, you must provide at least 24 hours notice so a replacement can be found." },
+          { label: "No-Show Policy", text: "Understand that \"No-shows\" let the players down and will result in disciplinary action, potentially resulting in loss of future assignments." }
+        ]}
+      ])
+    }),
+    Object.freeze({
+      id: "code-of-conduct",
+      title: "Junior Umpire Code of Conduct",
+      description: "Eight standards governing conduct, safety, fairness, and accountability.",
+      sections: Object.freeze([
+        { title: "1. Professionalism & Sportsmanship", items: ["I will act with integrity, maturity, and professionalism at all times.", "I will treat players, managers, coaches, spectators, and fellow umpires with respect.", "I will model positive sportsmanship and serve as a role model for youth.", "I will remain calm, composed, and respectful, regardless of game circumstances.", "I will not use profanity, sarcasm, or demeaning language."] },
+        { title: "2. Fairness & Impartiality", items: ["I will officiate games impartially and without favoritism.", "I will base all decisions solely on the rules and my judgment of the play.", "I will not allow personal relationships or emotions to influence my calls."] },
+        { title: "3. Knowledge & Application of Rules", items: ["I will make a good-faith effort to know and apply the rules accurately.", "I will seek guidance when uncertain and apply rules consistently.", "I will accept instruction, mentoring, and feedback to improve my performance."] },
+        { title: "4. Communication & Game Management", items: ["I will communicate clearly, calmly, and respectfully with managers and fellow umpires.", "I will not engage in arguments.", "I will manage the game to promote safety, fairness, and sportsmanship."] },
+        { title: "5. Safety & Youth Protection", items: ["I understand that player safety is my highest priority.", "I will enforce all safety-related rules, including equipment and field safety requirements.", "I will immediately report safety concerns or inappropriate conduct to league leadership."] },
+        { title: "6. Appearance & Preparedness", items: ["I will arrive on time for all assigned games.", "I will be properly equipped in appropriate equipment and uniform to officiate my position.", "I will be physically & mentally prepared to umpire each game and follow all pre-game protocols."] },
+        { title: "7. Conduct Outside the Game", items: ["I will not publicly criticize players, managers, coaches, or fellow umpires.", "I will not discuss judgment calls or game situations on social media or public forums.", "I will avoid confrontations with spectators before, during, or after games.", "I understand my off-field behavior reflects on the league and the Little League program."] },
+        { title: "8. Accountability & Continuous Improvement", items: ["I accept responsibility for my actions and decisions.", "I understand that mistakes may occur and will strive to learn from them.", "I will cooperate with league mentors and the Jr. Umpire Coordinator.", "I will make an effort to continuously improve my professional skills, knowledge, and behaviour."] }
+      ])
+    }),
+    Object.freeze({
+      id: "parent-guardian-support",
+      title: "Parent/Guardian Support Agreement",
+      description: "Guidance for supporting a Junior Umpire's preparation and independence.",
+      sections: Object.freeze([
+        { title: "Support Agreement", items: [
+          "I understand that my child is a league official and is learning a difficult skill.",
+          "The LSYB Junior Umpire program emphasizes professionalism, safety, and respect for the game and all involved with the game.",
+          "I agree to support my child's commitment by ensuring they have the necessary transportation to their assigned games.",
+          "Support your Jr. Umpire by helping them show up on time for all scheduled games, properly dressed, and prepared.",
+          "I will allow my child to handle their on-field responsibilities independently and will not interfere with their officiating or \"coach\" them from the sidelines.",
+          "I will not engage in arguments with spectators or coaches. If a coach or parent becomes aggressive or disrespectful to the Jr. Umpire, notify the Jr. Umpire Coordinator or a League Board Member immediately.",
+          "Remember, Jr. Umpires must remain neutral, maintain a positive attitude, and adhere to specific uniform and training guidelines. Your support is integral in allowing them to perform their best and enjoy their time as an umpire."
+        ]}
+      ])
+    })
+  ]),
   divisions: Object.freeze([
     Object.freeze({
       id: "clinic",

@@ -23,6 +23,61 @@ test.describe("Rules & Regulations", () => {
     await expect(page.getByTestId("rules-and-regulations-content")).toBeVisible();
   });
 
+  test("shows the Junior Umpire documents to administrators and umpires", async ({ page }) => {
+    for (const role of ["admin", "umpire"]) {
+      await openRules(page, role);
+      await expect(page.getByTestId("junior-umpire-documents")).toBeVisible();
+      await expect(page.locator(".junior-document")).toHaveCount(3);
+    }
+  });
+
+  test("renders exactly three independently expandable Junior Umpire documents", async ({ page }) => {
+    await openRules(page);
+
+    const documents = page.locator(".junior-document");
+    await expect(documents).toHaveCount(3);
+    await expect(documents.locator("summary strong")).toHaveText([
+      "Junior Umpire Responsibilities",
+      "Junior Umpire Code of Conduct",
+      "Parent/Guardian Support Agreement"
+    ]);
+    for (const document of await documents.all()) await expect(document).not.toHaveAttribute("open", "");
+
+    const responsibilities = page.getByTestId("junior-umpire-document-responsibilities");
+    const conduct = page.getByTestId("junior-umpire-document-code-of-conduct");
+    const parent = page.getByTestId("junior-umpire-document-parent-guardian-support");
+    await responsibilities.locator("summary").focus();
+    await responsibilities.locator("summary").press("Enter");
+    await conduct.locator("summary").focus();
+    await conduct.locator("summary").press("Space");
+    await parent.locator("summary").click();
+    await expect(responsibilities).toHaveAttribute("open", "");
+    await expect(conduct).toHaveAttribute("open", "");
+    await expect(parent).toHaveAttribute("open", "");
+
+    await expect(responsibilities).toContainText("at least 10 minutes prior");
+    await expect(responsibilities).toContainText("LSYB Jr. Umpire T-shirt");
+    await expect(responsibilities).toContainText("(The Slate)");
+    await expect(responsibilities).toContainText("at least 24 hours notice");
+    await expect(conduct).toContainText("player safety is my highest priority");
+    await expect(conduct).toContainText("social media or public forums");
+    await expect(conduct).toContainText("Jr. Umpire Coordinator");
+    await expect(parent).toContainText("necessary transportation");
+    await expect(parent).toContainText('"coach" them from the sidelines');
+    await expect(parent).toContainText("League Board Member");
+
+    await responsibilities.locator("summary").click();
+    await expect(responsibilities).not.toHaveAttribute("open", "");
+    await expect(conduct).toHaveAttribute("open", "");
+    await expect(parent).toHaveAttribute("open", "");
+  });
+
+  test("escapes Junior Umpire document text instead of treating it as arbitrary HTML", async ({ page }) => {
+    await page.goto("/");
+    const escaped = await page.evaluate(() => escapeRulesHtml(`<em>Safety & respect</em> "always"`));
+    expect(escaped).toBe("&lt;em&gt;Safety &amp; respect&lt;/em&gt; &quot;always&quot;");
+  });
+
   test("opens Clinic by default with complete section structure and source metadata", async ({ page }) => {
     await openRules(page);
 
@@ -79,9 +134,12 @@ test.describe("Rules & Regulations", () => {
     const geometry = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       document: document.documentElement.scrollWidth,
-      tabs: Array.from(document.querySelectorAll(".rules-tab")).map(tab => tab.getBoundingClientRect().height)
+      tabs: Array.from(document.querySelectorAll(".rules-tab")).map(tab => tab.getBoundingClientRect().height),
+      disclosures: Array.from(document.querySelectorAll(".junior-document summary")).map(summary => summary.getBoundingClientRect().height)
     }));
     expect(geometry.document).toBeLessThanOrEqual(geometry.viewport + 1);
     expect(geometry.tabs.every(height => height >= 44)).toBeTruthy();
+    expect(geometry.disclosures).toHaveLength(3);
+    expect(geometry.disclosures.every(height => height >= 44)).toBeTruthy();
   });
 });
