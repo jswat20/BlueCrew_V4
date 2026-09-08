@@ -65,7 +65,7 @@ test("in-memory repository instances do not leak state", async ({ page }) => {
   expect(result.second).toBeNull();
 });
 
-test("all compatibility storage keys remain unchanged", async ({ page }) => {
+test("only the report preset storage key adopts canonical Slate naming", async ({ page }) => {
   const keys = await page.evaluate(() => REPOSITORY_STORAGE_KEYS);
 
   expect(keys).toEqual({
@@ -78,7 +78,7 @@ test("all compatibility storage keys remain unchanged", async ({ page }) => {
     locations: "bluecrew_location_catalog",
     messages: "bluecrew_messages_v1",
     notifications: "bluecrew_notifications",
-    reportPresets: "bluecrew_report_presets",
+    reportPresets: "slate_report_presets",
     seasons: "bluecrew_seasons",
     session: "bluecrew_session"
   });

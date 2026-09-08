@@ -60,6 +60,14 @@ test.describe("Reporting Presets", () => {
       level: "12U",
       field: "North"
     });
+
+    const storage = await app.page.evaluate(() => ({
+      canonical: localStorage.getItem("slate_report_presets"),
+      legacy: localStorage.getItem("bluecrew_report_presets")
+    }));
+
+    expect(JSON.parse(storage.canonical)).toHaveLength(1);
+    expect(storage.legacy).toBeNull();
   });
 
   test("prevents duplicate preset names", async ({

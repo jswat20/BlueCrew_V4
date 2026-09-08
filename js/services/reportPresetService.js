@@ -2,7 +2,7 @@
 
 const reportPresetService = (() => {
   const STORAGE_KEY =
-    "bluecrew_report_presets";
+    "slate_report_presets";
   const getRepository = () => repositoryProvider.get("reportPresets");
 
   const FILTER_KEYS = [
