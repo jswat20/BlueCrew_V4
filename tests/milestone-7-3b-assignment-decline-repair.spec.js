@@ -8,9 +8,11 @@ const game = { id: "game-73b", organization_id: "organization-1", season_id: "se
 const openAssignment = { id: "assignment-73b", organization_id: "organization-1", game_id: game.id, position: "Plate", status: "needs_assignment", assigned_crew_member_id: null, locked: false };
 const locations = [{ id: "location-1", organization_id: "organization-1", name: "Lake Shore Athletic Complex", address: "", active: true }];
 const fields = [{ id: "field-1", organization_id: "organization-1", location_id: "location-1", name: "Field 1", active: true }];
+const pendingClaim = { id: "pending-direct-claim", organization_id: "organization-1", assignment_id: openAssignment.id, claimant_crew_member_id: crew.id, status: "pending", claimed_at: "2099-06-01T12:00:00Z", decided_at: null };
+const approvedClaim = { ...pendingClaim, id: "approved-declined-claim", status: "approved", decided_at: "2099-06-02T12:00:00Z" };
 
 test.describe("Milestone 7.3B hosted direct assignment", () => {
-  test.use({ supabaseScenario: { profile: admin, crewId: null, games: [game], assignments: [openAssignment], crewMembers: [crew], locations, fields } });
+  test.use({ supabaseScenario: { profile: admin, crewId: null, games: [game], assignments: [openAssignment], claims: [pendingClaim], crewMembers: [crew], locations, fields } });
 
   test("one Save persists exact crew, refreshes Game Hub, and guards duplicate submission", async ({ supabaseAuthApp }) => {
     const { page, calls } = supabaseAuthApp;
@@ -20,8 +22,9 @@ test.describe("Milestone 7.3B hosted direct assignment", () => {
     const save = page.getByTestId("game-hub-crew-save-assignment-73b");
     await save.dblclick();
     await expect(page.getByTestId("game-hub-remove-assignment-73b")).toBeVisible();
-    const state = await page.evaluate(() => ({ assignment: window.__supabaseFixture.settings.assignments[0], notifications: window.__supabaseFixture.settings.notifications, activities: window.__supabaseFixture.settings.activities }));
+    const state = await page.evaluate(() => ({ assignment: window.__supabaseFixture.settings.assignments[0], claim: window.__supabaseFixture.settings.claims[0], notifications: window.__supabaseFixture.settings.notifications, activities: window.__supabaseFixture.settings.activities }));
     expect(state.assignment).toMatchObject({ assigned_crew_member_id: "crew-umpire", status: "assigned", position: "Plate" });
+    expect(state.claim).toMatchObject({ status: "withdrawn", decision_reason: "Administrative direct assignment" });
     expect(state.notifications.filter(item => item.type === "assignment-created")).toHaveLength(1);
     expect(state.activities.filter(item => item.action === "assignment_assigned")).toHaveLength(1);
     expect((await calls()).filter(call => call.name === "assign_game_assignment_crew")).toHaveLength(1);
@@ -45,7 +48,7 @@ test.describe("Milestone 7.3B direct assignment failure", () => {
 });
 
 test.describe("Milestone 7.3B accessible hosted decline", () => {
-  test.use({ supabaseScenario: { profile: umpireProfile, crewId: crew.id, games: [game], assignments: [{ ...openAssignment, status: "assigned", assigned_crew_member_id: crew.id }], crewMembers: [crew], locations, fields } });
+  test.use({ supabaseScenario: { profile: umpireProfile, crewId: crew.id, games: [game], assignments: [{ ...openAssignment, status: "assigned", assigned_crew_member_id: crew.id }], claims: [approvedClaim], crewMembers: [crew], locations, fields } });
   test("validates, cancels with focus restoration, and submits exactly one decline", async ({ supabaseAuthApp }) => {
     const { page, calls } = supabaseAuthApp;
     await page.evaluate(async () => { await loginService.loginWithPassword("umpire@example.com", "password"); renderPage("game-hub", { gameId: "game-73b" }); });
@@ -62,8 +65,9 @@ test.describe("Milestone 7.3B accessible hosted decline", () => {
     await page.getByTestId("game-hub-decline-reason").fill("Schedule conflict");
     await page.getByTestId("game-hub-decline-submit").dblclick();
     await expect(page.getByTestId("my-schedule")).toBeVisible();
-    const state = await page.evaluate(() => ({ assignment: window.__supabaseFixture.settings.assignments[0], notifications: window.__supabaseFixture.settings.notifications, activities: window.__supabaseFixture.settings.activities }));
-    expect(state.assignment).toMatchObject({ assigned_crew_member_id: null, status: "needs_assignment", decline_reason: "Schedule conflict" });
+    const state = await page.evaluate(() => ({ assignment: window.__supabaseFixture.settings.assignments[0], claim: window.__supabaseFixture.settings.claims[0], notifications: window.__supabaseFixture.settings.notifications, activities: window.__supabaseFixture.settings.activities }));
+    expect(state.assignment).toMatchObject({ assigned_crew_member_id: null, status: "open_for_claim", decline_reason: "Schedule conflict" });
+    expect(state.claim).toMatchObject({ status: "withdrawn", decision_reason: "Assignment declined by umpire" });
     expect(state.notifications.filter(item => item.type === "assignment-declined")).toHaveLength(1);
     expect(state.activities.filter(item => item.action === "assignment_declined")).toHaveLength(1);
     expect((await calls()).filter(call => call.name === "decline_own_game_assignment")).toHaveLength(1);
