@@ -146,4 +146,52 @@ test.describe("Hosted Add Game persistence", () => {
     expect(result.gameCount).toBe(1);
     expect(result.assignmentCount).toBe(1);
   });
+
+  test("distinct hosted create keys remain distinct for an ordinary game type", async ({ supabaseAuthApp }) => {
+    const { page, calls } = supabaseAuthApp;
+    await login(page);
+    const result = await page.evaluate(async () => {
+      const shared = {
+        date: "2099-10-01",
+        time: "5:30 PM",
+        locationComplex: "Lake Shore",
+        locationField: "Field 6",
+        field: "Field 6",
+        level: "12U",
+        gameType: "twoMan",
+        assignmentStatus: "needs_assignment"
+      };
+      const first = await gameService.create({
+        ...shared,
+        externalGameId: "manual-distinct-hosted-game-1",
+        homeTeam: "Distinct Home One",
+        awayTeam: "Distinct Away One"
+      });
+      const second = await gameService.create({
+        ...shared,
+        externalGameId: "manual-distinct-hosted-game-2",
+        homeTeam: "Distinct Home Two",
+        awayTeam: "Distinct Away Two"
+      });
+      return {
+        first,
+        second,
+        gameCount: window.__supabaseFixture.settings.games.length,
+        assignmentCount: window.__supabaseFixture.settings.assignments.length
+      };
+    });
+
+    const rpcCalls = (await calls()).filter(call => call.name === "import_schedule_games");
+    expect(result.first.success).toBe(true);
+    expect(result.second.success).toBe(true);
+    expect(result.second.data.id).not.toBe(result.first.data.id);
+    expect(result.gameCount).toBe(2);
+    expect(result.assignmentCount).toBe(4);
+    expect(rpcCalls).toHaveLength(2);
+    expect(rpcCalls.map(call => call.args.p_games[0].externalGameId)).toEqual([
+      "manual-distinct-hosted-game-1",
+      "manual-distinct-hosted-game-2"
+    ]);
+    expect(rpcCalls[0].args.p_games[0].positions).toEqual(["Plate", "Base"]);
+  });
 });
