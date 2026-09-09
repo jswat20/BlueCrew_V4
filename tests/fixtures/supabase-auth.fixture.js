@@ -408,6 +408,9 @@ export const test = base.extend({
             claim.status = args.p_decision;
             claim.decided_at = new Date().toISOString();
             if (args.p_decision === "approved") {
+              settings.claims
+                .filter(item => String(item.assignment_id) === String(assignment.id) && item.status === "approved" && String(item.id) !== String(claim.id))
+                .forEach(item => { item.status = "withdrawn"; item.decision_reason = "Superseded by a replacement approved claim"; item.decided_at = new Date().toISOString(); });
               assignment.status = "assigned";
               assignment.assigned_crew_member_id = claim.claimant_crew_member_id;
             } else {
@@ -730,8 +733,14 @@ export const test = base.extend({
             if (!crew) return { data: null, error: { message: "assignment_direct_crew_not_found" } };
             if (assignment.locked || assignment.status === "locked") return { data: null, error: { message: "assignment_direct_locked" } };
             if (["completed", "submitted", "approved", "cancelled"].includes(game.lifecycle_status)) return { data: null, error: { message: "assignment_direct_finalized" } };
+            settings.claims
+              .filter(row => String(row.assignment_id) === String(assignment.id) && row.status === "pending")
+              .forEach(row => { row.status = "withdrawn"; row.decision_reason = "Administrative direct assignment"; row.decided_at = new Date().toISOString(); });
             if (String(assignment.assigned_crew_member_id || "") === String(crew.id) && assignment.status === "assigned") return { data: { ...assignment }, error: null };
             if (assignment.assigned_crew_member_id) return { data: null, error: { message: "assignment_direct_already_assigned" } };
+            settings.claims
+              .filter(row => String(row.assignment_id) === String(assignment.id) && row.status === "approved")
+              .forEach(row => { row.status = "withdrawn"; row.decision_reason = "Administrative direct assignment"; row.decided_at = new Date().toISOString(); });
             assignment.assigned_crew_member_id = crew.id;
             assignment.status = "assigned";
             assignment.locked = false;
@@ -749,6 +758,9 @@ export const test = base.extend({
             const game = assignment && settings.games.find(row => String(row.id) === String(assignment.game_id));
             if (!assignment || !game || String(assignment.assigned_crew_member_id) !== String(settings.crewId) || !["assigned", "locked"].includes(assignment.status)) return { data: null, error: { message: "assignment_decline_not_assigned" } };
             if (["completed", "submitted", "approved", "cancelled"].includes(game.lifecycle_status)) return { data: null, error: { message: "assignment_decline_finalized" } };
+            settings.claims
+              .filter(row => String(row.assignment_id) === String(assignment.id) && row.status === "approved")
+              .forEach(row => { row.status = "withdrawn"; row.decision_reason = "Assignment declined by umpire"; row.decided_at = new Date().toISOString(); });
             assignment.assigned_crew_member_id = null;
             assignment.status = settings.claims.some(row => String(row.assignment_id) === String(assignment.id)) ? "open_for_claim" : "needs_assignment";
             assignment.locked = false;

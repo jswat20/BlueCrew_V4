@@ -1,5 +1,6 @@
 const selectedClaimIds = new Set();
 const claimDecisionIdsInFlight = new Set();
+let claimDecisionErrorMessage = "";
 
 function getClaimDecisionKey(gameId, assignmentId, claimId) {
   return [gameId, assignmentId, claimId].map(value => String(value || "")).join(":");
@@ -58,6 +59,7 @@ function renderClaimsQueue(context = {}) {
         <span class="status-badge status-badge-pending-approval" data-testid="claims-pending-count">${claims.length} Pending</span>
       </div>
       <p class="claims-queue-showing" data-testid="claims-queue-showing">Showing ${claims.length} pending ${claims.length === 1 ? "claim" : "claims"}</p>
+      ${claimDecisionErrorMessage ? `<p class="presentation-error-state" role="alert" data-testid="claims-queue-decision-error">${escapeHtml(claimDecisionErrorMessage)}</p>` : ""}
 
       <div class="claim-queue-bulk-actions" aria-label="Bulk claim actions">
         <button type="button" data-testid="select-all-claims" onclick="handleSelectAllClaims()">Select All</button>
@@ -136,15 +138,20 @@ async function runClaimDecision(action, gameId, assignmentId, claimId) {
     result = await action(gameId, assignmentId, claimId);
   } catch (error) {
     claimDecisionIdsInFlight.delete(decisionKey);
+    claimDecisionErrorMessage = error?.message || "The claim decision could not be saved.";
     renderPage("claims-queue");
-    throw error;
+    toastService.error(claimDecisionErrorMessage);
+    return { success: false, message: claimDecisionErrorMessage };
   } finally {
     claimDecisionIdsInFlight.delete(decisionKey);
   }
   if (result?.success === false) {
+    claimDecisionErrorMessage = result.message || "The claim decision could not be saved.";
     renderPage("claims-queue");
+    toastService.error(claimDecisionErrorMessage);
     return result;
   }
+  claimDecisionErrorMessage = "";
   selectedClaimIds.delete(assignmentId);
   if (typeof refreshWorkbenchIfActive === "function") refreshWorkbenchIfActive();
   renderPage("claims-queue");
