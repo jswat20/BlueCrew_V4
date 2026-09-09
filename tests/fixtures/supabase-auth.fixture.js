@@ -685,7 +685,10 @@ export const test = base.extend({
             });
             if (invalid) return { data: null, error: { message: "schedule_import_invalid_positions" } };
             for (const item of args.p_games || []) {
-              const row = { id: `imported-${settings.games.length + 1}`, organization_id: settings.profile.organization_id, season_id: "season-1", location_id: settings.locations.find(location => location.name === item.location)?.id, field_id: settings.fields.find(field => field.name === item.field)?.id, game_date: item.date, game_time: item.time, timezone: item.timezone, home_team: item.homeTeam, away_team: item.awayTeam, level: item.level, game_type: item.gameType, lifecycle_status: item.lifecycleStatus, review: {}, report: {}, source_metadata: {} };
+              if (item.externalGameId && settings.games.some(game => String(game.legacy_game_id || "") === String(item.externalGameId))) {
+                return { data: null, error: { message: "duplicate key value violates unique constraint games_organization_id_legacy_game_id_key" } };
+              }
+              const row = { id: `imported-${settings.games.length + 1}`, organization_id: settings.profile.organization_id, season_id: "season-1", location_id: settings.locations.find(location => location.name === item.location)?.id, field_id: settings.fields.find(field => field.name === item.field)?.id, legacy_game_id: item.externalGameId || null, game_date: item.date, game_time: item.time, timezone: item.timezone, home_team: item.homeTeam, away_team: item.awayTeam, level: item.level, game_type: item.gameType, lifecycle_status: item.lifecycleStatus, review: {}, report: {}, source_metadata: {} };
               settings.games.push(row);
               const positions = item.positions || ["Plate"];
               positions.forEach(position => settings.assignments.push({ id: `assignment-${row.id}-${position}`, organization_id: row.organization_id, game_id: row.id, position, status: item.assignmentStatus, assigned_crew_member_id: null, locked: false }));

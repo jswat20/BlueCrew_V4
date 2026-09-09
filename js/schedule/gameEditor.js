@@ -1,6 +1,7 @@
 // js/schedule/gameEditor.js
 
 let gameEditorReturnFocus = null;
+let gameEditorCreateExternalId = null;
 
 function openGameEditor(gameId = null) {
   if (!authorizationService.canEditSchedule()) return false;
@@ -10,6 +11,11 @@ function openGameEditor(gameId = null) {
   if (!game) return;
 
   closeGameEditor(false);
+  gameEditorCreateExternalId = isEditing
+    ? null
+    : `manual-${typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
   gameEditorReturnFocus = document.activeElement;
 
   const overlay = document.createElement("div");
@@ -295,6 +301,10 @@ function createNewGame(values) {
     assignments: []
   };
 
+  if (typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()) {
+    game.externalGameId = gameEditorCreateExternalId;
+  }
+
   if (typeof gameService.create === "function") {
     return gameService.create(game);
   }
@@ -370,6 +380,7 @@ function closeGameEditor(restoreFocus = true) {
     gameEditorReturnFocus.focus();
   }
   gameEditorReturnFocus = null;
+  gameEditorCreateExternalId = null;
 }
 
 function renderGameTypeOptions(selectedType) {
