@@ -141,6 +141,34 @@ function isSharedGameMode() {
   return typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
 }
 
+function buildHostedScheduleGame(game) {
+  return {
+    externalGameId: game.externalGameId || "",
+    date: game.date,
+    time: game.time,
+    timezone: game.timezone || "America/New_York",
+    level: levelTerminologyService.canonicalize(game.level),
+    homeTeam: game.homeTeam,
+    awayTeam: game.awayTeam,
+    location: game.locationComplex || game.location || "",
+    field: game.locationField || game.field || "",
+    gameType: game.gameType || "single",
+    lifecycleStatus: game.lifecycleStatus || "scheduled",
+    assignmentStatus: game.assignmentStatus || "needs_assignment",
+    notes: game.notes || "",
+    positions: crewConfigurationService.getPositionsForGame(game)
+  };
+}
+
+function ensureHostedCreateKey(game) {
+  if (game.externalGameId) return game.externalGameId;
+  const token = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  game.externalGameId = `manual-${token}`;
+  return game.externalGameId;
+}
+
 const gameService = {
   async prepareSharedGames(preparedLocations = null) {
     if (!isSharedGameMode()) return this.getAll();
@@ -586,22 +614,56 @@ game.assignments =
       gamesToImport.forEach(game => this.create(game));
       return { success: true, message: "Schedule imported.", data: { importedCount: gamesToImport.length, skippedCount: 0 } };
     }
-    const payload = gamesToImport.map(game => ({
-      externalGameId: game.externalGameId || "", date: game.date, time: game.time,
-      timezone: game.timezone || "America/New_York", level: levelTerminologyService.canonicalize(game.level),
-      homeTeam: game.homeTeam, awayTeam: game.awayTeam,
-      location: game.locationComplex || game.location || "", field: game.locationField || game.field || "",
-      gameType: game.gameType || "single", lifecycleStatus: game.lifecycleStatus || "scheduled",
-      assignmentStatus: game.assignmentStatus || "needs_assignment", notes: game.notes || ""
-      ,positions: crewConfigurationService.getPositionsForGame(game)
-    }));
+    const payload = gamesToImport.map(buildHostedScheduleGame);
     const { data, error } = await supabaseSharedRepository.importScheduleGames(payload);
     if (error) return { success: false, message: error.message || "Schedule import failed." };
     const refresh = await supabaseAuthService.refreshScheduling();
     return refresh.success ? { success: true, message: "Schedule imported.", data } : { success: false, message: "Schedule imported but refresh failed.", data: { persisted: true, result: data } };
   },
 
+  async createHosted(game) {
+    if (typeof locationService !== "undefined") locationService.normalizeGame(game);
+    game.gameType = game.gameType || "single";
+    normalizeGameLifecycleStatus(game);
+    const createKey = ensureHostedCreateKey(game);
+    const payload = buildHostedScheduleGame(game);
+    const { data, error } = await supabaseSharedRepository.importScheduleGames([payload]);
+
+    if (error) {
+      const refresh = await supabaseAuthService.refreshScheduling();
+      const existing = refresh.success
+        ? this.getAll().find(item => String(item.legacyGameId || "") === String(createKey))
+        : null;
+      if (existing) {
+        return { success: true, message: "Game already created.", data: existing, game: existing };
+      }
+      return { success: false, message: error.message || "Game creation failed.", error };
+    }
+
+    const refresh = await supabaseAuthService.refreshScheduling();
+    if (!refresh.success) {
+      return {
+        success: false,
+        message: "Game was created, but the schedule could not be refreshed.",
+        data: { persisted: true, result: data }
+      };
+    }
+
+    const created = this.getAll().find(item => String(item.legacyGameId || "") === String(createKey));
+    if (!created) {
+      return {
+        success: false,
+        message: "Game was created, but the new hosted game could not be resolved.",
+        data: { persisted: true, result: data }
+      };
+    }
+
+    return { success: true, message: "Game created.", data: created, game: created };
+  },
+
 create(game) {
+
+  if (isSharedGameMode()) return this.createHosted(game);
 
   if (typeof locationService !== "undefined") locationService.normalizeGame(game);
 
