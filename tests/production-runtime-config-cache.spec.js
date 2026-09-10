@@ -45,6 +45,59 @@ test("production Crew interaction scripts use content-addressed physical paths",
   }
 });
 
+test("hosted Delete Game runtime scripts use content-addressed physical paths", () => {
+  const index = fs.readFileSync("dist/index.html", "utf8");
+  for (const source of [
+    "js/repositories/supabaseSharedRepository",
+    "js/services/gameService",
+    "js/schedule/gameEditor"
+  ]) {
+    const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const reference = index.match(new RegExp(`${escaped}\\.([a-f0-9]{12})\\.js\\?v=\\1`));
+    expect(reference).toBeTruthy();
+    const content = fs.readFileSync(`dist/${source}.${reference[1]}.js`);
+    expect(crypto.createHash("sha256").update(content).digest("hex").slice(0, 12)).toBe(reference[1]);
+    expect(index).not.toMatch(new RegExp(`${escaped}\\.js(?:\\?[^\"']*)?[\"']`));
+  }
+});
+
+test("Delete Game runtime bytes participate in the service-worker release identity", () => {
+  const build = fs.readFileSync("scripts/build-production.cjs", "utf8");
+  const index = fs.readFileSync("dist/index.html", "utf8");
+  expect(build).toContain("const runtimeSources");
+  expect(build).toContain("releaseContents.push(content)");
+  expect(build).toContain(".update(Buffer.concat(releaseContents))");
+  for (const source of ["js/repositories/supabaseSharedRepository", "js/services/gameService", "js/schedule/gameEditor"]) {
+    const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    expect(index).toMatch(new RegExp(`${escaped}\\.[a-f0-9]{12}\\.js\\?v=[a-f0-9]{12}`));
+  }
+});
+
+test("changing Delete Game runtime bytes changes both asset URL and release identity input", () => {
+  const index = fs.readFileSync("dist/index.html", "utf8");
+  const styles = fs.readFileSync("dist/styles.css");
+  const runtimeContents = [...index.matchAll(/<script[^>]+src=["']([^"']+\.([a-f0-9]{12})\.js)\?v=\2["']/g)]
+    .filter(match => !/^(?:config|vendor)\//.test(match[1]))
+    .map(match => fs.readFileSync(`dist/${match[1]}`));
+  const source = fs.readFileSync("js/services/gameService.js");
+  const changed = Buffer.concat([source, Buffer.from("\n// deterministic-change")]);
+  const originalAssetHash = crypto.createHash("sha256").update(source).digest("hex").slice(0, 12);
+  const changedAssetHash = crypto.createHash("sha256").update(changed).digest("hex").slice(0, 12);
+  expect(changedAssetHash).not.toBe(originalAssetHash);
+
+  const configReference = index.match(/config\/(supabase\.[a-f0-9]{12}\.js)/)[1];
+  const config = fs.readFileSync(`dist/config/${configReference}`);
+  const releaseHash = contents => crypto.createHash("sha256")
+    .update(index)
+    .update(config)
+    .update(styles)
+    .update(Buffer.concat(contents))
+    .digest("hex")
+    .slice(0, 12);
+  const changedContents = runtimeContents.map(content => content.equals(source) ? changed : content);
+  expect(releaseHash(changedContents)).not.toBe(releaseHash(runtimeContents));
+});
+
 test("production Crew editor is independent of the helper removed with demo Crew data", () => {
   const index = fs.readFileSync("dist/index.html", "utf8");
   const reference = index.match(/components\/crew\.([a-f0-9]{12})\.js/);

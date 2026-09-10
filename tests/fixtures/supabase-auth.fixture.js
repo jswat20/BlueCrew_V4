@@ -45,6 +45,7 @@ export const test = base.extend({
       deniedTable: "",
       failedMutationTable: "",
       deleteReturnsNoRepresentation: false,
+      deleteScheduleGameMode: "",
       failedRpc: "",
       profilePhotoObjects: {},
       deniedReferencedCrew: false,
@@ -698,6 +699,71 @@ export const test = base.extend({
               game.updated_at = new Date().toISOString();
             }
             return { data: game, error: null };
+          }
+          if (name === "delete_schedule_game") {
+            if (!["administrator", "assigner"].includes(settings.profile.role)) {
+              return { data: null, error: { message: "game_delete_forbidden" } };
+            }
+            const gameIndex = settings.games.findIndex(item =>
+              String(item.id) === String(args.p_game_id) &&
+              String(item.organization_id) === String(settings.profile.organization_id)
+            );
+            if (gameIndex < 0) {
+              return {
+                data: {
+                  status: "already_absent",
+                  deleted: false,
+                  gameId: args.p_game_id,
+                  deletedGameCount: 0,
+                  deletedAssignmentCount: 0,
+                  deletedClaimCount: 0
+                },
+                error: null
+              };
+            }
+            const assignmentIds = settings.assignments
+              .filter(item => String(item.game_id) === String(args.p_game_id))
+              .map(item => String(item.id));
+            const claimCount = settings.claims.filter(item =>
+              assignmentIds.includes(String(item.assignment_id))
+            ).length;
+            if (settings.deleteScheduleGameMode === "zero_row") {
+              return {
+                data: {
+                  status: "not_deleted",
+                  deleted: false,
+                  gameId: args.p_game_id,
+                  deletedGameCount: 0,
+                  deletedAssignmentCount: 0,
+                  deletedClaimCount: 0
+                },
+                error: null
+              };
+            }
+            if (settings.deleteScheduleGameMode !== "contradictory_refresh") {
+              settings.games.splice(gameIndex, 1);
+              settings.assignments = settings.assignments.filter(item =>
+                !assignmentIds.includes(String(item.id))
+              );
+              settings.claims = settings.claims.filter(item =>
+                !assignmentIds.includes(String(item.assignment_id))
+              );
+              settings.communicationEvents.forEach(event => {
+                if (String(event.game_id || "") === String(args.p_game_id)) event.game_id = null;
+                if (assignmentIds.includes(String(event.assignment_id || ""))) event.assignment_id = null;
+              });
+            }
+            return {
+              data: {
+                status: "deleted",
+                deleted: true,
+                gameId: args.p_game_id,
+                deletedGameCount: 1,
+                deletedAssignmentCount: assignmentIds.length,
+                deletedClaimCount: claimCount
+              },
+              error: null
+            };
           }
           if (name === "import_schedule_games") {
             const invalid = (args.p_games || []).some(item => {

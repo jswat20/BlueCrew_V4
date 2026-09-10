@@ -302,11 +302,9 @@ const supabaseSharedRepository = (() => {
 
   async function deleteScheduleGame(gameId) {
     const db = await client();
-    return db.from("games")
-      .delete()
-      .eq("id", gameId)
-      .select("*")
-      .maybeSingle();
+    return db.rpc("delete_schedule_game", {
+      p_game_id: gameId
+    });
   }
 
   async function updateGameOperationalDetails(gameId, changes = {}) {
