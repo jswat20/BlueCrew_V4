@@ -44,6 +44,7 @@ export const test = base.extend({
       profileMissingUntilProvision: false,
       deniedTable: "",
       failedMutationTable: "",
+      deleteReturnsNoRepresentation: false,
       failedRpc: "",
       profilePhotoObjects: {},
       deniedReferencedCrew: false,
@@ -147,8 +148,25 @@ export const test = base.extend({
             return { data: null, error: null };
           },
           async maybeSingle() {
-            calls.push({ operation: "select", table });
+            calls.push({ operation, table });
             if (settings.deniedTable === table) return { data: null, error: { message: "RLS denied" } };
+            if (settings.failedMutationTable === table && operation !== "select") return { data: null, error: { message: "RLS denied" } };
+            if (table === "games" && operation === "delete") {
+              const index = settings.games.findIndex(item =>
+                Object.entries(equality).every(([column, value]) => String(item[column]) === String(value))
+              );
+              if (index < 0) return { data: null, error: null };
+              const [deleted] = settings.games.splice(index, 1);
+              const assignmentIds = settings.assignments
+                .filter(item => String(item.game_id) === String(deleted.id))
+                .map(item => String(item.id));
+              settings.assignments = settings.assignments.filter(item => String(item.game_id) !== String(deleted.id));
+              settings.claims = settings.claims.filter(item => !assignmentIds.includes(String(item.assignment_id)));
+              return {
+                data: settings.deleteReturnsNoRepresentation ? null : deleted,
+                error: null
+              };
+            }
             if (table === "profiles") return { data: settings.profileMissingUntilProvision ? null : settings.profile, error: null };
             if (table === "organizations") return { data: settings.organization || { id: settings.profile.organization_id, name: "Fixture Organization", slug: "fixture-organization", timezone: "America/New_York", settings: {} }, error: null };
             if (table === "crew_members") {

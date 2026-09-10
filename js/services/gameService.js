@@ -524,6 +524,10 @@ game.assignments =
       };
     }
 
+    if (isSharedGameMode()) {
+      return this.deleteHosted(gameId);
+    }
+
     games = this.getAll().filter(game =>
       String(game.id) !== String(gameId)
     );
@@ -563,6 +567,50 @@ game.assignments =
 
     return {
       success: true
+    };
+  },
+
+  async deleteHosted(gameId) {
+    const existingGame = this.getById(gameId);
+    const { data, error } =
+      await supabaseSharedRepository.deleteScheduleGame(gameId);
+
+    if (error) {
+      return {
+        success: false,
+        message:
+          error?.message ||
+          "Game could not be deleted.",
+        error: error || null
+      };
+    }
+
+    const refresh =
+      await supabaseAuthService.refreshScheduling();
+
+    if (!refresh.success) {
+      return {
+        success: false,
+        message:
+          "Game was deleted. Refresh the schedule to see the latest state.",
+        data: {
+          persisted: true,
+          refreshError: refresh.message,
+          game: data
+        }
+      };
+    }
+
+    if (this.getById(gameId)) {
+      return {
+        success: false,
+        message: "Game could not be deleted."
+      };
+    }
+
+    return {
+      success: true,
+      game: data || existingGame
     };
   },
 
