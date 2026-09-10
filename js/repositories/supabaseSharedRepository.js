@@ -300,6 +300,15 @@ const supabaseSharedRepository = (() => {
     return db.rpc("import_schedule_games", { p_games: games });
   }
 
+  async function deleteScheduleGame(gameId) {
+    const db = await client();
+    return db.from("games")
+      .delete()
+      .eq("id", gameId)
+      .select("*")
+      .maybeSingle();
+  }
+
   async function updateGameOperationalDetails(gameId, changes = {}) {
     const db = await client();
     return db.rpc("update_game_operational_details", {
@@ -365,6 +374,7 @@ const supabaseSharedRepository = (() => {
     saveOwnGameCompletion,
     updateGameOperationalDetails,
     importScheduleGames,
+    deleteScheduleGame,
     getCrewMembersByIds
   };
 })();

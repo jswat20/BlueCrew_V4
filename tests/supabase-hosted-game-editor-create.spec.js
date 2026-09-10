@@ -194,4 +194,95 @@ test.describe("Hosted Add Game persistence", () => {
     ]);
     expect(rpcCalls[0].args.p_games[0].positions).toEqual(["Plate", "Base"]);
   });
+
+  test("Administrator deletes a hosted scrimmage and its assignment stays deleted after refresh", async ({ supabaseAuthApp }) => {
+    const { page, calls } = supabaseAuthApp;
+    const editor = new GameEditorPage(page);
+    await login(page);
+
+    const game = {
+      date: "2099-09-30",
+      time: "5:30 PM",
+      field: "Field 6",
+      level: "12U",
+      homeTeam: "Hosted Delete Home",
+      awayTeam: "Hosted Delete Away",
+      gameType: "scrimmage"
+    };
+
+    await openHostedAddGame(editor);
+    await editor.fillGame(game);
+    await editor.save();
+    await editor.expectGameVisible(game);
+    await editor.deleteGame(game);
+    await editor.expectGameNotVisible(game);
+
+    const persisted = await page.evaluate(async () => {
+      const refresh = await supabaseAuthService.refreshScheduling();
+      renderPage("schedule");
+      return {
+        refresh,
+        backendGames: window.__supabaseFixture.settings.games.length,
+        backendAssignments: window.__supabaseFixture.settings.assignments.length,
+        visibleGames: gameService.getAll().map(item => item.homeTeam)
+      };
+    });
+
+    expect((await calls()).some(call => call.operation === "delete" && call.table === "games")).toBe(true);
+    expect(persisted.refresh.success).toBe(true);
+    expect(persisted.backendGames).toBe(0);
+    expect(persisted.backendAssignments).toBe(0);
+    expect(persisted.visibleGames).not.toContain("Hosted Delete Home");
+  });
+
+  test("successful hosted deletion is confirmed when DELETE returns no row representation", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    const editor = new GameEditorPage(page);
+    await login(page);
+
+      const game = {
+        date: "2099-09-30",
+        time: "5:30 PM",
+        field: "Field 6",
+        level: "12U",
+        homeTeam: "No Representation Home",
+        awayTeam: "No Representation Away",
+        gameType: "scrimmage"
+      };
+
+    await openHostedAddGame(editor);
+    await editor.fillGame(game);
+    await editor.save();
+    await page.evaluate(() => {
+      window.__supabaseFixture.settings.deleteReturnsNoRepresentation = true;
+    });
+    await editor.deleteGame(game);
+    await editor.expectGameNotVisible(game);
+  });
+
+  test("failed hosted deletion reports an error and preserves the game", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    const editor = new GameEditorPage(page);
+    await login(page);
+
+    const game = {
+      date: "2099-09-30",
+      time: "5:30 PM",
+      field: "Field 6",
+      level: "12U",
+      homeTeam: "Hosted Delete Failure Home",
+      awayTeam: "Hosted Delete Failure Away",
+      gameType: "scrimmage"
+    };
+
+    await openHostedAddGame(editor);
+    await editor.fillGame(game);
+    await editor.save();
+    await page.evaluate(() => { window.__supabaseFixture.settings.failedMutationTable = "games"; });
+    await editor.deleteGame(game);
+
+    await expect(page.getByTestId("game-editor")).toBeVisible();
+    await expect(page.getByText("RLS denied")).toBeVisible();
+    expect(await page.evaluate(() => window.__supabaseFixture.settings.games.length)).toBe(1);
+  });
 });

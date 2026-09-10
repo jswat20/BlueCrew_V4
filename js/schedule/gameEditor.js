@@ -333,7 +333,7 @@ function updateExistingGame(gameId, updates) {
   return gameService.update(gameId, updates);
 }
 
-function deleteGame(gameId) {
+async function deleteGame(gameId) {
   if (!authorizationService.canEditSchedule()) return false;
   const game = gameService.getById(gameId);
   if (!game) return;
@@ -344,7 +344,9 @@ function deleteGame(gameId) {
 
   if (!confirmed) return;
 
-  const result = gameService.delete(gameId);
+  const result = await Promise.resolve(
+    gameService.delete(gameId)
+  );
 
   if (!result.success) {
     toastService.error(result.message || "Unable to delete game.");
