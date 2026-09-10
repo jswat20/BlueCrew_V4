@@ -572,8 +572,9 @@ game.assignments =
 
   async deleteHosted(gameId) {
     const existingGame = this.getById(gameId);
-    const { data, error } =
+    const response =
       await supabaseSharedRepository.deleteScheduleGame(gameId);
+    const { data, error } = response || {};
 
     if (error) {
       return {
@@ -585,6 +586,21 @@ game.assignments =
       };
     }
 
+    const status = String(data?.status || "");
+    const deleted = data?.deleted === true;
+    const deletedGameCount = Number(data?.deletedGameCount || 0);
+    const alreadyAbsent = status === "already_absent" && deleted === false;
+    const authoritativeDelete =
+      status === "deleted" && deleted && deletedGameCount === 1;
+
+    if (!authoritativeDelete && !alreadyAbsent) {
+      return {
+        success: false,
+        message: "Game deletion was not confirmed by the server.",
+        data: data || null
+      };
+    }
+
     const refresh =
       await supabaseAuthService.refreshScheduling();
 
@@ -592,11 +608,14 @@ game.assignments =
       return {
         success: false,
         message:
-          "Game was deleted. Refresh the schedule to see the latest state.",
+          authoritativeDelete
+            ? "Game was deleted, but the schedule refresh failed. Refresh the page to load the latest state."
+            : "The game was already absent, but the schedule refresh failed. Refresh the page to load the latest state.",
         data: {
-          persisted: true,
+          persisted: authoritativeDelete,
+          status,
           refreshError: refresh.message,
-          game: data
+          result: data
         }
       };
     }
@@ -604,13 +623,22 @@ game.assignments =
     if (this.getById(gameId)) {
       return {
         success: false,
-        message: "Game could not be deleted."
+        message:
+          "The server confirmed the deletion, but the refreshed schedule still contains the game. Refresh and try again.",
+        data: {
+          persisted: authoritativeDelete,
+          status,
+          result: data
+        }
       };
     }
 
     return {
       success: true,
-      game: data || existingGame
+      status,
+      idempotent: alreadyAbsent,
+      game: existingGame,
+      data
     };
   },
 

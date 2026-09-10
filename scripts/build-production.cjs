@@ -98,21 +98,13 @@ index = index.replace(
 // cache is converging on a new Pages deployment. Give interaction-critical scripts
 // content-addressed physical paths so a new HTML document can only request the
 // exact bytes it was built with.
+const runtimeSources = [...new Set(
+  [...index.matchAll(/<script[^>]+src=["']([^"']+\.js)(?:\?[^"']*)?["'][^>]*><\/script>/g)]
+    .map(match => match[1])
+    .filter(source => !/^(?:config|vendor)\//.test(source))
+)];
 const releaseContents = [];
-for (const source of [
-  "components/crew.js",
-  "js/schedule/workloadPanel.js",
-  "js/services/accountService.js",
-  "js/services/authService.js",
-  "js/services/authenticatedIdentityService.js",
-  "js/services/authorizationService.js",
-  "js/services/sharedDomainMappingService.js",
-  "js/services/supabaseAuthService.js",
-  "js/ui/crewCard.js",
-  "js/ui/navigationAuthorization.js",
-  "js/ui/profile.js",
-  "app.js"
-]) {
+for (const source of runtimeSources) {
   const sourcePath = path.join(output, source);
   const content = fs.readFileSync(sourcePath);
   releaseContents.push(content);

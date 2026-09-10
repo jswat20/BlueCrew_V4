@@ -107,8 +107,7 @@ base("production recovery forms use CSP-compatible external listeners", () => {
 });
 
 base("production identity and Profile renderers use content-addressed scripts", () => {
-  const build = fs.readFileSync("scripts/build-production.cjs", "utf8");
-  const verify = fs.readFileSync("scripts/verify-production-artifact.cjs", "utf8");
+  const index = fs.readFileSync("dist/index.html", "utf8");
   for (const source of [
     "js/services/accountService",
     "js/services/authService",
@@ -121,7 +120,7 @@ base("production identity and Profile renderers use content-addressed scripts", 
     "js/ui/profile",
     "app"
   ]) {
-    expect(build).toContain(`"${source}.js"`);
-    expect(verify).toContain(`"${source}"`);
+    const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    expect(index).toMatch(new RegExp(`${escaped}\\.[a-f0-9]{12}\\.js\\?v=[a-f0-9]{12}`));
   }
 });

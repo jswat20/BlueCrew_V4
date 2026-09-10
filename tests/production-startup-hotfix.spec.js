@@ -44,7 +44,9 @@ base("production artifact packages a fingerprinted same-origin Supabase client",
   const bundle = fs.readFileSync(`dist/vendor/${reference[1]}`);
   expect(crypto.createHash("sha256").update(bundle).digest("hex").slice(0, 12)).toBe(reference[2]);
   expect(index).not.toMatch(/cdn\.jsdelivr\.net|esm\.sh|unpkg\.com|node_modules\/@supabase/i);
-  expect(index.indexOf(`vendor/${reference[1]}`)).toBeLessThan(index.indexOf("js/services/supabaseClientService.js"));
+  const clientService = index.match(/js\/services\/supabaseClientService(?:\.[a-f0-9]{12})?\.js/);
+  expect(clientService).toBeTruthy();
+  expect(index.indexOf(`vendor/${reference[1]}`)).toBeLessThan(index.indexOf(clientService[0]));
   expect(fs.readFileSync("dist/_headers", "utf8")).toMatch(/\/vendor\/\*[\s\S]*max-age=31536000,\s*immutable/i);
 });
 

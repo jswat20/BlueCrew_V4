@@ -228,14 +228,15 @@ test.describe("Hosted Add Game persistence", () => {
       };
     });
 
-    expect((await calls()).some(call => call.operation === "delete" && call.table === "games")).toBe(true);
+    const deleteCall = (await calls()).find(call => call.name === "delete_schedule_game");
+    expect(deleteCall?.args.p_game_id).toBeTruthy();
     expect(persisted.refresh.success).toBe(true);
     expect(persisted.backendGames).toBe(0);
     expect(persisted.backendAssignments).toBe(0);
     expect(persisted.visibleGames).not.toContain("Hosted Delete Home");
   });
 
-  test("successful hosted deletion is confirmed when DELETE returns no row representation", async ({ supabaseAuthApp }) => {
+  test("hosted deletion cascades claims and nulls communication references", async ({ supabaseAuthApp }) => {
     const { page } = supabaseAuthApp;
     const editor = new GameEditorPage(page);
     await login(page);
@@ -245,22 +246,31 @@ test.describe("Hosted Add Game persistence", () => {
         time: "5:30 PM",
         field: "Field 6",
         level: "12U",
-        homeTeam: "No Representation Home",
-        awayTeam: "No Representation Away",
+        homeTeam: "Cascade Home",
+        awayTeam: "Cascade Away",
         gameType: "scrimmage"
       };
 
     await openHostedAddGame(editor);
     await editor.fillGame(game);
     await editor.save();
-    await page.evaluate(() => {
-      window.__supabaseFixture.settings.deleteReturnsNoRepresentation = true;
+    const result = await page.evaluate(async () => {
+      const settings = window.__supabaseFixture.settings;
+      const created = settings.games.find(item => item.home_team === "Cascade Home");
+      const assignment = settings.assignments.find(item => item.game_id === created.id);
+      settings.claims.push({ id: "delete-claim", organization_id: created.organization_id, assignment_id: assignment.id, status: "pending" });
+      settings.communicationEvents.push({ id: "delete-event", organization_id: created.organization_id, game_id: created.id, assignment_id: assignment.id });
+      const mutation = await gameService.delete(created.id);
+      return { mutation, settings };
     });
-    await editor.deleteGame(game);
-    await editor.expectGameNotVisible(game);
+    expect(result.mutation).toMatchObject({ success: true, status: "deleted", data: { deletedGameCount: 1, deletedAssignmentCount: 1, deletedClaimCount: 1 } });
+    expect(result.settings.games).toHaveLength(0);
+    expect(result.settings.assignments).toHaveLength(0);
+    expect(result.settings.claims).toHaveLength(0);
+    expect(result.settings.communicationEvents[0]).toMatchObject({ game_id: null, assignment_id: null });
   });
 
-  test("failed hosted deletion reports an error and preserves the game", async ({ supabaseAuthApp }) => {
+  test("RPC failure reports an error and preserves the game and editor", async ({ supabaseAuthApp }) => {
     const { page } = supabaseAuthApp;
     const editor = new GameEditorPage(page);
     await login(page);
@@ -278,11 +288,90 @@ test.describe("Hosted Add Game persistence", () => {
     await openHostedAddGame(editor);
     await editor.fillGame(game);
     await editor.save();
-    await page.evaluate(() => { window.__supabaseFixture.settings.failedMutationTable = "games"; });
+    await page.evaluate(() => { window.__supabaseFixture.settings.failedRpc = "delete_schedule_game"; });
     await editor.deleteGame(game);
 
     await expect(page.getByTestId("game-editor")).toBeVisible();
-    await expect(page.getByText("RLS denied")).toBeVisible();
+    await expect(page.getByText("Transactional write failed")).toBeVisible();
     expect(await page.evaluate(() => window.__supabaseFixture.settings.games.length)).toBe(1);
+  });
+
+  test("zero-row authoritative result cannot produce success or close the editor", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    const editor = new GameEditorPage(page);
+    await login(page);
+    const game = { date: "2099-09-30", time: "5:30 PM", field: "Field 6", level: "12U", homeTeam: "Zero Row Home", awayTeam: "Zero Row Away", gameType: "scrimmage" };
+    await openHostedAddGame(editor);
+    await editor.fillGame(game);
+    await editor.save();
+    await page.evaluate(() => { window.__supabaseFixture.settings.deleteScheduleGameMode = "zero_row"; });
+    await editor.deleteGame(game);
+    await expect(page.getByTestId("game-editor")).toBeVisible();
+    await expect(page.getByText("Game deletion was not confirmed by the server.")).toBeVisible();
+    expect(await page.evaluate(() => window.__supabaseFixture.settings.games.length)).toBe(1);
+  });
+
+  test("confirmed deletion followed by refresh failure reports persistence accurately", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await login(page);
+    const result = await page.evaluate(async () => {
+      const created = await gameService.create({ externalGameId: "refresh-failure-delete", date: "2099-09-30", time: "5:30 PM", locationComplex: "Lake Shore", locationField: "Field 6", field: "Field 6", level: "12U", homeTeam: "Refresh Failure Home", awayTeam: "Refresh Failure Away", gameType: "scrimmage" });
+      window.__supabaseFixture.settings.deniedTable = "games";
+      return gameService.delete(created.data.id);
+    });
+    expect(result).toMatchObject({ success: false, data: { persisted: true, status: "deleted" } });
+    expect(result.message).toContain("Game was deleted, but the schedule refresh failed");
+  });
+
+  test("contradictory refreshed snapshot cannot produce transient false success", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await login(page);
+    const result = await page.evaluate(async () => {
+      const created = await gameService.create({ externalGameId: "contradictory-delete", date: "2099-09-30", time: "5:30 PM", locationComplex: "Lake Shore", locationField: "Field 6", field: "Field 6", level: "12U", homeTeam: "Contradiction Home", awayTeam: "Contradiction Away", gameType: "scrimmage" });
+      window.__supabaseFixture.settings.deleteScheduleGameMode = "contradictory_refresh";
+      return gameService.delete(created.data.id);
+    });
+    expect(result.success).toBe(false);
+    expect(result.message).toContain("refreshed schedule still contains the game");
+    expect(await page.evaluate(() => window.__supabaseFixture.settings.games.length)).toBe(1);
+  });
+
+  test("already-absent retry is idempotent after authoritative refresh", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await login(page);
+    const result = await page.evaluate(async () => {
+      const created = await gameService.create({ externalGameId: "already-absent-delete", date: "2099-09-30", time: "5:30 PM", locationComplex: "Lake Shore", locationField: "Field 6", field: "Field 6", level: "12U", homeTeam: "Absent Home", awayTeam: "Absent Away", gameType: "scrimmage" });
+      window.__supabaseFixture.settings.games = [];
+      window.__supabaseFixture.settings.assignments = [];
+      return gameService.delete(created.data.id);
+    });
+    expect(result).toMatchObject({ success: true, status: "already_absent", idempotent: true });
+    expect(await page.evaluate(() => gameService.getAll())).toEqual([]);
+  });
+
+  test("unauthorized delete is rejected without changing the target", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await login(page);
+    const result = await page.evaluate(async () => {
+      const created = await gameService.create({ externalGameId: "unauthorized-delete", date: "2099-09-30", time: "5:30 PM", locationComplex: "Lake Shore", locationField: "Field 6", field: "Field 6", level: "12U", homeTeam: "Unauthorized Home", awayTeam: "Unauthorized Away", gameType: "scrimmage" });
+      window.__supabaseFixture.settings.profile.role = "umpire";
+      return gameService.delete(created.data.id);
+    });
+    expect(result).toMatchObject({ success: false, message: "game_delete_forbidden" });
+    expect(await page.evaluate(() => window.__supabaseFixture.settings.games.length)).toBe(1);
+  });
+
+  test("cross-organization target is not deleted or disclosed", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await login(page);
+    const result = await page.evaluate(async () => {
+      const settings = window.__supabaseFixture.settings;
+      settings.games.push({ id: "other-org-game", organization_id: "organization-2", game_date: "2099-09-30", game_time: "17:30", home_team: "Other Home", away_team: "Other Away", level: "12U", game_type: "scrimmage", lifecycle_status: "scheduled", assignments: [] });
+      gameService.publishSharedGames({ games: [sharedDomainMappingService.mapGame(settings.games[0], { assignments: [], claimsByAssignment: new Map() })], referencedCrew: [] });
+      return gameService.delete("other-org-game");
+    });
+    expect(result.success).toBe(false);
+    expect(result.message).toContain("refreshed schedule still contains the game");
+    expect(await page.evaluate(() => window.__supabaseFixture.settings.games.some(item => item.id === "other-org-game"))).toBe(true);
   });
 });

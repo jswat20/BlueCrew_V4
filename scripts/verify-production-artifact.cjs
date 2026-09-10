@@ -72,7 +72,7 @@ if (fs.existsSync(path.join(output, "index.html"))) {
   ]) {
     if (!metadata.test(index)) failures.push(`production HTML is missing required mobile metadata: ${metadata}`);
   }
-  if (!/js\/ui\/installHelper\.js/.test(index)) failures.push("production HTML is missing install guidance");
+  if (!/js\/ui\/installHelper(?:\.[a-f0-9]{12})?\.js/.test(index)) failures.push("production HTML is missing install guidance");
   if (/cdn\.jsdelivr\.net|esm\.sh|unpkg\.com/i.test(index)) failures.push("production HTML loads a critical script from an external module host");
   const supabaseClientReference = index.match(/vendor\/(supabase\.([a-f0-9]{12})\.js)/);
   if (!supabaseClientReference) {
@@ -84,7 +84,9 @@ if (fs.existsSync(path.join(output, "index.html"))) {
       const clientContent = fs.readFileSync(clientPath);
       const actualHash = crypto.createHash("sha256").update(clientContent).digest("hex").slice(0, 12);
       if (actualHash !== supabaseClientReference[2]) failures.push("Supabase browser client fingerprint does not match content");
-      if (index.indexOf(`vendor/${supabaseClientReference[1]}`) > index.indexOf("js/services/supabaseClientService.js")) {
+      const clientServiceReference = index.match(/js\/services\/supabaseClientService(?:\.[a-f0-9]{12})?\.js/);
+      if (!clientServiceReference) failures.push("production HTML is missing the Supabase client service");
+      else if (index.indexOf(`vendor/${supabaseClientReference[1]}`) > index.indexOf(clientServiceReference[0])) {
         failures.push("Supabase browser client loads after the client service");
       }
     }
@@ -104,35 +106,35 @@ if (fs.existsSync(path.join(output, "index.html"))) {
     }
   }
   if (/config\/supabase\.js(?:["'?])/.test(index)) failures.push("production HTML references stale-prone unversioned runtime config");
-  for (const source of [
-    "components/crew",
-    "js/schedule/workloadPanel",
-    "js/services/accountService",
-    "js/services/authService",
-    "js/services/authenticatedIdentityService",
-    "js/services/authorizationService",
-    "js/services/sharedDomainMappingService",
-    "js/services/supabaseAuthService",
-    "js/ui/crewCard",
-    "js/ui/navigationAuthorization",
-    "js/ui/profile",
-    "app"
-  ]) {
-    const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const reference = index.match(new RegExp(`${escaped}\\.([a-f0-9]{12})\\.js`));
+  const runtimeReferences = [...index.matchAll(/<script[^>]+src=["']([^"']+\.js(?:\?[^"']*)?)["'][^>]*><\/script>/g)]
+    .map(match => match[1])
+    .filter(reference => !/^(?:config|vendor)\//.test(reference));
+  for (const referenceUrl of runtimeReferences) {
+    const reference = referenceUrl.match(/^(.+)\.([a-f0-9]{12})\.js\?v=\2$/);
     if (!reference) {
-      failures.push(`production HTML does not reference a content-fingerprinted ${source}.js`);
+      failures.push(`production HTML contains an unfingerprinted runtime script: ${referenceUrl}`);
       continue;
     }
-    const assetPath = path.join(output, `${source}.${reference[1]}.js`);
-    if (!fs.existsSync(assetPath)) failures.push(`fingerprinted interaction asset is missing: ${source}.${reference[1]}.js`);
+    const source = reference[1];
+    const fingerprint = reference[2];
+    const assetPath = path.join(output, `${source}.${fingerprint}.js`);
+    if (!fs.existsSync(assetPath)) failures.push(`fingerprinted runtime asset is missing: ${source}.${fingerprint}.js`);
     else {
       const assetContent = fs.readFileSync(assetPath);
       const actualHash = crypto.createHash("sha256").update(assetContent).digest("hex").slice(0, 12);
-      if (actualHash !== reference[1]) failures.push(`interaction asset fingerprint does not match content: ${source}`);
+      if (actualHash !== fingerprint) failures.push(`runtime asset fingerprint does not match content: ${source}`);
       if (source === "components/crew" && assetContent.toString("utf8").includes("getCrewFullName")) {
         failures.push("production Crew component depends on the local-only getCrewFullName helper");
       }
+    }
+  }
+  for (const critical of [
+    "js/repositories/supabaseSharedRepository",
+    "js/services/gameService",
+    "js/schedule/gameEditor"
+  ]) {
+    if (!runtimeReferences.some(reference => reference.startsWith(`${critical}.`))) {
+      failures.push(`production HTML is missing fingerprinted critical runtime script: ${critical}`);
     }
   }
 }
