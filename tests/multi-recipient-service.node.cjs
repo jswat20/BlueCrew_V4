@@ -44,3 +44,16 @@ test('hosted send uses one batch RPC with deduplicated IDs and refreshes only af
     { name: 'get_message_center' }
   ]);
 });
+
+test('deleting a message hides it only for the caller and keeps later messages visible', async () => {
+  const f = fixture();
+  await f.service.sendDirectToRecipients({ umpireProfileIds: ['2'], body: 'Original' });
+  const messageId = f.service.getCenter().conversations[0].messages[0].id;
+  assert.equal((await f.service.deleteMessage({messageId})).success, true);
+  assert.equal(f.service.getCenter().conversations.length, 0);
+  f.setRole('umpire'); await f.service.hydrate();
+  assert.equal(f.service.getCenter().conversations[0].messages[0].body, 'Original');
+  await f.service.sendDirect({body:'Reply'});
+  f.setRole('administrator'); await f.service.hydrate();
+  assert.deepEqual(f.service.getCenter().conversations[0].messages.map(m=>m.body), ['Reply']);
+});

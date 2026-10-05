@@ -42,7 +42,8 @@ const messagingService = (() => {
       viewedCount: item.readProfileIds.length,
       read: item.readProfileIds.includes(actor)
     }));
-    return { conversations, announcements, recipients: isAdmin ? localRecipients() : [] };
+    const visibleConversations = conversations.map(item => ({ ...item, messages: item.messages.filter(message => !(message.deletedBy || []).includes(String(actor))) })).filter(item => item.messages.length);
+    return { conversations: visibleConversations, announcements: announcements.filter(item => !(item.deletedBy || []).includes(String(actor))), recipients: isAdmin ? localRecipients() : [] };
   }
 
   async function hydrate() {
@@ -141,6 +142,24 @@ const messagingService = (() => {
     return { success: true, message: "Announcement sent." };
   }
 
+  async function deleteMessage(input) {
+    if (!["administrator", "umpire"].includes(currentRole())) return { success: false, message: "Messaging access is not available for this role." };
+    const visible = getCenter();
+    const allowed = input.messageId ? visible.conversations.some(c => c.messages.some(m => String(m.id) === String(input.messageId))) : visible.announcements.some(a => String(a.id) === String(input.announcementId));
+    if (!allowed) return { success: false, message: "Message is unavailable." };
+    if (hosted()) {
+      const result = await supabaseMessagingRepository.deleteMessage(input);
+      if (result.error) return { success: false, message: result.error.message };
+    } else {
+      const state = readLocal();
+      const item = input.messageId ? state.conversations.flatMap(c => c.messages).find(m => String(m.id) === String(input.messageId)) : state.announcements.find(a => String(a.id) === String(input.announcementId));
+      item.deletedBy = [...new Set([...(item.deletedBy || []), String(currentProfileId())])];
+      writeLocal(state);
+    }
+    await hydrate();
+    return { success: true, message: "Deleted from your messages." };
+  }
+
   async function markRead(input) {
     if (hosted()) {
       const result = await supabaseMessagingRepository.markRead(input);
@@ -208,5 +227,5 @@ const messagingService = (() => {
   function getSubscriptionState() { return { ...subscriptionState }; }
   function getUnreadCount() { return center.conversations.reduce((sum, item) => sum + Number(item.unreadCount || 0), 0) + center.announcements.filter(item => !item.read && currentRole() === "umpire").length; }
 
-  return { hydrate, sendDirect, sendDirectToRecipients, sendAnnouncement, markRead, subscribe, unsubscribe, clear, getCenter, getHydrationState, getSubscriptionState, getUnreadCount };
+  return { deleteMessage, hydrate, sendDirect, sendDirectToRecipients, sendAnnouncement, markRead, subscribe, unsubscribe, clear, getCenter, getHydrationState, getSubscriptionState, getUnreadCount };
 })();

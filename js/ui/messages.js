@@ -40,7 +40,7 @@ function renderMessageThread(conversation, context) {
       <span class="message-card-summary">${conversation.unreadCount ? `<span class="message-unread">${conversation.unreadCount} unread</span>` : ""}${latest ? `<span class="message-preview">${escapeMessageHtml(messagePreview(latest.body))}</span><time>${escapeMessageHtml(messageDate(latest.createdAt))}</time>` : ""}<span class="message-chevron" aria-hidden="true">⌄</span></span>
     </button>
     ${expanded ? `<div class="message-card-content" id="${escapeMessageHtml(contentId)}">
-      <div class="message-history">${(conversation.messages || []).map(message => `<div class="message-bubble ${String(message.senderProfileId) === String(actor) ? "is-mine" : ""}"><strong>${escapeMessageHtml(message.senderName || (message.senderRole === "administrator" ? "Administrator" : "Umpire"))}</strong><p>${escapeMessageHtml(message.body)}</p><time>${escapeMessageHtml(messageDate(message.createdAt))}</time></div>`).join("") || '<p class="placeholder">No messages yet.</p>'}</div>
+      <div class="message-history">${(conversation.messages || []).map(message => `<div class="message-bubble ${String(message.senderProfileId) === String(actor) ? "is-mine" : ""}"><strong>${escapeMessageHtml(message.senderName || (message.senderRole === "administrator" ? "Administrator" : "Umpire"))}</strong><p>${escapeMessageHtml(message.body)}</p><time>${escapeMessageHtml(messageDate(message.createdAt))}</time><button type="button" class="button button-secondary button-compact" data-delete-message="${escapeMessageHtml(message.id)}">Delete</button></div>`).join("") || '<p class="placeholder">No messages yet.</p>'}</div>
       <form class="message-reply-form" data-conversation-id="${escapeMessageHtml(id)}" data-umpire-profile-id="${escapeMessageHtml(conversation.umpireProfileId)}"><label>Reply<textarea name="body" maxlength="5000" required></textarea></label><button class="button button-primary" type="submit">Send Reply</button><p class="form-status" role="status"></p></form>
     </div>` : ""}
   </article>`;
@@ -56,7 +56,7 @@ function renderAnnouncementCard(item, isAdmin, context) {
       <span class="message-card-heading"><span class="message-kicker">Announcement · ${escapeMessageHtml(target)}</span><strong>${escapeMessageHtml(item.subject)}</strong></span>
       <span class="message-card-summary"><span class="message-preview">${escapeMessageHtml(messagePreview(item.body))}</span><time>${escapeMessageHtml(messageDate(item.createdAt))}</time><span class="message-chevron" aria-hidden="true">⌄</span></span>
     </button>
-    ${expanded ? `<div class="message-card-content" id="${escapeMessageHtml(contentId)}"><p class="message-announcement-body">${escapeMessageHtml(item.body)}</p>
+    ${expanded ? `<div class="message-card-content" id="${escapeMessageHtml(contentId)}"><p class="message-announcement-body">${escapeMessageHtml(item.body)}</p><button type="button" class="button button-secondary button-compact" data-delete-announcement="${escapeMessageHtml(id)}">Delete</button>
       ${isAdmin ? `<p class="message-view-count">${item.viewedCount || 0} of ${item.recipientCount || 0} viewed</p>` : `<button class="button button-secondary message-announcement-reply" data-announcement-id="${escapeMessageHtml(id)}" type="button">Reply Privately to Admin</button>`}
     </div>` : ""}
   </article>`;
@@ -159,6 +159,15 @@ function setupMessagesPage(context = {}) {
     form.querySelector(".form-status").textContent = result.message;
     if (result.success) renderPage("messages", { tab: isGroup ? "announcements" : "inbox" });
   });
+  root.querySelectorAll("[data-delete-message], [data-delete-announcement]").forEach(button => button.addEventListener("click", async () => {
+    if (!confirm("Delete this from your messages? Other participants keep their copy.")) return;
+    button.disabled = true;
+    try {
+      const result = await messagingService.deleteMessage({ messageId: button.dataset.deleteMessage || null, announcementId: button.dataset.deleteAnnouncement || null });
+      if (result.success) renderPage("messages", view);
+      else { toastService.error(result.message); button.disabled = false; }
+    } catch (error) { toastService.error(error?.message || "Unable to delete message."); button.disabled = false; }
+  }));
   root.querySelectorAll("[data-conversation-toggle]").forEach(button => button.addEventListener("click", async () => {
     const id = button.dataset.conversationToggle;
     const opening = view.expandedConversationId !== id;

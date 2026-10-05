@@ -41,5 +41,10 @@ const supabaseMessagingRepository = (() => {
     });
   }
 
-  return { loadCenter, sendDirect, sendDirectToRecipients, sendAnnouncement, markRead };
+  async function deleteMessage({ messageId = null, announcementId = null }) {
+    const db = await client();
+    return db.rpc("delete_message_for_me", { p_message_id: messageId, p_announcement_id: announcementId });
+  }
+
+  return { deleteMessage, loadCenter, sendDirect, sendDirectToRecipients, sendAnnouncement, markRead };
 })();

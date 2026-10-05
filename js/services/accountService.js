@@ -224,7 +224,7 @@ function generateId() {
   function normalizeCommunicationPreferences(
     preferences = {}
   ) {
-    return Object.fromEntries(
+    return { ...preferences, ...Object.fromEntries(
       Object.entries(
         DEFAULT_COMMUNICATION_PREFERENCES
       ).map(([key, defaultValue]) => [
@@ -233,7 +233,7 @@ function generateId() {
           ? preferences[key]
           : defaultValue
       ])
-    );
+    ) };
   }
 
   function normalizeAccount(account) {

@@ -331,3 +331,18 @@ test("empty selection preserves the draft and explains what is needed", async ({
   await expect(page.locator(".message-compose .form-status")).toHaveText("Choose at least one umpire.");
   await expect(page.locator('[data-testid="message-compose-form"] textarea')).toHaveValue("Keep this draft");
 });
+
+test("delete removes a message only from the caller's view", async ({ app }) => {
+  await app.page.evaluate(async () => {
+    await messagingService.sendDirectToRecipients({umpireProfileIds:['2'],body:'Delete this copy'});
+    renderPage('messages',{expandedConversationId:messagingService.getCenter().conversations[0].id});
+  });
+  app.page.once('dialog', dialog => dialog.accept());
+  await app.page.locator('[data-delete-message]').click();
+  await expect(app.page.locator('.message-thread')).toHaveCount(0);
+  const body = await app.page.evaluate(async () => {
+    authService.loginAsCrew(2); await messagingService.hydrate();
+    return messagingService.getCenter().conversations[0].messages[0].body;
+  });
+  expect(body).toBe('Delete this copy');
+});
