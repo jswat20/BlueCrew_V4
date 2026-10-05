@@ -90,8 +90,8 @@ function renderMessages(context = {}) {
     </div><button type="button" class="button button-primary" data-testid="new-message" aria-expanded="${view.composerOpen}" aria-controls="message-compose">New Message</button></div>
     ${view.composerOpen ? `<div class="message-compose" data-testid="message-compose" id="message-compose">
       <form data-testid="message-compose-form">
-        ${isAdmin ? `<fieldset><legend>Send to</legend><label><input type="radio" name="kind" value="individual" ${individualMode ? "checked" : ""}> Individual</label><label><input type="radio" name="kind" value="group" ${individualMode ? "" : "checked"}> Group announcement</label></fieldset>
-          <label data-compose-individual class="${individualMode ? "" : "is-disabled"}">Recipient<select name="umpireProfileId" ${individualMode ? "required" : "disabled"}><option value="">Choose an umpire</option>${center.recipients.map(item => `<option value="${escapeMessageHtml(item.profileId)}">${escapeMessageHtml(item.name)}</option>`).join("")}</select></label>
+        ${isAdmin ? `<fieldset><legend>Send to</legend><label><input type="radio" name="kind" value="individual" ${individualMode ? "checked" : ""}> Selected umpires</label><label><input type="radio" name="kind" value="group" ${individualMode ? "" : "checked"}> Group announcement</label></fieldset>
+          <fieldset data-compose-individual class="${individualMode ? "" : "is-disabled"}" ${individualMode ? "" : "disabled"}><legend>Recipients</legend><p class="message-recipient-help">Select one or more umpires. Each receives a private message; replies stay in their own conversation.</p><div class="message-recipient-list">${center.recipients.map(item => `<label><input type="checkbox" name="umpireProfileId" value="${escapeMessageHtml(item.profileId)}">${escapeMessageHtml(item.name)}</label>`).join("") || '<p>No approved umpires available.</p>'}</div><p data-recipient-count role="status">0 selected</p></fieldset>
           <label data-compose-group class="${individualMode ? "is-disabled" : ""}">Group<select name="group" ${individualMode ? "disabled" : ""}><option value="all_umpires">All Umpires</option>${levels.map(level => `<option value="level:${escapeMessageHtml(level)}">${escapeMessageHtml(level)} Umpires</option>`).join("")}</select></label>` : '<p>Your message will be private to organization administrators.</p>'}
         <label>Subject<input name="subject" maxlength="160" ${isAdmin ? "required" : 'placeholder="Optional"'}></label>
         <label>Message<textarea name="body" maxlength="5000" required></textarea></label>
@@ -118,25 +118,44 @@ function setupMessagesPage(context = {}) {
   root.querySelectorAll('input[name="kind"]').forEach(input => input.addEventListener("change", () => {
     const form = input.form;
     const groupMode = form.elements.kind.value === "group";
-    const recipient = form.elements.umpireProfileId;
+    const recipient = form.querySelector("[data-compose-individual]");
     const group = form.elements.group;
     recipient.disabled = groupMode;
-    recipient.required = !groupMode;
     group.disabled = !groupMode;
     root.querySelector("[data-compose-individual]").classList.toggle("is-disabled", groupMode);
     root.querySelector("[data-compose-group]").classList.toggle("is-disabled", !groupMode);
     currentPageContext = nextMessageContext(view, { composerOpen: true, composeKind: groupMode ? "group" : "individual" });
   }));
+  root.querySelectorAll('input[name="umpireProfileId"]').forEach(input => input.addEventListener("change", () => {
+    const count = root.querySelectorAll('input[name="umpireProfileId"]:checked').length;
+    root.querySelector("[data-recipient-count]").textContent = `${count} selected`;
+  }));
   root.querySelector('[data-testid="message-compose-form"]')?.addEventListener("submit", async event => {
     event.preventDefault();
     const form = event.currentTarget;
+    if (form.dataset.sending === "true") return;
     const data = new FormData(form);
     const isGroup = data.get("kind") === "group";
+    if (isAdmin && !isGroup && !data.getAll("umpireProfileId").length) {
+      form.querySelector(".form-status").textContent = "Choose at least one umpire.";
+      return;
+    }
+    form.dataset.sending = "true";
+    const submit = form.querySelector('button[type="submit"]');
+    submit.disabled = true;
     let result;
-    if (isGroup) {
-      const group = String(data.get("group"));
-      result = await messagingService.sendAnnouncement({ targetType: group === "all_umpires" ? "all_umpires" : "eligible_level", targetValue: group.startsWith("level:") ? group.slice(6) : null, subject: data.get("subject"), body: data.get("body") });
-    } else result = await messagingService.sendDirect({ umpireProfileId: data.get("umpireProfileId") || null, subject: data.get("subject"), body: data.get("body"), announcementId: view.announcementId || null });
+    try {
+      if (isGroup) {
+        const group = String(data.get("group"));
+        result = await messagingService.sendAnnouncement({ targetType: group === "all_umpires" ? "all_umpires" : "eligible_level", targetValue: group.startsWith("level:") ? group.slice(6) : null, subject: data.get("subject"), body: data.get("body") });
+      } else if (isAdmin) result = await messagingService.sendDirectToRecipients({ umpireProfileIds: data.getAll("umpireProfileId"), subject: data.get("subject"), body: data.get("body") });
+      else result = await messagingService.sendDirect({ subject: data.get("subject"), body: data.get("body"), announcementId: view.announcementId || null });
+    } catch (error) {
+      result = { success: false, message: error?.message || "Message could not be sent. Please try again." };
+    } finally {
+      delete form.dataset.sending;
+      submit.disabled = false;
+    }
     form.querySelector(".form-status").textContent = result.message;
     if (result.success) renderPage("messages", { tab: isGroup ? "announcements" : "inbox" });
   });

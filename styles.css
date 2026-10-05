@@ -10206,3 +10206,9 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
   .message-preview { max-width: 100%; }
   .message-bubble { max-width: 94%; }
 }
+
+.message-compose fieldset.is-disabled { color: #7a8785; opacity: .65; }
+.message-recipient-help { margin: 0 0 .6rem; font-weight: 400; }
+.message-recipient-list { display: grid; gap: .35rem; max-height: 16rem; overflow-y: auto; }
+.message-compose .message-recipient-list label { display: flex; align-items: center; gap: .6rem; padding: .5rem; cursor: pointer; }
+.message-recipient-list input { flex: 0 0 auto; width: auto; }

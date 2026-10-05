@@ -86,3 +86,69 @@ limit 20;
 ```
 
 Delivery history remains authoritative and is never deleted by the schedule. Idle executions return `claimed = 0`, `sent = 0`, `failed = 0`, and `skipped = 0`; sent rows are not claimed again, and retryable failures continue to use the existing maximum-attempt and stable-idempotency-key behavior.
+
+## Incoming messaging email verification
+
+Messaging notifications already exist in migration
+`202609040001_messaging_email_notifications.sql`. An umpire's direct message creates
+receipts for every approved administrator in the same organization; each receipt
+queues a separate `message-received` email. Administrators sending to umpires also
+use receipt-based emails. Notifications contain a sign-in link, without the private
+message body. This establishes source behavior, not confirmation of live delivery.
+
+Before investigating the pilot, verify that this migration is applied and the
+worker is deployed with the current messaging templates. Inspect existing messages
+and deliveries first; a new test message should be sent only by an authorized tester.
+Use the production Supabase SQL editor for these read-only checks:
+
+```sql
+-- Both messaging triggers should be present and enabled (normally O).
+select tgname, tgenabled
+from pg_trigger
+where tgname in ('message_receipt_email_notification', 'announcement_recipient_email_notification');
+
+-- Recent direct-message notification outcomes, without message bodies or addresses.
+select e.subject_entity_id as message_id, e.recipient_profile_id,
+       e.occurred_at, d.status, d.attempt_count, d.sent_at,
+       d.failure_code, d.failure_message, d.provider_message_id
+from public.communication_events e
+left join public.communication_deliveries d
+  on d.communication_event_id = e.id and d.channel = 'email'
+where e.type = 'message-received'
+order by e.occurred_at desc
+limit 30;
+
+-- An incoming umpire message must have administrator receipts.
+select m.id as message_id, m.created_at, r.recipient_profile_id,
+       recipient.role, recipient.status,
+       (nullif(btrim(recipient.email), '') is not null) as has_email
+from public.messages m
+join public.profiles sender on sender.id = m.sender_profile_id
+left join public.message_receipts r on r.message_id = m.id
+left join public.profiles recipient on recipient.id = r.recipient_profile_id
+where sender.role = 'umpire'
+order by m.created_at desc
+limit 30;
+```
+
+Missing receipts point to recipient eligibility. Receipts without events point to
+missing/disabled triggers or an enqueue error (the notification trigger catches
+errors so the in-app message survives). Pending deliveries point to worker/scheduler
+configuration. Failed or skipped deliveries carry the recorded reason. For sent
+deliveries, check Resend delivery/bounce status and the recipient's inbox/spam folder.
+Use the scheduled-worker observability queries above for cron execution.
+
+## Sending to selected individual umpires
+
+Apply `202610050001_multi_recipient_direct_messages.sql` before releasing the updated
+message composer. The `send_direct_messages` RPC is administrator-only, deduplicates
+recipients and invokes the existing organization-scoped direct-message RPC inside
+one transaction. An invalid recipient rolls back the whole batch. Each selected
+umpire keeps a private conversation and uses the existing receipt/email trigger;
+this does not create a shared group conversation.
+
+Validate in staging with three approved umpires: one composer submission should
+create one message in each private thread and one email delivery per recipient.
+Replies must remain private. Confirm a batch containing an ineligible or other-
+organization profile fails without creating any messages or deliveries. The new SQL
+has not been executed against a hosted database in the authoring environment.
