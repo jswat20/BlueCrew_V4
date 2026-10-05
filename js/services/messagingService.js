@@ -42,7 +42,8 @@ const messagingService = (() => {
       viewedCount: item.readProfileIds.length,
       read: item.readProfileIds.includes(actor)
     }));
-    return { conversations, announcements, recipients: isAdmin ? localRecipients() : [] };
+    const visibleConversations = conversations.map(item => ({ ...item, messages: item.messages.filter(message => !(message.deletedBy || []).includes(String(actor))) })).filter(item => item.messages.length);
+    return { conversations: visibleConversations, announcements: announcements.filter(item => !(item.deletedBy || []).includes(String(actor))), recipients: isAdmin ? localRecipients() : [] };
   }
 
   async function hydrate() {
@@ -92,6 +93,39 @@ const messagingService = (() => {
     return { success: true, message: "Message sent." };
   }
 
+  async function sendDirectToRecipients(input) {
+    if (currentRole() !== "administrator") return { success: false, message: "Administrator access is required." };
+    const recipients = [...new Set((input?.umpireProfileIds || []).map(String))];
+    if (!recipients.length) return { success: false, message: "Choose at least one umpire." };
+    const body = String(input?.body || "").trim();
+    if (!body || body.length > 5000) return { success: false, message: "Enter a message of up to 5,000 characters." };
+    if (hosted()) {
+      const result = await supabaseMessagingRepository.sendDirectToRecipients({ ...input, body, umpireProfileIds: recipients });
+      if (result.error) return { success: false, message: result.error.message };
+    } else {
+      const eligible = localRecipients();
+      if (recipients.some(profileId => !eligible.some(item => String(item.profileId) === profileId))) {
+        return { success: false, message: "Choose approved umpires." };
+      }
+      const state = readLocal();
+      for (const profileId of recipients) {
+        const recipient = eligible.find(item => String(item.profileId) === profileId);
+        let conversation = state.conversations.find(item => String(item.umpireProfileId) === profileId);
+        if (!conversation) {
+          conversation = { id: id("conversation"), umpireProfileId: recipient.profileId, umpireName: recipient.name, subject: "", unreadCount: 0, messages: [] };
+          state.conversations.push(conversation);
+        }
+        conversation.subject = input.subject || conversation.subject;
+        conversation.updatedAt = now();
+        conversation.messages.push({ id: id("message"), senderProfileId: currentProfileId(), senderName: authService.currentUserName(), senderRole: currentRole(), body, announcementId: null, createdAt: conversation.updatedAt });
+        conversation.unreadCount = 0;
+      }
+      writeLocal(state);
+    }
+    await hydrate();
+    return { success: true, message: `Message sent to ${recipients.length} ${recipients.length === 1 ? "umpire" : "umpires"}.` };
+  }
+
   async function sendAnnouncement(input) {
     if (currentRole() !== "administrator") return { success: false, message: "Administrator access is required." };
     if (hosted()) {
@@ -106,6 +140,24 @@ const messagingService = (() => {
     }
     await hydrate();
     return { success: true, message: "Announcement sent." };
+  }
+
+  async function deleteMessage(input) {
+    if (!["administrator", "umpire"].includes(currentRole())) return { success: false, message: "Messaging access is not available for this role." };
+    const visible = getCenter();
+    const allowed = input.messageId ? visible.conversations.some(c => c.messages.some(m => String(m.id) === String(input.messageId))) : visible.announcements.some(a => String(a.id) === String(input.announcementId));
+    if (!allowed) return { success: false, message: "Message is unavailable." };
+    if (hosted()) {
+      const result = await supabaseMessagingRepository.deleteMessage(input);
+      if (result.error) return { success: false, message: result.error.message };
+    } else {
+      const state = readLocal();
+      const item = input.messageId ? state.conversations.flatMap(c => c.messages).find(m => String(m.id) === String(input.messageId)) : state.announcements.find(a => String(a.id) === String(input.announcementId));
+      item.deletedBy = [...new Set([...(item.deletedBy || []), String(currentProfileId())])];
+      writeLocal(state);
+    }
+    await hydrate();
+    return { success: true, message: "Deleted from your messages." };
   }
 
   async function markRead(input) {
@@ -175,5 +227,5 @@ const messagingService = (() => {
   function getSubscriptionState() { return { ...subscriptionState }; }
   function getUnreadCount() { return center.conversations.reduce((sum, item) => sum + Number(item.unreadCount || 0), 0) + center.announcements.filter(item => !item.read && currentRole() === "umpire").length; }
 
-  return { hydrate, sendDirect, sendAnnouncement, markRead, subscribe, unsubscribe, clear, getCenter, getHydrationState, getSubscriptionState, getUnreadCount };
+  return { deleteMessage, hydrate, sendDirect, sendDirectToRecipients, sendAnnouncement, markRead, subscribe, unsubscribe, clear, getCenter, getHydrationState, getSubscriptionState, getUnreadCount };
 })();

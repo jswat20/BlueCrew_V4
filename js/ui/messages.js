@@ -40,7 +40,7 @@ function renderMessageThread(conversation, context) {
       <span class="message-card-summary">${conversation.unreadCount ? `<span class="message-unread">${conversation.unreadCount} unread</span>` : ""}${latest ? `<span class="message-preview">${escapeMessageHtml(messagePreview(latest.body))}</span><time>${escapeMessageHtml(messageDate(latest.createdAt))}</time>` : ""}<span class="message-chevron" aria-hidden="true">⌄</span></span>
     </button>
     ${expanded ? `<div class="message-card-content" id="${escapeMessageHtml(contentId)}">
-      <div class="message-history">${(conversation.messages || []).map(message => `<div class="message-bubble ${String(message.senderProfileId) === String(actor) ? "is-mine" : ""}"><strong>${escapeMessageHtml(message.senderName || (message.senderRole === "administrator" ? "Administrator" : "Umpire"))}</strong><p>${escapeMessageHtml(message.body)}</p><time>${escapeMessageHtml(messageDate(message.createdAt))}</time></div>`).join("") || '<p class="placeholder">No messages yet.</p>'}</div>
+      <div class="message-history">${(conversation.messages || []).map(message => `<div class="message-bubble ${String(message.senderProfileId) === String(actor) ? "is-mine" : ""}"><strong>${escapeMessageHtml(message.senderName || (message.senderRole === "administrator" ? "Administrator" : "Umpire"))}</strong><p>${escapeMessageHtml(message.body)}</p><time>${escapeMessageHtml(messageDate(message.createdAt))}</time><button type="button" class="button button-secondary button-compact" data-delete-message="${escapeMessageHtml(message.id)}">Delete</button></div>`).join("") || '<p class="placeholder">No messages yet.</p>'}</div>
       <form class="message-reply-form" data-conversation-id="${escapeMessageHtml(id)}" data-umpire-profile-id="${escapeMessageHtml(conversation.umpireProfileId)}"><label>Reply<textarea name="body" maxlength="5000" required></textarea></label><button class="button button-primary" type="submit">Send Reply</button><p class="form-status" role="status"></p></form>
     </div>` : ""}
   </article>`;
@@ -56,7 +56,7 @@ function renderAnnouncementCard(item, isAdmin, context) {
       <span class="message-card-heading"><span class="message-kicker">Announcement · ${escapeMessageHtml(target)}</span><strong>${escapeMessageHtml(item.subject)}</strong></span>
       <span class="message-card-summary"><span class="message-preview">${escapeMessageHtml(messagePreview(item.body))}</span><time>${escapeMessageHtml(messageDate(item.createdAt))}</time><span class="message-chevron" aria-hidden="true">⌄</span></span>
     </button>
-    ${expanded ? `<div class="message-card-content" id="${escapeMessageHtml(contentId)}"><p class="message-announcement-body">${escapeMessageHtml(item.body)}</p>
+    ${expanded ? `<div class="message-card-content" id="${escapeMessageHtml(contentId)}"><p class="message-announcement-body">${escapeMessageHtml(item.body)}</p><button type="button" class="button button-secondary button-compact" data-delete-announcement="${escapeMessageHtml(id)}">Delete</button>
       ${isAdmin ? `<p class="message-view-count">${item.viewedCount || 0} of ${item.recipientCount || 0} viewed</p>` : `<button class="button button-secondary message-announcement-reply" data-announcement-id="${escapeMessageHtml(id)}" type="button">Reply Privately to Admin</button>`}
     </div>` : ""}
   </article>`;
@@ -90,8 +90,8 @@ function renderMessages(context = {}) {
     </div><button type="button" class="button button-primary" data-testid="new-message" aria-expanded="${view.composerOpen}" aria-controls="message-compose">New Message</button></div>
     ${view.composerOpen ? `<div class="message-compose" data-testid="message-compose" id="message-compose">
       <form data-testid="message-compose-form">
-        ${isAdmin ? `<fieldset><legend>Send to</legend><label><input type="radio" name="kind" value="individual" ${individualMode ? "checked" : ""}> Individual</label><label><input type="radio" name="kind" value="group" ${individualMode ? "" : "checked"}> Group announcement</label></fieldset>
-          <label data-compose-individual class="${individualMode ? "" : "is-disabled"}">Recipient<select name="umpireProfileId" ${individualMode ? "required" : "disabled"}><option value="">Choose an umpire</option>${center.recipients.map(item => `<option value="${escapeMessageHtml(item.profileId)}">${escapeMessageHtml(item.name)}</option>`).join("")}</select></label>
+        ${isAdmin ? `<fieldset><legend>Send to</legend><label><input type="radio" name="kind" value="individual" ${individualMode ? "checked" : ""}> Selected umpires</label><label><input type="radio" name="kind" value="group" ${individualMode ? "" : "checked"}> Group announcement</label></fieldset>
+          <fieldset data-compose-individual class="${individualMode ? "" : "is-disabled"}" ${individualMode ? "" : "disabled"}><legend>Recipients</legend><p class="message-recipient-help">Select one or more umpires. Each receives a private message; replies stay in their own conversation.</p><div class="message-recipient-list">${center.recipients.map(item => `<label><input type="checkbox" name="umpireProfileId" value="${escapeMessageHtml(item.profileId)}">${escapeMessageHtml(item.name)}</label>`).join("") || '<p>No approved umpires available.</p>'}</div><p data-recipient-count role="status">0 selected</p></fieldset>
           <label data-compose-group class="${individualMode ? "is-disabled" : ""}">Group<select name="group" ${individualMode ? "disabled" : ""}><option value="all_umpires">All Umpires</option>${levels.map(level => `<option value="level:${escapeMessageHtml(level)}">${escapeMessageHtml(level)} Umpires</option>`).join("")}</select></label>` : '<p>Your message will be private to organization administrators.</p>'}
         <label>Subject<input name="subject" maxlength="160" ${isAdmin ? "required" : 'placeholder="Optional"'}></label>
         <label>Message<textarea name="body" maxlength="5000" required></textarea></label>
@@ -118,28 +118,56 @@ function setupMessagesPage(context = {}) {
   root.querySelectorAll('input[name="kind"]').forEach(input => input.addEventListener("change", () => {
     const form = input.form;
     const groupMode = form.elements.kind.value === "group";
-    const recipient = form.elements.umpireProfileId;
+    const recipient = form.querySelector("[data-compose-individual]");
     const group = form.elements.group;
     recipient.disabled = groupMode;
-    recipient.required = !groupMode;
     group.disabled = !groupMode;
     root.querySelector("[data-compose-individual]").classList.toggle("is-disabled", groupMode);
     root.querySelector("[data-compose-group]").classList.toggle("is-disabled", !groupMode);
     currentPageContext = nextMessageContext(view, { composerOpen: true, composeKind: groupMode ? "group" : "individual" });
   }));
+  root.querySelectorAll('input[name="umpireProfileId"]').forEach(input => input.addEventListener("change", () => {
+    const count = root.querySelectorAll('input[name="umpireProfileId"]:checked').length;
+    root.querySelector("[data-recipient-count]").textContent = `${count} selected`;
+  }));
   root.querySelector('[data-testid="message-compose-form"]')?.addEventListener("submit", async event => {
     event.preventDefault();
     const form = event.currentTarget;
+    if (form.dataset.sending === "true") return;
     const data = new FormData(form);
     const isGroup = data.get("kind") === "group";
+    if (isAdmin && !isGroup && !data.getAll("umpireProfileId").length) {
+      form.querySelector(".form-status").textContent = "Choose at least one umpire.";
+      return;
+    }
+    form.dataset.sending = "true";
+    const submit = form.querySelector('button[type="submit"]');
+    submit.disabled = true;
     let result;
-    if (isGroup) {
-      const group = String(data.get("group"));
-      result = await messagingService.sendAnnouncement({ targetType: group === "all_umpires" ? "all_umpires" : "eligible_level", targetValue: group.startsWith("level:") ? group.slice(6) : null, subject: data.get("subject"), body: data.get("body") });
-    } else result = await messagingService.sendDirect({ umpireProfileId: data.get("umpireProfileId") || null, subject: data.get("subject"), body: data.get("body"), announcementId: view.announcementId || null });
+    try {
+      if (isGroup) {
+        const group = String(data.get("group"));
+        result = await messagingService.sendAnnouncement({ targetType: group === "all_umpires" ? "all_umpires" : "eligible_level", targetValue: group.startsWith("level:") ? group.slice(6) : null, subject: data.get("subject"), body: data.get("body") });
+      } else if (isAdmin) result = await messagingService.sendDirectToRecipients({ umpireProfileIds: data.getAll("umpireProfileId"), subject: data.get("subject"), body: data.get("body") });
+      else result = await messagingService.sendDirect({ subject: data.get("subject"), body: data.get("body"), announcementId: view.announcementId || null });
+    } catch (error) {
+      result = { success: false, message: error?.message || "Message could not be sent. Please try again." };
+    } finally {
+      delete form.dataset.sending;
+      submit.disabled = false;
+    }
     form.querySelector(".form-status").textContent = result.message;
     if (result.success) renderPage("messages", { tab: isGroup ? "announcements" : "inbox" });
   });
+  root.querySelectorAll("[data-delete-message], [data-delete-announcement]").forEach(button => button.addEventListener("click", async () => {
+    if (!confirm("Delete this from your messages? Other participants keep their copy.")) return;
+    button.disabled = true;
+    try {
+      const result = await messagingService.deleteMessage({ messageId: button.dataset.deleteMessage || null, announcementId: button.dataset.deleteAnnouncement || null });
+      if (result.success) renderPage("messages", view);
+      else { toastService.error(result.message); button.disabled = false; }
+    } catch (error) { toastService.error(error?.message || "Unable to delete message."); button.disabled = false; }
+  }));
   root.querySelectorAll("[data-conversation-toggle]").forEach(button => button.addEventListener("click", async () => {
     const id = button.dataset.conversationToggle;
     const opening = view.expandedConversationId !== id;

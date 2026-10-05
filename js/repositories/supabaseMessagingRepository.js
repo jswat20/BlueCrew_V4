@@ -16,6 +16,13 @@ const supabaseMessagingRepository = (() => {
     });
   }
 
+  async function sendDirectToRecipients({ body, umpireProfileIds, subject = "" }) {
+    const db = await client();
+    return db.rpc("send_direct_messages", {
+      p_body: body, p_umpire_profile_ids: umpireProfileIds, p_subject: subject
+    });
+  }
+
   async function sendAnnouncement({ targetType, targetValue = null, subject, body }) {
     const db = await client();
     return db.rpc("send_message_announcement", {
@@ -34,5 +41,10 @@ const supabaseMessagingRepository = (() => {
     });
   }
 
-  return { loadCenter, sendDirect, sendAnnouncement, markRead };
+  async function deleteMessage({ messageId = null, announcementId = null }) {
+    const db = await client();
+    return db.rpc("delete_message_for_me", { p_message_id: messageId, p_announcement_id: announcementId });
+  }
+
+  return { deleteMessage, loadCenter, sendDirect, sendDirectToRecipients, sendAnnouncement, markRead };
 })();

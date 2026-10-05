@@ -196,3 +196,11 @@ test.describe("Umpire Game Hub", () => {
     expect(await app.page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 });
+
+test('administrator can open the existing game editor from Game Hub', async ({app}) => {
+  const {gameId} = await setupGameHub(app);
+  await expect(app.page.getByTestId('game-hub-edit-game')).toHaveCount(0);
+  await app.page.evaluate(id => { authService.loginAsAdmin(); renderPage('game-hub',{gameId:id}); },gameId);
+  await app.page.getByTestId('game-hub-edit-game').click();
+  await expect(app.page.locator('#game-editor-title')).toHaveText('Edit Game');
+});

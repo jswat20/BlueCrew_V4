@@ -19,7 +19,7 @@ test.beforeEach(async ({ app }) => {
 test("administrator sends a private message and the selected umpire can reply", async ({ app }) => {
   const page = app.page;
   await page.getByTestId("new-message").click();
-  await page.locator('[name="umpireProfileId"]').selectOption("2");
+  await page.locator('[name="umpireProfileId"][value="2"]').check();
   await page.locator('[name="subject"]').fill("Saturday coverage");
   await page.locator('[data-testid="message-compose-form"] textarea').fill("Can you cover the 10:00 game?");
   await page.locator('[data-testid="message-compose-form"] button[type="submit"]').click();
@@ -127,10 +127,9 @@ test("composer modes enable only the authoritative Recipient or Group control", 
   await expect(page.getByTestId("new-message")).toHaveAttribute("aria-expanded", "false");
   await page.getByTestId("new-message").click();
 
-  const recipient = page.getByLabel("Recipient");
+  const recipient = page.locator('[name="umpireProfileId"]').first();
   const group = page.locator('[name="group"]');
   await expect(recipient).toBeEnabled();
-  await expect(recipient).toHaveAttribute("required", "");
   await expect(group).toBeDisabled();
   await expect(page.locator("[data-compose-group]")).toHaveClass(/is-disabled/);
 
@@ -222,7 +221,7 @@ test("announcement cards collapse and private reply opens the Umpire composer", 
 test("successful send closes and resets the composer without duplicating its conversation", async ({ app }) => {
   const page = app.page;
   await page.getByTestId("new-message").click();
-  await page.getByLabel("Recipient").selectOption("2");
+  await page.locator('[name="umpireProfileId"][value="2"]').check();
   await page.locator('[name="subject"]').fill("Single thread");
   await page.locator('[data-testid="message-compose-form"] textarea').fill("Only once");
   await page.locator('[data-testid="message-compose-form"] button[type="submit"]').click();
@@ -284,4 +283,66 @@ test("migration enforces RPC-only writes, organization isolation, private replie
   expect(migration.match(/set search_path = pg_catalog, public, pg_temp/g)?.length).toBe(4);
   expect(migration.match(/and r\.read_at is null/g)?.length).toBeGreaterThanOrEqual(1);
   expect(migration).toContain("recipient_profile_id = v_actor and read_at is null");
+});
+
+test("selected umpires receive separate private messages from one submission", async ({ app }) => {
+  const page = app.page;
+  await page.evaluate(async () => {
+    crew.push({ id: 6, firstName: "Third", lastName: "Umpire", levels: ["8U"], active: true });
+    await messagingService.hydrate(); renderPage("messages");
+  });
+  await page.getByTestId("new-message").click();
+  for (const id of ["1", "2", "6"]) await page.locator(`[name="umpireProfileId"][value="${id}"]`).check();
+  await expect(page.locator("[data-recipient-count]")).toHaveText("3 selected");
+  await page.locator('[name="subject"]').fill("Weekend crew");
+  await page.locator('[data-testid="message-compose-form"] textarea').fill("Please confirm your game.");
+  await page.locator('[data-testid="message-compose-form"] button[type="submit"]').click();
+  await expect(page.locator(".message-thread")).toHaveCount(3);
+  const result = await page.evaluate(async () => {
+    authService.loginAsCrew(2); await messagingService.hydrate();
+    const own = messagingService.getCenter().conversations;
+    await messagingService.sendDirect({ body: "Private confirmation" });
+    authService.loginAsCrew(1); await messagingService.hydrate();
+    return { ownCount: own.length, ownBody: own[0].messages[0].body,
+      leakedReply: messagingService.getCenter().conversations.some(c => c.messages.some(m => m.body === "Private confirmation")) };
+  });
+  expect(result).toEqual({ ownCount: 1, ownBody: "Please confirm your game.", leakedReply: false });
+});
+
+test("multi-recipient send rejects an invalid selection before writing and deduplicates recipients", async ({ app }) => {
+  const result = await app.page.evaluate(async () => {
+    const invalid = await messagingService.sendDirectToRecipients({ umpireProfileIds: ["2", "missing"], body: "Do not send" });
+    const afterInvalid = messagingService.getCenter().conversations.length;
+    const valid = await messagingService.sendDirectToRecipients({ umpireProfileIds: ["2", "2"], body: "Once" });
+    const messages = messagingService.getCenter().conversations[0].messages.length;
+    authService.loginAsCrew(1);
+    const forbidden = await messagingService.sendDirectToRecipients({ umpireProfileIds: ["2"], body: "Forbidden" });
+    return { invalid: invalid.success, afterInvalid, valid: valid.success, messages, forbidden: forbidden.success };
+  });
+  expect(result).toEqual({ invalid: false, afterInvalid: 0, valid: true, messages: 1, forbidden: false });
+});
+
+test("empty selection preserves the draft and explains what is needed", async ({ app }) => {
+  const page = app.page;
+  await page.getByTestId("new-message").click();
+  await page.locator('[name="subject"]').fill("Draft");
+  await page.locator('[data-testid="message-compose-form"] textarea').fill("Keep this draft");
+  await page.locator('[data-testid="message-compose-form"] button[type="submit"]').click();
+  await expect(page.locator(".message-compose .form-status")).toHaveText("Choose at least one umpire.");
+  await expect(page.locator('[data-testid="message-compose-form"] textarea')).toHaveValue("Keep this draft");
+});
+
+test("delete removes a message only from the caller's view", async ({ app }) => {
+  await app.page.evaluate(async () => {
+    await messagingService.sendDirectToRecipients({umpireProfileIds:['2'],body:'Delete this copy'});
+    renderPage('messages',{expandedConversationId:messagingService.getCenter().conversations[0].id});
+  });
+  app.page.once('dialog', dialog => dialog.accept());
+  await app.page.locator('[data-delete-message]').click();
+  await expect(app.page.locator('.message-thread')).toHaveCount(0);
+  const body = await app.page.evaluate(async () => {
+    authService.loginAsCrew(2); await messagingService.hydrate();
+    return messagingService.getCenter().conversations[0].messages[0].body;
+  });
+  expect(body).toBe('Delete this copy');
 });

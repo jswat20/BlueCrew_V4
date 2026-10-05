@@ -360,6 +360,10 @@ async function deleteGame(gameId) {
 }
 
 function refreshAfterGameEditorSave() {
+  if (typeof currentPage !== "undefined" && currentPage === "game-hub") {
+    renderPage("game-hub", currentPageContext || {});
+    return;
+  }
   if (typeof uiService !== "undefined" && typeof uiService.refreshSchedule === "function") {
     uiService.refreshSchedule();
     return;
