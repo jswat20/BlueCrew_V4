@@ -1652,7 +1652,7 @@ function renderGameHubQuickActions(
         }
       </button>
 
-      ${authorizationService.canEditSchedule() ? `<button class="button button-secondary" type="button" data-testid="game-hub-edit-game" onclick="editGame('${escapeGameHubText(game.id)}')">Edit Game</button>` : ""}
+      ${game && authorizationService.canEditSchedule() ? `<button class="button button-secondary" type="button" data-testid="game-hub-edit-game" onclick="editGame('${escapeGameHubText(game.id)}')">Edit Game</button>` : ""}
       ${isClaimOrigin && !reviewMode ? `<button class="button button-primary" type="button" data-testid="game-hub-submit-claim" onclick="claimPortalGame('${escapeGameHubText(game?.id || "")}')">Submit Claim</button>` : ""}
 
       ${
@@ -1778,7 +1778,7 @@ function renderGameHub(context = {}) {
     const presentation = getGameHubPresentation(game);
     return `
       <section class="page-section game-hub game-hub-admin" data-testid="game-hub" data-game-id="${game.id}" data-review-mode="false" data-lifecycle-status="${game.lifecycleStatus}" data-read-only="${isGameHubReadOnly(game)}">
-        <div class="game-hub-admin-nav">${authorizationService.canEditSchedule() ? `<button class="button button-secondary" type="button" data-testid="game-hub-edit-game" onclick="editGame('${escapeGameHubText(game.id)}')">Edit Game</button>` : ""}<button class="button button-secondary" type="button" onclick="renderPage('${backPage}')" data-testid="game-hub-back">← ${backLabel}</button></div>
+        <div class="game-hub-admin-nav">${game && authorizationService.canEditSchedule() ? `<button class="button button-secondary" type="button" data-testid="game-hub-edit-game" onclick="editGame('${escapeGameHubText(game.id)}')">Edit Game</button>` : ""}<button class="button button-secondary" type="button" onclick="renderPage('${backPage}')" data-testid="game-hub-back">← ${backLabel}</button></div>
         <header class="game-hub-admin-heading"><h1 data-testid="game-hub-matchup">${escapeGameHubText(presentation.matchup)}</h1></header>
         ${renderGameHubLifecycleBanner(game)}
         ${renderAdministrativeGameHub(game)}
