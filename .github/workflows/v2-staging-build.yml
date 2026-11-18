@@ -1,0 +1,55 @@
+name: Slate V2 staging build safety
+
+on:
+  push:
+    branches:
+      - slate-v2-development
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-artifact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_PROJECT_REF: fdjhwxmphdzodxvhrblk
+      SUPABASE_URL: https://fdjhwxmphdzodxvhrblk.supabase.co
+      # Public client identifier for CI packaging only. No actual staging or production credentials.
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_v2ci_public_placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Build and verify staging-only artifact
+        run: npm run build:v2-staging
+      - name: Assert production target is rejected before build
+        shell: bash
+        run: |
+          set -euo pipefail
+          if SUPABASE_PROJECT_REF=dynxjiqrdlhfhrjnhvgn SUPABASE_URL=https://dynxjiqrdlhfhrjnhvgn.supabase.co npm run build:v2-staging > /tmp/prod-rejected.log 2>&1; then
+            echo 'ERROR: build accepted production configuration'
+            exit 1
+          fi
+          grep -q 'V2 staging build blocked:' /tmp/prod-rejected.log
+          echo 'Verified: production config rejected'
+      - name: Assert mixed staging/production configuration is rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+          if SUPABASE_PROJECT_REF=fdjhwxmphdzodxvhrblk SUPABASE_URL=https://dynxjiqrdlhfhrjnhvgn.supabase.co npm run build:v2-staging > /tmp/mixed-rejected.log 2>&1; then
+            echo 'ERROR: build accepted mismatched configuration'
+            exit 1
+          fi
+          grep -q 'V2 staging build blocked:' /tmp/mixed-rejected.log
+          echo 'Verified: mixed config rejected'
+      - name: Upload staging artifact for inspection only
+        uses: actions/upload-artifact@v4
+        with:
+          name: slate-v2-staging-artifact
+          path: dist/
+          retention-days: 7
