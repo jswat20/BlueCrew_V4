@@ -43,3 +43,9 @@ The source SQL in PR #30 appears to explain the difference. MD5 comparisons of P
 - Independent local staging `pg_dump` completed; archive index verified; full restore not yet verified.
 - Staging email cron job 1 paused/verified inactive; 18 pending deliveries remain.
 - Storage bucket `profile-photos` had zero tracked objects when checked.
+
+## September 10 game deletion source recovered
+- Original SQL found on `fix-authoritative-hosted-game-delete` at `supabase/migrations/202609100001_authoritative_schedule_game_delete.sql` (GitHub PR #29: https://github.com/jswat20/BlueCrew_V4/pull/29).
+- The staging database has `public.delete_schedule_game(p_game_id uuid)` with equivalent substantive function logic; deparsed live definition MD5: `7986085a061ee0a449ad2f2b69b9237e`.
+- Production does not have this RPC. Do not deploy it to production or merge PR #29 merely to reconcile staging.
+- All three staging-only migration source files have been located across PR #29 and PR #30. Applied migration IDs still differ for the October files, so preserve provenance and plan an environment-specific baseline rather than replaying them.
