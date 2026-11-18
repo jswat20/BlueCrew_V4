@@ -16,7 +16,7 @@ Status: READ-ONLY inventory, NOT a database dump or restorable backup.
 - 4 application profiles and 4 Auth users; 1 crew member; 0 games.
 - 1 private Storage bucket: `profile-photos` (Storage **file objects** are not covered by database physical backups).
 - Two deployed Edge Functions: `process-communication-emails` and `send-account-password-reset`.
-- One **active** pg_cron job: `process-communication-emails-every-minute`, interval `* * * * *`. Its Vault URL targets staging, not production. Do not send test messages until all outbound communication is safely isolated.
+- One pg_cron job (paused after backup verification): `process-communication-emails-every-minute`, interval `* * * * *`. Its Vault URL targets staging, not production. On 2026-11-17, `cron.alter_job(job_id := 1, active := false)` was executed on **staging only**, and follow-up query verified `active=false`. Eighteen pending communication deliveries remain. This disables scheduled invocation only; manual/external Edge Function calls or direct mail sends are NOT yet proven blocked. Do not send test messages until all outbound channels are isolated.
 - Recent recorded database activity: messages through 2026-09-04, notifications and communication events through 2026-09-09.
 
 ## Migration drift: NEEDS RECONCILIATION
@@ -33,8 +33,8 @@ Do not apply or renumber these migrations without first comparing the authoritat
 ## Backup evidence
 - User verified Supabase scheduled physical backups in dashboard screenshot, latest listed `2026-11-17 13:40:29 UTC` with Restore action visible.
 - Actual restore has NOT been tested; rolling backups expire.
-- **Independent, restorable full database export has NOT yet been taken**.
-- Database backups do not restore Storage object contents; separately export private Storage objects using secure tooling if any exist.
+- **Independent staging database pg_dump completed on user's Windows computer**: `slate-staging-20261117-214804.dump` (3.71 MB, 907 archive entries, SHA-256 `13062ED5FECCE7AE0964A060A797403369EF7650DF906AA1F278AB462015098D`). Archive listing verified; a full test restore has NOT been performed.
+- Database backups do not restore Storage object contents. Read-only query found zero rows in `storage.objects`; private `profile-photos` bucket exists but currently has no tracked objects.
 - Do not commit row-level user data, database passwords, secrets, or backups with personally identifiable information to this public GitHub repository.
 
 ## Release safety gates before any staging modifications
@@ -47,3 +47,9 @@ Do not apply or renumber these migrations without first comparing the authoritat
 7. Use only synthetic identity, league, and scheduling fixtures for V2 tests.
 
 This inventory was created without SQL writes, database changes, production deployments, or billable project creation.
+
+## Subsequent V2 staging changes (after user approved continued development)
+- User confirmed completed local archive and explicitly directed work to proceed, deferring full test restore.
+- Paused staging pg_cron job 1 (`process-communication-emails-every-minute`) using `cron.alter_job`; verified `active=false`.
+- No production changes; no migration replay, data reset, messages, or deployment.
+- To restore original staging cron operation if desired: `select cron.alter_job(job_id := 1, active := true);` — ONLY on staging and only after messaging safety is reviewed.
