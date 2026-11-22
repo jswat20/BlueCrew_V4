@@ -279,7 +279,7 @@ const supabaseSharedRepository = (() => {
   async function getLocations() {
     const db = await client();
     return db.from("locations")
-      .select("id,organization_id,legacy_location_id,name,address,active")
+      .select("id,organization_id,legacy_location_id,name,address,timezone,status,supported_sports,notes,active")
       .order("name")
       .order("id");
   }
@@ -287,7 +287,7 @@ const supabaseSharedRepository = (() => {
   async function getFields() {
     const db = await client();
     return db.from("fields")
-      .select("id,organization_id,location_id,legacy_field_id,name,active")
+      .select("id,organization_id,location_id,legacy_field_id,name,status,supported_sports,minimum_age,maximum_age,division_notes,active")
       .order("name")
       .order("id");
   }
@@ -356,6 +356,85 @@ const supabaseSharedRepository = (() => {
   async function createLocationField(locationId, name) {
     const db = await client();
     return db.rpc("create_location_field", { p_location_id: locationId, p_name: name });
+  }
+
+  async function getFieldAvailabilityRules() {
+    const db = await client();
+    return db.from("field_availability_rules").select("*").eq("active", true).order("day_of_week").order("starts_at_local");
+  }
+
+  async function getFieldClosures() {
+    const db = await client();
+    return db.from("field_closures").select("*").eq("active", true).order("starts_at");
+  }
+
+  async function getFieldReservations() {
+    const db = await client();
+    return db.from("field_reservations").select("*").order("starts_at");
+  }
+
+  async function createFacility(values) {
+    const db = await client();
+    return db.rpc("create_facility", {
+      p_name: values.name, p_address: values.address || "", p_timezone: values.timezone,
+      p_supported_sports: values.supportedSports || [], p_status: values.status, p_notes: values.notes || ""
+    });
+  }
+
+  async function updateFacility(values) {
+    const db = await client();
+    return db.rpc("update_facility", {
+      p_facility_id: values.id, p_name: values.name, p_address: values.address || "", p_timezone: values.timezone,
+      p_supported_sports: values.supportedSports || [], p_status: values.status, p_notes: values.notes || ""
+    });
+  }
+
+  async function createFacilityField(values) {
+    const db = await client();
+    return db.rpc("create_facility_field", {
+      p_facility_id: values.facilityId, p_name: values.name, p_supported_sports: values.supportedSports || [],
+      p_status: values.status, p_minimum_age: values.minimumAge || null, p_maximum_age: values.maximumAge || null,
+      p_division_notes: values.divisionNotes || ""
+    });
+  }
+
+  async function updateFacilityField(values) {
+    const db = await client();
+    return db.rpc("update_facility_field", {
+      p_field_id: values.id, p_name: values.name, p_supported_sports: values.supportedSports || [],
+      p_status: values.status, p_minimum_age: values.minimumAge || null, p_maximum_age: values.maximumAge || null,
+      p_division_notes: values.divisionNotes || ""
+    });
+  }
+
+  async function createFieldAvailabilityRule(values) {
+    const db = await client();
+    return db.rpc("create_field_availability_rule", {
+      p_field_id: values.fieldId, p_day_of_week: values.dayOfWeek, p_starts_at_local: values.startsAtLocal,
+      p_ends_at_local: values.endsAtLocal, p_effective_from: values.effectiveFrom || null, p_effective_until: values.effectiveUntil || null
+    });
+  }
+
+  async function createFieldClosure(values) {
+    const db = await client();
+    return db.rpc("create_field_closure", {
+      p_field_id: values.fieldId, p_closure_type: values.closureType, p_title: values.title,
+      p_starts_at: values.startsAt, p_ends_at: values.endsAt, p_notes: values.notes || ""
+    });
+  }
+
+  async function saveFieldReservation(values) {
+    const db = await client();
+    return db.rpc("save_field_reservation", {
+      p_reservation_id: values.id || null, p_field_id: values.fieldId, p_reservation_type: values.reservationType,
+      p_title: values.title, p_starts_at: values.startsAt, p_ends_at: values.endsAt,
+      p_game_id: values.gameId || null, p_notes: values.notes || ""
+    });
+  }
+
+  async function cancelFieldReservation(id) {
+    const db = await client();
+    return db.rpc("cancel_field_reservation", { p_reservation_id: id });
   }
 
   async function importScheduleGames(games) {
@@ -428,6 +507,17 @@ const supabaseSharedRepository = (() => {
     createCrewMember,
     createLocationComplex,
     createLocationField,
+    getFieldAvailabilityRules,
+    getFieldClosures,
+    getFieldReservations,
+    createFacility,
+    updateFacility,
+    createFacilityField,
+    updateFacilityField,
+    createFieldAvailabilityRule,
+    createFieldClosure,
+    saveFieldReservation,
+    cancelFieldReservation,
     updateCrewMember,
     getAvailability,
     upsertOwnAvailability,

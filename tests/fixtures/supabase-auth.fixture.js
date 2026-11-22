@@ -23,6 +23,9 @@ export const test = base.extend({
       availability: [],
       locations: [],
       fields: [],
+      fieldAvailabilityRules: [],
+      fieldClosures: [],
+      fieldReservations: [],
       seasons: [],
       sports: [{ code: "baseball", name: "Baseball", active: true }, { code: "softball", name: "Softball", active: true }],
       organizationSports: [],
@@ -94,6 +97,9 @@ export const test = base.extend({
             availability: settings.availability,
             locations: settings.locations,
             fields: settings.fields,
+            field_availability_rules: settings.fieldAvailabilityRules,
+            field_closures: settings.fieldClosures,
+            field_reservations: settings.fieldReservations,
             seasons: settings.seasons,
             sports: settings.sports.filter(row => Object.entries(equality).every(([column, value]) => String(row[column]) === String(value))),
             organization_sports: settings.organizationSports.filter(row => String(row.organization_id) === String(settings.profile.organization_id)),
@@ -692,6 +698,14 @@ export const test = base.extend({
             const row = { id: `field-${settings.fields.length + 1}`, organization_id: settings.profile.organization_id, location_id: args.p_location_id, name: args.p_name, active: true };
             settings.fields.push(row);
             return { data: row, error: null };
+          }
+          if (name === "create_facility") {
+            const row = { id: `location-${settings.locations.length + 1}`, organization_id: settings.profile.organization_id, name: args.p_name, address: args.p_address, timezone: args.p_timezone, status: args.p_status, supported_sports: args.p_supported_sports, notes: args.p_notes, active: true };
+            settings.locations.push(row); return { data: row, error: null };
+          }
+          if (name === "create_facility_field") {
+            const row = { id: `field-${settings.fields.length + 1}`, organization_id: settings.profile.organization_id, location_id: args.p_facility_id, name: args.p_name, status: args.p_status, supported_sports: args.p_supported_sports, minimum_age: args.p_minimum_age, maximum_age: args.p_maximum_age, division_notes: args.p_division_notes, active: true };
+            settings.fields.push(row); return { data: row, error: null };
           }
           if (name === "approve_pending_account") {
             const target = settings.pendingProfiles.find(row => String(row.id) === String(args.p_target_profile_id));

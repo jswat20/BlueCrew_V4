@@ -226,23 +226,23 @@ test("hosted pending Umpire approval requires reviewed eligibility and matches C
   expect(approval?.args).toEqual({ p_target_profile_id: "profile-umpire-1", p_all_divisions: false, p_division_levels: ["6U", "8U"] });
 });
 
-test("hosted settings create an organization-scoped complex and field", async ({ supabaseAuthApp }) => {
+test("hosted settings create an organization-scoped facility and field", async ({ supabaseAuthApp }) => {
   const { page } = supabaseAuthApp;
   await page.evaluate(async () => {
     await locationService.loadSharedLocations();
     renderPage("settings");
   });
-  await page.getByTestId("add-location-complex").click();
-  await page.getByTestId("location-entry-name").fill("Internal Smoke Complex");
-  await page.getByTestId("location-entry-form").getByRole("button", { name: "Save" }).click();
+  await page.getByTestId("add-facility").click();
+  await page.getByTestId("facility-dialog").locator('[name="name"]').fill("Internal Smoke Complex");
+  await page.getByTestId("facility-dialog").getByRole("button", { name: "Save" }).click();
   await expect(page.getByTestId("settings-locations")).toContainText("Internal Smoke Complex");
   await page.getByTestId("settings-locations").getByRole("button", { name: "Add Field" }).click();
-  await page.getByTestId("location-entry-name").fill("Field 1");
-  await page.getByTestId("location-entry-form").getByRole("button", { name: "Save" }).click();
+  await page.getByTestId("field-dialog").locator('[name="name"]').fill("Field 1");
+  await page.getByTestId("field-dialog").getByRole("button", { name: "Save" }).click();
   await expect(page.getByTestId("settings-locations")).toContainText("Field 1");
   const calls = await supabaseAuthApp.calls();
-  expect(calls.some(call => call.name === "create_location_complex")).toBe(true);
-  expect(calls.some(call => call.name === "create_location_field")).toBe(true);
+  expect(calls.some(call => call.name === "create_facility")).toBe(true);
+  expect(calls.some(call => call.name === "create_facility_field")).toBe(true);
 });
 });
 

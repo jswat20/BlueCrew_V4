@@ -10254,3 +10254,21 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
   .message-preview { max-width: 100%; }
   .message-bubble { max-width: 94%; }
 }
+.facility-toolbar { display:flex; gap:.6rem; flex-wrap:wrap; padding:1rem 0; }
+.facility-card { border:1px solid var(--border-color, #d8e0ea); border-radius:.8rem; padding:1rem; margin-bottom:.8rem; background:#fff; }
+.facility-card > header, .facility-field-actions, .reservation-row { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
+.facility-card header div, .facility-field-grid article div, .reservation-row div { display:flex; flex-direction:column; gap:.2rem; }
+.facility-card span, .reservation-row span, .reservation-row time { color:#526274; font-size:.84rem; }
+.facility-field-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.65rem; margin-top:.75rem; }
+.facility-field-grid article { border:1px solid #e1e7ee; border-radius:.65rem; padding:.75rem; }
+.facility-hours { margin-top:.5rem; }
+.facility-hours span { display:block; }
+.facility-timeline { border-top:1px solid #d8e0ea; margin-top:1rem; padding-top:1rem; }
+.reservation-row { padding:.7rem; border-radius:.6rem; background:#f6f8fb; margin:.45rem 0; }
+.reservation-row.is-cancelled { opacity:.6; text-decoration:line-through; }
+.settings-dialog textarea { min-height:5rem; }
+@media (max-width: 700px) {
+  .facility-card > header, .reservation-row { align-items:flex-start; flex-direction:column; }
+  .facility-field-grid { grid-template-columns:1fr; }
+  .settings-dialog { width:calc(100% - 1rem); max-height:94vh; }
+}

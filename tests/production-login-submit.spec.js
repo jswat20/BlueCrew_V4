@@ -71,7 +71,7 @@ base("curated production build contains CSP-compatible login wiring", () => {
 base("production CSP permits the established inline interaction bindings", () => {
   const build = fs.readFileSync("scripts/build-production.cjs", "utf8");
   const settings = fs.readFileSync("components/settings.js", "utf8");
-  expect(settings).toContain('onclick="addLocationComplexFromSettings()"');
+  expect(settings).toContain('onclick="openFacilityDialog()"');
   expect(build).toContain("script-src 'self' 'unsafe-inline';");
   expect(build).not.toContain("cdn.jsdelivr.net");
   expect(build).toContain("object-src 'none'");

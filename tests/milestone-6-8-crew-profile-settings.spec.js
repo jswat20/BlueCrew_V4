@@ -86,8 +86,8 @@ test("pilot Settings preserves controls inside clearer shared cards", async ({ a
   await app.page.evaluate(() => { authService.loginAsAdmin(); document.body.dataset.role = "admin"; renderPage("settings"); });
   const settingsPage = app.page.getByTestId("settings-page");
 await expect(settingsPage.getByRole("heading", { name: "Settings" })).toBeVisible();
-await expect(settingsPage.getByTestId("settings-locations")).toContainText("Location Complexes & Fields");
-await expect(settingsPage.getByTestId("add-location-complex")).toHaveClass(/button-secondary/);
+await expect(settingsPage.getByTestId("settings-locations")).toContainText("Facilities & Reservations");
+await expect(settingsPage.getByTestId("add-facility")).toHaveClass(/button-secondary/);
 await expect(settingsPage.getByTestId("settings-seasons")).toContainText("Seasons");
 await expect(settingsPage.locator(".settings-card")).toHaveCount(5);
 await expect(settingsPage).toContainText("Time Slots");

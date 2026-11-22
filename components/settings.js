@@ -28,7 +28,7 @@ function renderSettings() {
       ${renderLocationSettingsCard()}
       ${isHosted ? renderCompetitionCatalogCard() : `${renderSettingsCard("Levels", settings.levels)}${renderSettingsCard("Teams", settings.teams)}`}
       ${renderSettingsCard("Time Slots", settings.timeSlots.slice(0, 12))}
-    </div>${renderSeasonEntryDialog()}${renderLocationEntryDialog()}${renderCompetitionCatalogDialogs()}</section>
+    </div>${renderSeasonEntryDialog()}${renderFacilityDialogs()}${renderCompetitionCatalogDialogs()}</section>
   `;
 }
 
@@ -109,21 +109,33 @@ function renderSeasonEntryDialog() {
     </dialog>`;
 }
 
-function renderLocationEntryDialog() {
-  return `<dialog data-testid="location-entry-dialog"><form data-testid="location-entry-form"><h3 data-testid="location-entry-title">Add Location</h3><input type="hidden" data-testid="location-entry-complex"><label>Name<input data-testid="location-entry-name" required></label><div class="form-actions"><button type="submit" class="button button-primary">Save</button><button type="button" class="button button-secondary" data-testid="location-entry-cancel">Cancel</button></div><p role="alert" data-testid="location-entry-error"></p></form></dialog>`;
-}
-
 function renderLocationSettingsCard() {
+  const catalog = typeof facilityService !== "undefined" ? facilityService.snapshot() : { facilities: [], fields: [], availability: [], closures: [], reservations: [], loaded: false };
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   return `
-    <section class="card presentation-card settings-card settings-location-card" data-testid="settings-locations">
-      <div class="page-section-header presentation-card-header-blue"><div><h3>Location Complexes & Fields</h3><p>Fields belong to a specific game complex.</p></div><button type="button" class="button button-secondary button-compact" data-testid="add-location-complex" onclick="addLocationComplexFromSettings()">Add Complex</button></div>
-      <div class="settings-location-list">
-        ${locationService.getLocations().filter(location => location.name !== locationService.LEGACY_COMPLEX).map(location => `
-          <section><header><strong>${location.name}</strong><button type="button" class="button button-link button-compact" onclick="addLocationFieldFromSettings('${location.name.replaceAll("'", "\\'")}')">Add Field</button></header><div class="settings-list">${location.fields.map(field => `<span class="settings-pill">${field}</span>`).join("")}</div></section>
-        `).join("")}
+    <section class="card presentation-card settings-card settings-location-card facility-manager" data-testid="settings-locations">
+      <div class="page-section-header presentation-card-header-blue"><div><h3>Facilities & Reservations</h3><p>Manage fields, operating windows, closures, and conflict-safe bookings.</p></div><button type="button" class="button button-secondary button-compact" data-testid="add-facility" onclick="openFacilityDialog()">Add Facility</button></div>
+      <div class="facility-toolbar"><button class="button button-secondary button-compact" type="button" data-testid="add-reservation" onclick="openReservationDialog()">New Reservation</button><button class="button button-secondary button-compact" type="button" data-testid="add-closure" onclick="openClosureDialog()">Maintenance / Blackout</button></div>
+      <div class="settings-location-list" data-testid="facility-list">
+        ${!catalog.loaded ? '<p class="settings-muted">Loading facilities…</p>' : catalog.facilities.length ? catalog.facilities.map(facility => `
+          <section class="facility-card" data-testid="facility-card"><header><div><strong>${escapeSettingsHtml(facility.name)}</strong><span>${escapeSettingsHtml(facility.address || "No address")} · ${escapeSettingsHtml(facility.timezone)} · ${escapeSettingsHtml(facility.status)}</span></div><div><button type="button" class="button button-link button-compact" onclick="openFacilityDialog('${facility.id}')">Edit</button><button type="button" class="button button-link button-compact" onclick="openFieldDialog('${facility.id}')">Add Field</button></div></header>
+          <div class="facility-field-grid">${catalog.fields.filter(field => field.location_id === facility.id).map(field => `<article data-testid="facility-field"><div><strong>${escapeSettingsHtml(field.name)}</strong><span>${escapeSettingsHtml(field.status)}${field.supported_sports?.length ? ` · ${escapeSettingsHtml(field.supported_sports.join(", "))}` : ""}</span></div><div class="facility-field-actions"><button type="button" class="button button-link button-compact" onclick="openFieldDialog('${facility.id}','${field.id}')">Edit</button><button type="button" class="button button-link button-compact" onclick="openAvailabilityDialog('${field.id}')">Add Hours</button></div><div class="facility-hours">${catalog.availability.filter(rule => rule.field_id === field.id).map(rule => `<span>${days[rule.day_of_week]} ${String(rule.starts_at_local).slice(0,5)}–${String(rule.ends_at_local).slice(0,5)}</span>`).join("") || '<span>No availability configured</span>'}</div></article>`).join("") || '<p class="settings-muted">No fields yet.</p>'}</div>
+          </section>`).join("") : '<div class="settings-empty"><strong>No facilities yet.</strong><span>Add the first facility and its fields.</span></div>'}
       </div>
+      <div class="facility-timeline" data-testid="reservation-timeline"><h4>Reservation Timeline</h4>${catalog.reservations.length ? catalog.reservations.map(item => { const field = catalog.fields.find(value => value.id === item.field_id); const facility = catalog.facilities.find(value => value.id === field?.location_id); return `<article class="reservation-row ${item.status === "cancelled" ? "is-cancelled" : ""}" data-testid="reservation-row"><time>${new Date(item.starts_at).toLocaleString()} – ${new Date(item.ends_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</time><div><strong>${escapeSettingsHtml(item.title)}</strong><span>${escapeSettingsHtml(facility?.name || "Facility")} · ${escapeSettingsHtml(field?.name || "Field")} · ${escapeSettingsHtml(item.reservation_type.replaceAll("_"," "))}</span></div>${item.status === "active" ? `<div><button class="button button-link button-compact" type="button" onclick="openReservationDialog('${item.id}')">Edit</button><button class="button button-link button-compact" type="button" onclick="cancelReservationFromSettings('${item.id}')">Cancel</button></div>` : '<span class="status-badge">Cancelled</span>'}</article>`; }).join("") : '<p class="settings-muted">No reservations yet.</p>'}</div>
     </section>
   `;
+}
+
+function renderFacilityDialogs() {
+  const sports = '<label>Supported sports<input name="supportedSports" placeholder="baseball, softball"></label>';
+  const status = '<label>Status<select name="status"><option value="operational">Operational</option><option value="limited">Limited</option><option value="closed">Closed</option></select></label>';
+  const shell = (testid, title, body) => `<dialog class="settings-dialog" data-testid="${testid}"><form data-facility-form="${testid}"><h3>${title}</h3>${body}<div class="form-actions"><button class="button button-primary" type="submit">Save</button><button class="button button-secondary" type="button" data-dialog-cancel>Cancel</button></div><p role="alert" data-form-error></p></form></dialog>`;
+  return shell("facility-dialog","Facility",`<input type="hidden" name="id"><label>Name<input name="name" required></label><label>Address<input name="address"></label><label>Timezone<input name="timezone" value="America/New_York" required></label>${sports}${status}<label>Notes<textarea name="notes"></textarea></label>`)
+    + shell("field-dialog","Field",`<input type="hidden" name="id"><input type="hidden" name="facilityId"><label>Name<input name="name" required></label>${sports}${status}<div class="settings-form-grid"><label>Minimum age<input name="minimumAge" type="number" min="3" max="99"></label><label>Maximum age<input name="maximumAge" type="number" min="3" max="99"></label></div><label>Division / age suitability notes<textarea name="divisionNotes"></textarea></label>`)
+    + shell("availability-dialog","Field availability",`<input type="hidden" name="fieldId"><label>Day<select name="dayOfWeek">${["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].map((day,index)=>`<option value="${index}">${day}</option>`).join("")}</select></label><div class="settings-form-grid"><label>Opens<input name="startsAtLocal" type="time" required></label><label>Closes<input name="endsAtLocal" type="time" required></label></div><div class="settings-form-grid"><label>Effective from<input name="effectiveFrom" type="date"></label><label>Effective until<input name="effectiveUntil" type="date"></label></div>`)
+    + shell("closure-dialog","Maintenance or blackout",`<label>Field<select name="fieldId" required></select></label><label>Type<select name="closureType"><option value="maintenance">Maintenance</option><option value="blackout">Blackout</option><option value="weather">Weather</option><option value="administrative">Administrative</option></select></label><label>Title<input name="title" required></label><div class="settings-form-grid"><label>Starts<input name="startsAt" type="datetime-local" required></label><label>Ends<input name="endsAt" type="datetime-local" required></label></div><label>Notes<textarea name="notes"></textarea></label>`)
+    + shell("reservation-dialog","Field reservation",`<input type="hidden" name="id"><label>Field<select name="fieldId" required></select></label><label>Type<select name="reservationType"><option value="game">Game</option><option value="practice">Practice</option><option value="tournament">Tournament</option><option value="administrative_hold">Administrative hold</option></select></label><label>Title<input name="title" required></label><div class="settings-form-grid"><label>Starts<input name="startsAt" type="datetime-local" required></label><label>Ends<input name="endsAt" type="datetime-local" required></label></div><label>Notes<textarea name="notes"></textarea></label>`);
 }
 
 function renderCompetitionCatalogCard() {
@@ -338,43 +350,32 @@ async function activateSeasonFromSettings(seasonId) {
   if (result.success) refreshSeasonSettingsCard();
 }
 
-function addLocationComplexFromSettings() {
-  openLocationEntryDialog("Add Complex", "");
-}
-
-function addLocationFieldFromSettings(complexName) {
-  openLocationEntryDialog(`Add Field for ${complexName}`, complexName);
-}
-
-function openLocationEntryDialog(title, complexName) {
-  const dialog = document.querySelector('[data-testid="location-entry-dialog"]');
-  document.querySelector('[data-testid="location-entry-title"]').textContent = title;
-  document.querySelector('[data-testid="location-entry-complex"]').value = complexName;
-  document.querySelector('[data-testid="location-entry-name"]').value = "";
-  document.querySelector('[data-testid="location-entry-error"]').textContent = "";
-  dialog.showModal();
-}
-
-async function submitLocationEntry(event) {
-  event.preventDefault();
-  const complexName = document.querySelector('[data-testid="location-entry-complex"]').value;
-  const name = document.querySelector('[data-testid="location-entry-name"]').value;
-  const result = complexName ? await locationService.addField(complexName, name) : await locationService.addComplex(name);
-  result.success ? toastService.success(result.message) : toastService.error(result.message);
-  if (!result.success) return document.querySelector('[data-testid="location-entry-error"]').textContent = result.message;
-  if (result.success) renderPage("settings");
-}
+function fillForm(form, values = {}) { Object.entries(values).forEach(([key,value]) => { if (form.elements[key]) form.elements[key].value = value ?? ""; }); }
+function fieldOptions(selected = "") { const catalog = facilityService.snapshot(); return catalog.fields.map(field => { const facility = catalog.facilities.find(item => item.id === field.location_id); return `<option value="${field.id}" ${field.id === selected ? "selected" : ""}>${escapeSettingsHtml(facility?.name || "Facility")} — ${escapeSettingsHtml(field.name)}</option>`; }).join(""); }
+function localInput(value) { if (!value) return ""; const date = new Date(value); return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16); }
+function openFacilityDialog(id = "") { const dialog = document.querySelector('[data-testid="facility-dialog"]'); const form = dialog.querySelector("form"); form.reset(); const item = facilityService.snapshot().facilities.find(value => value.id === id); if (item) fillForm(form,{...item,supportedSports:(item.supported_sports||[]).join(",")}); dialog.showModal(); }
+function openFieldDialog(facilityId, id = "") { const dialog = document.querySelector('[data-testid="field-dialog"]'); const form = dialog.querySelector("form"); form.reset(); const item = facilityService.snapshot().fields.find(value => value.id === id); fillForm(form,item ? {id:item.id,facilityId:item.location_id,name:item.name,supportedSports:(item.supported_sports||[]).join(","),status:item.status,minimumAge:item.minimum_age,maximumAge:item.maximum_age,divisionNotes:item.division_notes} : {facilityId}); dialog.showModal(); }
+function openAvailabilityDialog(fieldId) { const dialog = document.querySelector('[data-testid="availability-dialog"]'); dialog.querySelector("form").reset(); fillForm(dialog.querySelector("form"),{fieldId}); dialog.showModal(); }
+function openClosureDialog() { const dialog = document.querySelector('[data-testid="closure-dialog"]'); const form=dialog.querySelector("form"); form.reset(); form.elements.fieldId.innerHTML=fieldOptions(); dialog.showModal(); }
+function openReservationDialog(id = "") { const dialog = document.querySelector('[data-testid="reservation-dialog"]'); const form=dialog.querySelector("form"); form.reset(); const item=facilityService.snapshot().reservations.find(value=>value.id===id); form.elements.fieldId.innerHTML=fieldOptions(item?.field_id); if(item) fillForm(form,{id:item.id,fieldId:item.field_id,reservationType:item.reservation_type,title:item.title,startsAt:localInput(item.starts_at),endsAt:localInput(item.ends_at),notes:item.notes}); dialog.showModal(); }
+function formObject(form) { return Object.fromEntries(new FormData(form).entries()); }
+async function submitFacilityForm(event, action) { event.preventDefault(); const result=await action(formObject(event.currentTarget)); const error=event.currentTarget.querySelector("[data-form-error]"); if(!result.success){ error.textContent=result.message; return toastService.error(result.message); } event.currentTarget.closest("dialog").close(); toastService.success(result.message); renderPage("settings"); }
+async function cancelReservationFromSettings(id) { if(!window.confirm("Cancel this reservation? The slot will become available immediately.")) return; const result=await facilityService.cancelReservation(id); result.success ? toastService.success(result.message) : toastService.error(result.message); if(result.success) renderPage("settings"); }
 
 function setupSettingsPage() {
   document.querySelector('[data-testid="season-entry-form"]')?.addEventListener("submit", submitSeasonEntry);
   document.querySelector('[data-testid="season-entry-cancel"]')?.addEventListener("click", event => event.currentTarget.closest("dialog").close());
   document.querySelector('[data-testid="season-entry-close"]')?.addEventListener("click", event => event.currentTarget.closest("dialog").close());
-  document.querySelector('[data-testid="location-entry-form"]')?.addEventListener("submit", submitLocationEntry);
-  document.querySelector('[data-testid="location-entry-cancel"]')?.addEventListener("click", event => event.currentTarget.closest("dialog").close());
+  document.querySelector('[data-facility-form="facility-dialog"]')?.addEventListener("submit", event => submitFacilityForm(event, facilityService.saveFacility));
+  document.querySelector('[data-facility-form="field-dialog"]')?.addEventListener("submit", event => submitFacilityForm(event, facilityService.saveField));
+  document.querySelector('[data-facility-form="availability-dialog"]')?.addEventListener("submit", event => submitFacilityForm(event, values => facilityService.addAvailability({...values,dayOfWeek:Number(values.dayOfWeek)})));
+  document.querySelector('[data-facility-form="closure-dialog"]')?.addEventListener("submit", event => submitFacilityForm(event, values => facilityService.addClosure({...values,startsAt:new Date(values.startsAt).toISOString(),endsAt:new Date(values.endsAt).toISOString()})));
+  document.querySelector('[data-facility-form="reservation-dialog"]')?.addEventListener("submit", event => submitFacilityForm(event, values => facilityService.saveReservation({...values,startsAt:new Date(values.startsAt).toISOString(),endsAt:new Date(values.endsAt).toISOString()})));
   document.querySelector('[data-testid="competition-program-form"]')?.addEventListener("submit", submitCompetitionProgram);
   document.querySelector('[data-testid="competition-division-form"]')?.addEventListener("submit", submitCompetitionDivision);
   document.querySelector('[data-testid="competition-team-form"]')?.addEventListener("submit", submitCompetitionTeam);
   document.querySelectorAll("[data-dialog-cancel]").forEach(button => button.addEventListener("click", event => event.currentTarget.closest("dialog").close()));
   loadSeasonSettings();
   loadCompetitionCatalog();
+  facilityService.load().then(result => { if (result.success) { const current=document.querySelector('[data-testid="settings-locations"]'); if(current) current.outerHTML=renderLocationSettingsCard(); } });
 }
