@@ -28,6 +28,11 @@ const supabaseSharedRepository = (() => {
     return db.from("organizations").select("id,name,slug,timezone,settings").eq("id", organizationId).maybeSingle();
   }
 
+  async function getWorkspaceContext() {
+    const db = await client();
+    return db.rpc("get_workspace_context");
+  }
+
   async function getSeasons() {
     const db = await client();
     return db.from("seasons")
@@ -477,6 +482,7 @@ const supabaseSharedRepository = (() => {
   return {
     getProfileForAuthUser,
     getCurrentOrganization,
+    getWorkspaceContext,
     getSeasons,
     createSeason,
     activateSeason,

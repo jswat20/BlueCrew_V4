@@ -7,6 +7,21 @@ Target operational launch: 2027-03-01
 Scope: `slate-v2-development`, staging Supabase
 `fdjhwxmphdzodxvhrblk`, and `https://the-slate-v2.pages.dev` only.
 
+## SaaS architecture directive — controlling clarification
+
+Each `organizations.id` is an independent customer workspace. League Scheduling
+and Umpire Management are separately entitled modules; Complete Suite enables
+both without making either module depend on the other. A user may belong to
+multiple workspaces with independent roles, but an explicit active workspace is
+only context—the database must validate membership for every operation.
+
+Facilities, leagues, schedules, tournaments, and official operations are owned
+exclusively by their workspace. Identically named facilities in two workspaces
+are unrelated and never share visibility, conflicts, or reservation authority.
+There will be no global facility registry or cross-tenant facility grants. This
+section supersedes every older shared-facility or mandatory integrated-scheduling
+assumption below. Billing integration remains deferred.
+
 This is an architecture and sequencing proposal. It does not authorize a schema
 migration, production change, Cloudflare deployment, email delivery, or major
 feature implementation.
@@ -79,7 +94,7 @@ scheduling reliability, and launch quality remain protected.
 | Official lifecycle | Recruitment, approval, Crew identity, eligibility, availability, claims, assignments, declines, communication exist | Registration assumes one org; eligibility is level text; multi-org official identity and hosted acceptance incomplete | Strong foundation |
 | League structure | Seasons and level terminology exist | No normalized league, division, team, membership, standings, or schedule ownership model | Major gap |
 | Game management | Mature game, assignment, claim, import/export, review and lifecycle workflows | Team references are text; no reservation identity; lifecycle must support tournament provenance | Strong foundation requiring refactor |
-| Facilities | Locations and fields exist | No owners/access grants, hours, blackouts, reservation status, holds, conflict exclusion, or shared-facility controls | Major gap |
+| Facilities | Organization-owned locations, fields, hours, closures, reservations, and atomic conflict prevention are hosted | Calendar polish and game integration remain; no cross-tenant sharing is permitted | Partial |
 | Integrated scheduling | Workbench, Operations Center, availability and assignment conflicts exist | No field availability transaction or schedule generation/validation across teams, fields, and officials | Major gap |
 | Tournaments | Ordinary games and assignments can be reused | No tournament, pool, standings, bracket, seed, advancement, or result model | Launch-critical major gap |
 | Communications | In-app notifications/messages, event outbox, delivery audit and templates exist | Staging mail isolation incomplete; tenant branding and recipient policy need multi-org review | Partial |
@@ -201,8 +216,8 @@ slot is unavailable without seeing another tenant's private event details.
    revoked. Security-definer functions are exceptional, narrow and tested.
 7. Storage paths begin with organization and person/membership IDs; Storage RLS
    repeats membership checks and prevents cross-tenant upsert/read.
-8. Shared facilities use explicit access grants. A conflict response exposes
-   availability, not the other tenant's team, contact, or event details.
+8. Facilities are tenant-owned. There are no cross-tenant access grants or
+   conflicts; same-named facilities in separate workspaces remain independent.
 9. Tests cover same-role cross-tenant attempts for SELECT, INSERT, UPDATE, DELETE,
    RPC and Storage—not merely hidden UI controls.
 10. RLS policy queries use indexed membership keys and statement-stable helper
@@ -289,7 +304,7 @@ an umpire without seeing baseball data; audit and denial cases pass.
 
 ### Increment 4 — Jan 4 to Jan 17: facilities and reservations
 
-- Add facility resources, access grants, hours, blackouts and reservations.
+- Extend organization-owned facility resources, hours, blackouts and reservations.
 - Implement atomic hold/confirm/release and database overlap protection.
 - Refactor location/field UI into a responsive facility calendar and inventory.
 - Test daylight-saving, boundary adjacency, concurrent reservation and private
@@ -477,7 +492,7 @@ rehearsed, named operators trained, and explicit go/no-go approval recorded.
 | Cross-tenant data exposure during membership refactor | Medium / Critical | Additive model, composite FKs, default-deny RLS, same-role adversarial database tests, security review before staging data | Architecture/security gate in Increment 2 |
 | Migration registry/source drift | High / Critical | Disposable restore, recover exact source, schema fingerprints, new reconciliation baseline; never replay recorded IDs | Increment 1 exit gate |
 | Timeline compression to March 1 | High / High | Freeze tournament formats to pool play plus seeded single elimination; defer optimizer/rosters/public event features; two-week demos | Product owner at every increment |
-| Facility model fails shared-field reality | Medium / High | Softball discovery in Increment 1; explicit owner/access grants; no implicit sharing | Director + architecture decision |
+| Accidental global/shared facility identity | Low / Critical | Organization-qualified keys and FKs; prohibit global registry and cross-tenant conflicts | Architecture/security gate |
 | Staging email reaches real recipients | Medium / High | Keep cron and senders disabled, add sink, use reserved synthetic domains, verify provider path before enabling | Communications gate |
 | Native Auth signup/recovery bypasses sink | Medium / High | Provider-level containment and explicit negative test; avoid hosted account creation until complete | Increment 1 gate |
 | Cloudflare points at wrong branch/project | Low / Critical | Dashboard inventory, exact branch/project variables, production-ref rejection, no custom production domain | Deployment gate |
@@ -492,8 +507,9 @@ rehearsed, named operators trained, and explicit go/no-go approval recorded.
 
 1. Approve people + organization memberships + multi-role grants as the identity
    model, including whether a user may hold admin and assigner simultaneously.
-2. Confirm whether baseball and softball share any physical fields and who owns
-   reservation authority for them.
+2. Confirm whether baseball and softball are configured as sports in one customer
+   workspace or as separate subscribed workspaces; duplicate facility names are
+   permitted and remain independent between workspaces.
 3. Confirm softball launch divisions, crew sizes, game lengths, eligibility rules,
    blackout rules, import source and required reports.
 4. Confirm pool play plus seeded single elimination as the launch tournament

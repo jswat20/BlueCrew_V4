@@ -1,85 +1,127 @@
-# The Slate V2 prioritized development roadmap
+# The Slate V2 SaaS delivery roadmap
 
-This roadmap applies only to `slate-v2-development`, staging Supabase project
-`fdjhwxmphdzodxvhrblk`, and `https://the-slate-v2.pages.dev`.
+Updated: 2026-11-22
 
-## P0 — restore a trustworthy staging baseline
+Scope: `slate-v2-development`, staging Supabase
+`fdjhwxmphdzodxvhrblk`, and `https://the-slate-v2.pages.dev` only.
 
-1. **Maintain the repaired automated-test baseline.** The nine reproducible
-   failures were resolved with local-calendar fixes and semantic contract tests;
-   keep the complete suite at zero unexplained failures.
-2. **Complete provider-level outbound-email isolation.** Cron and the two manual
-   Edge Function senders are disabled in staging. Add a safe sink for native
-   Auth signup/recovery mail and define a synthetic-recipient strategy before
-   creating hosted role accounts.
-3. **Finish Cloudflare configuration audit.** Verify the dedicated Pages project,
-   `slate-v2-development` integration, `npm run build:v2-staging`, `dist`, staging
-   variables, absence of production/custom domains, and preview/production
-   branch rules.
-4. **Reconcile migration provenance.** Preserve the existing registry, recover
-   authoritative SQL, and test any future baseline/reconciliation only in a
-   disposable database before staging.
+## Product boundary
 
-Exit criteria: clean staging build, zero unexplained test failures, outbound
-channels isolated, and recorded Cloudflare/Supabase target evidence.
+Each organization is an independent customer workspace. Baseball and softball
+may be separate workspaces or sports configured inside one workspace. Identical
+facility or league names never imply shared identity, availability, conflicts,
+or access. There is no global facility registry.
 
-## P1 — umpire and account management
+The League Scheduling and Umpire Management modules are independently entitled
+and must each operate without records owned by the other module. Complete Suite
+enables both modules in one workspace. Billing synchronization is deferred.
 
-1. Consolidate administrator account review, eligibility, Crew linkage, role,
-   status, and personnel history into one authoritative workflow.
-2. Make identity conflicts explicit: verified login email, contact email, Crew
-   link, active status, requested role, and league-viewer scope.
-3. Add focused hosted acceptance for create/request, approve, reject, link,
-   deactivate, reactivate, and profile-photo lifecycle using synthetic accounts.
-4. Retain database-enforced role and organization boundaries; browser controls
-   remain presentation only.
+## Current state
 
-Exit criteria: every state transition is atomic, audited, organization-scoped,
-and covered by administrator and non-administrator denial tests.
+- Competition catalog and facility reservations are accepted, hosted, and
+  isolated by `organization_id`.
+- The additive SaaS foundation introduces workspace memberships, independent
+  membership roles, module entitlements, trusted tenant onboarding, and workspace
+  audit records while preserving legacy profile authorization.
+- Existing organizations are backfilled as Complete Suite so fall umpire
+  operations do not regress.
+- Organizational games are not yet module-independent: the legacy `games`
+  table requires season, location, and field records. League scheduling must not
+  build on that table until a compatible neutral scheduling design is approved.
+- Existing umpire RPCs still use the one-profile/one-organization helpers. Their
+  membership-aware transition is the next security-critical increment.
 
-## P1 — game and schedule operations
+## Increment A — SaaS tenant foundation
 
-1. Preserve the repaired local-calendar behavior in Workbench and Operations
-   Center across supported time zones and daylight-saving transitions.
-2. Unify game creation, editing, lifecycle changes, deletion, staffing, claims,
-   and assignment views around one canonical game/assignment snapshot.
-3. Preserve exact `gameId`, `assignmentId`, and `claimId` identity through every
-   review and mutation path.
-4. Expand synthetic acceptance for one- through four-official crews, concurrent
-   claims, replacements, declines, cancellations, postponements, completion,
-   review, and schedule import/export.
+- Add organization memberships and multiple role grants.
+- Add backend module entitlements for League and Umpire modules.
+- Backfill legacy profiles and enable both modules for existing workspaces.
+- Restrict tenant provisioning to the trusted service role.
+- Enforce League entitlement on competition and facility mutations.
+- Expose authenticated users' own workspace/module context.
+- Document dependency audit and denial-test requirements.
 
-Exit criteria: refresh-safe state across administrator, assigner, and umpire
-sessions with no stale controls or identity fallbacks.
+Exit: legacy behavior remains green; accepted League features remain hosted;
+unauthorized membership/entitlement mutations fail at the database boundary.
 
-## P2 — league-viewer experience
+## Increment B — active workspace switching
 
-1. Validate all-division and selected-division scopes against hosted RLS.
-2. Provide an intentionally read-only schedule, roster, Crew Card, and reporting
-   experience with no mutation affordances.
-3. Add cross-organization and out-of-scope division denial tests.
+- Add an explicit, server-validated active-workspace preference.
+- Allow one Auth user to have an organization-specific profile in each workspace.
+- Resolve profile, role, Crew identity, cache, subscriptions, and repository
+  hydration from the active approved membership.
+- Clear all tenant state before switching and discard late responses.
+- Convert RLS/RPC authorization in bounded groups with same-role cross-tenant
+  SELECT/INSERT/UPDATE/DELETE tests.
+- Add the hosted workspace switcher only after database switching is authoritative.
 
-Exit criteria: league viewers see exactly their authorized scope and cannot
-reach mutations through UI, client services, RPCs, or direct table access.
+Exit: one user holds different roles in two synthetic workspaces and switches
+without reauthentication; every cross-tenant attempt fails closed.
 
-## P2 — communications and notifications
+## Increment C — module separation and neutral games
 
-1. Retain the worker/browser-delivery boundary contract and staging-disabled
-   manual sender stubs until a safe delivery sink is approved.
-2. Establish staging-safe delivery sinks and synthetic recipient conventions.
-3. Validate message, announcement, assignment, claim, game-change, account, and
-   reminder idempotency without exposing message content in email.
-4. Restore scheduled processing only after an explicit staging acceptance gate.
+- Introduce a neutral workspace game identity with optional League competition
+  links and optional Umpire staffing links.
+- Permit Umpire-only games without league, team, facility, or tournament rows.
+- Permit League-only games without Crew, assignment, claim, or availability rows.
+- Keep existing fall game, assignment, and claim identifiers compatible.
+- Enforce both module entitlements on their respective mutation commands.
 
-Exit criteria: one authoritative event produces the expected in-app/email audit
-records, no duplicates, no private-content leakage, and no real-recipient risk.
+Exit: independent League-only and Umpire-only hosted workflows pass with no
+cross-module seed records.
 
-## P3 — release readiness and quality
+## Increment D — league scheduling
 
-1. Address dependency advisories through reviewed, pinned upgrades.
-2. Add CI ordering so artifact-contract tests always run after the staging build.
-3. Add authenticated mobile/desktop acceptance at supported breakpoints and
-   retain accessibility checks.
-4. Document rollback, data-fixture cleanup, deployment verification, and exact
-   staging-to-release promotion gates. Production promotion remains a separate,
-   explicitly authorized task.
+- Create/edit/import organizational games with optional division, team, field,
+  and reservation links.
+- Make reservation creation/change/release transactional with League game
+  scheduling.
+- Validate team, field, closure, and blackout conflicts.
+- Preserve assisted scheduling and dry-run imports; do not add an optimizer.
+
+Exit: a League-only workspace publishes and exports a field-conflict-safe
+schedule without any umpire records.
+
+## Increment E — umpire operations transition
+
+- Move official approval, eligibility, availability, claims, assignments,
+  replacements, and declines to membership-aware authorization.
+- Support Umpire-only schedules with optional external/source game labels.
+- Keep communications in-app until the staging delivery sink is approved.
+- Retain the fall umpire application's hosted workflows and identifiers.
+
+Exit: an Umpire-only workspace completes recruitment through assignment without
+league, facility, or tournament records.
+
+## Increment F — tournament core
+
+- Add tournament entries, pools, standings, seeded single elimination, results,
+  and audited overrides to the League module.
+- Reuse neutral games and optional field reservations.
+- Add official assignments only when the same workspace has the Umpire module and
+  explicitly enables staffing for that game.
+
+Exit: a League-only tournament completes without umpire data; Complete Suite can
+optionally staff the same games.
+
+## Increment G — launch hardening
+
+- Complete credentialed acceptance for administrator, assigner, umpire, and
+  league-viewer roles across League-only, Umpire-only, and Complete Suite tenants.
+- Rehearse restore, rollback, migration, and deployment procedures.
+- Complete accessibility, mobile, concurrency, performance, and tenant-isolation
+  testing.
+- Enable no external email unless a staging sink and explicit acceptance gate pass.
+
+Exit: hosted acceptance, automated regression/security suites, staging artifact,
+rollback rehearsal, and named operator approval all pass.
+
+## Definition of done for every increment
+
+1. Database migration and rollback assumptions are verified against staging only.
+2. Tenant and entitlement denials are tested at the database boundary.
+3. Automated regression and security suites pass without weakened assertions.
+4. The staging artifact rejects production configuration.
+5. The feature is deployed only to the V2 Cloudflare project.
+6. The intended workflow is completed in a real hosted browser.
+7. Deployment SHA/ID, tests, risks, and limitations are recorded.

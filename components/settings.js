@@ -18,12 +18,45 @@ function formatSeasonDate(value) {
   }).format(date);
 }
 
+let workspaceContextRows = [];
+let workspaceContextError = "";
+
+function renderWorkspaceSettingsCard() {
+  const activeOrganizationId = accountService?.getAuthenticatedProfile?.()?.organizationId;
+  return `
+    <section class="card presentation-card settings-card settings-workspace-card" data-testid="settings-workspace">
+      <div class="page-section-header presentation-card-header-blue">
+        <div><h3>Customer Workspace</h3><p>Membership, roles, and subscription modules are enforced for each organization.</p></div>
+      </div>
+      ${workspaceContextError
+        ? `<div class="settings-empty settings-error" role="alert"><strong>Workspace details unavailable.</strong><span>${escapeSettingsHtml(workspaceContextError)}</span></div>`
+        : workspaceContextRows.length
+          ? `<div class="settings-workspace-list">${workspaceContextRows.map(row => `
+              <article class="settings-competition-division" data-testid="workspace-membership">
+                <div><strong>${escapeSettingsHtml(row.organization_name)}</strong>${String(row.organization_id) === String(activeOrganizationId) ? '<span class="settings-pill">Active</span>' : ""}</div>
+                <span>${escapeSettingsHtml(row.organization_timezone)} · ${escapeSettingsHtml((row.role_codes || []).join(", ") || row.membership_status)}</span>
+                <div class="settings-list" aria-label="Enabled modules">${(row.enabled_modules || []).map(module => `<span class="settings-pill" data-testid="workspace-module">${escapeSettingsHtml(module === "league" ? "League Scheduling" : "Umpire Management")}</span>`).join("") || '<span class="settings-muted">No modules enabled</span>'}</div>
+              </article>`).join("")}</div>`
+          : '<p class="settings-muted" data-testid="workspace-loading">Loading workspace access…</p>'}
+    </section>`;
+}
+
+async function loadWorkspaceContext() {
+  if (typeof supabaseSharedRepository === "undefined") return;
+  const result = await supabaseSharedRepository.getWorkspaceContext();
+  workspaceContextRows = result.data || [];
+  workspaceContextError = result.error?.message || "";
+  const current = document.querySelector('[data-testid="settings-workspace"]');
+  if (current) current.outerHTML = renderWorkspaceSettingsCard();
+}
+
 function renderSettings() {
   const isHosted = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   return `
     <section class="settings-page presentation-page" data-testid="settings-page">
       <header class="presentation-page-header settings-page-header"><div><h2>Settings</h2><p>Manage season setup, scheduling reference data, and locations.</p></div></header>
     <div class="card-grid settings-card-grid">
+      ${isHosted ? renderWorkspaceSettingsCard() : ""}
       ${renderSeasonSettingsCard()}
       ${renderLocationSettingsCard()}
       ${isHosted ? renderCompetitionCatalogCard() : `${renderSettingsCard("Levels", settings.levels)}${renderSettingsCard("Teams", settings.teams)}`}
@@ -379,6 +412,7 @@ function setupSettingsPage() {
   document.querySelector('[data-testid="competition-team-form"]')?.addEventListener("submit", submitCompetitionTeam);
   document.querySelectorAll("[data-dialog-cancel]").forEach(button => button.addEventListener("click", event => event.currentTarget.closest("dialog").close()));
   loadSeasonSettings();
+  loadWorkspaceContext();
   loadCompetitionCatalog();
   facilityService.load().then(result => { if (result.success) { const current=document.querySelector('[data-testid="settings-locations"]'); if(current) current.outerHTML=renderLocationSettingsCard(); } });
 }
