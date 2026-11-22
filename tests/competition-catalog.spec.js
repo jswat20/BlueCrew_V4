@@ -3,6 +3,7 @@ import { test, expect } from "./fixtures/supabase-auth.fixture.js";
 
 const migration = readFileSync("supabase/migrations/20261122195507_competition_catalog_foundation.sql", "utf8");
 const advisorFix = readFileSync("supabase/migrations/20261122202020_competition_catalog_advisor_fix.sql", "utf8");
+const hostedProgramFix = readFileSync("supabase/migrations/20261122214252_fix_competition_program_ambiguity.sql", "utf8");
 const administrator = {
   id: "profile-admin-catalog", auth_user_id: "auth-admin-catalog", organization_id: "organization-1",
   first_name: "Catalog", last_name: "Admin", email: "catalog-admin@example.test", phone: "",
@@ -89,4 +90,6 @@ test("competition catalog migration is tenant-qualified and fail-closed", () => 
   expect(migration).toContain("revoke all on public.sports, public.organization_sports, public.leagues, public.divisions, public.teams from anon");
   expect(advisorFix).toContain("create index organization_sports_sport_code_idx");
   expect(advisorFix).toContain("on public.organization_sports (sport_code)");
+  expect(hostedProgramFix).toContain("on conflict on constraint leagues_organization_id_organization_sport_id_slug_key");
+  expect(hostedProgramFix).toContain("security invoker");
 });

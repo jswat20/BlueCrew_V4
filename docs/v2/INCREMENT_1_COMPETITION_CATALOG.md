@@ -82,7 +82,35 @@ created only local `dist` output, and did not deploy at that verification point.
 
 Final verification on 2026-11-22: `1192 passed`, `1 skipped` in the complete
 1,193-test Playwright regression suite. The staging-only artifact build and
-verification also passed; no deployment was performed.
+verification also passed before the hosted deployment recorded below.
+
+## Hosted acceptance — 2026-11-22
+
+Cloudflare Pages project `the-slate-v2` deployed the development branch to
+`https://the-slate-v2.pages.dev` with the staging-only build command and staging
+Supabase variables. Deployment `68fb6d7e` completed successfully; the separate
+production Pages project was not touched.
+
+Using the provisioned staging administrator in a real browser, the hosted
+workflow created synthetic records for:
+
+- program `V2 Acceptance Softball`;
+- league `V2 Acceptance Softball League`;
+- division `V2 Acceptance 12U` (`V2-12U`); and
+- team `V2 Acceptance Lightning`.
+
+The first hosted program submission exposed a PL/pgSQL ambiguity between the
+table-return output `organization_sport_id` and the leagues column of the same
+name. Forward migration
+`20261122214252_fix_competition_program_ambiguity.sql` targets the named unique
+constraint explicitly. The exact replacement function passed a transactional
+staging rehearsal with rollback before application, and the hosted retry then
+succeeded.
+
+After a browser refresh and reauthentication, all four catalog records were
+visible. A direct staging query confirmed exactly one program, league, division,
+and team joined through the same organization. A non-administrator database
+impersonation was rejected and created zero rows.
 
 - Complete administrator program → division → team workflow.
 - Cross-organization fixtures remain invisible.
@@ -106,8 +134,9 @@ verification also passed; no deployment was performed.
   security-definer execution, mutable search paths, and two RLS-without-policy
   tables. This increment does not add security-definer functions and does not
   conceal that inherited debt.
-- Migration provenance drift documented in `MIGRATION_RECONCILIATION.md` remains
-  a release gate even though this migration has a new non-conflicting version.
+- The historical migration provenance is now reconciled on the development
+  branch without replaying any existing staging migration. Production's
+  differently versioned messaging migration remains intentionally untouched.
 - External email remains disabled; this increment creates no notification or
   communication delivery.
 
