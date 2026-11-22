@@ -20,11 +20,12 @@ reports. Preserve the working application shell and assignment workflows, but
 replace the pilot's one-profile/one-organization authorization assumption with
 explicit organization memberships before adding softball data.
 
-Do not put full tournament brackets on the launch critical path. Model games so
-they can later belong to tournaments, and deliver tournament creation, brackets,
-advancement, and public results after launch. Attempting the complete tournament
-suite before March would put tenancy, scheduling reliability, and launch quality
-at unacceptable risk.
+Include a deliberately bounded tournament core on the launch critical path:
+pool play, standings, seeded single-elimination brackets, recorded results,
+field allocation, and official assignments. Tournament games must be canonical
+`games`, not a parallel scheduler. Defer advanced bracket formats, public event
+sites, payments, roster registration, and automatic optimization so tenancy,
+scheduling reliability, and launch quality remain protected.
 
 ## Current readiness
 
@@ -80,7 +81,7 @@ at unacceptable risk.
 | Game management | Mature game, assignment, claim, import/export, review and lifecycle workflows | Team references are text; no reservation identity; lifecycle must support tournament provenance | Strong foundation requiring refactor |
 | Facilities | Locations and fields exist | No owners/access grants, hours, blackouts, reservation status, holds, conflict exclusion, or shared-facility controls | Major gap |
 | Integrated scheduling | Workbench, Operations Center, availability and assignment conflicts exist | No field availability transaction or schedule generation/validation across teams, fields, and officials | Major gap |
-| Tournaments | Ordinary games and assignments could be reused | No tournament, bracket, seeding, round, advancement, or tournament permission model | Not ready; post-launch |
+| Tournaments | Ordinary games and assignments can be reused | No tournament, pool, standings, bracket, seed, advancement, or result model | Launch-critical major gap |
 | Communications | In-app notifications/messages, event outbox, delivery audit and templates exist | Staging mail isolation incomplete; tenant branding and recipient policy need multi-org review | Partial |
 | Audit and reliability | Activities, idempotent RPCs, extensive Playwright suite, staging build gate | Audit taxonomy is inconsistent; no database RLS test suite or migration CI against disposable database | Good base, quality gates required |
 | Professional UI | Responsive shell, role navigation, accessible components, WCAG automation | Tenant switcher, softball terminology/branding, facility calendar and coherent error recovery absent | Partial |
@@ -224,6 +225,8 @@ slot is unavailable without seeing another tenant's private event details.
   decline workflows.
 - Integrated validation of team, field and official conflicts. MVP may use
   assisted scheduling and bulk import; it does not require an optimizer.
+- Tournament setup, pool play, standings, seeded single-elimination brackets,
+  results, field allocation, and official assignments using canonical games.
 - In-app notifications and audited communication events. External email is
   enabled only after a staging sink and explicit delivery acceptance gate.
 - Operations dashboard, mobile/desktop critical paths, actionable errors, audit
@@ -232,7 +235,8 @@ slot is unavailable without seeing another tenant's private event details.
 
 ### Post-launch
 
-- Full tournament creation, seeding, brackets, advancement and public results.
+- Advanced tournament formats, public event sites, payments, registrations,
+  roster check-in, waitlists, and automatic bracket optimization.
 - Facility manager and tournament director roles (the schema must allow them).
 - Automatic schedule optimization and what-if planning.
 - Player/guardian rosters, payments, registration or public-facing league sites.
@@ -305,17 +309,22 @@ works without exposing private tenant details.
 Exit: a softball season schedule can be imported, corrected, reserved, published
 and exported; failed rows do not leave partial games or reservations.
 
-### Increment 6 — Feb 1 to Feb 14: complete official operations
+### Increment 6 — Feb 1 to Feb 14: tournament core and complete official operations
 
+- Add tournaments, entries, pools, standings rules, bracket rounds/seeds and
+  idempotent result advancement. Generate tournament contests as canonical games
+  so existing field reservations and official assignments are reused.
 - Finish eligibility, availability, claims, direct assignments, replacements,
-  declines, reminders and communication in the multi-org model.
+  declines, reminders and communication in the multi-org model, including
+  tournament games.
 - Configure a staging mail sink and verify idempotent delivery only after explicit
   operational approval; otherwise launch with in-app communication only.
 - Complete league-viewer read-only schedules and scoped Crew directory.
 - Run credentialed hosted acceptance for every role and both organizations.
 
-Exit: the end-to-end official workflow succeeds on mobile and desktop with audit
-evidence, no duplicate messages and cross-tenant denial.
+Exit: a synthetic pool-to-single-elimination tournament and the end-to-end
+official workflow succeed on mobile and desktop with deterministic standings,
+audited results, no duplicate advancement/messages and cross-tenant denial.
 
 ### Increment 7 — Feb 15 to Feb 28: launch hardening
 
@@ -467,7 +476,7 @@ rehearsed, named operators trained, and explicit go/no-go approval recorded.
 |---|---|---|---|
 | Cross-tenant data exposure during membership refactor | Medium / Critical | Additive model, composite FKs, default-deny RLS, same-role adversarial database tests, security review before staging data | Architecture/security gate in Increment 2 |
 | Migration registry/source drift | High / Critical | Disposable restore, recover exact source, schema fingerprints, new reconciliation baseline; never replay recorded IDs | Increment 1 exit gate |
-| Timeline compression to March 1 | High / High | Freeze MVP, defer tournaments/optimizer/rosters, two-week demos, cut scope before quality | Product owner at every increment |
+| Timeline compression to March 1 | High / High | Freeze tournament formats to pool play plus seeded single elimination; defer optimizer/rosters/public event features; two-week demos | Product owner at every increment |
 | Facility model fails shared-field reality | Medium / High | Softball discovery in Increment 1; explicit owner/access grants; no implicit sharing | Director + architecture decision |
 | Staging email reaches real recipients | Medium / High | Keep cron and senders disabled, add sink, use reserved synthetic domains, verify provider path before enabling | Communications gate |
 | Native Auth signup/recovery bypasses sink | Medium / High | Provider-level containment and explicit negative test; avoid hosted account creation until complete | Increment 1 gate |
@@ -487,8 +496,8 @@ rehearsed, named operators trained, and explicit go/no-go approval recorded.
    reservation authority for them.
 3. Confirm softball launch divisions, crew sizes, game lengths, eligibility rules,
    blackout rules, import source and required reports.
-4. Accept full tournaments as post-launch and assisted scheduling (not automatic
-   optimization) as MVP.
+4. Confirm pool play plus seeded single elimination as the launch tournament
+   boundary and assisted scheduling (not automatic optimization) as MVP.
 5. Choose launch communication mode: in-app only, or external email after a
    staging sink and delivery gate.
 6. Name business owners for softball data, UAT, operations and go/no-go approval.

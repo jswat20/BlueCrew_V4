@@ -24,6 +24,11 @@ export const test = base.extend({
       locations: [],
       fields: [],
       seasons: [],
+      sports: [{ code: "baseball", name: "Baseball", active: true }, { code: "softball", name: "Softball", active: true }],
+      organizationSports: [],
+      leagues: [],
+      divisions: [],
+      teams: [],
       games: [],
       assignments: [],
       claims: [],
@@ -90,6 +95,11 @@ export const test = base.extend({
             locations: settings.locations,
             fields: settings.fields,
             seasons: settings.seasons,
+            sports: settings.sports.filter(row => Object.entries(equality).every(([column, value]) => String(row[column]) === String(value))),
+            organization_sports: settings.organizationSports.filter(row => String(row.organization_id) === String(settings.profile.organization_id)),
+            leagues: settings.leagues.filter(row => String(row.organization_id) === String(settings.profile.organization_id)),
+            divisions: settings.divisions.filter(row => String(row.organization_id) === String(settings.profile.organization_id)),
+            teams: settings.teams.filter(row => String(row.organization_id) === String(settings.profile.organization_id)),
             games: settings.games,
             game_assignments: settings.assignments,
             assignment_claims: settings.claims,
@@ -319,6 +329,41 @@ export const test = base.extend({
             settings.seasons.forEach(season => { season.active = String(season.id) === String(target.id); });
             target.updated_at = new Date().toISOString();
             return { data: target, error: null };
+          }
+          if (name === "create_competition_program") {
+            if (settings.profile.role !== "administrator") return { data: null, error: { message: "competition_catalog_administrator_required" } };
+            if (!settings.sports.some(sport => sport.code === args.p_sport_code && sport.active)) return { data: null, error: { message: "competition_catalog_sport_invalid" } };
+            let program = settings.organizationSports.find(item => item.organization_id === settings.profile.organization_id && item.sport_code === args.p_sport_code);
+            if (!program) {
+              program = { id: `organization-sport-${settings.organizationSports.length + 1}`, organization_id: settings.profile.organization_id, sport_code: args.p_sport_code, display_name: args.p_display_name, active: true };
+              settings.organizationSports.push(program);
+            } else {
+              program.display_name = args.p_display_name; program.active = true;
+            }
+            let league = settings.leagues.find(item => item.organization_id === settings.profile.organization_id && item.organization_sport_id === program.id && item.name === args.p_league_name);
+            if (!league) {
+              league = { id: `league-${settings.leagues.length + 1}`, organization_id: settings.profile.organization_id, organization_sport_id: program.id, name: args.p_league_name, slug: args.p_league_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), active: true };
+              settings.leagues.push(league);
+            }
+            return { data: [{ organization_sport_id: program.id, league_id: league.id }], error: null };
+          }
+          if (name === "create_competition_division") {
+            if (settings.profile.role !== "administrator") return { data: null, error: { message: "competition_catalog_administrator_required" } };
+            const league = settings.leagues.find(item => item.id === args.p_league_id && item.organization_id === settings.profile.organization_id);
+            const season = settings.seasons.find(item => item.id === args.p_season_id && item.organization_id === settings.profile.organization_id);
+            if (!league) return { data: null, error: { message: "competition_catalog_league_not_found" } };
+            if (!season) return { data: null, error: { message: "competition_catalog_season_not_found" } };
+            const division = { id: `division-${settings.divisions.length + 1}`, organization_id: settings.profile.organization_id, league_id: league.id, season_id: season.id, name: args.p_name, code: args.p_code, minimum_age: args.p_minimum_age, maximum_age: args.p_maximum_age, sort_order: 0, active: true };
+            settings.divisions.push(division);
+            return { data: division, error: null };
+          }
+          if (name === "create_competition_team") {
+            if (settings.profile.role !== "administrator") return { data: null, error: { message: "competition_catalog_administrator_required" } };
+            const division = settings.divisions.find(item => item.id === args.p_division_id && item.organization_id === settings.profile.organization_id);
+            if (!division) return { data: null, error: { message: "competition_catalog_division_not_found" } };
+            const team = { id: `team-${settings.teams.length + 1}`, organization_id: settings.profile.organization_id, season_id: division.season_id, division_id: division.id, name: args.p_name, short_name: args.p_short_name, external_id: null, active: true };
+            settings.teams.push(team);
+            return { data: team, error: null };
           }
           if (name === "list_crew_identity_diagnostics") return { data: settings.identityDiagnostics, error: null };
           if (name === "list_linkable_umpire_profiles") return { data: settings.linkableProfiles, error: null };

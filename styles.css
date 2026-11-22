@@ -7344,6 +7344,54 @@ body[data-role="umpire"][data-page="dashboard"] .content-area { background: var(
 .settings-location-list section > strong { display: block; margin-bottom: 9px; color: var(--slate-navy); }
 .settings-location-list section > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .settings-location-list section > header strong { color: var(--slate-navy); }
+.settings-competition-card { grid-column: 1 / -1; }
+.settings-competition-list,
+.settings-competition-divisions { display: grid; gap: 12px; }
+.settings-competition-list { padding: 14px; }
+.settings-competition-league {
+  overflow: hidden;
+  border: 1px solid #b8d6de;
+  border-radius: 10px;
+  background: #f7fbfc;
+}
+.settings-competition-league > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #e7f3f6;
+}
+.settings-competition-league > header > div,
+.settings-competition-division > div:first-child { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.settings-competition-league > header span { color: var(--text-muted); font-size: .9rem; }
+.settings-competition-divisions { padding: 12px; }
+.settings-competition-division {
+  display: grid;
+  grid-template-columns: minmax(160px, .8fr) minmax(220px, 1.4fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #d3e4e8;
+  border-radius: 8px;
+  background: #fff;
+}
+.settings-dialog select,
+.settings-dialog input[type="number"] {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: #fff;
+}
+@media (max-width: 700px) {
+  .settings-competition-league > header,
+  .settings-competition-division { align-items: stretch; grid-template-columns: 1fr; }
+  .settings-competition-league > header { flex-direction: column; }
+  .settings-competition-league > header .button,
+  .settings-competition-division > .button { width: 100%; }
+}
 
 .availability-identity { display: grid; align-content: center; padding: 9px 12px; border: 1px solid #8dc8d1; border-radius: 8px; background: #e9f8fa; }
 .availability-identity span { color: #526b7a; font-size: .72rem; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }

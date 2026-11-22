@@ -52,6 +52,69 @@ const supabaseSharedRepository = (() => {
     return db.rpc("activate_season", { p_season_id: seasonId });
   }
 
+  async function getSports() {
+    const db = await client();
+    return db.from("sports").select("code,name,active").eq("active", true).order("name");
+  }
+
+  async function getOrganizationSports() {
+    const db = await client();
+    return db.from("organization_sports")
+      .select("id,organization_id,sport_code,display_name,active")
+      .order("display_name").order("id");
+  }
+
+  async function getLeagues() {
+    const db = await client();
+    return db.from("leagues")
+      .select("id,organization_id,organization_sport_id,name,slug,active")
+      .order("name").order("id");
+  }
+
+  async function getDivisions() {
+    const db = await client();
+    return db.from("divisions")
+      .select("id,organization_id,league_id,season_id,name,code,minimum_age,maximum_age,sort_order,active")
+      .order("sort_order").order("name").order("id");
+  }
+
+  async function getTeams() {
+    const db = await client();
+    return db.from("teams")
+      .select("id,organization_id,season_id,division_id,name,short_name,external_id,active")
+      .order("name").order("id");
+  }
+
+  async function createCompetitionProgram({ sportCode, displayName, leagueName }) {
+    const db = await client();
+    return db.rpc("create_competition_program", {
+      p_sport_code: sportCode,
+      p_display_name: displayName,
+      p_league_name: leagueName
+    });
+  }
+
+  async function createCompetitionDivision({ leagueId, seasonId, name, code, minimumAge = null, maximumAge = null }) {
+    const db = await client();
+    return db.rpc("create_competition_division", {
+      p_league_id: leagueId,
+      p_season_id: seasonId,
+      p_name: name,
+      p_code: code,
+      p_minimum_age: minimumAge,
+      p_maximum_age: maximumAge
+    });
+  }
+
+  async function createCompetitionTeam({ divisionId, name, shortName = "" }) {
+    const db = await client();
+    return db.rpc("create_competition_team", {
+      p_division_id: divisionId,
+      p_name: name,
+      p_short_name: shortName
+    });
+  }
+
   const ACTIVITY_COLUMNS = "id,organization_id,actor_profile_id,type,action,subject,object,message,related_legacy_id,metadata,created_at";
   const ACTIVITY_ACTOR_COLUMNS = "id,role,first_name,last_name,email";
 
@@ -338,6 +401,14 @@ const supabaseSharedRepository = (() => {
     getSeasons,
     createSeason,
     activateSeason,
+    getSports,
+    getOrganizationSports,
+    getLeagues,
+    getDivisions,
+    getTeams,
+    createCompetitionProgram,
+    createCompetitionDivision,
+    createCompetitionTeam,
     getRecentActivities,
     updateProfile,
     updateProfilePhoto,
