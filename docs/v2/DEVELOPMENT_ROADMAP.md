@@ -12,9 +12,14 @@ may be separate workspaces or sports configured inside one workspace. Identical
 facility or league names never imply shared identity, availability, conflicts,
 or access. There is no global facility registry.
 
-The League Scheduling and Umpire Management modules are independently entitled
-and must each operate without records owned by the other module. Complete Suite
-enables both modules in one workspace. Billing synchronization is deferred.
+League Management, Umpire Management, and Tournament Management are independently
+entitled. A customer may purchase any combination, and no module may require
+domain records owned by another. Billing synchronization is deferred.
+
+Facilities, fields, availability, closures, reservations, organization settings,
+memberships, auditing, and common game date/time/location concepts are shared
+workspace capabilities. They remain tenant-owned and may be used by any enabled
+operational module; they are not a fourth billable module or a global registry.
 
 ## Current state
 
@@ -23,7 +28,7 @@ enables both modules in one workspace. Billing synchronization is deferred.
 - The additive SaaS foundation introduces workspace memberships, independent
   membership roles, module entitlements, trusted tenant onboarding, and workspace
   audit records while preserving legacy profile authorization.
-- Existing organizations are backfilled as Complete Suite so fall umpire
+- Existing organizations are backfilled with all three modules so fall umpire
   operations do not regress.
 - Organizational games are not yet module-independent: the legacy `games`
   table requires season, location, and field records. League scheduling must not
@@ -34,10 +39,11 @@ enables both modules in one workspace. Billing synchronization is deferred.
 ## Increment A — SaaS tenant foundation
 
 - Add organization memberships and multiple role grants.
-- Add backend module entitlements for League and Umpire modules.
-- Backfill legacy profiles and enable both modules for existing workspaces.
+- Add backend module entitlements for League, Umpire, and Tournament modules.
+- Backfill legacy profiles and enable all three modules for existing workspaces.
 - Restrict tenant provisioning to the trusted service role.
-- Enforce League entitlement on competition and facility mutations.
+- Enforce League entitlement on League competition mutations.
+- Permit shared facility mutations when any operational module is enabled.
 - Expose authenticated users' own workspace/module context.
 - Document dependency audit and denial-test requirements.
 
@@ -64,11 +70,12 @@ without reauthentication; every cross-tenant attempt fails closed.
   links and optional Umpire staffing links.
 - Permit Umpire-only games without league, team, facility, or tournament rows.
 - Permit League-only games without Crew, assignment, claim, or availability rows.
+- Permit Tournament-only games without league seasons or regular-season divisions.
 - Keep existing fall game, assignment, and claim identifiers compatible.
 - Enforce both module entitlements on their respective mutation commands.
 
-Exit: independent League-only and Umpire-only hosted workflows pass with no
-cross-module seed records.
+Exit: independent League-only, Umpire-only, and Tournament-only hosted game
+workflows pass with no cross-module seed records.
 
 ## Increment D — league scheduling
 
@@ -95,19 +102,21 @@ league, facility, or tournament records.
 
 ## Increment F — tournament core
 
-- Add tournament entries, pools, standings, seeded single elimination, results,
-  and audited overrides to the League module.
+- Add independent Tournament-entitled entries, registrations, pools, standings,
+  seeded single elimination, results, and audited overrides.
 - Reuse neutral games and optional field reservations.
 - Add official assignments only when the same workspace has the Umpire module and
   explicitly enables staffing for that game.
 
-Exit: a League-only tournament completes without umpire data; Complete Suite can
-optionally staff the same games.
+Exit: a Tournament-only workspace completes registration through bracket
+advancement without League or Umpire records; multi-module customers can
+explicitly add staffing without changing tournament ownership.
 
 ## Increment G — launch hardening
 
-- Complete credentialed acceptance for administrator, assigner, umpire, and
-  league-viewer roles across League-only, Umpire-only, and Complete Suite tenants.
+- Complete credentialed acceptance for administrator, assigner, umpire,
+  league-viewer, and tournament-director roles across single-module and
+  multi-module tenants.
 - Rehearse restore, rollback, migration, and deployment procedures.
 - Complete accessibility, mobile, concurrency, performance, and tenant-isolation
   testing.

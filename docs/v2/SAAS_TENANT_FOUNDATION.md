@@ -16,17 +16,19 @@ adds:
 
 - `organization_memberships`: independent Auth-user membership per workspace;
 - `organization_membership_roles`: multiple per-workspace role grants;
-- `organization_module_entitlements`: backend League/Umpire module access;
+- `organization_module_entitlements`: backend League/Umpire/Tournament module access;
 - `workspace_audit_events`: append-only tenant lifecycle evidence;
 - private membership, role, and entitlement authorization helpers;
 - `get_workspace_context()`: self-scoped workspace/module discovery;
 - `provision_saas_workspace(...)`: service-role-only tenant onboarding.
 
 Existing profiles are backfilled idempotently. Existing organizations receive
-both modules through `legacy_backfill`, preserving fall umpire behavior.
-Competition and facility writes are protected by a League-module entitlement
-trigger. Client roles cannot mutate memberships, roles, entitlements, or audit
-events directly.
+all three modules through `legacy_backfill`, preserving fall umpire behavior and
+the accepted hosted catalog. Competition writes remain League-entitled. Sports,
+facilities, fields, availability, closures, and reservations are shared
+workspace infrastructure and require at least one operational module rather than
+League specifically. Client roles cannot mutate memberships, roles,
+entitlements, or audit events directly.
 
 Two follow-up advisor-hardening migrations explicitly remove Supabase's
 automatic public-function grants, retain tenant provisioning for `service_role`
@@ -38,14 +40,14 @@ indexes. This is material because RLS does not protect `TRUNCATE`.
 | Area | Tenant isolation | League dependency | Umpire dependency | Disposition |
 |---|---|---|---|---|
 | Competition catalog | Organization-qualified RLS/FKs | Required | None | Reuse; enforce League entitlement |
-| Facilities/reservations | Organization-qualified RLS/FKs and atomic conflicts | Required | None | Reuse; no shared registry |
+| Facilities/reservations | Organization-qualified RLS/FKs and atomic conflicts | Optional/shared | Optional/shared | Reuse for all three modules; no shared registry |
 | Seasons | Organization-qualified | Currently required by legacy games | Used indirectly by umpire schedules | Refactor into neutral scheduling context |
 | Games | Organization-qualified | Mandatory season/location/field FKs | Parent of assignments/claims | Architectural blocker: decouple before new League scheduling |
 | Assignments/claims | Organization-qualified | Depend on legacy game only | Required | Reuse after neutral-game compatibility layer |
 | Crew/availability | Organization-qualified | None | Required | Reuse; migrate authority to memberships |
 | Profiles/auth helpers | Organization-qualified but one Auth user/one profile | Shared authorization | Shared authorization | Replace incrementally with active membership/profile |
 | Communications | Organization-qualified, game links optional | Optional | Optional | Reuse outbox; keep staging delivery disabled |
-| Tournaments | Not implemented | League module | Optional staffing only | Add after neutral games |
+| Tournaments | Not implemented | None required | Optional staffing only | Independent Tournament entitlement; add after neutral games |
 
 ## Verified blocker
 
@@ -75,11 +77,16 @@ roles, then clear all cached/subscribed tenant state before hydration.
 
 ## Entitlement enforcement transition
 
-This increment enforces League entitlement for accepted competition and facility
-writes. Reads remain membership/RLS scoped. Umpire entitlement enforcement is
+League entitlement remains mandatory for League competition writes. Shared
+facility resources accept League, Umpire, or Tournament entitlement. Reads remain
+membership/RLS scoped. Umpire entitlement enforcement is
 deferred until legacy game/profile helpers are separated; enabling it prematurely
 would risk the fall umpire application. The next increment must enumerate and
 wrap all Umpire mutation RPCs before a tenant can be sold as Umpire-only.
+
+Tournament is a third independent entitlement. Adding it to onboarding and
+removing the facility-to-League dependency is the prerequisite foundation, not a
+claim that tournament registration, pools, standings, or brackets already exist.
 
 ## Remaining risks
 

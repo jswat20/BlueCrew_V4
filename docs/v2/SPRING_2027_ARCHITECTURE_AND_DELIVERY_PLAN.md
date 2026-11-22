@@ -1,5 +1,12 @@
 # The Slate 2.0 — Spring 2027 architecture and delivery plan
 
+> Controlling clarification (2026-11-22): The platform has three independently
+> purchasable modules—League Management, Umpire Management, and Tournament
+> Management. Tournament functionality is not part of League Management.
+> Facilities and common scheduling coordinates are tenant-owned shared platform
+> capabilities usable by any applicable enabled module. No module may require
+> domain records from another module.
+
 Assessment date: 2026-11-22
 
 Target operational launch: 2027-03-01

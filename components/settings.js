@@ -35,7 +35,7 @@ function renderWorkspaceSettingsCard() {
               <article class="settings-competition-division" data-testid="workspace-membership">
                 <div><strong>${escapeSettingsHtml(row.organization_name)}</strong>${String(row.organization_id) === String(activeOrganizationId) ? '<span class="settings-pill">Active</span>' : ""}</div>
                 <span>${escapeSettingsHtml(row.organization_timezone)} · ${escapeSettingsHtml((row.role_codes || []).join(", ") || row.membership_status)}</span>
-                <div class="settings-list" aria-label="Enabled modules">${(row.enabled_modules || []).map(module => `<span class="settings-pill" data-testid="workspace-module">${escapeSettingsHtml(module === "league" ? "League Scheduling" : "Umpire Management")}</span>`).join("") || '<span class="settings-muted">No modules enabled</span>'}</div>
+                <div class="settings-list" aria-label="Enabled modules">${(row.enabled_modules || []).map(module => `<span class="settings-pill" data-testid="workspace-module">${escapeSettingsHtml(module === "league" ? "League Management" : module === "tournament" ? "Tournament Management" : "Umpire Management")}</span>`).join("") || '<span class="settings-muted">No modules enabled</span>'}</div>
               </article>`).join("")}</div>`
           : '<p class="settings-muted" data-testid="workspace-loading">Loading workspace access…</p>'}
     </section>`;
