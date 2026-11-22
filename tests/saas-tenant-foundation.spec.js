@@ -6,6 +6,7 @@ const migration = readFileSync(
   "utf8"
 );
 const settingsComponent = readFileSync("components/settings.js", "utf8");
+const styles = readFileSync("styles.css", "utf8");
 const initialSchema = readFileSync("supabase/migrations/202608040001_initial_schema.sql", "utf8");
 
 test("SaaS tenant foundation models independent memberships, roles, and modules", () => {
@@ -69,6 +70,8 @@ test("workspace UI displays database-provided roles and enabled modules", () => 
   expect(settingsComponent).toContain("getWorkspaceContext");
   expect(settingsComponent).toContain("League Scheduling");
   expect(settingsComponent).toContain("Umpire Management");
+  expect(styles).toContain(".settings-workspace-card { grid-column: 1 / -1; }");
+  expect(styles).toContain(".settings-workspace-card .settings-competition-division { grid-template-columns: 1fr; }");
 });
 
 test("legacy games remain a documented module-separation blocker", () => {

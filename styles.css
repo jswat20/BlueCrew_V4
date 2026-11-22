@@ -7339,6 +7339,11 @@ body[data-role="umpire"][data-page="dashboard"] .content-area { background: var(
 }
 
 .settings-location-card { grid-column: 1 / -1; }
+.settings-workspace-card { grid-column: 1 / -1; }
+.settings-workspace-list { display: grid; gap: 12px; padding: 14px; }
+.settings-workspace-card .settings-competition-division {
+  grid-template-columns: minmax(180px, .8fr) minmax(220px, 1.2fr) minmax(260px, 1.4fr);
+}
 .settings-location-list { display: grid; padding-top: 12px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
 .settings-location-list section { padding: 12px; border: 1px solid #b8d6de; border-radius: 8px; background: #f7fbfc; }
 .settings-location-list section > strong { display: block; margin-bottom: 9px; color: var(--slate-navy); }
@@ -7694,6 +7699,7 @@ body[data-page="profile"] .form-actions { margin: 0; padding: 14px var(--space-l
   body[data-page="profile"] .form-actions { position: sticky; bottom: 0; z-index: 2; padding-inline: var(--space-medium); }
   body[data-page="profile"] [data-testid="communication-options"] { grid-template-columns: 1fr; }
   .settings-card-grid { grid-template-columns: 1fr; }
+  .settings-workspace-card .settings-competition-division { grid-template-columns: 1fr; }
   .settings-card > .page-section-header { align-items: flex-start; }
 }
 
