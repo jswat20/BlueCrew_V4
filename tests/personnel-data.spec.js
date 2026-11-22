@@ -56,7 +56,7 @@ test.describe("DOB registration and calendar rules", () => {
   test("migration makes DOB authoritative and preserves legacy null values", () => {
     expect(migration).toContain("p_birthdate date");
     expect(migration).toContain("p_birthdate > (current_date - interval '13 years')::date");
-    expect(migration).toContain("birthdate)\n  values");
+    expect(migration).toMatch(/insert\s+into\s+public\.profiles\s*\([^)]*\bbirthdate\s*\)\s*values\s*\(/i);
     expect(migration).not.toMatch(/alter column birthdate set not null/i);
     expect(migration.indexOf("minimum_age_13_required")).toBeLessThan(migration.indexOf("insert into public.profiles"));
   });

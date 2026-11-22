@@ -30,7 +30,7 @@ test("approved-account RLS gates normal organization data for pending identities
   for (const table of ["organizations", "seasons", "crew_members", "games", "assignment_claims", "availability", "notifications"]) {
     expect(rls).toContain(`on public.${table}`);
   }
-  expect(rls).toContain("select role from public.profiles\n  where auth_user_id = auth.uid() and status = 'approved'");
+  expect(rls).toMatch(/select\s+role\s+from\s+public\.profiles\s+where\s+auth_user_id\s*=\s*auth\.uid\(\)\s+and\s+status\s*=\s*'approved'/i);
   expect(rls).toContain("public.is_approved_account()");
 });
 

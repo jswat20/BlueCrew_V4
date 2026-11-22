@@ -4,7 +4,7 @@ const dashboardService = (() => {
   const UPCOMING_GAME_LIMIT = 8;
 
   function getToday() {
-    return new Date().toISOString().split("T")[0];
+    return dateTimeFormattingService.formatLocalDate();
   }
 
   function compareGames(a, b) {
@@ -1226,10 +1226,7 @@ function getOperationsCenter(
           .getPendingAccounts()
       : [];
 
-  const today =
-    new Date()
-      .toISOString()
-      .split("T")[0];
+  const today = getToday();
 
   const conflicts =
     typeof conflictService !== "undefined" &&
@@ -1476,9 +1473,7 @@ function getOperationsCenter(
   const todaysEvents =
     getTodaysSchedule();
 
-  const horizonEndDate = new Date(`${today}T12:00:00`);
-  horizonEndDate.setDate(horizonEndDate.getDate() + 28);
-  const horizonEnd = horizonEndDate.toISOString().split("T")[0];
+  const horizonEnd = dateTimeFormattingService.addLocalDays(today, 28);
   const upcomingWork = gameService.getAll()
     .filter(game => game.date >= today && game.date <= horizonEnd && gameService.getStatus(game) !== "cancelled")
     .map(toDashboardGame)

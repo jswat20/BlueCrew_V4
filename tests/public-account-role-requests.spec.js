@@ -96,7 +96,7 @@ test.describe("role-aware administrative approval", () => {
 test.describe("migration security contract", () => {
   test("separates requested role from authorization role and validates the request", () => {
     expect(migration).toContain("add column requested_role public.account_role");
-    expect(migration).toContain("values (\n    eligible_organization_id, auth.uid(), 'umpire', requested, 'pending'");
+    expect(migration).toMatch(/values\s*\(\s*eligible_organization_id\s*,\s*auth\.uid\(\)\s*,\s*'umpire'\s*,\s*requested\s*,\s*'pending'/i);
     expect(migration).toContain("valid_requested_account_type_required");
     expect(migration).toContain("requested_role_is_server_managed");
   });

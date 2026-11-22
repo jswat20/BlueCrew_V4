@@ -1,4 +1,19 @@
 const dateTimeFormattingService = (() => {
+  function formatLocalDate(value = new Date()) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  }
+
+  function addLocalDays(value, days) {
+    const text = String(value || "").trim();
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return "";
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+    date.setDate(date.getDate() + Number(days || 0));
+    return formatLocalDate(date);
+  }
+
   function formatDateShort(value, fallback = "—") {
     const text = String(value || "").trim();
     const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -43,5 +58,5 @@ const dateTimeFormattingService = (() => {
     const parsed = new Date(`${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`);
     return Number.isNaN(parsed.getTime()) ? Number.MAX_SAFE_INTEGER : parsed.getTime();
   }
-  return { formatDateShort, formatDayDate, formatTime12Hour, toSortableDateTime };
+  return { addLocalDays, formatDateShort, formatDayDate, formatLocalDate, formatTime12Hour, toSortableDateTime };
 })();

@@ -81,8 +81,7 @@ function handleOperationsCenterTask(
 
   if (action === "schedule-today") {
     currentScheduleView = "daily";
-    currentScheduleDate =
-      new Date().toISOString().split("T")[0];
+    currentScheduleDate = dateTimeFormattingService.formatLocalDate();
     uiStateService?.setScheduleFilter?.("all");
 
     window.navigateTo("schedule", {
@@ -2450,7 +2449,7 @@ function renderOperationsCenter(context = {}) {
 
   operations.operationalDate =
     operations.operationalDate ||
-    new Date().toISOString().split("T")[0];
+    dateTimeFormattingService.formatLocalDate();
   operations.statusMetrics =
     operations.statusMetrics || [];
   operations.upcomingWork =

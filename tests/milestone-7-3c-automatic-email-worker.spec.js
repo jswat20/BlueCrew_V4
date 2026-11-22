@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { readFileSync, readdirSync } = require("node:fs");
+const { existsSync, readFileSync, readdirSync } = require("node:fs");
 
 const migrationPath = "supabase/migrations/202608090001_automatic_communication_email_worker.sql";
 
@@ -54,8 +54,9 @@ test("worker and provider secrets are absent from browser-delivered JavaScript",
     "config/supabase.js",
     ...readdirSync("js", { recursive: true })
       .filter(file => file.endsWith(".js"))
-      .map(file => `js/${file.replaceAll("\\", "/")}`)
-  ];
+      .map(file => `js/${file.replaceAll("\\", "/")}`),
+    ...(existsSync("dist/config") ? readdirSync("dist/config").filter(file => file.endsWith(".js")).map(file => `dist/config/${file}`) : [])
+  ].filter(existsSync);
   const browserSource = browserFiles.map(file => readFileSync(file, "utf8")).join("\n");
 
   expect(browserSource).not.toContain("COMMUNICATION_WORKER_SECRET");

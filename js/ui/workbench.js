@@ -934,7 +934,7 @@ function renderWorkbench(context = {}) {
         ? (workbench.sections.needsAssignment || [])
             .filter(game =>
               game.date ===
-              new Date().toISOString().split("T")[0]
+              dateTimeFormattingService.formatLocalDate()
             )
         : workbench.sections.needsAssignment || [];
 

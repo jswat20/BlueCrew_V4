@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { readFileSync, readdirSync } = require("node:fs");
+const { existsSync, readFileSync, readdirSync } = require("node:fs");
 const { pathToFileURL } = require("node:url");
 const path = require("node:path");
 
@@ -114,6 +114,11 @@ test("SQL lease and Edge entrypoint enforce trusted server processing", () => {
   expect(edge).toContain("worker_sender_not_configured");
   expect(edge).not.toMatch(/recipient_email|subject\s*:\s*body|request\.json\(/);
   expect(edge).not.toContain("console.log");
-  const browserFiles = ["index.html", "config/supabase.js", ...readdirSync("js/services").filter(file => file.endsWith(".js")).map(file => `js/services/${file}`)];
+  const browserFiles = [
+    "index.html",
+    "config/supabase.js",
+    ...readdirSync("js/services").filter(file => file.endsWith(".js")).map(file => `js/services/${file}`),
+    ...(existsSync("dist/config") ? readdirSync("dist/config").filter(file => file.endsWith(".js")).map(file => `dist/config/${file}`) : [])
+  ].filter(existsSync);
   expect(browserFiles.map(file => readFileSync(file, "utf8")).join("\n")).not.toContain("RESEND_API_KEY");
 });
