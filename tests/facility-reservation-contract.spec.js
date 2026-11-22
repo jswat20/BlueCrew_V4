@@ -39,4 +39,6 @@ test("hosted facility UI exposes the required workflow", () => {
   }
   expect(component).toContain("cancelReservationFromSettings");
   expect(component).toContain("openAvailabilityDialog");
+  expect(component).toContain("const form=event.currentTarget; const result=await action(formObject(form))");
+  expect(component).not.toContain("await action(formObject(event.currentTarget))");
 });
