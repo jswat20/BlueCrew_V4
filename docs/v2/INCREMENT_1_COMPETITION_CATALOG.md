@@ -54,12 +54,18 @@ explicit transaction followed by `ROLLBACK`; PostgreSQL accepted the complete
 DDL, policies, grants, indexes, triggers, seed catalog and functions, and no
 objects or rows remained from the rehearsal.
 
-The migration has not been applied to staging. A linked CLI dry run, after
-verifying the exact staging project ref, failed closed because three migrations
-recorded remotely (`202609100001`, `20261005125847`, and `20261005130554`) are
-not present in the repository. The migration history must be reconciled by
-recovering and reviewing those files; the history table was not repaired and
-the DDL was not bypassed through an out-of-band execution path.
+On 2026-11-22, the three missing staging migration sources were recovered from
+PRs 29 and 30 and restored under the exact version IDs already recorded in
+staging (`202609100001`, `20261005125847`, and `20261005130554`). Live function
+fingerprints and the message-deletion table shape were compared before the
+files were restored. The migration history table was not repaired and no
+existing migration was replayed.
+
+The linked CLI dry run then proposed only this competition-catalog migration.
+It was applied to staging project `fdjhwxmphdzodxvhrblk`, recorded in migration
+history, and verified with two seeded sports, zero organization catalog rows,
+RLS enabled on all five tables, and 17 policies. A follow-up migration added the
+single foreign-key index identified by the post-DDL performance advisor.
 
 The migration is additive. Before organization-specific rows exist, rollback is
 the reverse-order removal of the three RPCs and the five new tables. After real
@@ -70,7 +76,7 @@ No production rollback applies because production was not targeted.
 
 The staging-only artifact build also passed its target and production-reference
 checks. It used a nonfunctional browser-key placeholder for artifact validation,
-created only local `dist` output, and did not deploy.
+created only local `dist` output, and did not deploy at that verification point.
 
 ## Test coverage
 
@@ -81,6 +87,9 @@ verification also passed; no deployment was performed.
 - Complete administrator program → division → team workflow.
 - Cross-organization fixtures remain invisible.
 - Direct mutation by an umpire is rejected even outside the hidden admin UI.
+- A live staging database impersonation of a non-administrator was rejected by
+  `create_competition_program` with
+  `competition_catalog_administrator_required`; no catalog row was created.
 - Migration contract verifies RLS, composite tenant foreign keys, invoker rights,
   anonymous revocation, and fail-closed administrator checks.
 - Existing season Settings, responsive layout, Crew/Profile behavior, and

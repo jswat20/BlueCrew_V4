@@ -44,6 +44,28 @@ The source SQL in PR #30 appears to explain the difference. MD5 comparisons of P
 - Staging email cron job 1 paused/verified inactive; 18 pending deliveries remain.
 - Storage bucket `profile-photos` had zero tracked objects when checked.
 
+## Repository reconciliation completed — 2026-11-22
+
+The three authoritative sources were restored to `slate-v2-development` under
+the exact version IDs already present in the staging migration registry:
+
+- `202609100001_authoritative_schedule_game_delete.sql` from PR #29;
+- `20261005125847_multi_recipient_direct_messages.sql` from PR #30; and
+- `20261005130554_message_deletion.sql` from PR #30.
+
+Before restoration, staging function-definition fingerprints were rechecked as
+`7986085a061ee0a449ad2f2b69b9237e`,
+`da9b47b339647afed76a5eb1e3d52741`,
+`2dbff2159bff775e92a2a76f561b13ba`, and
+`33c31d147aeb887f375974fabef8dcc0`, matching the prior audit. The
+`message_deletions` column shape was also verified. No migration-history repair
+was performed and none of these existing migrations was replayed.
+
+A subsequent linked dry run proposed only the new competition-catalog
+migration, demonstrating that local and staging history were reconciled for the
+development branch. Production's differently versioned migration remains
+untouched and outside this reconciliation.
+
 ## September 10 game deletion source recovered
 - Original SQL found on `fix-authoritative-hosted-game-delete` at `supabase/migrations/202609100001_authoritative_schedule_game_delete.sql` (GitHub PR #29: https://github.com/jswat20/BlueCrew_V4/pull/29).
 - The staging database has `public.delete_schedule_game(p_game_id uuid)` with equivalent substantive function logic; deparsed live definition MD5: `7986085a061ee0a449ad2f2b69b9237e`.
