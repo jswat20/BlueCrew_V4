@@ -38,6 +38,9 @@ test("hosted facility UI exposes the required workflow", () => {
     expect(component).toContain(`data-testid=\"${marker}\"`);
   }
   expect(component).toContain("cancelReservationFromSettings");
+  expect(component).toContain('data-testid="reservation-cancel-dialog"');
+  expect(component).toContain("submitReservationCancellation");
+  expect(component).not.toContain('window.confirm("Cancel this reservation?');
   expect(component).toContain("openAvailabilityDialog");
   expect(component).toContain("const form=event.currentTarget; const result=await action(formObject(form))");
   expect(component).not.toContain("await action(formObject(event.currentTarget))");
