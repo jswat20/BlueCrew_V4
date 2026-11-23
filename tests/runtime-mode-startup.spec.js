@@ -53,6 +53,19 @@ hostedTest.describe("hosted runtime reload", () => {
     await expect.poll(() => page.evaluate(() => window.BlueCrew.test.currentPage)).toBe("dashboard");
     expect(await page.evaluate(() => ({ configured: supabaseClientService.isConfigured(), games: gameService.getAll().length, email: loginService.getCurrentAccount()?.email }))).toEqual({ configured: true, games: 1, email: "hosted@example.com" });
   });
+
+  hostedTest.describe("delayed persisted session", () => {
+    hostedTest.use({ supabaseScenario: { profile, crewId: null, initialSession: true, sessionRestoreDelayMs: 250, organization: { id: "organization-1", name: "Hosted", settings: {} } } });
+
+    hostedTest("does not present a false login screen while restoration is in flight", async ({ supabaseAuthApp }) => {
+      const { page } = supabaseAuthApp;
+      await expect(page.getByTestId("session-restoring")).toBeVisible();
+      await expect(page.getByTestId("login-page")).toHaveCount(0);
+      expect(await page.evaluate(() => window.BlueCrew.test.initialized)).toBe(false);
+      await expect.poll(() => page.evaluate(() => window.BlueCrew.test.currentPage)).toBe("dashboard");
+      expect(await page.evaluate(() => window.BlueCrew.test.initialized)).toBe(true);
+    });
+  });
 });
 
 base("Playwright uses an isolated origin and does not serve the manual config file", async ({ page }) => {

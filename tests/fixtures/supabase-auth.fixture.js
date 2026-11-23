@@ -48,6 +48,7 @@ export const test = base.extend({
       linkableProfiles: [],
       organization: null,
       initialSession: false,
+      sessionRestoreDelayMs: 0,
       signUpRequiresConfirmation: false,
       profileMissingUntilProvision: false,
       deniedTable: "",
@@ -269,6 +270,9 @@ export const test = base.extend({
         auth: {
           async getSession() {
             calls.push({ operation: "getSession" });
+            if (settings.sessionRestoreDelayMs) {
+              await new Promise(resolve => setTimeout(resolve, settings.sessionRestoreDelayMs));
+            }
             return {
               data: { session: settings.initialSession ? { user, access_token: "fixture-access-token" } : null },
               error: null

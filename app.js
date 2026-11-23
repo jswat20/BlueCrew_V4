@@ -158,26 +158,50 @@ function initializeApp() {
   setupRoleSwitcher();
 
   if (usesSupabaseAuth) {
+    const requestedPage = window.history.state?.blueCrewPage;
+    const requestedContext = window.history.state?.context || {};
     authService.clearAuthenticatedAccount?.();
-    renderPage("login");
-    window.history.replaceState(
-      { blueCrewPage: "login", context: {} },
-      "",
-      window.location.href
-    );
-    window.BlueCrew.test.currentRole = "umpire";
-    window.BlueCrew.test.initialized = true;
+    renderSessionRestoringState();
+    window.BlueCrew.test.currentRole = "none";
 
     loginService.initializeAuthenticatedIdentity().then(result => {
       if (result.data?.recovery || supabaseAuthService.isRecoveringPassword?.()) {
+        window.BlueCrew.test.initialized = true;
         renderPage("password-recovery");
         return;
       }
-      if (!result.data) return;
+      if (!result.data) {
+        window.history.replaceState(
+          { blueCrewPage: "login", context: {} },
+          "",
+          window.location.href
+        );
+        window.BlueCrew.test.initialized = true;
+        renderPage("login", result.success ? {} : { loginMessage: result.message });
+        return;
+      }
       document.body.dataset.role = result.data.role;
       window.BlueCrew.test.currentRole = result.data.role;
       refreshNavigationAuthorization?.();
-      renderPage("dashboard");
+      const restoredPage = requestedPage && !["login", "forgot-password", "password-recovery"].includes(requestedPage)
+        ? requestedPage
+        : "dashboard";
+      window.history.replaceState(
+        { blueCrewPage: restoredPage, context: requestedContext },
+        "",
+        window.location.href
+      );
+      window.BlueCrew.test.initialized = true;
+      renderPage(restoredPage, requestedContext);
+    }).catch(error => {
+      window.history.replaceState(
+        { blueCrewPage: "login", context: {} },
+        "",
+        window.location.href
+      );
+      window.BlueCrew.test.errors.push(error?.message || "Session restoration failed.");
+      window.BlueCrew.test.initialized = true;
+      renderPage("login", { loginMessage: "The Slate could not restore your session. Please log in again." });
     });
     return;
   }
@@ -195,6 +219,22 @@ function initializeApp() {
   );
 
   window.BlueCrew.test.initialized = true;
+}
+
+function renderSessionRestoringState() {
+  document.body.dataset.page = "session-restoring";
+  document.body.dataset.role = "none";
+  document.querySelector("[data-testid='nav-login']")?.setAttribute("hidden", "");
+  document.querySelector("[data-testid='nav-logout']")?.setAttribute("hidden", "");
+  const title = document.getElementById("page-title");
+  const subtitle = document.getElementById("page-subtitle");
+  const content = document.getElementById("app-content");
+  if (title) title.textContent = "Opening The Slate";
+  if (subtitle) subtitle.textContent = "Restoring your secure session.";
+  if (content) {
+    content.innerHTML = `<div class="page-wrapper" data-testid="session-restoring"><section class="page-section" aria-live="polite"><h2>Restoring your session…</h2><p>Verifying your account and workspace access.</p></section></div>`;
+  }
+  window.BlueCrew.test.currentPage = "session-restoring";
 }
 
 function setupNavigation() {

@@ -11,4 +11,6 @@ test("hosted authentication is configured to persist and restore on startup", ()
   expect(login).toContain("await supabaseAuthService.startSessionListener()");
   expect(login).toContain("return supabaseAuthService.restoreSession()");
   expect(app).toContain("loginService.initializeAuthenticatedIdentity()");
+  expect(app).toContain("renderSessionRestoringState()");
+  expect(app).toContain('window.BlueCrew.test.currentPage = "session-restoring"');
 });

@@ -42,7 +42,7 @@ function renderLogin(context = {}) {
         class="form-message"
         data-testid="login-message"
         aria-live="polite"
-      >${context.passwordMessage ? escapeSharedStateHtml(context.passwordMessage) : ""}</div>
+      >${context.passwordMessage || context.loginMessage ? escapeSharedStateHtml(context.passwordMessage || context.loginMessage) : ""}</div>
     </section>
     ${usesSupabaseAuth && typeof renderAccountRegistration === "function"
       ? `
