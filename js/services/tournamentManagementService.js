@@ -6,10 +6,11 @@ const tournamentManagementService = (() => {
       pools: [],
       memberships: [],
       proposals: [],
+      games: [], rules: [], results: [], tiebreaks: [], brackets: [], bracketRounds: [], bracketGames: [],
     },
     currentTournamentId = null,
     currentProposalId = null,
-    proposalGames = [];
+    proposalGames = [], standings = {};
   const clean = (value) => String(value ?? "").trim();
   const mins = (value) => {
     const m = clean(value).match(/^(\d{1,2}):(\d{2})/);
@@ -66,6 +67,12 @@ const tournamentManagementService = (() => {
         "A team gained an overlapping game. Nothing was published.",
       field_unavailable: "The selected field is unavailable.",
       proposal_not_found: "The proposal no longer exists.",
+      tournament_score_invalid: "Scores must be whole numbers of zero or greater.",
+      tournament_final_score_required: "A final result requires both scores.",
+      elimination_winner_required: "A tied elimination game requires an explicit advancing winner.",
+      tournament_pool_results_incomplete: "All pool games must be resolved before generating the bracket.",
+      downstream_bracket_result_final: "This correction would overwrite a completed downstream game.",
+      tournament_bracket_matchup_incomplete: "Both advancing teams must be known before scheduling this game.",
     })[clean(error?.message)] ||
     clean(error?.message) ||
     "The tournament operation could not be completed.";
@@ -348,6 +355,30 @@ const tournamentManagementService = (() => {
       return { success: false, message: message(error) };
     }
   }
+  const saveRules = (payload) => mutate(() => supabaseSharedRepository.saveTournamentScoringRules(payload));
+  async function saveResult(values) {
+    const result = await mutate(() => supabaseSharedRepository.saveTournamentGameResult(values));
+    if (result.success) {
+      const poolId = state.games.find((game) => game.id === values.gameId)?.tournament_pool_id;
+      if (poolId) await loadStandings(poolId);
+      await supabaseAuthService.refreshScheduling();
+    }
+    return result;
+  }
+  async function loadStandings(poolId) {
+    const { data, error } = await supabaseSharedRepository.getTournamentPoolStandings(poolId);
+    if (error) return { success:false, message:message(error) };
+    standings[poolId] = data;
+    return { success:true, data };
+  }
+  async function loadTournamentStandings(tournamentId) {
+    const targets = state.pools.filter((pool) => pool.tournament_id === tournamentId);
+    const responses = await Promise.all(targets.map((pool) => loadStandings(pool.id)));
+    return responses.find((item) => !item.success) || { success:true, data:standings };
+  }
+  const saveManualTiebreak = (values) => mutate(() => supabaseSharedRepository.saveTournamentManualTiebreak(values));
+  const generateBracket = (values) => mutate(() => supabaseSharedRepository.generateTournamentBracket(values));
+  const scheduleBracketGame = (values) => mutate(() => supabaseSharedRepository.scheduleTournamentBracketGame(values));
   const selectTournament = (id) => {
     currentTournamentId = id;
   };
@@ -356,6 +387,7 @@ const tournamentManagementService = (() => {
     currentTournamentId,
     currentProposalId,
     proposalGames: structuredClone(proposalGames),
+    standings: structuredClone(standings),
   });
   const clear = () => {
     state = {
@@ -365,10 +397,12 @@ const tournamentManagementService = (() => {
       pools: [],
       memberships: [],
       proposals: [],
+      games: [], rules: [], results: [], tiebreaks: [], brackets: [], bracketRounds: [], bracketGames: [],
     };
     currentTournamentId = null;
     currentProposalId = null;
     proposalGames = [];
+    standings = {};
   };
   return {
     load,
@@ -384,6 +418,13 @@ const tournamentManagementService = (() => {
     selectProposal,
     updateProposalGame,
     publishProposal,
+    saveRules,
+    saveResult,
+    loadStandings,
+    loadTournamentStandings,
+    saveManualTiebreak,
+    generateBracket,
+    scheduleBracketGame,
     selectTournament,
     snapshot,
     clear,

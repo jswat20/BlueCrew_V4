@@ -7,12 +7,9 @@ const tournamentEscape = (value) =>
     .replaceAll('"', "&quot;");
 const tournamentOption = (value, label, selected = false) =>
   `<option value="${tournamentEscape(value)}" ${selected ? "selected" : ""}>${tournamentEscape(label)}</option>`;
+const tournamentCanManage = () => authorizationService.canEditSchedule();
 async function openTournamentManager() {
-  if (
-    !authorizationService.canEditSchedule() ||
-    !workspaceService.hasModule("tournament")
-  )
-    return false;
+  if (!workspaceService.hasModule("tournament")) return false;
   await Promise.all([
     tournamentManagementService.load(),
     facilityService.load(),
@@ -32,7 +29,7 @@ function tournamentBody() {
 }
 function renderTournamentList() {
   const s = tournamentManagementService.snapshot();
-  tournamentBody().innerHTML = `<section><div class="assign-drawer-actions"><button class="button button-primary" onclick="renderTournamentForm()">Create Tournament</button></div><div class="tournament-card-grid">${s.tournaments.map((t) => `<article class="presentation-panel"><strong>${tournamentEscape(t.name)}</strong><span>${tournamentEscape(t.sport)} · ${t.starts_on}–${t.ends_on} · ${t.status}</span><button class="button button-link" onclick="openTournament('${t.id}')">Manage</button></article>`).join("") || "<p>No tournaments yet.</p>"}</div></section>`;
+  tournamentBody().innerHTML = `<section><div class="assign-drawer-actions">${tournamentCanManage() ? `<button class="button button-primary" onclick="renderTournamentForm()">Create Tournament</button>` : ""}</div><div class="tournament-card-grid">${s.tournaments.map((t) => `<article class="presentation-panel"><strong>${tournamentEscape(t.name)}</strong><span>${tournamentEscape(t.sport)} · ${t.starts_on}–${t.ends_on} · ${t.status}</span><button class="button button-link" onclick="openTournament('${t.id}')">${tournamentCanManage() ? "Manage" : "View"}</button></article>`).join("") || "<p>No tournaments yet.</p>"}</div></section>`;
 }
 function renderTournamentForm(t = {}) {
   tournamentBody().innerHTML = `<form class="game-editor-form" onsubmit="submitTournament(event)"><h3>${t.id ? "Edit" : "Create"} Tournament</h3><input type="hidden" name="id" value="${t.id || ""}"><label>Name<input name="name" value="${tournamentEscape(t.name || "")}" required></label><label>Sport<input name="sport" value="${tournamentEscape(t.sport || "Softball")}" required></label><div class="schedule-generator-grid"><label>Starts<input name="starts_on" type="date" value="${t.starts_on || ""}" required></label><label>Ends<input name="ends_on" type="date" value="${t.ends_on || ""}" required></label></div><label>Timezone<input name="timezone" value="${tournamentEscape(t.timezone || "America/New_York")}" required></label><label>Description<textarea name="description">${tournamentEscape(t.description || "")}</textarea></label><div class="assign-drawer-actions"><button class="button button-primary">Save Tournament</button><button type="button" class="button button-secondary" onclick="renderTournamentList()">Cancel</button></div><div role="alert" id="tournament-error"></div></form>`;
@@ -106,7 +103,7 @@ function renderTournamentDetail() {
       )
       .join("") || "<p>No pools yet.</p>"
   }
-  <h3>Pool-play Scheduling</h3><div class="assign-drawer-actions"><button class="button button-primary" ${pools.length ? "" : "disabled"} onclick="renderTournamentScheduleForm()">Generate Schedule</button><button class="button button-secondary" onclick="renderTournamentProposalList()">Saved Proposals</button></div></section>`;
+  <h3>Pool-play Scheduling</h3><div class="assign-drawer-actions"><button class="button button-primary" ${pools.length ? "" : "disabled"} onclick="renderTournamentScheduleForm()">Generate Schedule</button><button class="button button-secondary" onclick="renderTournamentProposalList()">Saved Proposals</button><button class="button button-primary" data-testid="tournament-results-button" onclick="openTournamentResults()">Results, Standings & Bracket</button></div></section>`;
 }
 async function transitionTournamentStatus(status) {
   const id = tournamentManagementService.snapshot().currentTournamentId,
@@ -263,3 +260,54 @@ function tournamentError(message) {
   if (el) el.textContent = message;
   else toastService.error(message);
 }
+
+async function openTournamentResults() {
+  const tournamentId = tournamentManagementService.snapshot().currentTournamentId;
+  const result = await tournamentManagementService.loadTournamentStandings(tournamentId);
+  if (!result.success) return tournamentError(result.message);
+  renderTournamentResults();
+}
+function tournamentResultFor(gameId) {
+  return tournamentManagementService.snapshot().results.find((item) => item.game_id === gameId);
+}
+function tournamentTeamName(teamId) {
+  return tournamentManagementService.snapshot().teams.find((team) => team.id === teamId)?.name || "TBD";
+}
+function tournamentGameStatus(game) {
+  const result = tournamentResultFor(game.id);
+  return result ? result.result_status.replaceAll("_", " ") : game.lifecycle_status;
+}
+function renderTournamentResults() {
+  const s = tournamentManagementService.snapshot(), tournamentId = s.currentTournamentId,
+    pools = s.pools.filter((pool) => pool.tournament_id === tournamentId),
+    games = s.games.filter((game) => game.tournament_id === tournamentId && game.tournament_pool_id),
+    brackets = s.brackets.filter((bracket) => bracket.tournament_id === tournamentId), canManage=tournamentCanManage();
+  tournamentBody().innerHTML = `<section data-testid="tournament-results-workspace"><div class="assign-drawer-actions"><button class="button button-secondary" onclick="renderTournamentDetail()">Tournament Setup</button>${canManage ? `<button class="button button-secondary" onclick="renderTournamentScoringRules()">Scoring Rules</button><button class="button button-primary" onclick="generateCurrentTournamentBracket()">Generate Seeded Bracket</button>` : ""}</div><h3>Pool-play Results</h3>${pools.map((pool) => {
+    const standings = s.standings[pool.id]?.rows || [], poolGames = games.filter((game) => game.tournament_pool_id === pool.id);
+    return `<article class="presentation-panel" data-testid="pool-results-${pool.id}"><h4>${tournamentEscape(pool.name)}</h4><div class="table-responsive"><table><thead><tr><th>Game</th><th>Score</th><th>Status</th><th></th></tr></thead><tbody>${poolGames.map((game) => { const result=tournamentResultFor(game.id); return `<tr><td>${tournamentEscape(game.away_team)} @ ${tournamentEscape(game.home_team)}</td><td>${result?.away_score ?? "—"}–${result?.home_score ?? "—"}</td><td>${tournamentEscape(tournamentGameStatus(game))}</td><td>${canManage ? `<button class="button button-link" onclick="renderTournamentScoreForm('${game.id}')">${result ? "Correct" : "Enter score"}</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div><h4>Standings</h4>${renderTournamentStandingsTable(standings)}${canManage ? `<button class="button button-link" onclick="renderManualTiebreakForm('${pool.id}')">Record manual tiebreak</button>` : ""}</article>`;
+  }).join("")}<h3>Elimination Bracket</h3>${brackets.length ? brackets.map(renderTournamentBracket).join("") : "<p>Finalize every pool game, then generate the seeded bracket.</p>"}<div role="alert" id="tournament-error"></div></section>`;
+}
+function renderTournamentStandingsTable(rows) {
+  if (!rows.length) return "<p>No standings yet.</p>";
+  return `<div class="table-responsive"><table data-testid="tournament-standings"><thead><tr><th>Seed</th><th>Team</th><th>GP</th><th>W-L-T</th><th>Pts</th><th>PF</th><th>PA</th><th>Diff</th><th>Tiebreak</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${row.unresolved_tie ? "T" : row.seed}</td><td>${tournamentEscape(row.name)}</td><td>${row.games_played}</td><td>${row.wins}-${row.losses}-${row.ties}</td><td>${row.standings_points}</td><td>${row.points_for}</td><td>${row.points_against}</td><td>${row.score_differential}</td><td>${row.unresolved_tie ? "Manual decision required" : row.manual_reason ? tournamentEscape(row.manual_reason) : row.head_to_head_points != null ? `Head-to-head ${row.head_to_head_points}` : "Standard order"}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function renderTournamentScoreForm(gameId) {
+  const s=tournamentManagementService.snapshot(), game=s.games.find((item)=>item.id===gameId), result=tournamentResultFor(gameId), elimination=s.bracketGames.some((item)=>item.canonical_game_id===gameId);
+  tournamentBody().innerHTML=`<form class="game-editor-form" data-testid="tournament-score-form" onsubmit="submitTournamentScore(event,'${gameId}')"><h3>${result ? "Correct" : "Record"} Result</h3><p>${tournamentEscape(game.away_team)} at ${tournamentEscape(game.home_team)}</p><div class="schedule-generator-grid"><label>${tournamentEscape(game.away_team)} score<input name="awayScore" type="number" min="0" step="1" value="${result?.away_score ?? ""}" required></label><label>${tournamentEscape(game.home_team)} score<input name="homeScore" type="number" min="0" step="1" value="${result?.home_score ?? ""}" required></label></div><label>Status<select name="status"><option value="final">Final</option><option value="forfeited">Forfeited</option><option value="in_progress">In progress</option><option value="postponed">Postponed</option><option value="cancelled">Cancelled</option></select></label>${elimination ? `<label>Advancing winner for a tied score<select name="winnerTeamId"><option value="">Use score</option>${tournamentOption(game.tournament_home_team_id,game.home_team,result?.winner_team_id===game.tournament_home_team_id)}${tournamentOption(game.tournament_away_team_id,game.away_team,result?.winner_team_id===game.tournament_away_team_id)}</select></label>` : ""}<label>Decision/correction note<textarea name="note" required>${tournamentEscape(result?.decision_note || (result ? "Authorized score correction" : "Result confirmed"))}</textarea></label><button class="button button-primary">Confirm Result</button><button type="button" class="button button-secondary" onclick="openTournamentResults()">Cancel</button><div role="alert" id="tournament-error"></div></form>`;
+}
+async function submitTournamentScore(event,gameId) {
+  event.preventDefault(); const form=event.currentTarget;
+  const result=await tournamentManagementService.saveResult({gameId,status:form.status.value,homeScore:Number(form.homeScore.value),awayScore:Number(form.awayScore.value),winnerTeamId:form.winnerTeamId?.value||null,note:form.note.value});
+  if(!result.success)return tournamentError(result.message); toastService.success("Tournament result saved and standings recalculated."); await openTournamentResults();
+}
+function renderTournamentScoringRules() {
+  const s=tournamentManagementService.snapshot(), divisions=s.divisions.filter((item)=>item.tournament_id===s.currentTournamentId);
+  tournamentBody().innerHTML=`<form class="game-editor-form" onsubmit="submitTournamentScoringRules(event)"><h3>Standings Rules</h3><label>Division<select name="divisionId">${divisions.map((division)=>tournamentOption(division.id,division.name)).join("")}</select></label><div class="schedule-generator-grid"><label>Win points<input name="winPoints" type="number" step="0.5" value="3"></label><label>Tie points<input name="tiePoints" type="number" step="0.5" value="1"></label><label>Loss points<input name="lossPoints" type="number" step="0.5" value="0"></label><label>Differential cap<input name="differentialCap" type="number" min="1" value="10"></label></div><label><input name="tiesAllowed" type="checkbox" checked> Pool-play ties allowed</label><p>Tiebreak order: standings points, win percentage, head-to-head only for a two-team tie, capped score differential, points for, then an audited director decision.</p><button class="button button-primary">Save Rules</button><button type="button" class="button button-secondary" onclick="openTournamentResults()">Cancel</button><div role="alert" id="tournament-error"></div></form>`;
+}
+async function submitTournamentScoringRules(event){event.preventDefault();const f=event.currentTarget,r=await tournamentManagementService.saveRules({division_id:f.divisionId.value,win_points:Number(f.winPoints.value),tie_points:Number(f.tiePoints.value),loss_points:Number(f.lossPoints.value),ties_allowed:f.tiesAllowed.checked,differential_cap:f.differentialCap.value,tiebreak_order:["points","win_percentage","head_to_head","score_differential","points_for","manual"]});if(!r.success)return tournamentError(r.message);toastService.success("Scoring rules saved.");await openTournamentResults();}
+function renderManualTiebreakForm(poolId){const s=tournamentManagementService.snapshot(),members=s.memberships.filter((item)=>item.pool_id===poolId).map((item)=>s.teams.find((team)=>team.id===item.team_id)).filter(Boolean);tournamentBody().innerHTML=`<form class="game-editor-form" onsubmit="submitManualTiebreak(event,'${poolId}')"><h3>Director Tiebreak Decision</h3><label>Team<select name="teamId">${members.map((team)=>tournamentOption(team.id,team.name)).join("")}</select></label><label>Priority<input name="priority" type="number" min="1" required></label><label>Reason<textarea name="reason" required></textarea></label><button class="button button-primary">Record Decision</button><button type="button" class="button button-secondary" onclick="openTournamentResults()">Cancel</button><div role="alert" id="tournament-error"></div></form>`;}
+async function submitManualTiebreak(event,poolId){event.preventDefault();const f=event.currentTarget,r=await tournamentManagementService.saveManualTiebreak({poolId,teamId:f.teamId.value,priority:Number(f.priority.value),reason:f.reason.value});if(!r.success)return tournamentError(r.message);await openTournamentResults();}
+async function generateCurrentTournamentBracket(){const s=tournamentManagementService.snapshot(),division=s.divisions.find((item)=>item.tournament_id===s.currentTournamentId),pools=s.pools.filter((item)=>item.tournament_id===s.currentTournamentId),ranked=[];for(const pool of pools)for(const row of s.standings[pool.id]?.rows||[])ranked.push({...row,poolName:pool.name});if(ranked.some((row)=>row.unresolved_tie))return tournamentError("Resolve every standings tie before seeding.");ranked.sort((a,b)=>a.seed-b.seed||a.poolName.localeCompare(b.poolName));const qualifiers=ranked.slice(0,8).map((row,index)=>({team_id:row.team_id,seed:index+1,pool_id:pools.find((pool)=>pool.name===row.poolName)?.id,pool_seed:row.seed}));const r=await tournamentManagementService.generateBracket({divisionId:division.id,qualifiers,name:"Championship Bracket"});if(!r.success)return tournamentError(r.message);toastService.success("Seeded elimination bracket generated.");await openTournamentResults();}
+function renderTournamentBracket(bracket){const s=tournamentManagementService.snapshot(),rounds=s.bracketRounds.filter((item)=>item.bracket_id===bracket.id),games=s.bracketGames.filter((item)=>item.bracket_id===bracket.id),canManage=tournamentCanManage();return `<article class="presentation-panel tournament-bracket" data-testid="tournament-bracket"><h4>${tournamentEscape(bracket.name)}</h4><p>${bracket.status}${bracket.champion_team_id?` · Champion: ${tournamentEscape(tournamentTeamName(bracket.champion_team_id))}`:""}</p><div class="tournament-bracket-grid">${rounds.map((round)=>`<section><h5>${tournamentEscape(round.name)}</h5>${games.filter((game)=>game.round_id===round.id).map((game)=>`<article class="presentation-panel"><strong>${tournamentEscape(tournamentTeamName(game.home_team_id))} vs ${tournamentEscape(tournamentTeamName(game.away_team_id))}</strong><span>${game.canonical_game_id?tournamentGameStatus(s.games.find((item)=>item.id===game.canonical_game_id)||{}):"Unscheduled"}</span>${canManage&&game.home_team_id&&game.away_team_id&&!game.canonical_game_id?`<button class="button button-link" onclick="renderBracketScheduleForm('${game.id}')">Schedule</button>`:""}${canManage&&game.canonical_game_id?`<button class="button button-link" onclick="renderTournamentScoreForm('${game.canonical_game_id}')">Record result</button>`:""}</article>`).join("")}</section>`).join("")}</div></article>`;}
+function renderBracketScheduleForm(bracketGameId){const f=facilityService.snapshot();tournamentBody().innerHTML=`<form class="game-editor-form" onsubmit="submitBracketSchedule(event,'${bracketGameId}')"><h3>Schedule Elimination Game</h3><label>Date<input name="date" type="date" required></label><label>Time<input name="time" type="time" required></label><label>Field<select name="fieldId">${f.fields.map((field)=>tournamentOption(field.id,`${f.facilities.find((item)=>item.id===field.location_id)?.name||"Complex"} — ${field.name}`)).join("")}</select></label><button class="button button-primary">Schedule Game</button><button type="button" class="button button-secondary" onclick="openTournamentResults()">Cancel</button><div role="alert" id="tournament-error"></div></form>`;}
+async function submitBracketSchedule(event,bracketGameId){event.preventDefault();const f=event.currentTarget,field=facilityService.snapshot().fields.find((item)=>item.id===f.fieldId.value),r=await tournamentManagementService.scheduleBracketGame({bracketGameId,date:f.date.value,time:f.time.value,fieldId:field.id,locationId:field.location_id});if(!r.success)return tournamentError(r.message);toastService.success("Elimination game scheduled with a field reservation.");await openTournamentResults();}

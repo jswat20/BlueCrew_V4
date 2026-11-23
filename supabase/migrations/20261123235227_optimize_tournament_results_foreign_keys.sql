@@ -1,0 +1,18 @@
+-- Cover Increment 6B tenant-qualified foreign keys used by result and bracket operations.
+create index tournament_scoring_rules_tournament_fk_idx on public.tournament_scoring_rules(organization_id,tournament_id);
+create index tournament_results_division_fk_idx on public.tournament_game_results(organization_id,division_id);
+create index tournament_results_winner_fk_idx on public.tournament_game_results(organization_id,winner_team_id) where winner_team_id is not null;
+create index tournament_results_finalizer_fk_idx on public.tournament_game_results(organization_id,finalized_by_profile_id) where finalized_by_profile_id is not null;
+create index tournament_tiebreak_tournament_fk_idx on public.tournament_manual_tiebreaks(organization_id,tournament_id);
+create index tournament_tiebreak_division_fk_idx on public.tournament_manual_tiebreaks(organization_id,division_id);
+create index tournament_tiebreak_team_fk_idx on public.tournament_manual_tiebreaks(organization_id,team_id);
+create index tournament_tiebreak_decider_fk_idx on public.tournament_manual_tiebreaks(organization_id,decided_by_profile_id);
+create index tournament_brackets_champion_fk_idx on public.tournament_brackets(organization_id,champion_team_id) where champion_team_id is not null;
+create index tournament_brackets_generator_fk_idx on public.tournament_brackets(organization_id,generated_by_profile_id);
+create index tournament_bracket_games_tournament_fk_idx on public.tournament_bracket_games(organization_id,tournament_id);
+create index tournament_bracket_games_division_fk_idx on public.tournament_bracket_games(organization_id,division_id);
+create index tournament_bracket_games_round_fk_idx on public.tournament_bracket_games(organization_id,round_id);
+create index tournament_bracket_games_home_fk_idx on public.tournament_bracket_games(organization_id,home_team_id) where home_team_id is not null;
+create index tournament_bracket_games_away_fk_idx on public.tournament_bracket_games(organization_id,away_team_id) where away_team_id is not null;
+create index tournament_bracket_games_winner_fk_idx on public.tournament_bracket_games(organization_id,winner_team_id) where winner_team_id is not null;
+create index tournament_bracket_games_next_fk_idx on public.tournament_bracket_games(organization_id,next_game_id) where next_game_id is not null;

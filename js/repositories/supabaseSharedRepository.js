@@ -547,16 +547,24 @@ const supabaseSharedRepository = (() => {
 
   async function getTournamentCatalog() {
     const db = await client();
-    const [tournaments, divisions, teams, pools, memberships, proposals] = await Promise.all([
+    const [tournaments, divisions, teams, pools, memberships, proposals, games, rules, results, tiebreaks, brackets, bracketRounds, bracketGames] = await Promise.all([
       db.from("tournaments").select("*").order("starts_on", { ascending: false }),
       db.from("tournament_divisions").select("*").order("name"),
       db.from("tournament_teams").select("*").order("name"),
       db.from("tournament_pools").select("*").order("name"),
       db.from("tournament_pool_memberships").select("*").order("assigned_at"),
-      db.from("tournament_schedule_proposals").select("*").order("updated_at", { ascending: false })
+      db.from("tournament_schedule_proposals").select("*").order("updated_at", { ascending: false }),
+      db.from("games").select("*").eq("game_domain", "tournament").order("game_date"),
+      db.from("tournament_scoring_rules").select("*"),
+      db.from("tournament_game_results").select("*"),
+      db.from("tournament_manual_tiebreaks").select("*").order("priority"),
+      db.from("tournament_brackets").select("*").order("generated_at", { ascending: false }),
+      db.from("tournament_bracket_rounds").select("*").order("round_number"),
+      db.from("tournament_bracket_games").select("*").order("round_number").order("game_number")
     ]);
-    const error = [tournaments, divisions, teams, pools, memberships, proposals].find(result => result.error)?.error || null;
-    return { data: { tournaments: tournaments.data || [], divisions: divisions.data || [], teams: teams.data || [], pools: pools.data || [], memberships: memberships.data || [], proposals: proposals.data || [] }, error };
+    const all = [tournaments, divisions, teams, pools, memberships, proposals, games, rules, results, tiebreaks, brackets, bracketRounds, bracketGames];
+    const error = all.find(result => result.error)?.error || null;
+    return { data: { tournaments: tournaments.data || [], divisions: divisions.data || [], teams: teams.data || [], pools: pools.data || [], memberships: memberships.data || [], proposals: proposals.data || [], games: games.data || [], rules: rules.data || [], results: results.data || [], tiebreaks: tiebreaks.data || [], brackets: brackets.data || [], bracketRounds: bracketRounds.data || [], bracketGames: bracketGames.data || [] }, error };
   }
   async function getTournamentProposalGames(id) { const db=await client(); return db.from("tournament_schedule_proposal_games").select("*").eq("proposal_id",id).order("ordinal"); }
   async function saveTournament(payload) { const db=await client(); return db.rpc("save_tournament",{p_payload:payload}); }
@@ -569,6 +577,12 @@ const supabaseSharedRepository = (() => {
   async function saveTournamentProposal(payload) { const db=await client(); return db.rpc("save_tournament_schedule_proposal",{p_payload:payload}); }
   async function updateTournamentProposalGame(values) { const db=await client(); return db.rpc("update_tournament_schedule_proposal_game",{p_game_id:values.id,p_date:values.date,p_time:values.time,p_location_id:values.locationId,p_field_id:values.fieldId,p_notes:values.notes||""}); }
   async function publishTournamentProposal(id) { const db=await client(); return db.rpc("publish_tournament_schedule_proposal",{p_proposal_id:id}); }
+  async function saveTournamentScoringRules(payload) { const db=await client(); return db.rpc("save_tournament_scoring_rules",{p_payload:payload}); }
+  async function saveTournamentGameResult(values) { const db=await client(); return db.rpc("save_tournament_game_result",{p_game_id:values.gameId,p_status:values.status,p_home_score:values.homeScore,p_away_score:values.awayScore,p_winner_team_id:values.winnerTeamId||null,p_decision_note:values.note||""}); }
+  async function getTournamentPoolStandings(poolId) { const db=await client(); return db.rpc("get_tournament_pool_standings",{p_pool_id:poolId}); }
+  async function saveTournamentManualTiebreak(values) { const db=await client(); return db.rpc("save_tournament_manual_tiebreak",{p_pool_id:values.poolId,p_team_id:values.teamId,p_priority:values.priority,p_reason:values.reason}); }
+  async function generateTournamentBracket(values) { const db=await client(); return db.rpc("generate_tournament_bracket",{p_division_id:values.divisionId,p_qualifiers:values.qualifiers,p_name:values.name}); }
+  async function scheduleTournamentBracketGame(values) { const db=await client(); return db.rpc("schedule_tournament_bracket_game",{p_bracket_game_id:values.bracketGameId,p_game_date:values.date,p_game_time:values.time,p_location_id:values.locationId,p_field_id:values.fieldId}); }
 
   async function deleteScheduleGame(gameId) {
     const db = await client();
@@ -689,6 +703,12 @@ const supabaseSharedRepository = (() => {
     saveTournamentProposal,
     updateTournamentProposalGame,
     publishTournamentProposal,
+    saveTournamentScoringRules,
+    saveTournamentGameResult,
+    getTournamentPoolStandings,
+    saveTournamentManualTiebreak,
+    generateTournamentBracket,
+    scheduleTournamentBracketGame,
     deleteScheduleGame,
     getCrewMembersByIds
   };
