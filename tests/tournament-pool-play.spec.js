@@ -3,6 +3,7 @@ const fs=require("node:fs");
 const migration=fs.readFileSync("supabase/migrations/20261123221924_tournament_pool_play_management.sql","utf8");
 const service=fs.readFileSync("js/services/tournamentManagementService.js","utf8");
 const ui=fs.readFileSync("js/schedule/tournamentManagement.js","utf8");
+const auth=fs.readFileSync("js/services/supabaseAuthService.js","utf8");
 
 test.describe("Increment 6A Tournament pool play",()=>{
   test("owns independent tournament catalog and participants",()=>{
@@ -45,5 +46,10 @@ test.describe("Increment 6A Tournament pool play",()=>{
     for(const text of ["Create Tournament","Register Team","Add Pool","Generate Pool-play Schedule","Adjust Proposed Game","Publish Atomically","Verify Idempotent Publication","Saved Proposals"])expect(ui).toContain(text);
     expect(ui).toContain('data-testid="tournament-manager"');
     expect(ui).toContain('data-testid="tournament-proposal-preview"');
+  });
+  test("closes Tournament UI before workspace scheduling state is cleared",()=>{
+    const clearState=auth.slice(auth.indexOf("function clearSchedulingState()"),auth.indexOf("async function refreshScheduling()"));
+    expect(clearState).toContain('typeof closeTournamentManager === "function"');
+    expect(clearState.indexOf("closeTournamentManager()")).toBeLessThan(clearState.indexOf("tournamentManagementService?.clear?.()"));
   });
 });

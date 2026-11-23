@@ -116,6 +116,7 @@ const supabaseAuthService = (() => {
   }
 
   function clearSchedulingState() {
+    if (typeof closeTournamentManager === "function") closeTournamentManager();
     crewService?.clearReferencedCrewMembers?.();
     locationService?.clearSharedLocations?.();
     gameService?.clearSharedGames?.();
