@@ -517,6 +517,34 @@ const supabaseSharedRepository = (() => {
     return db.rpc("transition_league_game", { p_game_id: gameId, p_action: action });
   }
 
+  async function getLeagueScheduleProposals() {
+    const db = await client();
+    return db.from("league_schedule_proposals").select("*").order("updated_at", { ascending: false });
+  }
+
+  async function getLeagueScheduleProposalGames(proposalId) {
+    const db = await client();
+    return db.from("league_schedule_proposal_games").select("*").eq("proposal_id", proposalId).order("ordinal");
+  }
+
+  async function saveLeagueScheduleProposal(payload) {
+    const db = await client();
+    return db.rpc("save_league_schedule_proposal", { p_payload: payload });
+  }
+
+  async function updateLeagueScheduleProposalGame(values) {
+    const db = await client();
+    return db.rpc("update_league_schedule_proposal_game", {
+      p_proposal_game_id: values.id, p_game_date: values.date, p_game_time: values.time,
+      p_location_id: values.locationId, p_field_id: values.fieldId, p_notes: values.notes || ""
+    });
+  }
+
+  async function publishLeagueScheduleProposal(proposalId) {
+    const db = await client();
+    return db.rpc("publish_league_schedule_proposal", { p_proposal_id: proposalId });
+  }
+
   async function deleteScheduleGame(gameId) {
     const db = await client();
     return db.from("games")
@@ -619,6 +647,11 @@ const supabaseSharedRepository = (() => {
     createDomainGame,
     saveLeagueGame,
     transitionLeagueGame,
+    getLeagueScheduleProposals,
+    getLeagueScheduleProposalGames,
+    saveLeagueScheduleProposal,
+    updateLeagueScheduleProposalGame,
+    publishLeagueScheduleProposal,
     deleteScheduleGame,
     getCrewMembersByIds
   };

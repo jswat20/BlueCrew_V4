@@ -10288,3 +10288,10 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
 .workspace-launcher-option { display: grid; grid-template-columns: 1fr auto; gap: .2rem .8rem; width: 100%; padding: 1rem; text-align: left; }
 .workspace-launcher-option small { grid-column: 1 / -1; }
 @media (max-width: 720px) { .workspace-launcher { margin: .5rem auto; } .workspace-launcher-option { grid-template-columns: 1fr; } .workspace-launcher-option small { grid-column: auto; } }
+.league-schedule-generator { width: min(960px, 96vw); }
+.schedule-generator-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+.league-schedule-generator select[multiple] { min-height: 7rem; }
+.league-schedule-generator .table-responsive { overflow-x: auto; margin: 1rem 0; }
+.league-schedule-generator table { width: 100%; border-collapse: collapse; }
+.league-schedule-generator th, .league-schedule-generator td { padding: 0.6rem; border-bottom: 1px solid var(--border-color, #d8e1e8); text-align: left; }
+@media (max-width: 640px) { .schedule-generator-grid { grid-template-columns: 1fr; } }

@@ -119,6 +119,7 @@ const supabaseAuthService = (() => {
     crewService?.clearReferencedCrewMembers?.();
     locationService?.clearSharedLocations?.();
     gameService?.clearSharedGames?.();
+    leagueScheduleGeneratorService?.clear?.();
   }
 
   async function refreshScheduling() {

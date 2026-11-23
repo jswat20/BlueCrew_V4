@@ -181,6 +181,14 @@ function renderSchedule() {
     Add Game
   </button>
 
+  ${workspaceService?.hasModule("league") ? `<button
+    type="button"
+    class="button button-secondary"
+    data-testid="open-league-schedule-generator"
+    onclick="openLeagueScheduleGenerator()">
+    Generate League Schedule
+  </button>` : ""}
+
   <button
     type="button"
     class="button button-secondary"
