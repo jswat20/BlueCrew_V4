@@ -52,16 +52,18 @@ async function loadWorkspaceContext() {
 
 function renderSettings() {
   const isHosted = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
+  const hasLeagueModule = !isHosted || workspaceService?.hasModule("league");
+  const canManageReservations = !isHosted || ["league", "tournament", "facility"].some(code => workspaceService?.hasModule(code));
   return `
     <section class="settings-page presentation-page" data-testid="settings-page">
       <header class="presentation-page-header settings-page-header"><div><h2>Settings</h2><p>Manage season setup, scheduling reference data, and locations.</p></div></header>
     <div class="card-grid settings-card-grid">
       ${isHosted ? renderWorkspaceSettingsCard() : ""}
-      ${renderSeasonSettingsCard()}
-      ${renderLocationSettingsCard()}
-      ${isHosted ? renderCompetitionCatalogCard() : `${renderSettingsCard("Levels", settings.levels)}${renderSettingsCard("Teams", settings.teams)}`}
+      ${hasLeagueModule ? renderSeasonSettingsCard() : ""}
+      ${renderLocationSettingsCard(canManageReservations)}
+      ${isHosted ? (hasLeagueModule ? renderCompetitionCatalogCard() : "") : `${renderSettingsCard("Levels", settings.levels)}${renderSettingsCard("Teams", settings.teams)}`}
       ${renderSettingsCard("Time Slots", settings.timeSlots.slice(0, 12))}
-    </div>${renderSeasonEntryDialog()}${renderFacilityDialogs()}${renderCompetitionCatalogDialogs()}</section>
+    </div>${hasLeagueModule ? renderSeasonEntryDialog() : ""}${renderFacilityDialogs()}${hasLeagueModule ? renderCompetitionCatalogDialogs() : ""}</section>
   `;
 }
 
@@ -142,17 +144,17 @@ function renderSeasonEntryDialog() {
     </dialog>`;
 }
 
-function renderLocationSettingsCard() {
+function renderLocationSettingsCard(canManageReservations = true) {
   const catalog = typeof facilityService !== "undefined" ? facilityService.snapshot() : { facilities: [], fields: [], availability: [], closures: [], reservations: [], loaded: false };
   const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   return `
     <section class="card presentation-card settings-card settings-location-card facility-manager" data-testid="settings-locations">
       <div class="page-section-header presentation-card-header-blue"><div><h3>Facilities & Reservations</h3><p>Manage bookable resources, operating windows, closures, and conflict-safe bookings.</p></div><button type="button" class="button button-secondary button-compact" data-testid="add-facility" onclick="openFacilityDialog()">Add Facility</button></div>
-      <div class="facility-toolbar"><button class="button button-secondary button-compact" type="button" data-testid="add-reservation" onclick="openReservationDialog()">New Reservation</button><button class="button button-secondary button-compact" type="button" data-testid="add-closure" onclick="openClosureDialog()">Maintenance / Blackout</button></div>
+      ${canManageReservations ? '<div class="facility-toolbar"><button class="button button-secondary button-compact" type="button" data-testid="add-reservation" onclick="openReservationDialog()">New Reservation</button><button class="button button-secondary button-compact" type="button" data-testid="add-closure" onclick="openClosureDialog()">Maintenance / Blackout</button></div>' : ""}
       <div class="settings-location-list" data-testid="facility-list">
         ${!catalog.loaded ? '<p class="settings-muted">Loading facilities…</p>' : catalog.facilities.length ? catalog.facilities.map(facility => `
           <section class="facility-card" data-testid="facility-card"><header><div><strong>${escapeSettingsHtml(facility.name)}</strong><span>${escapeSettingsHtml(facility.address || "No address")} · ${escapeSettingsHtml(facility.timezone)} · ${escapeSettingsHtml(facility.status)}</span></div><div><button type="button" class="button button-link button-compact" onclick="openFacilityDialog('${facility.id}')">Edit</button><button type="button" class="button button-link button-compact" onclick="openFieldDialog('${facility.id}')">Add Resource</button></div></header>
-          <div class="facility-field-grid">${catalog.fields.filter(field => field.location_id === facility.id).map(field => `<article data-testid="facility-field" data-resource-type="${escapeSettingsHtml(field.resource_type || "field")}"><div><strong>${escapeSettingsHtml(field.name)}</strong><span>${escapeSettingsHtml((field.resource_type || "field").replaceAll("_", " "))} · ${escapeSettingsHtml(field.status)}${field.supported_sports?.length ? ` · ${escapeSettingsHtml(field.supported_sports.join(", "))}` : ""}</span></div><div class="facility-field-actions"><button type="button" class="button button-link button-compact" onclick="openFieldDialog('${facility.id}','${field.id}')">Edit</button><button type="button" class="button button-link button-compact" onclick="openAvailabilityDialog('${field.id}')">Add Hours</button></div><div class="facility-hours">${catalog.availability.filter(rule => rule.field_id === field.id).map(rule => `<span>${days[rule.day_of_week]} ${String(rule.starts_at_local).slice(0,5)}–${String(rule.ends_at_local).slice(0,5)}</span>`).join("") || '<span>No availability configured</span>'}</div></article>`).join("") || '<p class="settings-muted">No resources yet.</p>'}</div>
+          <div class="facility-field-grid">${catalog.fields.filter(field => field.location_id === facility.id).map(field => `<article data-testid="facility-field" data-resource-type="${escapeSettingsHtml(field.resource_type || "field")}"><div><strong>${escapeSettingsHtml(field.name)}</strong><span>${escapeSettingsHtml((field.resource_type || "field").replaceAll("_", " "))} · ${escapeSettingsHtml(field.status)}${field.supported_sports?.length ? ` · ${escapeSettingsHtml(field.supported_sports.join(", "))}` : ""}</span></div><div class="facility-field-actions"><button type="button" class="button button-link button-compact" onclick="openFieldDialog('${facility.id}','${field.id}')">Edit</button>${canManageReservations ? `<button type="button" class="button button-link button-compact" onclick="openAvailabilityDialog('${field.id}')">Add Hours</button>` : ""}</div><div class="facility-hours">${catalog.availability.filter(rule => rule.field_id === field.id).map(rule => `<span>${days[rule.day_of_week]} ${String(rule.starts_at_local).slice(0,5)}–${String(rule.ends_at_local).slice(0,5)}</span>`).join("") || '<span>No availability configured</span>'}</div></article>`).join("") || '<p class="settings-muted">No resources yet.</p>'}</div>
           </section>`).join("") : '<div class="settings-empty"><strong>No facilities yet.</strong><span>Add the first facility and its fields.</span></div>'}
       </div>
       <div class="facility-timeline" data-testid="reservation-timeline"><h4>Reservation Timeline</h4>${catalog.reservations.length ? catalog.reservations.map(item => { const field = catalog.fields.find(value => value.id === item.field_id); const facility = catalog.facilities.find(value => value.id === field?.location_id); return `<article class="reservation-row ${item.status === "cancelled" ? "is-cancelled" : ""}" data-testid="reservation-row"><time>${new Date(item.starts_at).toLocaleString()} – ${new Date(item.ends_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</time><div><strong>${escapeSettingsHtml(item.title)}</strong><span>${escapeSettingsHtml(facility?.name || "Facility")} · ${escapeSettingsHtml(field?.name || "Field")} · ${escapeSettingsHtml(item.reservation_type.replaceAll("_"," "))}</span></div>${item.status === "active" ? `<div><button class="button button-link button-compact" type="button" onclick="openReservationDialog('${item.id}')">Edit</button><button class="button button-link button-compact" type="button" onclick="cancelReservationFromSettings('${item.id}')">Cancel</button></div>` : '<span class="status-badge">Cancelled</span>'}</article>`; }).join("") : '<p class="settings-muted">No reservations yet.</p>'}</div>

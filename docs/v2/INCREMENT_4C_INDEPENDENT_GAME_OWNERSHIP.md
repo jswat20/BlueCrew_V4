@@ -30,6 +30,7 @@ This increment establishes secure ownership and a hosted creation path. It does 
 - `import_schedule_games(jsonb)` derives its tenant from the server-validated active workspace, requires assigner/administrator access and the Umpire entitlement, and creates Officials-domain games with nullable season and facility references.
 - Manual Officials entry accepts sport, date/time, matchup or participant names, optional mapped or free-form location, requested staffing positions, and notes.
 - Imported external IDs are unique by organization and owning game domain, so independent modules can use the same source identifier without sharing a record.
+- Settings controls follow the active workspace: League season/catalog controls render only with the League entitlement, while reservation controls render only for League, Tournament, or Facility workspaces. Officials-only workspaces retain the shared facility directory without receiving reservation controls.
 - Persistent staging workspaces were provisioned through `provision_saas_workspace`: League-only (existing), Officials-only, Tournament-only, and Facility-only. Each new workspace has exactly one enabled module and one approved synthetic acceptance membership.
 - Direct staging authorization probes confirmed that a Facility-only workspace cannot create an Officials game and that an active workspace cannot write another tenant's records.
 - Staging outbound email remained isolated: the delivery cron was inactive and all 18 pending deliveries were preserved after migration and authorization testing.

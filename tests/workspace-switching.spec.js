@@ -41,4 +41,20 @@ test.describe("secure multi-workspace switching", () => {
     expect(result.error?.message).toBe("workspace_membership_required");
     await expect(page.getByTestId("workspace-selection-page")).toBeVisible();
   });
+
+  test("settings expose only controls enabled in the active workspace", async ({ page, supabaseAuthApp }) => {
+    await page.goto("/");
+    await page.getByTestId("workspace-option").filter({ hasText: "Synthetic League Workspace" }).click();
+    await page.getByRole("button", { name: "⚙ Settings" }).click();
+    await expect(page.getByTestId("settings-seasons")).toBeVisible();
+    await expect(page.getByTestId("settings-competition-catalog")).toBeVisible();
+    await expect(page.getByTestId("add-reservation")).toBeVisible();
+
+    await page.getByTestId("workspace-switcher-select").selectOption("organization-b");
+    const officialsSettings = await page.evaluate(() => renderSettings());
+    expect(officialsSettings).toContain('data-testid="settings-locations"');
+    expect(officialsSettings).not.toContain('data-testid="settings-seasons"');
+    expect(officialsSettings).not.toContain('data-testid="settings-competition-catalog"');
+    expect(officialsSettings).not.toContain('data-testid="add-reservation"');
+  });
 });
