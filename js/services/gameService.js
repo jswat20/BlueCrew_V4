@@ -670,6 +670,28 @@ game.assignments =
   },
 
   async createHosted(game) {
+    const requestedDomain = game.gameDomain || "officials";
+    if (requestedDomain !== "officials") {
+      const location = typeof locationService !== "undefined"
+        ? locationService.findSharedLocationRecord(game.locationComplex || "")
+        : null;
+      const field = location && typeof locationService !== "undefined"
+        ? locationService.findSharedFieldRecord(location.id, game.locationField || game.field || "")
+        : null;
+      const response = await supabaseSharedRepository.createDomainGame({
+        ...game,
+        gameDomain: requestedDomain,
+        sport: game.sport || "Baseball",
+        locationId: location?.id || null,
+        fieldId: field?.id || null,
+        locationName: location ? null : (game.locationComplex || "")
+      });
+      if (response.error) return { success: false, message: response.error.message || "Game creation failed.", error: response.error };
+      const refresh = await supabaseAuthService.refreshScheduling();
+      if (!refresh.success) return { success: false, message: "Game was created, but the schedule could not be refreshed.", data: { persisted: true, result: response.data } };
+      const created = this.getById(response.data?.id);
+      return { success: true, message: "Game created.", data: created || response.data, game: created || response.data };
+    }
     if (typeof locationService !== "undefined") locationService.normalizeGame(game);
     game.gameType = game.gameType || "single";
     normalizeGameLifecycleStatus(game);

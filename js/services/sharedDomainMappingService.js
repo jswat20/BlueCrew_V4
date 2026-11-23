@@ -176,6 +176,8 @@ const sharedDomainMappingService = (() => {
       id: row.id,
       legacyGameId: row.legacy_game_id || null,
       organizationId: row.organization_id,
+      gameDomain: row.game_domain || "officials",
+      sport: row.sport || "",
       seasonId: row.season_id,
       locationId: row.location_id,
       fieldId: row.field_id,
@@ -188,7 +190,7 @@ const sharedDomainMappingService = (() => {
       gameType: row.game_type || "single",
       status: row.lifecycle_status,
       lifecycleStatus: row.lifecycle_status,
-      locationComplex: location?.name || "",
+      locationComplex: location?.name || row.location_name || "",
       locationField: field?.name || "",
       field: field?.name || "",
       venue: location?.name || "",
@@ -220,6 +222,7 @@ const sharedDomainMappingService = (() => {
           ? null
           : Number(completion.homeScore),
       sourceMetadata: row.source_metadata || {},
+      notes: row.notes || "",
       sharedHydrated: true
     };
   }

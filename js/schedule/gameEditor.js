@@ -68,14 +68,38 @@ function createBlankGame() {
     assignmentStatus: AssignmentStatus.NEEDS_ASSIGNMENT,
     assignmentMode: AssignmentMode.ADMIN_ONLY,
     claimedBy: "",
-    assignments: []
+    assignments: [],
+    gameDomain: workspaceService?.hasModule("umpire")
+      ? "officials"
+      : workspaceService?.hasModule("league")
+        ? "league"
+        : "tournament",
+    sport: "Baseball"
   };
+}
+
+function renderGameDomainOptions(selected) {
+  const available = [
+    ["league", "league", "League Management"],
+    ["officials", "umpire", "Officials Management"],
+    ["tournament", "tournament", "Tournament Management"]
+  ].filter(([, moduleCode]) => workspaceService?.hasModule(moduleCode));
+  return available.map(([value, , label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
 }
 
 function renderGameEditorForm(game, isEditing) {
   const selectedComplex = game.locationComplex || (game.locationField || game.field ? locationService.LEGACY_COMPLEX : locationService.getComplexes()[0] || "");
   const selectedField = game.locationField || game.field || locationService.getFields(selectedComplex)[0] || "";
   return `<div class="game-editor-form">
+    ${isEditing ? `<input type="hidden" id="edit-game-domain" value="${game.gameDomain || "officials"}">` : `
+      <label>Owning module</label>
+      <select id="edit-game-domain" data-testid="game-domain-input">
+        ${renderGameDomainOptions(game.gameDomain || "officials")}
+      </select>`}
+
+    <label>Sport</label>
+    <input id="edit-sport" data-testid="game-sport-input" type="text" value="${game.sport || "Baseball"}" placeholder="Baseball, Softball, Basketball…" />
+
     <label>Date</label>
     <input id="edit-date" data-testid="game-date-input" type="date" value="${game.date || ""}" />
 
@@ -250,6 +274,8 @@ function readGameEditorValues() {
   const locationComplex = document.getElementById("edit-location-complex")?.value || "";
   const locationField = document.getElementById("edit-location-field")?.value || "";
   return {
+    gameDomain: document.getElementById("edit-game-domain")?.value || "officials",
+    sport: document.getElementById("edit-sport")?.value.trim() || "",
     date: document.getElementById("edit-date")?.value || "",
     time: document.getElementById("edit-time")?.value || "",
     locationComplex,
@@ -263,6 +289,10 @@ function readGameEditorValues() {
 }
 
 function validateGameEditorValues(values) {
+  if (!values.sport) {
+    toastService.error("Enter a sport.");
+    return false;
+  }
   if (!values.date) {
     toastService.error("Choose a game date.");
     return false;
@@ -273,7 +303,7 @@ function validateGameEditorValues(values) {
     return false;
   }
 
-  if (!values.locationComplex || !values.locationField) {
+  if (values.gameDomain === "officials" && (!values.locationComplex || !values.locationField)) {
     toastService.error("Choose a location complex and field.");
     return false;
   }
