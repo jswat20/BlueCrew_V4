@@ -189,6 +189,14 @@ function renderSchedule() {
     Generate League Schedule
   </button>` : ""}
 
+  ${workspaceService?.hasModule("tournament") ? `<button
+    type="button"
+    class="button button-secondary"
+    data-testid="open-tournament-manager"
+    onclick="openTournamentManager()">
+    Manage Tournaments
+  </button>` : ""}
+
   <button
     type="button"
     class="button button-secondary"

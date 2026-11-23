@@ -545,6 +545,31 @@ const supabaseSharedRepository = (() => {
     return db.rpc("publish_league_schedule_proposal", { p_proposal_id: proposalId });
   }
 
+  async function getTournamentCatalog() {
+    const db = await client();
+    const [tournaments, divisions, teams, pools, memberships, proposals] = await Promise.all([
+      db.from("tournaments").select("*").order("starts_on", { ascending: false }),
+      db.from("tournament_divisions").select("*").order("name"),
+      db.from("tournament_teams").select("*").order("name"),
+      db.from("tournament_pools").select("*").order("name"),
+      db.from("tournament_pool_memberships").select("*").order("assigned_at"),
+      db.from("tournament_schedule_proposals").select("*").order("updated_at", { ascending: false })
+    ]);
+    const error = [tournaments, divisions, teams, pools, memberships, proposals].find(result => result.error)?.error || null;
+    return { data: { tournaments: tournaments.data || [], divisions: divisions.data || [], teams: teams.data || [], pools: pools.data || [], memberships: memberships.data || [], proposals: proposals.data || [] }, error };
+  }
+  async function getTournamentProposalGames(id) { const db=await client(); return db.from("tournament_schedule_proposal_games").select("*").eq("proposal_id",id).order("ordinal"); }
+  async function saveTournament(payload) { const db=await client(); return db.rpc("save_tournament",{p_payload:payload}); }
+  async function transitionTournament(id,status) { const db=await client(); return db.rpc("transition_tournament",{p_tournament_id:id,p_status:status}); }
+  async function saveTournamentDivision(payload) { const db=await client(); return db.rpc("save_tournament_division",{p_payload:payload}); }
+  async function saveTournamentTeam(payload) { const db=await client(); return db.rpc("save_tournament_team",{p_payload:payload}); }
+  async function withdrawTournamentTeam(id) { const db=await client(); return db.rpc("withdraw_tournament_team",{p_team_id:id}); }
+  async function saveTournamentPool(payload) { const db=await client(); return db.rpc("save_tournament_pool",{p_payload:payload}); }
+  async function assignTournamentTeamToPool(teamId,poolId) { const db=await client(); return db.rpc("assign_tournament_team_to_pool",{p_team_id:teamId,p_pool_id:poolId}); }
+  async function saveTournamentProposal(payload) { const db=await client(); return db.rpc("save_tournament_schedule_proposal",{p_payload:payload}); }
+  async function updateTournamentProposalGame(values) { const db=await client(); return db.rpc("update_tournament_schedule_proposal_game",{p_game_id:values.id,p_date:values.date,p_time:values.time,p_location_id:values.locationId,p_field_id:values.fieldId,p_notes:values.notes||""}); }
+  async function publishTournamentProposal(id) { const db=await client(); return db.rpc("publish_tournament_schedule_proposal",{p_proposal_id:id}); }
+
   async function deleteScheduleGame(gameId) {
     const db = await client();
     return db.from("games")
@@ -652,6 +677,18 @@ const supabaseSharedRepository = (() => {
     saveLeagueScheduleProposal,
     updateLeagueScheduleProposalGame,
     publishLeagueScheduleProposal,
+    getTournamentCatalog,
+    getTournamentProposalGames,
+    saveTournament,
+    transitionTournament,
+    saveTournamentDivision,
+    saveTournamentTeam,
+    withdrawTournamentTeam,
+    saveTournamentPool,
+    assignTournamentTeamToPool,
+    saveTournamentProposal,
+    updateTournamentProposalGame,
+    publishTournamentProposal,
     deleteScheduleGame,
     getCrewMembersByIds
   };
