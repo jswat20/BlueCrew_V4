@@ -32,7 +32,7 @@ function renderLeagueScheduleGeneratorForm(seed={}){
     <label>Format<select data-testid="generator-format"><option value="round_robin" ${seed.format!=="games_per_team"?"selected":""}>Single round robin</option><option value="games_per_team" ${seed.format==="games_per_team"?"selected":""}>Target games per team</option></select></label>
     <label>Games per team<input type="number" min="1" max="40" data-testid="generator-games-per-team" value="${seed.games_per_team||3}"></label>
     <label>Blackout dates <span class="field-optional">(comma-separated)</span><input data-testid="generator-blackouts" value="${leagueScheduleEscape((seed.blackout_dates||[]).join(", "))}" placeholder="2027-04-04, 2027-05-30"></label>
-    <div class="assign-drawer-actions"><button class="button button-primary" type="submit" data-testid="generate-proposal">Generate Proposal</button><button class="button button-secondary" type="button" onclick="closeLeagueScheduleGenerator()">Cancel</button></div><div role="alert" id="league-generator-error"></div></form>`;
+    <div class="assign-drawer-actions"><button class="button button-primary" type="submit" data-testid="generate-proposal">Generate Proposal</button><button class="button button-secondary" type="button" data-testid="saved-proposals" onclick="renderLeagueScheduleProposalList()">Saved Proposals</button><button class="button button-secondary" type="button" onclick="closeLeagueScheduleGenerator()">Cancel</button></div><div role="alert" id="league-generator-error"></div></form>`;
 }
 
 function refreshLeagueGeneratorTeams(divisionSelect){

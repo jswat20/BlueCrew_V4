@@ -10,7 +10,7 @@ This increment deliberately excludes umpire availability, assignments, claims, t
 
 ## Editing and publication
 
-Administrators can preview proposals, adjust a proposed game, regenerate into a new proposal, and deliberately publish. Existing published games are never modified by generation or regeneration.
+Administrators can preview proposals, adjust a proposed game, regenerate into a new proposal, reopen saved proposals after navigating away, and deliberately publish. Existing published games are never modified by generation or regeneration.
 
 Publication is atomic for every scheduled row in the proposal. `publish_league_schedule_proposal` locks the proposal, calls the accepted Increment 5A `save_league_game` boundary for each scheduled row, and commits only if every game and reservation remains valid. A concurrent field or team-time conflict rolls back the whole publication. A workspace-scoped transaction advisory lock serializes League team-conflict checks, while the existing reservation exclusion constraint remains the authority for field conflicts. Unscheduled proposal rows remain unmodified and are not published.
 

@@ -50,5 +50,7 @@ test.describe("Increment 5B League schedule generation", () => {
     expect(ui).toContain("Publish Atomically");
     expect(ui).toContain("Verify Idempotent Publication");
     expect(ui).toContain("refreshLeagueGeneratorTeams(this)");
+    expect(ui).toContain('data-testid="saved-proposals"');
+    expect(ui).toContain("renderLeagueScheduleProposalList()");
   });
 });
