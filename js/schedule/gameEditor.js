@@ -5,6 +5,13 @@ let gameEditorCreateExternalId = null;
 
 function openGameEditor(gameId = null) {
   if (!authorizationService.canEditSchedule()) return false;
+  return openAuthorizedGameEditor(gameId);
+}
+
+async function openAuthorizedGameEditor(gameId = null) {
+  if (workspaceService?.hasModule("league")) {
+    await Promise.all([seasonService.loadSeasons(), leagueStructureService.loadCatalog()]);
+  }
   const isEditing = gameId !== null && gameId !== undefined;
   const game = isEditing ? gameService.getById(gameId) : createBlankGame();
 
@@ -91,8 +98,10 @@ function renderGameDomainOptions(selected) {
 }
 
 function renderGameEditorForm(game, isEditing) {
-  const selectedComplex = game.locationComplex || (game.locationField || game.field ? locationService.LEGACY_COMPLEX : locationService.getComplexes()[0] || "");
-  const selectedField = game.locationField || game.field || locationService.getFields(selectedComplex)[0] || "";
+  const selectedComplex = game.locationComplex || (game.locationField || game.field
+    ? locationService.LEGACY_COMPLEX
+    : isEditing ? "" : locationService.getComplexes()[0] || "");
+  const selectedField = game.locationField || game.field || (isEditing ? "" : locationService.getFields(selectedComplex)[0] || "");
   return `<div class="game-editor-form">
     ${isEditing ? `<input type="hidden" id="edit-game-domain" value="${game.gameDomain || "officials"}">` : `
       <label>Owning module</label>
@@ -102,6 +111,8 @@ function renderGameEditorForm(game, isEditing) {
 
     <label>Sport</label>
     <input id="edit-sport" data-testid="game-sport-input" type="text" value="${game.sport || "Baseball"}" placeholder="Baseball, Softball, Basketball…" />
+
+    ${game.gameDomain === "league" ? renderLeagueSchedulingFields(game) : ""}
 
     <label>Date</label>
     <input id="edit-date" data-testid="game-date-input" type="date" value="${game.date || ""}" />
@@ -113,12 +124,12 @@ function renderGameEditorForm(game, isEditing) {
 
     <label>Location Complex</label>
     <select id="edit-location-complex" data-testid="game-location-complex-input" onchange="handleGameComplexChange(this.value)">
-      ${renderOptionList(locationService.getComplexes(), selectedComplex)}
+      <option value="">Unscheduled / field TBD</option>${renderOptionList(locationService.getComplexes(), selectedComplex)}
     </select>
 
     <label>Location Field</label>
     <select id="edit-location-field" data-testid="game-field-input">
-      ${renderOptionList(locationService.getFields(selectedComplex), selectedField)}
+      <option value="">No field selected</option>${renderOptionList(locationService.getFields(selectedComplex), selectedField)}
     </select>
 
     <label>Location details <span class="field-optional">(optional)</span></label>
@@ -149,7 +160,7 @@ function renderGameEditorForm(game, isEditing) {
       placeholder="Pool A Game 3, semifinal, or visiting opponent"
     />
 
-    <label>Away Team</label>
+    ${game.gameDomain === "league" ? "" : `<label>Away Team</label>
     <input
       id="edit-away-team"
       data-testid="game-away-team-input"
@@ -165,7 +176,7 @@ function renderGameEditorForm(game, isEditing) {
       type="text"
       value="${game.homeTeam || ""}"
       placeholder="Home Team"
-    />
+    />`}
 
     <label>Notes <span class="field-optional">(optional)</span></label>
     <textarea id="edit-game-notes" data-testid="game-notes-input" rows="3" placeholder="Operational notes for schedulers">${game.notes || ""}</textarea>
@@ -235,6 +246,21 @@ function renderGameEditorForm(game, isEditing) {
       }
     </div></div>
   `;
+}
+
+function renderLeagueSchedulingFields(game) {
+  const catalog = leagueStructureService.snapshot();
+  const seasons = seasonService.getSeasons();
+  const option = (value, label, selected) => `<option value="${value}" ${String(value) === String(selected || "") ? "selected" : ""}>${label}</option>`;
+  return `
+    <fieldset class="game-editor-league" data-testid="league-scheduling-fields"><legend>League competition</legend>
+      <label>Season</label><select id="edit-season-id" data-testid="game-season-input"><option value="">Choose season</option>${seasons.map(item => option(item.id,item.name,game.seasonId)).join("")}</select>
+      <label>League</label><select id="edit-league-id" data-testid="game-league-input"><option value="">Choose league</option>${catalog.leagues.map(item => option(item.id,item.name,game.leagueId)).join("")}</select>
+      <label>Division</label><select id="edit-division-id" data-testid="game-division-input"><option value="">Choose division</option>${catalog.divisions.map(item => option(item.id,item.name,game.divisionId)).join("")}</select>
+      <label>Away Team</label><select id="edit-away-team-id" data-testid="game-away-team-select"><option value="">Choose away team</option>${catalog.teams.map(item => option(item.id,item.name,game.awayTeamId)).join("")}</select>
+      <label>Home Team</label><select id="edit-home-team-id" data-testid="game-home-team-select"><option value="">Choose home team</option>${catalog.teams.map(item => option(item.id,item.name,game.homeTeamId)).join("")}</select>
+      <label>Duration</label><select id="edit-duration-minutes" data-testid="game-duration-input">${[60,75,90,105,120,150,180].map(value => option(value,`${value} minutes`,game.durationMinutes || 90)).join("")}</select>
+    </fieldset>`;
 }
 function renderExistingGameAssignmentSection(game) {
   return `
@@ -312,6 +338,12 @@ function readGameEditorValues() {
     matchupDescription: document.getElementById("edit-matchup-description")?.value.trim() || "",
     locationName: document.getElementById("edit-location-name")?.value.trim() || "",
     notes: document.getElementById("edit-game-notes")?.value.trim() || ""
+    ,seasonId: document.getElementById("edit-season-id")?.value || ""
+    ,leagueId: document.getElementById("edit-league-id")?.value || ""
+    ,divisionId: document.getElementById("edit-division-id")?.value || ""
+    ,awayTeamId: document.getElementById("edit-away-team-id")?.value || ""
+    ,homeTeamId: document.getElementById("edit-home-team-id")?.value || ""
+    ,durationMinutes: Number(document.getElementById("edit-duration-minutes")?.value || 90)
   };
 }
 
@@ -336,7 +368,16 @@ function validateGameEditorValues(values) {
   }
 
   if (values.gameDomain !== "officials" && (!values.awayTeam || !values.homeTeam)) {
+    if (values.gameDomain === "league" && values.seasonId && values.leagueId && values.divisionId && values.awayTeamId && values.homeTeamId) {
+      // Catalog selections are authoritative; names are resolved by the database.
+    } else {
     toastService.error("Enter both teams.");
+    return false;
+    }
+  }
+
+  if (values.gameDomain === "league" && (!values.seasonId || !values.leagueId || !values.divisionId || !values.awayTeamId || !values.homeTeamId)) {
+    toastService.error("Choose a season, league, division, and both teams.");
     return false;
   }
 
@@ -531,7 +572,7 @@ function getFieldOptions() {
 function handleGameComplexChange(complexName) {
   const fieldSelect = document.getElementById("edit-location-field");
   if (!fieldSelect) return;
-  fieldSelect.innerHTML = renderOptionList(locationService.getFields(complexName), "");
+  fieldSelect.innerHTML = `<option value="">No field selected</option>${renderOptionList(locationService.getFields(complexName), "")}`;
 }
 
 function getLevelOptions() {
@@ -570,17 +611,17 @@ function refreshScheduleAfterLifecycleAction() {
 
 async function cancelGameFromEditor(gameId) {
   if (!authorizationService.canEditSchedule()) return { success: false, message: "Unauthorized." };
-  const confirmed =
-    window.confirm(
-      "Cancel this game? Assigned umpires will be notified."
-    );
+  const game = gameService.getById(gameId);
+  const confirmed = window.confirm(game?.gameDomain === "league"
+    ? "Cancel this League game? Its field reservation will be released."
+    : "Cancel this game? Assigned umpires will be notified.");
 
   if (!confirmed) {
     return;
   }
 
   const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured()
-    ? await gameService.updateHostedOperationalDetails(gameId, { lifecycleStatus: "cancelled" })
+    ? (game?.gameDomain === "league" ? await gameService.transitionHostedLeagueGame(gameId, "cancel") : await gameService.updateHostedOperationalDetails(gameId, { lifecycleStatus: "cancelled" }))
     : portalService.cancelGame(gameId);
 
   if (!result.success) {
@@ -608,18 +649,20 @@ async function restoreGameFromEditor(gameId) {
   refreshScheduleAfterLifecycleAction();
 }
 
-function postponeGameFromEditor(gameId) {
+async function postponeGameFromEditor(gameId) {
+  const game = gameService.getById(gameId);
   const confirmed =
     window.confirm(
-      "Postpone this game? Existing assignments will remain attached."
+      game?.gameDomain === "league" ? "Postpone this League game? Its field reservation will be released." : "Postpone this game? Existing assignments will remain attached."
     );
 
   if (!confirmed) {
     return;
   }
 
-  const result =
-    portalService.postponeGame(gameId);
+  const result = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured() && game?.gameDomain === "league"
+    ? await gameService.transitionHostedLeagueGame(gameId, "postpone")
+    : portalService.postponeGame(gameId);
 
   if (!result.success) {
     window.alert(

@@ -575,8 +575,9 @@ game.assignments =
 
   async deleteHosted(gameId) {
     const existingGame = this.getById(gameId);
-    const { data, error } =
-      await supabaseSharedRepository.deleteScheduleGame(gameId);
+    const { data, error } = existingGame?.gameDomain === "league"
+      ? await supabaseSharedRepository.transitionLeagueGame(gameId, "delete")
+      : await supabaseSharedRepository.deleteScheduleGame(gameId);
 
     if (error) {
       return {
@@ -638,6 +639,9 @@ game.assignments =
     if (!isSharedGameMode()) return this.update(gameId, updates);
     const game = this.getById(gameId);
     if (!game) return { success: false, message: "Game not found." };
+    if (game.gameDomain === "league") {
+      return this.saveHostedLeagueGame({ ...game, ...updates, id: gameId });
+    }
     let locationId = game.locationId;
     let fieldId = game.fieldId;
     if (Object.hasOwn(updates, "locationComplex") || Object.hasOwn(updates, "locationField") || Object.hasOwn(updates, "field")) {
@@ -674,6 +678,7 @@ game.assignments =
 
   async createHosted(game) {
     const requestedDomain = game.gameDomain || "officials";
+    if (requestedDomain === "league") return this.saveHostedLeagueGame(game);
     if (requestedDomain !== "officials") {
       const location = typeof locationService !== "undefined"
         ? locationService.findSharedLocationRecord(game.locationComplex || "")
@@ -734,6 +739,39 @@ game.assignments =
     }
 
     return { success: true, message: "Game created.", data: created, game: created };
+  },
+
+  async saveHostedLeagueGame(game) {
+    const location = game.locationComplex ? locationService.findSharedLocationRecord(game.locationComplex) : null;
+    const field = location && game.locationField ? locationService.findSharedFieldRecord(location.id, game.locationField) : null;
+    if ((game.locationComplex || game.locationField) && (!location || !field)) {
+      return { success: false, message: "Choose a valid complex and field, or leave both blank for an unscheduled draft." };
+    }
+    const { data, error } = await supabaseSharedRepository.saveLeagueGame({
+      ...game, locationId: location?.id || null, fieldId: field?.id || null,
+      durationMinutes: Number(game.durationMinutes || 90)
+    });
+    if (error) {
+      const messages = {
+        league_field_conflict: "That field is already reserved during the selected time.",
+        reservation_outside_availability: "The selected time is outside this field's availability.",
+        reservation_blocked_by_closure: "A maintenance closure or blackout blocks this field.",
+        league_catalog_selection_invalid: "Choose a valid season, league, division, and teams.",
+        league_schedule_forbidden: "Administrator access is required for League scheduling."
+      };
+      return { success: false, message: messages[error.message] || error.message || "League game could not be saved.", error };
+    }
+    const refresh = await supabaseAuthService.refreshScheduling();
+    if (!refresh.success) return { success: false, message: "League game saved, but schedule refresh failed.", data: { persisted: true, result: data } };
+    const saved = this.getById(data?.id || game.id);
+    return { success: true, message: "League game saved.", game: saved || data, data: saved || data };
+  },
+
+  async transitionHostedLeagueGame(gameId, action) {
+    const { data, error } = await supabaseSharedRepository.transitionLeagueGame(gameId, action);
+    if (error) return { success: false, message: error.message || "League game lifecycle change failed.", error };
+    const refresh = await supabaseAuthService.refreshScheduling();
+    return refresh.success ? { success: true, data } : { success: false, message: "Game changed, but refresh failed.", data: { persisted: true, result: data } };
   },
 
 create(game) {

@@ -34,7 +34,9 @@ test.describe("Complex and field location model", () => {
   test("game editor filters fields by the selected complex and saves both", async ({ page }) => {
     await page.evaluate(() => openGameEditor());
     await page.getByTestId("game-location-complex-input").selectOption("Riverside Park");
-    await expect(page.getByTestId("game-field-input").locator("option")).toHaveCount(2);
+    const fieldOptions = page.getByTestId("game-field-input").locator("option");
+    await expect(fieldOptions).toHaveCount(3);
+    await expect(fieldOptions).toHaveText(["No field selected", "Field 1", "Field 2"]);
     await page.getByTestId("game-field-input").selectOption("Field 2");
     await page.getByTestId("game-away-team-input").fill("Location Away");
     await page.getByTestId("game-home-team-input").fill("Location Home");

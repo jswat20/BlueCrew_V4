@@ -315,7 +315,7 @@ const supabaseSharedRepository = (() => {
   async function getGames() {
     const db = await client();
     return db.from("games")
-      .select("id,organization_id,game_domain,sport,season_id,location_id,field_id,location_name,legacy_game_id,game_date,game_time,timezone,home_team,away_team,level,game_type,lifecycle_status,notes,review,report,source_metadata")
+      .select("id,organization_id,game_domain,sport,season_id,league_id,division_id,home_team_id,away_team_id,duration_minutes,location_id,field_id,location_name,legacy_game_id,game_date,game_time,timezone,home_team,away_team,level,game_type,lifecycle_status,notes,review,report,source_metadata")
       .order("game_date")
       .order("game_time")
       .order("id");
@@ -501,6 +501,22 @@ const supabaseSharedRepository = (() => {
     });
   }
 
+  async function saveLeagueGame(values) {
+    const db = await client();
+    return db.rpc("save_league_game", {
+      p_game_id: values.id || null, p_sport: values.sport, p_season_id: values.seasonId,
+      p_league_id: values.leagueId, p_division_id: values.divisionId,
+      p_home_team_id: values.homeTeamId, p_away_team_id: values.awayTeamId,
+      p_game_date: values.date, p_game_time: values.time, p_duration_minutes: values.durationMinutes,
+      p_location_id: values.locationId || null, p_field_id: values.fieldId || null, p_notes: values.notes || ""
+    });
+  }
+
+  async function transitionLeagueGame(gameId, action) {
+    const db = await client();
+    return db.rpc("transition_league_game", { p_game_id: gameId, p_action: action });
+  }
+
   async function deleteScheduleGame(gameId) {
     const db = await client();
     return db.from("games")
@@ -601,6 +617,8 @@ const supabaseSharedRepository = (() => {
     updateGameOperationalDetails,
     importScheduleGames,
     createDomainGame,
+    saveLeagueGame,
+    transitionLeagueGame,
     deleteScheduleGame,
     getCrewMembersByIds
   };
