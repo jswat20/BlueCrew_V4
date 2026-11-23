@@ -147,11 +147,14 @@ function buildHostedScheduleGame(game) {
     date: game.date,
     time: game.time,
     timezone: game.timezone || "America/New_York",
+    sport: game.sport || "Baseball",
     level: levelTerminologyService.canonicalize(game.level),
     homeTeam: game.homeTeam,
     awayTeam: game.awayTeam,
+    matchupDescription: game.matchupDescription || "",
     location: game.locationComplex || game.location || "",
     field: game.locationField || game.field || "",
+    locationName: game.locationName || "",
     gameType: game.gameType || "single",
     lifecycleStatus: game.lifecycleStatus || "scheduled",
     assignmentStatus: game.assignmentStatus || "needs_assignment",
@@ -684,7 +687,7 @@ game.assignments =
         sport: game.sport || "Baseball",
         locationId: location?.id || null,
         fieldId: field?.id || null,
-        locationName: location ? null : (game.locationComplex || "")
+        locationName: location ? null : (game.locationName || game.locationComplex || "")
       });
       if (response.error) return { success: false, message: response.error.message || "Game creation failed.", error: response.error };
       const refresh = await supabaseAuthService.refreshScheduling();
@@ -692,7 +695,9 @@ game.assignments =
       const created = this.getById(response.data?.id);
       return { success: true, message: "Game created.", data: created || response.data, game: created || response.data };
     }
-    if (typeof locationService !== "undefined") locationService.normalizeGame(game);
+    if (typeof locationService !== "undefined" && (game.locationComplex || game.locationField || game.field)) {
+      locationService.normalizeGame(game);
+    }
     game.gameType = game.gameType || "single";
     normalizeGameLifecycleStatus(game);
     const createKey = ensureHostedCreateKey(game);

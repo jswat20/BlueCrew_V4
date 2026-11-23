@@ -186,6 +186,7 @@ const sharedDomainMappingService = (() => {
       timezone: row.timezone || "America/New_York",
       homeTeam: row.home_team || "",
       awayTeam: row.away_team || "",
+      matchupDescription: row.source_metadata?.matchupDescription || "",
       level: row.level || "",
       gameType: row.game_type || "single",
       status: row.lifecycle_status,

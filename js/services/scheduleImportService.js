@@ -3,16 +3,20 @@
 window.scheduleImportService = (() => {
   const REQUIRED_FIELDS = [
     "date",
-    "time",
-    "awayTeam",
-    "homeTeam"
+    "time"
   ];
 
   const SUPPORTED_FIELDS = [
     ...REQUIRED_FIELDS,
+    "awayTeam",
+    "homeTeam",
     "locationComplex",
     "locationField",
     "field",
+    "locationName",
+    "matchupDescription",
+    "sport",
+    "officialsRequested",
     "level",
     "canonicalLevel",
     "levelAlias",
@@ -41,6 +45,14 @@ window.scheduleImportService = (() => {
     venue: "locationComplex",
     locationfield: "locationField",
     field: "field",
+    location: "locationComplex",
+    locationname: "locationName",
+    locationtext: "locationName",
+    matchup: "matchupDescription",
+    matchupdescription: "matchupDescription",
+    sport: "sport",
+    officials: "officialsRequested",
+    officialsrequested: "officialsRequested",
     level: "level",
     agelevel: "level",
     canonicallevel: "canonicalLevel",
@@ -164,14 +176,20 @@ window.scheduleImportService = (() => {
   }
 
   function normalizeGame(data = {}) {
+    const requestedOfficials = Number.parseInt(String(data.officialsRequested || ""), 10);
+    const requestedGameType = Number.isInteger(requestedOfficials) && requestedOfficials > 0
+      ? ({ 1: "single", 2: "twoMan", 3: "threeMan", 4: "fourMan" }[requestedOfficials] || String(data.gameType || "single"))
+      : String(data.gameType || "single").trim() || "single";
     const normalized = {
       date: String(data.date || "").trim(),
       time: String(data.time || "").trim(),
       awayTeam: String(data.awayTeam || "").trim(),
       homeTeam: String(data.homeTeam || "").trim(),
-      gameType:
-        String(data.gameType || "single").trim() || "single"
+      gameType: requestedGameType
     };
+    if (Object.hasOwn(data, "matchupDescription")) normalized.matchupDescription = String(data.matchupDescription || "").trim();
+    if (Object.hasOwn(data, "sport")) normalized.sport = String(data.sport || "").trim();
+    if (Object.hasOwn(data, "locationName")) normalized.locationName = String(data.locationName || "").trim();
     ["externalGameId", "timezone", "lifecycleStatus", "assignmentStatus", "notes"].forEach(field => {
       if (Object.hasOwn(data, field)) normalized[field] = String(data[field] || "").trim();
     });
@@ -202,6 +220,14 @@ window.scheduleImportService = (() => {
         });
       }
     });
+
+    if (!game.matchupDescription && !game.awayTeam && !game.homeTeam) {
+      errors.push({
+        row: row.rowNumber,
+        field: "matchupDescription",
+        message: "Enter a matchup description or at least one participant name."
+      });
+    }
 
     const suppliedLevelField = ["level", "canonicalLevel", "levelAlias", "displayLevel"].some(field => Object.hasOwn(row.data, field));
     if (suppliedLevelField && !game.level) {

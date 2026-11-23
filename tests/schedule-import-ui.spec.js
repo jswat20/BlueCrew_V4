@@ -64,7 +64,7 @@ test.describe("Schedule Import UI", () => {
 
     const csvText = [
       "date,time,awayTeam,homeTeam",
-      "2026-07-15,6:00 PM,Tigers,",
+      "2026-07-15,6:00 PM,,",
       "2026-07-15,8:00 PM,Eagles,Eagles"
     ].join("\n");
 
@@ -83,7 +83,7 @@ test.describe("Schedule Import UI", () => {
     await expect(preview).toContainText("Row 2");
 
     await expect(preview).toContainText(
-      "Missing homeTeam."
+      "Enter a matchup description or at least one participant name."
     );
 
     await expect(preview).toContainText("Row 3");
@@ -130,7 +130,7 @@ test.describe("Schedule Import UI", () => {
 
     const invalidCsv = [
       "date,time,awayTeam,homeTeam",
-      "2026-07-15,6:00 PM,Tigers,"
+      "2026-07-15,6:00 PM,,"
     ].join("\n");
 
     await uploadCsv(
@@ -215,7 +215,7 @@ test.describe("Schedule Import UI", () => {
     const csvText = [
       "date,time,awayTeam,homeTeam",
       "2026-07-21,6:00 PM,Valid Away,Valid Home",
-      "2026-07-21,7:00 PM,Missing Home,",
+      "2026-07-21,7:00 PM,,",
       "2026-07-21,8:00 PM,Duplicate Team,Duplicate Team"
     ].join("\n");
 

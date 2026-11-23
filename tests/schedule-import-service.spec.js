@@ -30,8 +30,8 @@ test.describe("Schedule Import Service", () => {
   test("reports missing required headers", async ({ app }) => {
     const result = await app.page.evaluate(() => {
       const csv = [
-        "date,time,awayTeam",
-        "2026-07-15,18:00,Tigers"
+        "date,awayTeam",
+        "2026-07-15,Tigers"
       ].join("\n");
 
       return scheduleImportService.preview(csv);
@@ -42,8 +42,8 @@ test.describe("Schedule Import Service", () => {
 
     expect(result.errors).toContainEqual({
       row: 1,
-      field: "homeTeam",
-      message: "Missing required header: homeTeam."
+      field: "time",
+      message: "Missing required header: time."
     });
   });
 
@@ -51,7 +51,7 @@ test.describe("Schedule Import Service", () => {
     const result = await app.page.evaluate(() => {
       const csv = [
         "date,time,awayTeam,homeTeam",
-        "2026-07-15,18:00,Tigers,"
+        ",18:00,Tigers,"
       ].join("\n");
 
       return scheduleImportService.preview(csv);
@@ -64,8 +64,8 @@ test.describe("Schedule Import Service", () => {
 
     expect(result.errors).toContainEqual({
       row: 2,
-      field: "homeTeam",
-      message: "Missing homeTeam."
+      field: "date",
+      message: "Missing date."
     });
   });
 
@@ -104,7 +104,7 @@ test.describe("Schedule Import Service", () => {
     expect(result.validRows).toBe(0);
     expect(result.invalidRows).toBe(0);
     expect(result.success).toBe(false);
-    expect(result.errors).toHaveLength(4);
+    expect(result.errors).toHaveLength(2);
   });
 
   test("supports quoted values containing commas", async ({ app }) => {

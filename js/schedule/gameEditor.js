@@ -64,6 +64,9 @@ function createBlankGame() {
     gameType: "single",
     awayTeam: "",
     homeTeam: "",
+    matchupDescription: "",
+    locationName: "",
+    notes: "",
     crewId: "",
     assignmentStatus: AssignmentStatus.NEEDS_ASSIGNMENT,
     assignmentMode: AssignmentMode.ADMIN_ONLY,
@@ -118,15 +121,33 @@ function renderGameEditorForm(game, isEditing) {
       ${renderOptionList(locationService.getFields(selectedComplex), selectedField)}
     </select>
 
+    <label>Location details <span class="field-optional">(optional)</span></label>
+    <input
+      id="edit-location-name"
+      data-testid="game-location-name-input"
+      type="text"
+      value="${game.locationName || ""}"
+      placeholder="Address, venue, field name, or TBD"
+    />
+
     <label>Level</label>
     <select id="edit-level" data-testid="game-level-input">
       ${renderOptionList(getLevelOptions(), game.level)}
     </select>
 
-    <label>Game Type</label>
+    <label>Game Type / Officials Requested</label>
     <select id="edit-game-type" data-testid="game-type-input">
       ${renderGameTypeOptions(game.gameType)}
     </select>
+
+    <label>Matchup description <span class="field-optional">(optional when participant names are supplied)</span></label>
+    <input
+      id="edit-matchup-description"
+      data-testid="game-matchup-description-input"
+      type="text"
+      value="${game.matchupDescription || ""}"
+      placeholder="Pool A Game 3, semifinal, or visiting opponent"
+    />
 
     <label>Away Team</label>
     <input
@@ -145,6 +166,9 @@ function renderGameEditorForm(game, isEditing) {
       value="${game.homeTeam || ""}"
       placeholder="Home Team"
     />
+
+    <label>Notes <span class="field-optional">(optional)</span></label>
+    <textarea id="edit-game-notes" data-testid="game-notes-input" rows="3" placeholder="Operational notes for schedulers">${game.notes || ""}</textarea>
 
     ${
       isEditing
@@ -284,7 +308,10 @@ function readGameEditorValues() {
     level: document.getElementById("edit-level")?.value || "",
     gameType: document.getElementById("edit-game-type")?.value || "single",
     awayTeam: document.getElementById("edit-away-team")?.value.trim() || "",
-    homeTeam: document.getElementById("edit-home-team")?.value.trim() || ""
+    homeTeam: document.getElementById("edit-home-team")?.value.trim() || "",
+    matchupDescription: document.getElementById("edit-matchup-description")?.value.trim() || "",
+    locationName: document.getElementById("edit-location-name")?.value.trim() || "",
+    notes: document.getElementById("edit-game-notes")?.value.trim() || ""
   };
 }
 
@@ -303,17 +330,17 @@ function validateGameEditorValues(values) {
     return false;
   }
 
-  if (values.gameDomain === "officials" && (!values.locationComplex || !values.locationField)) {
-    toastService.error("Choose a location complex and field.");
+  if (values.gameDomain === "officials" && !values.matchupDescription && !values.awayTeam && !values.homeTeam) {
+    toastService.error("Enter a matchup description or at least one participant name.");
     return false;
   }
 
-  if (!values.awayTeam || !values.homeTeam) {
+  if (values.gameDomain !== "officials" && (!values.awayTeam || !values.homeTeam)) {
     toastService.error("Enter both teams.");
     return false;
   }
 
-  if (values.awayTeam === values.homeTeam) {
+  if (values.awayTeam && values.homeTeam && values.awayTeam === values.homeTeam) {
     toastService.error("Away and home teams cannot be the same.");
     return false;
   }

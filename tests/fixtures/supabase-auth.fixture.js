@@ -825,16 +825,22 @@ export const test = base.extend({
               return new Set(positions).size !== positions.length || positions.some(position => !["Plate","Base","U3","U4","Observer","Mentor"].includes(position));
             });
             if (invalid) return { data: null, error: { message: "schedule_import_invalid_positions" } };
+            let importedCount = 0;
+            let skippedCount = 0;
             for (const item of args.p_games || []) {
               if (item.externalGameId && settings.games.some(game => String(game.legacy_game_id || "") === String(item.externalGameId))) {
-                return { data: null, error: { message: "duplicate key value violates unique constraint games_organization_id_legacy_game_id_key" } };
+                skippedCount += 1;
+                continue;
               }
-              const row = { id: `imported-${settings.games.length + 1}`, organization_id: settings.profile.organization_id, season_id: "season-1", location_id: settings.locations.find(location => location.name === item.location)?.id, field_id: settings.fields.find(field => field.name === item.field)?.id, legacy_game_id: item.externalGameId || null, game_date: item.date, game_time: item.time, timezone: item.timezone, home_team: item.homeTeam, away_team: item.awayTeam, level: item.level, game_type: item.gameType, lifecycle_status: item.lifecycleStatus, review: {}, report: {}, source_metadata: {} };
+              const matchedLocation = settings.locations.find(location => location.name === item.location);
+              const matchedField = matchedLocation && settings.fields.find(field => field.location_id === matchedLocation.id && field.name === item.field);
+              const row = { id: `imported-${settings.games.length + 1}`, organization_id: settings.profile.organization_id, game_domain: "officials", sport: item.sport || "Baseball", season_id: null, location_id: matchedLocation?.id || null, field_id: matchedField?.id || null, location_name: item.locationName || (!matchedLocation ? [item.location, item.field].filter(Boolean).join(" — ") : ""), legacy_game_id: item.externalGameId || null, game_date: item.date, game_time: item.time, timezone: item.timezone, home_team: item.homeTeam || null, away_team: item.awayTeam || null, level: item.level || "", game_type: item.gameType, lifecycle_status: item.lifecycleStatus, notes: item.notes || "", review: {}, report: {}, source_metadata: { matchupDescription: item.matchupDescription || "", importNotes: item.notes || "" } };
               settings.games.push(row);
+              importedCount += 1;
               const positions = item.positions || ["Plate"];
               positions.forEach(position => settings.assignments.push({ id: `assignment-${row.id}-${position}`, organization_id: row.organization_id, game_id: row.id, position, status: item.assignmentStatus, assigned_crew_member_id: null, locked: false }));
             }
-            return { data: { importedCount: args.p_games.length, skippedCount: 0, errorCount: 0 }, error: null };
+            return { data: { importedCount, skippedCount, errorCount: 0 }, error: null };
           }
           if (name === "reject_umpire_profile" || name === "reject_pending_account") {
             if (settings.profile.role !== "administrator") return { data: null, error: { message: "account_rejection_unauthorized" } };

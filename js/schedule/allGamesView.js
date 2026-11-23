@@ -151,7 +151,7 @@ const isHighlighted =
 
       <td>
         <strong>
-          ${game.awayTeam || "Away"} @ ${game.homeTeam || "Home"}
+          ${game.matchupDescription || `${game.awayTeam || "Away TBD"} @ ${game.homeTeam || "Home TBD"}`}
         </strong>
       </td>
 

@@ -42,7 +42,7 @@ const myCrewId = authService.currentCrewId();
           ${game.level ? `<span class="game-level">${levelTerminologyService.format(game.level)}</span>` : ""}
         </div>
 
-        <h3 data-testid="game-title-${game.id}">${game.awayTeam || "Away"} @ ${game.homeTeam || "Home"}</h3>
+        <h3 data-testid="game-title-${game.id}">${game.matchupDescription || `${game.awayTeam || "Away TBD"} @ ${game.homeTeam || "Home TBD"}`}</h3>
 
         <div class="game-location">${locationService.getDisplayName(game) || "Location TBD"}</div>
 
