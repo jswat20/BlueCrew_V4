@@ -244,6 +244,10 @@ const authorizationService = (() => {
   function canView(page, role = currentRole()) {
     const normalizedPage = String(page || "").trim().toLowerCase();
 
+    if (normalizedPage === "workspace-selection") {
+      return typeof workspaceService !== "undefined" && workspaceService.snapshot().workspaces.length > 0;
+    }
+
     if (DISABLED_PAGES.includes(normalizedPage)) {
       return false;
     }
@@ -260,7 +264,22 @@ const authorizationService = (() => {
     const allowedRoles = PAGE_ACCESS[normalizedPage];
 
     return Array.isArray(allowedRoles) &&
-      allowedRoles.includes(normalizedRole);
+      allowedRoles.includes(normalizedRole) &&
+      moduleAllowsPage(normalizedPage);
+  }
+
+  function moduleAllowsPage(page) {
+    if (typeof supabaseClientService === "undefined" || !supabaseClientService.isConfigured() || typeof workspaceService === "undefined") return true;
+    const active = workspaceService.snapshot().activeWorkspace;
+    if (!active) return false;
+    const umpirePages = new Set([
+      "operations-center", "assigner-workbench", "season-dashboard", "crew", "accounts", "reports",
+      "availability", "claim-games", "my-claims", "my-schedule", "claims-queue", "claim-history", "review-queue"
+    ]);
+    if (umpirePages.has(page)) return workspaceService.hasModule("umpire");
+    if (page === "settings") return ["league", "umpire", "tournament", "facility"].some(code => workspaceService.hasModule(code));
+    if (["schedule", "game-hub"].includes(page)) return ["league", "umpire", "tournament"].some(code => workspaceService.hasModule(code));
+    return true;
   }
 
   function isPageDisabled(page) {

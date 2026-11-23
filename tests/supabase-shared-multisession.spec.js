@@ -57,6 +57,9 @@ test("profile and availability are shared across independent authenticated conte
         },
         from: query,
         rpc: async (name, args) => {
+          if (name === "get_authorized_workspaces") return { data: [{ organization_id: "33333333-3333-4333-8333-333333333333", organization_name: "Shared Fixture", organization_slug: "shared-fixture", organization_timezone: "America/New_York", membership_id: "membership-shared", profile_id: "11111111-1111-4111-8111-111111111111", membership_status: "approved", role_code: "umpire", enabled_modules: ["umpire"], is_active: true }], error: null };
+          if (name === "get_active_profile" || name === "select_active_workspace") return window.__bluecrewSharedQuery({ table: "profiles", operation: "select", payload: null });
+          if (name === "clear_active_workspace") return { data: true, error: null };
           if (name !== "upsert_own_availability") return { data: null, error: { message: `Unexpected RPC: ${name}` } };
           return window.__bluecrewSharedQuery({ table: "availability", operation: "upsert", payload: { organization_id: "33333333-3333-4333-8333-333333333333", crew_member_id: "44444444-4444-4444-8444-444444444444", availability_date: args.p_availability_date, status: args.p_status, starts_at: args.p_starts_at, ends_at: args.p_ends_at } });
         }

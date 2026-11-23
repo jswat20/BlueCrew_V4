@@ -88,6 +88,20 @@ const supabaseAuthService = (() => {
     return accountService.getAuthenticatedProfile();
   }
 
+  async function hydrateSessionUser(user) {
+    const workspace = await workspaceService.ensureActive();
+    if (!workspace.success) throw new Error(workspace.message || "Workspace access could not be verified.");
+    if (workspace.selectionRequired) {
+      clearSharedState();
+      applyIdentity(null);
+      hydrationState = { status: "workspace-selection", message: workspace.message };
+      return { workspaceSelection: true, workspaces: workspace.data.workspaces };
+    }
+    const account = await loadAccountForUser(user);
+    renderWorkspaceSwitcher?.();
+    return account;
+  }
+
   function clearSharedState() {
     levelTerminologyService?.clear?.();
     organizationContactService?.clear?.();
@@ -136,6 +150,7 @@ const supabaseAuthService = (() => {
       document.body.dataset.role = role;
       if (window.BlueCrew?.test) window.BlueCrew.test.currentRole = role;
     }
+    renderWorkspaceSwitcher?.();
     return account;
   }
 
@@ -177,7 +192,10 @@ const supabaseAuthService = (() => {
     }
 
     try {
-      const account = await loadAccountForUser(data.session.user);
+      const account = await hydrateSessionUser(data.session.user);
+      if (account?.workspaceSelection) {
+        return mutationResult(true, "Choose a workspace to continue.", account);
+      }
       if (!account || account.status !== "approved") {
         applyIdentity(null);
         return mutationResult(false, account?.status === "pending" ? PENDING_APPROVAL_MESSAGE : "Account not found or unavailable.", account);
@@ -200,7 +218,10 @@ const supabaseAuthService = (() => {
     if (error) return mutationResult(false, error.message);
 
     try {
-      const account = await loadAccountForUser(data.user);
+      const account = await hydrateSessionUser(data.user);
+      if (account?.workspaceSelection) {
+        return mutationResult(true, "Choose a workspace to continue.", account);
+      }
       if (!account || account.status !== "approved") {
         await client.auth.signOut();
         applyIdentity(null);
@@ -282,13 +303,40 @@ const supabaseAuthService = (() => {
 
   async function logout() {
     const client = await supabaseClientService.getClient();
+    let workspaceError = null;
+    try {
+      const workspaceResult = await workspaceService.clearServerSelection();
+      workspaceError = workspaceResult.error || null;
+    } catch (error) { workspaceError = error; }
     const { error } = await client.auth.signOut();
     clearSharedState();
+    workspaceService.clear();
     applyIdentity(null);
     hydrationState = { status: "idle", message: "" };
-    return error
-      ? mutationResult(false, error.message)
+    return error || workspaceError
+      ? mutationResult(false, error?.message || workspaceError?.message || "Workspace selection could not be cleared.")
       : mutationResult(true, "Logged out.");
+  }
+
+  async function switchWorkspace(organizationId) {
+    const client = await supabaseClientService.getClient();
+    const { data, error } = await client.auth.getSession();
+    if (error || !data.session?.user) return mutationResult(false, error?.message || "Authentication required.");
+    const selection = await workspaceService.select(organizationId);
+    if (!selection.success) return mutationResult(false, selection.message);
+    clearSharedState();
+    try {
+      const account = await loadAccountForUser(data.session.user);
+      if (!account || account.status !== "approved") throw new Error("Workspace profile is unavailable.");
+      applyIdentity(account);
+      await activateMessaging(account);
+      renderWorkspaceSwitcher?.();
+      hydrationState = { status: "ready", message: "" };
+      return mutationResult(true, "Workspace switched.", account);
+    } catch (error) {
+      failHydration(error);
+      return mutationResult(false, error.message || "Workspace switch failed.");
+    }
   }
 
   async function startSessionListener() {
@@ -306,13 +354,18 @@ const supabaseAuthService = (() => {
       setTimeout(async () => {
         if (event === "SIGNED_OUT" || !session?.user) {
           clearSharedState();
+          workspaceService.clear();
           applyIdentity(null);
           hydrationState = { status: "idle", message: "" };
           return;
         }
         if (!recoveryState && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED")) {
           try {
-            const account = await loadAccountForUser(session.user);
+            const account = await hydrateSessionUser(session.user);
+            if (account?.workspaceSelection) {
+              renderPage?.("workspace-selection");
+              return;
+            }
             if (account?.status === "approved") {
               applyIdentity(account);
               await activateMessaging(account);
@@ -367,6 +420,7 @@ const supabaseAuthService = (() => {
     isRecoveringPassword: () => recoveryState,
     clearRecoveryState,
     refreshAuthenticatedAccount,
+    switchWorkspace,
     clearForTests
   };
 })();

@@ -46,7 +46,7 @@ test("administrator and umpire hydrate the same RLS-scoped shared schedule", asy
       if (table === "game_assignments" && profile.role === "umpire") visible = visible.filter(item => item.status === "open_for_claim" || item.assigned_crew_member_id === "crew-a");
       return { data: visible, error: null };
     });
-    await page.addInitScript(({ authUserId, email }) => {
+    await page.addInitScript(({ authUserId, email, activeProfile }) => {
       window.BLUECREW_SUPABASE_CONFIG = { url: "https://fixture.supabase.co", publishableKey: "sb_publishable_fixture" };
       localStorage.setItem("bluecrew-games-v2", JSON.stringify([{ id: "poison-game" }]));
       localStorage.setItem("bluecrew_location_catalog", JSON.stringify([{ name: "Poison Location", fields: ["Poison Field"] }]));
@@ -70,13 +70,16 @@ test("administrator and umpire hydrate the same RLS-scoped shared schedule", asy
         },
         from: query,
         rpc: async name => {
+          if (name === "get_authorized_workspaces") return { data: [{ organization_id: activeProfile.organization_id, organization_name: "Shared Organization", organization_slug: "shared-organization", organization_timezone: "America/New_York", membership_id: `membership-${activeProfile.id}`, profile_id: activeProfile.id, membership_status: "approved", role_code: activeProfile.role, enabled_modules: ["umpire"], is_active: true }], error: null };
+          if (name === "get_active_profile" || name === "select_active_workspace") return { data: activeProfile, error: null };
+          if (name === "clear_active_workspace") return { data: true, error: null };
           if (name === "list_crew_identity_diagnostics" || name === "list_linkable_umpire_profiles") {
             return { data: [], error: null };
           }
           return { data: null, error: { message: `Unexpected fixture RPC: ${name}` } };
         }
       });
-    }, { authUserId, email: profile.email });
+    }, { authUserId, email: profile.email, activeProfile: profile });
     await page.goto("/");
     await expect.poll(() => page.evaluate(() => supabaseAuthService.getHydrationState().status)).toBe("ready");
     return { context, page };

@@ -47,6 +47,9 @@ async function openSharedSession(browser, rows, authUserId) {
   });
 
   await page.exposeFunction("__claimRpc", ({ name, args }) => {
+    if (name === "get_authorized_workspaces") return { data: [{ organization_id: profile.organization_id, organization_name: "Claim Fixture", organization_slug: "claim-fixture", organization_timezone: "America/New_York", membership_id: `membership-${profile.id}`, profile_id: profile.id, membership_status: "approved", role_code: profile.role, enabled_modules: ["umpire"], is_active: true }], error: null };
+    if (name === "get_active_profile" || name === "select_active_workspace") return { data: profile, error: null };
+    if (name === "clear_active_workspace") return { data: true, error: null };
     if (name === "list_manageable_accounts") {
       return {
         data: rows.profiles.map(item => {

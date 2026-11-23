@@ -5,7 +5,7 @@ const supabaseSharedRepository = (() => {
 
   async function getProfileForAuthUser(authUserId) {
     const db = await client();
-    return db.from("profiles").select("*").eq("auth_user_id", authUserId).maybeSingle();
+    return db.rpc("get_active_profile");
   }
 
   async function updateProfile(profileId, changes) {
@@ -31,6 +31,21 @@ const supabaseSharedRepository = (() => {
   async function getWorkspaceContext() {
     const db = await client();
     return db.rpc("get_workspace_context");
+  }
+
+  async function getAuthorizedWorkspaces() {
+    const db = await client();
+    return db.rpc("get_authorized_workspaces");
+  }
+
+  async function selectActiveWorkspace(organizationId) {
+    const db = await client();
+    return db.rpc("select_active_workspace", { p_organization_id: organizationId });
+  }
+
+  async function clearActiveWorkspace() {
+    const db = await client();
+    return db.rpc("clear_active_workspace");
   }
 
   async function getSeasons() {
@@ -503,6 +518,9 @@ const supabaseSharedRepository = (() => {
     getProfileForAuthUser,
     getCurrentOrganization,
     getWorkspaceContext,
+    getAuthorizedWorkspaces,
+    selectActiveWorkspace,
+    clearActiveWorkspace,
     getSeasons,
     createSeason,
     activateSeason,

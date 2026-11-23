@@ -99,6 +99,11 @@ async function handleLoginSubmit(event) {
   messageEl.textContent = result.message;
 
   if (result.success) {
+    if (result.data?.workspaceSelection) {
+      window.history.replaceState({ blueCrewPage: "workspace-selection", context: {} }, "", window.location.href);
+      renderPage("workspace-selection");
+      return;
+    }
         if (
       typeof authService !== "undefined" &&
       authService.isUmpire() &&

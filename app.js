@@ -25,6 +25,10 @@ const pages = {
     title: "The Slate - Login",
     subtitle: ""
   },
+  "workspace-selection": {
+    title: "Choose Workspace",
+    subtitle: "Select the customer workspace you want to operate."
+  },
   "forgot-password": { title: "Forgot Password", subtitle: "Request a secure password reset link." },
   "password-recovery": { title: "Set New Password", subtitle: "Finish your secure password recovery." },
   "my-schedule": {
@@ -180,6 +184,16 @@ function initializeApp() {
         renderPage("login", result.success ? {} : { loginMessage: result.message });
         return;
       }
+      if (result.data.workspaceSelection) {
+        window.history.replaceState(
+          { blueCrewPage: "workspace-selection", context: {} },
+          "",
+          window.location.href
+        );
+        window.BlueCrew.test.initialized = true;
+        renderPage("workspace-selection");
+        return;
+      }
       document.body.dataset.role = result.data.role;
       window.BlueCrew.test.currentRole = result.data.role;
       refreshNavigationAuthorization?.();
@@ -332,8 +346,9 @@ function escapeSharedStateHtml(value) {
 function renderPage(page, context = {}) {
   const hostedMode = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   const publicAuthPage = ["login", "forgot-password", "password-recovery"].includes(page);
+  const workspaceSelectionPage = page === "workspace-selection";
   if (supabaseAuthService?.isRecoveringPassword?.() && page !== "password-recovery") page = "password-recovery";
-  if (hostedMode && !publicAuthPage && !loginService.isLoggedIn()) {
+  if (hostedMode && !publicAuthPage && !workspaceSelectionPage && !loginService.isLoggedIn()) {
     page = "login";
     context = {};
     window.history.replaceState({ blueCrewPage: "login", context: {} }, "", window.location.href);
@@ -383,7 +398,7 @@ function renderPage(page, context = {}) {
     return;
   }
 
-  const isAuthorized = publicAuthPage ||
+  const isAuthorized = publicAuthPage || workspaceSelectionPage ||
     typeof authorizationService === "undefined" ||
     typeof authorizationService.canView !== "function" ||
     authorizationService.canView(page);
@@ -412,7 +427,9 @@ function renderPage(page, context = {}) {
     return;
   }
 
-  const viewHtml = authService.isLeagueViewer?.()
+  const viewHtml = workspaceSelectionPage
+    ? renderWorkspaceSelection()
+    : authService.isLeagueViewer?.()
     ? renderLeagueViewerView(page, context)
     : authService.isUmpire()
       ? renderUmpireView(page, context)
@@ -495,6 +512,9 @@ window.addEventListener("popstate", event => {
 function runPageSetup(page, context = {}) {
   if (page === "login" && typeof setupLoginForm === "function") {
     setupLoginForm();
+  }
+  if (page === "workspace-selection" && typeof setupWorkspaceSelection === "function") {
+    setupWorkspaceSelection();
   }
   if (["forgot-password", "password-recovery"].includes(page) && typeof setupAccountSecurityPage === "function") {
     setupAccountSecurityPage(page);

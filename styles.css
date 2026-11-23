@@ -10278,3 +10278,13 @@ body[data-page="profile"] .profile-crew-card-front[data-card-role="administrator
   .facility-field-grid { grid-template-columns:1fr; }
   .settings-dialog { width:calc(100% - 1rem); max-height:94vh; }
 }
+/* Server-validated active workspace context */
+.workspace-switcher { display: grid; gap: .3rem; margin-top: .65rem; padding: .65rem; border: 1px solid rgba(255,255,255,.18); border-radius: .65rem; background: rgba(255,255,255,.06); }
+.workspace-switcher-label { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; opacity: .72; }
+.workspace-switcher select { width: 100%; min-width: 0; padding: .45rem; border-radius: .4rem; }
+.workspace-switcher-modules { font-size: .72rem; opacity: .78; }
+.workspace-launcher { max-width: 46rem; margin: 2rem auto; }
+.workspace-launcher-list { display: grid; gap: .75rem; margin-top: 1.25rem; }
+.workspace-launcher-option { display: grid; grid-template-columns: 1fr auto; gap: .2rem .8rem; width: 100%; padding: 1rem; text-align: left; }
+.workspace-launcher-option small { grid-column: 1 / -1; }
+@media (max-width: 720px) { .workspace-launcher { margin: .5rem auto; } .workspace-launcher-option { grid-template-columns: 1fr; } .workspace-launcher-option small { grid-column: auto; } }

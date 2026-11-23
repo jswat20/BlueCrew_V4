@@ -55,12 +55,37 @@ export const test = base.extend({
       failedMutationTable: "",
       deleteReturnsNoRepresentation: false,
       failedRpc: "",
+      workspaces: null,
+      activeWorkspaceId: undefined,
       profilePhotoObjects: {},
       deniedReferencedCrew: false,
       ...supabaseScenario
     };
+    scenario.workspaces = scenario.workspaces || [{
+      organization_id: scenario.profile.organization_id,
+      organization_name: scenario.organization?.name || "Fixture Organization",
+      organization_slug: scenario.organization?.slug || "fixture-organization",
+      organization_timezone: scenario.organization?.timezone || "America/New_York",
+      membership_id: `membership-${scenario.profile.organization_id}`,
+      profile_id: scenario.profile.id,
+      membership_status: "approved",
+      role_code: scenario.profile.role,
+      enabled_modules: ["league", "umpire", "tournament", "facility"],
+      profile: scenario.profile,
+      crewId: scenario.crewId
+    }];
+    if (scenario.activeWorkspaceId === undefined) {
+      scenario.activeWorkspaceId = scenario.workspaces.length === 1 ? scenario.workspaces[0].organization_id : "";
+    }
 
     const installFixture = (settings) => {
+      const persistedWorkspaceId = window.localStorage.getItem("__slate_fixture_active_workspace");
+      if (persistedWorkspaceId) settings.activeWorkspaceId = persistedWorkspaceId;
+      const persistedWorkspace = settings.workspaces.find(item => String(item.organization_id) === String(settings.activeWorkspaceId));
+      if (persistedWorkspace?.profile) {
+        settings.profile = persistedWorkspace.profile;
+        settings.crewId = persistedWorkspace.crewId || null;
+      }
       window.BLUECREW_RUNTIME_CONFIG = Object.freeze({ mode: "hosted" });
       window.BLUECREW_SUPABASE_CONFIG = Object.freeze({
         url: "https://fixture.supabase.co",
@@ -143,6 +168,8 @@ export const test = base.extend({
             if (settings.failedMutationTable === table && operation !== "select") return { data: null, error: { message: "RLS denied" } };
             if (table === "profiles" && operation === "update") {
               settings.profile = { ...settings.profile, ...payload };
+              const activeWorkspace = settings.workspaces.find(item => String(item.organization_id) === String(settings.activeWorkspaceId));
+              if (activeWorkspace) activeWorkspace.profile = settings.profile;
               return { data: settings.profile, error: null };
             }
             if (table === "availability") {
@@ -314,6 +341,26 @@ export const test = base.extend({
         async rpc(name, args) {
           calls.push({ operation: "rpc", name, args });
           if (settings.failedRpc === name) return { data: null, error: { message: "Transactional write failed" } };
+          if (name === "get_authorized_workspaces") {
+            return { data: settings.workspaces.filter(item => item.membership_status === "approved").map(item => ({ ...item, profile: undefined, crewId: undefined, is_active: String(item.organization_id) === String(settings.activeWorkspaceId) })), error: null };
+          }
+          if (name === "select_active_workspace") {
+            const workspace = settings.workspaces.find(item => String(item.organization_id) === String(args?.p_organization_id) && item.membership_status === "approved");
+            if (!workspace) return { data: null, error: { message: "workspace_membership_required" } };
+            settings.activeWorkspaceId = workspace.organization_id;
+            settings.profile = workspace.profile;
+            settings.crewId = workspace.crewId || null;
+            window.localStorage.setItem("__slate_fixture_active_workspace", workspace.organization_id);
+            return { data: settings.profile, error: null };
+          }
+          if (name === "clear_active_workspace") {
+            settings.activeWorkspaceId = "";
+            window.localStorage.removeItem("__slate_fixture_active_workspace");
+            return { data: true, error: null };
+          }
+          if (name === "get_active_profile") {
+            return { data: settings.profileMissingUntilProvision ? null : settings.profile, error: null };
+          }
           if (name === "get_message_center") return { data: { conversations: [], announcements: [], recipients: [] }, error: null };
           if (name === "create_season") {
             if (settings.profile.role !== "administrator") return { data: null, error: { message: "administrator_required" } };
@@ -881,7 +928,24 @@ export const test = base.extend({
       openContext: async (overrides = {}) => {
         const context = await browser.newContext();
         const contextPage = await context.newPage();
-        await contextPage.addInitScript(installFixture, { ...scenario, ...overrides });
+        const contextScenario = { ...scenario, ...overrides };
+        if (overrides.profile && !overrides.workspaces) {
+          contextScenario.workspaces = [{
+            organization_id: overrides.profile.organization_id,
+            organization_name: overrides.organization?.name || "Fixture Organization",
+            organization_slug: overrides.organization?.slug || "fixture-organization",
+            organization_timezone: overrides.organization?.timezone || "America/New_York",
+            membership_id: `membership-${overrides.profile.organization_id}`,
+            profile_id: overrides.profile.id,
+            membership_status: "approved",
+            role_code: overrides.profile.role,
+            enabled_modules: ["league", "umpire", "tournament", "facility"],
+            profile: overrides.profile,
+            crewId: overrides.crewId || null
+          }];
+          contextScenario.activeWorkspaceId = overrides.profile.organization_id;
+        }
+        await contextPage.addInitScript(installFixture, contextScenario);
         await contextPage.goto("/");
         return { context, page: contextPage };
       }
