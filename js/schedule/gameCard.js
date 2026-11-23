@@ -1,6 +1,7 @@
 // js/schedule/gameCard.js
 
 function renderGameCard(game) {
+  const isOfficialsGame = (game.gameDomain || "officials") === "officials";
   const assigned = assignmentService.isAssigned(game);
   const displayStatus = getScheduleDisplayStatus(game);
   const isAdmin = authService.isAdmin();
@@ -11,8 +12,8 @@ const isLocked = assignmentService.isLocked(game);
 const myCrewId = authService.currentCrewId();
   const assignments = assignmentService.getAssignments(game);
   const assignedCrew = assignments.filter(assignment => assignment.crewId);
-  const warnings = getGameCardWarnings(game);
-  const workload = getGameCrewWorkload(game);
+  const warnings = isOfficialsGame ? getGameCardWarnings(game) : [];
+  const workload = isOfficialsGame ? getGameCrewWorkload(game) : null;
 
   return `
     <article
@@ -26,9 +27,9 @@ const myCrewId = authService.currentCrewId();
     class="game-status"
     data-testid="game-status-${game.id}">
   ${
-    typeof renderAssignmentStatusBadge === "function"
+    isOfficialsGame && typeof renderAssignmentStatusBadge === "function"
       ? renderAssignmentStatusBadge(game)
-      : (assigned ? "Assigned" : "Needs Crew")
+      : displayStatus.label
   }
 </div>
       </div>
@@ -61,19 +62,19 @@ const myCrewId = authService.currentCrewId();
 
       </div>
 
-      <div class="game-card-crew ${assignedCrew.length ? "" : "missing"}">
+      ${isOfficialsGame ? `<div class="game-card-crew ${assignedCrew.length ? "" : "missing"}">
         ${assignedCrew.length
           ? assignedCrew.map((assignment, assignmentIndex) => `
               <span class="game-card-assignee"><small>${assignments.length === 1 ? "Solo" : presentationFormattingService.formatAssignmentPosition(assignment.position)}</small><button type="button" class="game-card-crew-link" onclick="openCrewCard('${assignment.crewId}')">${crewService.getDisplayName(assignment.crewId)}</button>${workload && assignmentIndex === 0 ? `<span class="workload-badge ${workload.level}">${workload.label}</span>` : ""}</span>
             `).join("")
           : `<strong data-testid="game-crew-${game.id}">No crew assigned</strong>`}
-      </div>
+      </div>` : `<div class="game-card-crew"><strong>${game.gameDomain === "tournament" ? "Tournament game" : "League game"}</strong></div>`}
 
 <div
     class="game-card-actions"
     data-testid="game-actions-${game.id}">
 ${
-  isAdmin
+  isAdmin && isOfficialsGame
     ? `
         <button
           type="button"
@@ -93,10 +94,10 @@ ${
           Edit Game
         </button>
       `
-    : ""
+    : isAdmin ? `<button type="button" class="button button-secondary" data-testid="edit-game-${game.id}" aria-label="Edit Game" onclick="editGame('${game.id}')">Edit Game</button>` : ""
 }
 
-${authService.isLeagueViewer?.() ? "" : `<button
+${!isOfficialsGame || authService.isLeagueViewer?.() ? "" : `<button
   type="button"
   class="button button-secondary"
   data-testid="game-hub-${game.id}"

@@ -118,6 +118,7 @@ function setAllGamesScheduleFilter(filter) {
 }
 
 function renderAllGamesRow(game, context = {}) {
+    const isOfficialsGame = (game.gameDomain || "officials") === "officials";
     const assigned = assignmentService.isAssigned(game);
 
   const assignedCrew = assignmentService.getAssignments(game).filter(assignment => assignment.crewId);
@@ -126,7 +127,7 @@ function renderAllGamesRow(game, context = {}) {
         const label = presentationFormattingService.formatAssignmentPosition(assignment.position, "");
         return `${label ? `${label} ` : ""}${crewService.getDisplayName(assignment.crewId)}`;
       }).join(", ")
-    : (assigned && game.crewId ? crewService.getDisplayName(game.crewId) : "TBD");
+    : (assigned && game.crewId ? crewService.getDisplayName(game.crewId) : isOfficialsGame ? "TBD" : "Not applicable");
 const isHighlighted =
   context.highlightId &&
   String(game.id) === String(context.highlightId);
@@ -165,7 +166,7 @@ const isHighlighted =
       </td>
 
       <td>
-        ${authService.isLeagueViewer?.() ? "" : `<button
+        ${!isOfficialsGame || authService.isLeagueViewer?.() ? "" : `<button
   class="button button-primary"
   data-testid="view-game-${game.id}"
   onclick="openScheduleGameHub('${game.id}')"

@@ -59,6 +59,10 @@ function getScheduleDisplayStatus(game) {
   const lifecycle = gameService.getStatus(game);
   if (lifecycle === "completed" || lifecycle === "approved" || lifecycle === "submitted") return { key: "completed", label: "Completed", className: presentationFormattingService.getStatusBadgeClass("Completed") };
   if (lifecycle === "cancelled") return { key: "cancelled", label: "Cancelled", className: presentationFormattingService.getStatusBadgeClass("Cancelled") };
+  if ((game.gameDomain || "officials") !== "officials") {
+    const label = lifecycle === "postponed" ? "Postponed" : "Scheduled";
+    return { key: label.toLowerCase(), label, className: presentationFormattingService.getStatusBadgeClass(label) };
+  }
   const assignment = assignmentService.getStatus(game);
   if (assignment === "pending_approval") return { key: "pending_approval", label: "Pending Approval", className: presentationFormattingService.getStatusBadgeClass("Pending Approval") };
   if (["needs_assignment", "open_for_claim"].includes(assignment)) return { key: "needs_assignment", label: "Needs Assignment", className: presentationFormattingService.getStatusBadgeClass("Needs Assignment") };

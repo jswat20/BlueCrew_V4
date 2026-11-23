@@ -236,7 +236,7 @@ function renderNewGameAssignmentNote() {
     <hr />
 
     <p class="game-editor-note">
-      Assignment slots will be created automatically from the selected game type.
+      Officials games create staffing positions. League and Tournament games remain independent unless explicitly connected later.
     </p>
   `;
 }

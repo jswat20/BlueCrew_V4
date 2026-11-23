@@ -7,6 +7,7 @@ function renderDailySchedule(container) {
   const allDayGames = typeof applyScheduleAdvancedFilters === "function"
     ? applyScheduleAdvancedFilters(gameService.getByDate(currentScheduleDate))
     : gameService.getByDate(currentScheduleDate);
+  const staffingGames = allDayGames.filter(game => (game.gameDomain || "officials") === "officials");
 
   const selectedCrewId =
     getSelectedWorkloadCrewId();
@@ -21,7 +22,7 @@ function renderDailySchedule(container) {
     : allDayGames;
 
   const assignedCount =
-  allDayGames.filter(game => {
+  staffingGames.filter(game => {
     const status = assignmentService.getStatus(game);
 
     return (
@@ -31,7 +32,7 @@ function renderDailySchedule(container) {
   }).length;
 
 const workflowCount =
-  allDayGames.filter(game => {
+  staffingGames.filter(game => {
     const status = assignmentService.getStatus(game);
 
     return (
@@ -42,10 +43,10 @@ const workflowCount =
   }).length;
 
   const openCount =
-    allDayGames.length - assignedCount;
+    staffingGames.length - assignedCount;
 
   const openAssignmentCount =
-    allDayGames.reduce(
+    staffingGames.reduce(
       (total, game) =>
         total + assignmentService
           .getAssignments(game)

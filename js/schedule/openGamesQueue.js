@@ -3,6 +3,7 @@
 function getOpenGamesForDate(date) {
   return gameService
     .getByDate(date)
+    .filter(game => (game.gameDomain || "officials") === "officials")
     .filter(game => !assignmentService.isAssigned(game));
 }
 

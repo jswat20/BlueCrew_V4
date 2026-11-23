@@ -107,6 +107,8 @@ function getCrewEligibilityWarning(member, game) {
 function getGameCardWarnings(game) {
   const warnings = [];
 
+  if ((game.gameDomain || "officials") !== "officials") return warnings;
+
   if (!assignmentService.isAssigned(game)) {
     warnings.push({
       type: "danger",
