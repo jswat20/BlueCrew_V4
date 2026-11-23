@@ -116,9 +116,15 @@ test.describe("Operations Center redesign", () => {
 
     await expect(page.locator("body")).toHaveAttribute("data-page", "schedule");
     await expect(page.getByTestId("view-daily")).toHaveClass(/active/);
-    await expect.poll(() => page.evaluate(() => currentScheduleDate)).toBe(
-      new Date().toISOString().split("T")[0]
-    );
+    const expectedToday = await page.evaluate(() => {
+      const now = new Date();
+      return [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0")
+      ].join("-");
+    });
+    await expect.poll(() => page.evaluate(() => currentScheduleDate)).toBe(expectedToday);
   });
 
   test("staffing metrics open the assigner workbench", async ({ page }) => {

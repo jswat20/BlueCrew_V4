@@ -1,8 +1,8 @@
 # The Slate 2.0 — Spring 2027 architecture and delivery plan
 
-> Controlling clarification (2026-11-22): The platform has three independently
-> purchasable modules—League Management, Umpire Management, and Tournament
-> Management. Tournament functionality is not part of League Management.
+> Controlling clarification (2026-11-22): The platform has four independently
+> purchasable modules—League Management, Officials Management, Tournament
+> Management, and Facility Scheduling. Tournament functionality is not part of League Management.
 > Facilities and common scheduling coordinates are tenant-owned shared platform
 > capabilities usable by any applicable enabled module. No module may require
 > domain records from another module.
@@ -16,9 +16,9 @@ Scope: `slate-v2-development`, staging Supabase
 
 ## SaaS architecture directive — controlling clarification
 
-Each `organizations.id` is an independent customer workspace. League Scheduling
-and Umpire Management are separately entitled modules; Complete Suite enables
-both without making either module depend on the other. A user may belong to
+Each `organizations.id` is an independent customer workspace. League Management,
+Officials Management, Tournament Management, and Facility Scheduling are
+separately entitled without making one depend on another. A user may belong to
 multiple workspaces with independent roles, but an explicit active workspace is
 only context—the database must validate membership for every operation.
 

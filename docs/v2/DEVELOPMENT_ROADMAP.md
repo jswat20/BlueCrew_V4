@@ -12,14 +12,17 @@ may be separate workspaces or sports configured inside one workspace. Identical
 facility or league names never imply shared identity, availability, conflicts,
 or access. There is no global facility registry.
 
-League Management, Umpire Management, and Tournament Management are independently
+League Management, Officials Management, Tournament Management, and Facility
+Scheduling are independently
 entitled. A customer may purchase any combination, and no module may require
 domain records owned by another. Billing synchronization is deferred.
 
 Facilities, fields, availability, closures, reservations, organization settings,
 memberships, auditing, and common game date/time/location concepts are shared
-workspace capabilities. They remain tenant-owned and may be used by any enabled
-operational module; they are not a fourth billable module or a global registry.
+workspace capabilities. The facility directory is usable by every operational
+module. Reservation management is included in League and Tournament workflows
+and is the primary workflow of the independently purchasable Facility Scheduling
+module. Officials-only workspaces do not create reservations.
 
 ## Current state
 
@@ -28,7 +31,7 @@ operational module; they are not a fourth billable module or a global registry.
 - The additive SaaS foundation introduces workspace memberships, independent
   membership roles, module entitlements, trusted tenant onboarding, and workspace
   audit records while preserving legacy profile authorization.
-- Existing organizations are backfilled with all three modules so fall umpire
+- Existing organizations are backfilled with all four modules so fall umpire
   operations do not regress.
 - Organizational games are not yet module-independent: the legacy `games`
   table requires season, location, and field records. League scheduling must not
@@ -39,11 +42,12 @@ operational module; they are not a fourth billable module or a global registry.
 ## Increment A — SaaS tenant foundation
 
 - Add organization memberships and multiple role grants.
-- Add backend module entitlements for League, Umpire, and Tournament modules.
-- Backfill legacy profiles and enable all three modules for existing workspaces.
+- Add backend module entitlements for League, Officials, Tournament, and Facility modules.
+- Backfill legacy profiles and enable all four modules for existing workspaces.
 - Restrict tenant provisioning to the trusted service role.
 - Enforce League entitlement on League competition mutations.
 - Permit shared facility mutations when any operational module is enabled.
+- Restrict reservation mutations to League, Tournament, or Facility entitlement.
 - Expose authenticated users' own workspace/module context.
 - Document dependency audit and denial-test requirements.
 
@@ -76,6 +80,17 @@ without reauthentication; every cross-tenant attempt fails closed.
 
 Exit: independent League-only, Umpire-only, and Tournament-only hosted game
 workflows pass with no cross-module seed records.
+
+## Increment C2 — Facility-only hosted workflow
+
+- Generalize legacy fields into typed bookable resources without changing IDs.
+- Support fields, courts, rinks, gyms, rooms, and other launch resource types.
+- Preserve atomic overlap, availability, closure, cancellation, and tenant rules.
+- Provide a resource-first reservation timeline and calendar.
+
+Exit: a Facility-only workspace creates a facility and typed resource, configures
+hours, rejects an overlap, cancels the booking, and persists after reauthentication
+without League, Officials, Tournament, team, or game records.
 
 ## Increment D — league scheduling
 

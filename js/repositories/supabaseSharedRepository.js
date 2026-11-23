@@ -292,7 +292,7 @@ const supabaseSharedRepository = (() => {
   async function getFields() {
     const db = await client();
     return db.from("fields")
-      .select("id,organization_id,location_id,legacy_field_id,name,status,supported_sports,minimum_age,maximum_age,division_notes,active")
+      .select("id,organization_id,location_id,legacy_field_id,name,resource_type,resource_details,status,supported_sports,minimum_age,maximum_age,division_notes,active")
       .order("name")
       .order("id");
   }
@@ -412,6 +412,26 @@ const supabaseSharedRepository = (() => {
     });
   }
 
+  async function createFacilityResource(values) {
+    const db = await client();
+    return db.rpc("create_facility_resource", {
+      p_facility_id: values.facilityId, p_name: values.name, p_resource_type: values.resourceType || "other",
+      p_supported_sports: values.supportedSports || [], p_status: values.status,
+      p_minimum_age: values.minimumAge || null, p_maximum_age: values.maximumAge || null,
+      p_division_notes: values.divisionNotes || "", p_resource_details: values.resourceDetails || {}
+    });
+  }
+
+  async function updateFacilityResource(values) {
+    const db = await client();
+    return db.rpc("update_facility_resource", {
+      p_resource_id: values.id, p_name: values.name, p_resource_type: values.resourceType || "other",
+      p_supported_sports: values.supportedSports || [], p_status: values.status,
+      p_minimum_age: values.minimumAge || null, p_maximum_age: values.maximumAge || null,
+      p_division_notes: values.divisionNotes || "", p_resource_details: values.resourceDetails || {}
+    });
+  }
+
   async function createFieldAvailabilityRule(values) {
     const db = await client();
     return db.rpc("create_field_availability_rule", {
@@ -520,6 +540,8 @@ const supabaseSharedRepository = (() => {
     updateFacility,
     createFacilityField,
     updateFacilityField,
+    createFacilityResource,
+    updateFacilityResource,
     createFieldAvailabilityRule,
     createFieldClosure,
     saveFieldReservation,

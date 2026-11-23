@@ -226,7 +226,7 @@ test("hosted pending Umpire approval requires reviewed eligibility and matches C
   expect(approval?.args).toEqual({ p_target_profile_id: "profile-umpire-1", p_all_divisions: false, p_division_levels: ["6U", "8U"] });
 });
 
-test("hosted settings create an organization-scoped facility and field", async ({ supabaseAuthApp }) => {
+test("hosted settings create an organization-scoped facility and typed resource", async ({ supabaseAuthApp }) => {
   const { page } = supabaseAuthApp;
   await page.evaluate(async () => {
     await locationService.loadSharedLocations();
@@ -236,13 +236,15 @@ test("hosted settings create an organization-scoped facility and field", async (
   await page.getByTestId("facility-dialog").locator('[name="name"]').fill("Internal Smoke Complex");
   await page.getByTestId("facility-dialog").getByRole("button", { name: "Save" }).click();
   await expect(page.getByTestId("settings-locations")).toContainText("Internal Smoke Complex");
-  await page.getByTestId("settings-locations").getByRole("button", { name: "Add Field" }).click();
-  await page.getByTestId("field-dialog").locator('[name="name"]').fill("Field 1");
+  await page.getByTestId("settings-locations").getByRole("button", { name: "Add Resource" }).click();
+  await page.getByTestId("field-dialog").locator('[name="name"]').fill("Court 1");
+  await page.getByTestId("field-dialog").locator('[name="resourceType"]').selectOption("basketball_court");
   await page.getByTestId("field-dialog").getByRole("button", { name: "Save" }).click();
-  await expect(page.getByTestId("settings-locations")).toContainText("Field 1");
+  await expect(page.getByTestId("settings-locations")).toContainText("Court 1");
+  await expect(page.getByTestId("settings-locations")).toContainText("basketball court");
   const calls = await supabaseAuthApp.calls();
   expect(calls.some(call => call.name === "create_facility")).toBe(true);
-  expect(calls.some(call => call.name === "create_facility_field")).toBe(true);
+  expect(calls.some(call => call.name === "create_facility_resource")).toBe(true);
 });
 });
 

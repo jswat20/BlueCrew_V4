@@ -707,6 +707,16 @@ export const test = base.extend({
             const row = { id: `field-${settings.fields.length + 1}`, organization_id: settings.profile.organization_id, location_id: args.p_facility_id, name: args.p_name, status: args.p_status, supported_sports: args.p_supported_sports, minimum_age: args.p_minimum_age, maximum_age: args.p_maximum_age, division_notes: args.p_division_notes, active: true };
             settings.fields.push(row); return { data: row, error: null };
           }
+          if (name === "create_facility_resource") {
+            const row = { id: `field-${settings.fields.length + 1}`, organization_id: settings.profile.organization_id, location_id: args.p_facility_id, name: args.p_name, resource_type: args.p_resource_type, resource_details: args.p_resource_details || {}, status: args.p_status, supported_sports: args.p_supported_sports, minimum_age: args.p_minimum_age, maximum_age: args.p_maximum_age, division_notes: args.p_division_notes, active: true };
+            settings.fields.push(row); return { data: row, error: null };
+          }
+          if (name === "update_facility_resource") {
+            const row = settings.fields.find(item => String(item.id) === String(args.p_resource_id));
+            if (!row) return { data: null, error: { message: "resource_not_found" } };
+            Object.assign(row, { name: args.p_name, resource_type: args.p_resource_type, resource_details: args.p_resource_details || {}, status: args.p_status, supported_sports: args.p_supported_sports, minimum_age: args.p_minimum_age, maximum_age: args.p_maximum_age, division_notes: args.p_division_notes });
+            return { data: row, error: null };
+          }
           if (name === "approve_pending_account") {
             const target = settings.pendingProfiles.find(row => String(row.id) === String(args.p_target_profile_id));
             if (!target) return { data: null, error: { message: "pending_profile_not_found" } };

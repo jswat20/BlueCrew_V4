@@ -5,9 +5,9 @@ const facilityService = (() => {
   const messageFor = error => {
     const value = clean(error?.message);
     const messages = {
-      administrator_required: "Administrator access is required.", reservation_conflict: "That field is already reserved during this time.",
-      reservation_outside_availability: "This reservation is outside the field's availability.",
-      reservation_blocked_by_closure: "A closure blocks this reservation.", field_unavailable: "This field is not operational.",
+      administrator_required: "Administrator access is required.", reservation_conflict: "That resource is already reserved during this time.",
+      reservation_outside_availability: "This reservation is outside the resource's availability.", reservation_module_not_enabled: "Reservation management is not enabled for this workspace.",
+      reservation_blocked_by_closure: "A closure blocks this reservation.", field_unavailable: "This resource is not operational.",
       reservation_must_fit_single_local_day: "Reservations must start and end on the same local day."
     };
     return messages[value] || value || "The facility operation could not be completed.";
@@ -40,14 +40,14 @@ const facilityService = (() => {
     supportedSports: sports(form.supportedSports), status: form.status || "operational", notes: clean(form.notes)
   });
   const fieldValues = form => ({
-    id: form.id || null, facilityId: form.facilityId, name: clean(form.name), supportedSports: sports(form.supportedSports),
+    id: form.id || null, facilityId: form.facilityId, name: clean(form.name), resourceType: clean(form.resourceType) || "other", supportedSports: sports(form.supportedSports),
     status: form.status || "operational", minimumAge: form.minimumAge ? Number(form.minimumAge) : null,
     maximumAge: form.maximumAge ? Number(form.maximumAge) : null, divisionNotes: clean(form.divisionNotes)
   });
   return {
     load, snapshot,
     saveFacility(form) { const values = facilityValues(form); return run(() => values.id ? supabaseSharedRepository.updateFacility(values) : supabaseSharedRepository.createFacility(values), values.id ? "Facility updated." : "Facility created."); },
-    saveField(form) { const values = fieldValues(form); return run(() => values.id ? supabaseSharedRepository.updateFacilityField(values) : supabaseSharedRepository.createFacilityField(values), values.id ? "Field updated." : "Field created."); },
+    saveField(form) { const values = fieldValues(form); return run(() => values.id ? supabaseSharedRepository.updateFacilityResource(values) : supabaseSharedRepository.createFacilityResource(values), values.id ? "Resource updated." : "Resource created."); },
     addAvailability(form) { return run(() => supabaseSharedRepository.createFieldAvailabilityRule(form), "Availability added."); },
     addClosure(form) { return run(() => supabaseSharedRepository.createFieldClosure(form), "Closure added."); },
     saveReservation(form) { return run(() => supabaseSharedRepository.saveFieldReservation(form), form.id ? "Reservation rescheduled." : "Reservation created."); },

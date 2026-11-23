@@ -73,7 +73,7 @@ test("workspace UI displays database-provided roles and enabled modules", () => 
   expect(settingsComponent).toContain('data-testid="workspace-module"');
   expect(settingsComponent).toContain("getWorkspaceContext");
   expect(settingsComponent).toContain("League Management");
-  expect(settingsComponent).toContain("Umpire Management");
+  expect(settingsComponent).toContain("Officials Management");
   expect(styles).toContain(".settings-workspace-card { grid-column: 1 / -1; }");
   expect(styles).toContain(".settings-workspace-card .settings-competition-division { grid-template-columns: 1fr; }");
 });
