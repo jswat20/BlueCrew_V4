@@ -545,6 +545,10 @@ window.addEventListener("popstate", event => {
 });
 
 function runPageSetup(page, context = {}) {
+  if (page === "dashboard" && typeof setupWorkspaceSetupGuide === "function") {
+    const setup = workspaceSetupService?.snapshot?.();
+    if (setup?.status !== "loading") setupWorkspaceSetupGuide();
+  }
   if (page === "login" && typeof setupLoginForm === "function") {
     setupLoginForm();
   }

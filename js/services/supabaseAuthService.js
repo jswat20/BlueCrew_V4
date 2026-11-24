@@ -126,6 +126,7 @@ const supabaseAuthService = (() => {
     activityService?.clearAuthenticatedActivities?.();
     workspaceInvitationService?.clearIssuedSecret?.();
     facilityService?.clear?.();
+    workspaceSetupService?.clear?.();
     clearSchedulingState();
     if (typeof uiStateService !== "undefined") uiStateService.clearSelections?.();
   }
