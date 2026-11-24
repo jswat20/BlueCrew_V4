@@ -91,6 +91,38 @@ delivery behavior changed. Focused workflow/accessibility verification passes
 in 6.7 minutes, and the curated staging artifact verifies against staging
 project `fdjhwxmphdzodxvhrblk`.
 
+### Hosted mutation acceptance and formal closure
+
+Milestone 3 is formally accepted across the four independent staging modules.
+The hosted browser run used only persistent synthetic records:
+
+- **League:** an existing canonical League game was deliberately moved onto an
+  occupied slot. The backend rejected the operation and retained the original
+  game and reservation. The game was then rescheduled to an available slot,
+  preserving its identity, and the new time persisted after workspace changes.
+- **Officials:** a standalone two-official Softball game was created without
+  League or Facility prerequisites. `Synthetic Official 4C` was assigned in
+  Game Hub and remained visible after a full refresh.
+- **Tournament:** a published pool-play result was corrected from 3–5 to 4–5.
+  Standings recalculated, the completed bracket and champion remained intact,
+  and the anonymous public page displayed the corrected score without mutation
+  controls.
+- **Facility:** an overlapping administrative hold received the actionable
+  backend conflict message with focus on the inline alert and all entered data
+  preserved. The same form recovered to create a valid reservation, which was
+  subsequently rescheduled and persisted after refresh.
+
+The League conflict pass identified one usability defect: the editor surfaced
+the raw `league_team_conflict` code and left focus on the submit button. The
+editor now translates that code to an actionable team-overlap message and
+focuses a persistent inline alert while preserving the attempted edits.
+
+Workspace switching hid the previous tenant while server validation and
+hydration were in progress. Focused module, authorization, import, conflict,
+and public-publishing verification passed 34 tests. Staging email isolation was
+rechecked after all mutations: 18 deliveries remain pending and no cron job is
+active.
+
 | Area | Current position | Launch action |
 | --- | --- | --- |
 | Deployment isolation | V2 has a fail-closed staging build and separate hosted site. | Preserve exact-ref checks; document and rehearse an authorized production release and rollback before launch. |

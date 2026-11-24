@@ -187,6 +187,8 @@ function renderGameEditorForm(game, isEditing) {
         : renderNewGameAssignmentNote()
     }
 
+    <p id="game-editor-error" class="form-error" role="alert" tabindex="-1"></p>
+
     <div class="assign-drawer-actions">
       <button
         class="button button-primary"
@@ -302,7 +304,7 @@ async function saveGameEditor(gameId, isEditing) {
     : createNewGame(updates));
 
   if (!result || !result.success) {
-    toastService.error(result?.message || "Unable to save game.");
+    showGameEditorError(result?.message || "Unable to save game.");
     return;
   }
 
@@ -318,6 +320,13 @@ async function saveGameEditor(gameId, isEditing) {
 
   closeGameEditor();
   refreshAfterGameEditorSave();
+}
+
+function showGameEditorError(message) {
+  const error = document.getElementById("game-editor-error");
+  if (!error) return toastService.error(message);
+  error.textContent = message;
+  error.focus();
 }
 
 function readGameEditorValues() {

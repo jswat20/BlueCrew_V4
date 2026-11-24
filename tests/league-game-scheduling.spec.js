@@ -41,6 +41,10 @@ test.describe("Increment 5A League scheduling", () => {
     }
     expect(editor).toContain("Unscheduled / field TBD");
     expect(service).toContain("That field is already reserved during the selected time.");
+    expect(service).toContain("One of these teams already has a game during the selected time.");
     expect(service).toContain("maintenance closure or blackout");
+    expect(editor).toContain('id="game-editor-error"');
+    expect(editor).toContain("showGameEditorError(result?.message");
+    expect(editor).toContain("error.focus()");
   });
 });

@@ -754,6 +754,7 @@ game.assignments =
     if (error) {
       const messages = {
         league_field_conflict: "That field is already reserved during the selected time.",
+        league_team_conflict: "One of these teams already has a game during the selected time.",
         reservation_outside_availability: "The selected time is outside this field's availability.",
         reservation_blocked_by_closure: "A maintenance closure or blackout blocks this field.",
         league_catalog_selection_invalid: "Choose a valid season, league, division, and teams.",
