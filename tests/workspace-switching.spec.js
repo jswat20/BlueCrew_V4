@@ -69,4 +69,29 @@ test.describe("secure multi-workspace switching", () => {
       facilities: [], fields: [], availability: [], closures: [], reservations: [], loaded: false
     });
   });
+
+  test("hides the previous workspace while a switch is being validated", async ({ page, supabaseAuthApp }) => {
+    await page.goto("/");
+    await page.getByTestId("workspace-option").filter({ hasText: "Synthetic League Workspace" }).click();
+    await page.getByRole("button", { name: "⚙ Settings" }).click();
+    await expect(page.getByTestId("settings-competition-catalog")).toBeVisible();
+
+    await page.evaluate(() => {
+      const original = supabaseAuthService.switchWorkspace;
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      supabaseAuthService.switchWorkspace = async organizationId => {
+        await gate;
+        supabaseAuthService.switchWorkspace = original;
+        return original(organizationId);
+      };
+      window.__releaseWorkspaceSwitch = release;
+    });
+    await page.getByTestId("workspace-switcher-select").selectOption("organization-b");
+    await expect(page.getByTestId("session-restoring")).toBeVisible();
+    await expect(page.getByTestId("settings-competition-catalog")).toHaveCount(0);
+    await page.evaluate(() => window.__releaseWorkspaceSwitch());
+    await expect(page.getByTestId("active-workspace-modules")).toHaveText("Officials");
+    await expect(page.locator("body")).toHaveAttribute("data-role", "league_viewer");
+  });
 });

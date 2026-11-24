@@ -111,8 +111,14 @@ function setupWorkspaceSelection() {
 }
 
 async function switchWorkspaceFromUi(organizationId) {
+  const previousPage = document.body.dataset.page || "dashboard";
+  // Fail closed while the server validates the new tenant and the client
+  // replaces every workspace-scoped snapshot. The previous page must not
+  // remain visible during that asynchronous boundary.
+  renderSessionRestoringState?.();
   const result = await supabaseAuthService.switchWorkspace(organizationId);
   if (!result.success) {
+    renderPage(previousPage === "session-restoring" ? "dashboard" : previousPage);
     const error = document.querySelector("[data-testid='workspace-selection-error']");
     if (error) error.textContent = result.message;
     toastService?.error?.(result.message);

@@ -150,11 +150,19 @@ After the fix, the hosted Settings screen displayed the preserved pending,
 accepted, revoked, and expired synthetic invitations. A refresh removed the
 one-time link as designed; the invitation row remained in staging.
 
-The correction passed 12 focused invitation/onboarding/workspace tests and the
-complete regression passed 1,271 tests with one intentional skip in 6.7
+The correction passed the focused invitation/onboarding/workspace tests and the
+final complete regression passed 1,272 tests with one intentional skip in 6.6
 minutes. The staging artifact verification also passed. The in-app acceptance
 browser did not retain its Supabase browser storage across a tool-driven full
 reload, so post-reload reauthentication required another manual sign-in; the
 application persistence contract and ordinary fixture reload coverage remain
 green, but browser-environment session restoration should be repeated in a
 standard persistent browser before closing the broader onboarding increment.
+
+During the same hosted pass, switching from the Alpha administrator workspace
+to the Beta viewer workspace correctly changed the server-owned context first,
+but the prior Settings DOM remained visible while client hydration completed.
+The switcher now renders the neutral session-restoration state synchronously,
+before validating and hydrating the destination tenant, and restores the prior
+page only if selection fails. Automated coverage holds the server response open
+and verifies that no prior-workspace catalog is visible during that interval.
