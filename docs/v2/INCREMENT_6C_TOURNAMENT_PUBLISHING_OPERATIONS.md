@@ -24,6 +24,7 @@ The authenticated Tournament workspace now presents today's games, games in prog
 - Database probe: anonymous public-snapshot execution allowed; anonymous publication-table reads and publication mutation denied.
 - Email isolation: 18 pending deliveries preserved; zero active email cron jobs.
 - Migration history reconciled to staging versions `20261124000537` and `20261124001314` without reapplying accepted migrations.
+- Hosted acceptance found and corrected a missing public standings-points field; follow-up migration `20261124001837` calculates points from the division scoring rule. The public page also provides division/team filters and removes authenticated-shell chrome.
 
 The anonymous `SECURITY DEFINER` advisor count increases by one intentionally for the narrowly scoped public snapshot function. The function has a fixed search path, a single opaque-token argument, no dynamic SQL, no mutations, explicit allowlisting, and no underlying anonymous table grants. Existing legacy advisor findings remain outside this increment.
 

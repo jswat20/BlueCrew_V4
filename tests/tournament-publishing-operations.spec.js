@@ -2,6 +2,7 @@ const { test, expect } = require("@playwright/test");
 const fs = require("fs");
 
 const migration = fs.readFileSync("supabase/migrations/20261124000537_tournament_publishing_game_day_operations.sql", "utf8");
+const standingsFix = fs.readFileSync("supabase/migrations/20261124001837_fix_public_tournament_standings_points.sql", "utf8");
 const repository = fs.readFileSync("js/repositories/supabaseSharedRepository.js", "utf8");
 const service = fs.readFileSync("js/services/tournamentManagementService.js", "utf8");
 const ui = fs.readFileSync("js/schedule/tournamentManagement.js", "utf8");
@@ -20,6 +21,8 @@ test.describe("Increment 6C tournament publishing and game-day contract", () => 
     const publicFunction = migration.slice(migration.indexOf("create or replace function public.get_public_tournament(p_share_token"), migration.indexOf("-- Public standings variant"));
     for (const safe of ["'tournament'", "'divisions'", "'teams'", "'games'", "'standings'", "'brackets'"]) expect(publicFunction).toContain(safe);
     for (const privateField of ["contact_email", "contact_phone", "contact_name", "workspace_audit_events", "auth_user_id"]) expect(publicFunction).not.toContain(privateField);
+    expect(standingsFix).toContain("'standings_points',standings_points");
+    expect(standingsFix).toContain("wins*rules.win_points+ties*rules.tie_points+losses*rules.loss_points");
   });
 
   test("rescheduling preserves identity and updates reservations transactionally", async () => {
@@ -42,7 +45,7 @@ test.describe("Increment 6C tournament publishing and game-day contract", () => 
   test("application exposes publishing, operations, mobile scoring, rescheduling, and export", async () => {
     for (const method of ["setTournamentPublication", "getPublicTournament", "rescheduleTournamentGame", "transitionTournamentGame", "advanceTournamentByes"]) expect(repository).toContain(method);
     for (const method of ["setPublication", "rescheduleGame", "transitionGame"]) expect(service).toContain(method);
-    for (const marker of ["tournament-game-day", "tournament-publish", "tournament-reschedule-form", "exportTournamentSchedule", "renderPublicTournamentPage"]) expect(ui).toContain(marker);
+    for (const marker of ["tournament-game-day", "tournament-publish", "tournament-reschedule-form", "exportTournamentSchedule", "renderPublicTournamentPage", "public-division-filter", "public-team-filter", "filterPublicTournament"]) expect(ui).toContain(marker);
     expect(app).toContain('get("tournament")');
   });
 });
