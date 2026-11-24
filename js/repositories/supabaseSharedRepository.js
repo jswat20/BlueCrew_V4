@@ -547,7 +547,7 @@ const supabaseSharedRepository = (() => {
 
   async function getTournamentCatalog() {
     const db = await client();
-    const [tournaments, divisions, teams, pools, memberships, proposals, games, rules, results, tiebreaks, brackets, bracketRounds, bracketGames] = await Promise.all([
+    const [tournaments, divisions, teams, pools, memberships, proposals, games, rules, results, tiebreaks, brackets, bracketRounds, bracketGames, publications] = await Promise.all([
       db.from("tournaments").select("*").order("starts_on", { ascending: false }),
       db.from("tournament_divisions").select("*").order("name"),
       db.from("tournament_teams").select("*").order("name"),
@@ -560,11 +560,12 @@ const supabaseSharedRepository = (() => {
       db.from("tournament_manual_tiebreaks").select("*").order("priority"),
       db.from("tournament_brackets").select("*").order("generated_at", { ascending: false }),
       db.from("tournament_bracket_rounds").select("*").order("round_number"),
-      db.from("tournament_bracket_games").select("*").order("round_number").order("game_number")
+      db.from("tournament_bracket_games").select("*").order("round_number").order("game_number"),
+      db.from("tournament_publications").select("*")
     ]);
-    const all = [tournaments, divisions, teams, pools, memberships, proposals, games, rules, results, tiebreaks, brackets, bracketRounds, bracketGames];
+    const all = [tournaments, divisions, teams, pools, memberships, proposals, games, rules, results, tiebreaks, brackets, bracketRounds, bracketGames, publications];
     const error = all.find(result => result.error)?.error || null;
-    return { data: { tournaments: tournaments.data || [], divisions: divisions.data || [], teams: teams.data || [], pools: pools.data || [], memberships: memberships.data || [], proposals: proposals.data || [], games: games.data || [], rules: rules.data || [], results: results.data || [], tiebreaks: tiebreaks.data || [], brackets: brackets.data || [], bracketRounds: bracketRounds.data || [], bracketGames: bracketGames.data || [] }, error };
+    return { data: { tournaments: tournaments.data || [], divisions: divisions.data || [], teams: teams.data || [], pools: pools.data || [], memberships: memberships.data || [], proposals: proposals.data || [], games: games.data || [], rules: rules.data || [], results: results.data || [], tiebreaks: tiebreaks.data || [], brackets: brackets.data || [], bracketRounds: bracketRounds.data || [], bracketGames: bracketGames.data || [], publications: publications.data || [] }, error };
   }
   async function getTournamentProposalGames(id) { const db=await client(); return db.from("tournament_schedule_proposal_games").select("*").eq("proposal_id",id).order("ordinal"); }
   async function saveTournament(payload) { const db=await client(); return db.rpc("save_tournament",{p_payload:payload}); }
@@ -583,6 +584,11 @@ const supabaseSharedRepository = (() => {
   async function saveTournamentManualTiebreak(values) { const db=await client(); return db.rpc("save_tournament_manual_tiebreak",{p_pool_id:values.poolId,p_team_id:values.teamId,p_priority:values.priority,p_reason:values.reason}); }
   async function generateTournamentBracket(values) { const db=await client(); return db.rpc("generate_tournament_bracket",{p_division_id:values.divisionId,p_qualifiers:values.qualifiers,p_name:values.name}); }
   async function scheduleTournamentBracketGame(values) { const db=await client(); return db.rpc("schedule_tournament_bracket_game",{p_bracket_game_id:values.bracketGameId,p_game_date:values.date,p_game_time:values.time,p_location_id:values.locationId,p_field_id:values.fieldId}); }
+  async function setTournamentPublication(tournamentId,published) { const db=await client(); return db.rpc("set_tournament_publication",{p_tournament_id:tournamentId,p_published:published}); }
+  async function getPublicTournament(shareToken) { const db=await client(); return db.rpc("get_public_tournament",{p_share_token:shareToken}); }
+  async function rescheduleTournamentGame(values) { const db=await client(); return db.rpc("reschedule_tournament_game",{p_game_id:values.gameId,p_game_date:values.date,p_game_time:values.time,p_location_id:values.locationId,p_field_id:values.fieldId}); }
+  async function transitionTournamentGame(gameId,action) { const db=await client(); return db.rpc("transition_tournament_game",{p_game_id:gameId,p_action:action}); }
+  async function advanceTournamentByes(bracketId) { const db=await client(); return db.rpc("advance_tournament_byes",{p_bracket_id:bracketId}); }
 
   async function deleteScheduleGame(gameId) {
     const db = await client();
@@ -709,6 +715,11 @@ const supabaseSharedRepository = (() => {
     saveTournamentManualTiebreak,
     generateTournamentBracket,
     scheduleTournamentBracketGame,
+    setTournamentPublication,
+    getPublicTournament,
+    rescheduleTournamentGame,
+    transitionTournamentGame,
+    advanceTournamentByes,
     deleteScheduleGame,
     getCrewMembersByIds
   };

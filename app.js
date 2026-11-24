@@ -141,6 +141,15 @@ function initializeApp() {
     window.BlueCrew.test.initialized = true;
     return;
   }
+  const publicTournamentToken = new URLSearchParams(window.location.search).get("tournament");
+  if (publicTournamentToken) {
+    window.BlueCrew.test.currentRole = "public";
+    window.BlueCrew.test.currentPage = "public-tournament";
+    renderPublicTournamentPage(publicTournamentToken).finally(() => {
+      window.BlueCrew.test.initialized = true;
+    });
+    return;
+  }
   const usesSupabaseAuth = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   games = usesSupabaseAuth ? [] : loadGames();
   crew = usesSupabaseAuth ? [] : loadCrew();

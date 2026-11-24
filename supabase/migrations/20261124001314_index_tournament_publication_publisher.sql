@@ -1,0 +1,3 @@
+create index tournament_publications_publisher_idx
+on public.tournament_publications(organization_id,published_by_profile_id)
+where published_by_profile_id is not null;

@@ -6,7 +6,7 @@ const tournamentManagementService = (() => {
       pools: [],
       memberships: [],
       proposals: [],
-      games: [], rules: [], results: [], tiebreaks: [], brackets: [], bracketRounds: [], bracketGames: [],
+      games: [], rules: [], results: [], tiebreaks: [], brackets: [], bracketRounds: [], bracketGames: [], publications: [],
     },
     currentTournamentId = null,
     currentProposalId = null,
@@ -73,6 +73,8 @@ const tournamentManagementService = (() => {
       tournament_pool_results_incomplete: "All pool games must be resolved before generating the bracket.",
       downstream_bracket_result_final: "This correction would overwrite a completed downstream game.",
       tournament_bracket_matchup_incomplete: "Both advancing teams must be known before scheduling this game.",
+      tournament_field_conflict: "That field is no longer available. The original game and reservation were not changed.",
+      tournament_final_game_locked: "A final or forfeited game cannot be rescheduled.",
     })[clean(error?.message)] ||
     clean(error?.message) ||
     "The tournament operation could not be completed.";
@@ -377,8 +379,18 @@ const tournamentManagementService = (() => {
     return responses.find((item) => !item.success) || { success:true, data:standings };
   }
   const saveManualTiebreak = (values) => mutate(() => supabaseSharedRepository.saveTournamentManualTiebreak(values));
-  const generateBracket = (values) => mutate(() => supabaseSharedRepository.generateTournamentBracket(values));
+  async function generateBracket(values) {
+    const result = await mutate(() => supabaseSharedRepository.generateTournamentBracket(values));
+    if (result.success && result.data?.id) {
+      const advanced = await mutate(() => supabaseSharedRepository.advanceTournamentByes(result.data.id));
+      if (!advanced.success) return advanced;
+    }
+    return result;
+  }
   const scheduleBracketGame = (values) => mutate(() => supabaseSharedRepository.scheduleTournamentBracketGame(values));
+  const setPublication = (published) => mutate(() => supabaseSharedRepository.setTournamentPublication(currentTournamentId,published));
+  const rescheduleGame = (values) => mutate(() => supabaseSharedRepository.rescheduleTournamentGame(values));
+  const transitionGame = (gameId,action) => mutate(() => supabaseSharedRepository.transitionTournamentGame(gameId,action));
   const selectTournament = (id) => {
     currentTournamentId = id;
   };
@@ -397,7 +409,7 @@ const tournamentManagementService = (() => {
       pools: [],
       memberships: [],
       proposals: [],
-      games: [], rules: [], results: [], tiebreaks: [], brackets: [], bracketRounds: [], bracketGames: [],
+      games: [], rules: [], results: [], tiebreaks: [], brackets: [], bracketRounds: [], bracketGames: [], publications: [],
     };
     currentTournamentId = null;
     currentProposalId = null;
@@ -425,6 +437,9 @@ const tournamentManagementService = (() => {
     saveManualTiebreak,
     generateBracket,
     scheduleBracketGame,
+    setPublication,
+    rescheduleGame,
+    transitionGame,
     selectTournament,
     snapshot,
     clear,
