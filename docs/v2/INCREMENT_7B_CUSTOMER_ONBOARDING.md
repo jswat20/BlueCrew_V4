@@ -166,3 +166,56 @@ The switcher now renders the neutral session-restoration state synchronously,
 before validating and hydrating the destination tenant, and restores the prior
 page only if selection fails. Automated coverage holds the server response open
 and verifies that no prior-workspace catalog is visible during that interval.
+
+## Increment 7B closure — 2026-11-23
+
+Hosted invitation acceptance is complete on the isolated V2 site at deployed
+commit `82c8aa7df3d836c078f4bbe065b3ddadf7b08637` (Cloudflare Pages deployment
+`62038834-067e-4ff0-b59e-14ce9b252136`). No application change or replacement
+deployment was required for closure.
+
+An existing verified synthetic staging identity authenticated in a persistent
+Chrome profile separate from the inviting administrator. The administrator
+regenerated the existing recipient-bound invitation without sending email, and
+the plaintext URL moved directly between the two browser contexts without being
+printed, logged, committed, or written to an audit record. The hosted acceptance
+screen showed the locked `Increment 4B Alpha` workspace and `league_viewer` role,
+then created the membership successfully.
+
+After acceptance, the recipient workspace launcher exposed exactly the two
+workspaces for which that identity has approved membership: `Increment 4B Alpha`
+as `league_viewer` and `The Slate Staging` as `assigner`. Alpha exposed only the
+League Viewer schedule surface despite that workspace's League, Facility, and
+Tournament entitlements; no Settings, Accounts, Crew, reporting, or mutation
+controls were available. Switching to the pre-existing Staging membership
+changed the portal to the independent Assigner role and four-module entitlement
+set. During each switch, the previous workspace's page was synchronously replaced
+by the neutral restoration screen. Returning to Alpha and performing a full
+refresh restored Alpha, its `league_viewer` permissions, and its data.
+
+The browser removed the invitation fragment before rendering acceptance. The
+final address contained no invitation token or token query parameter. A database
+scan found zero token-like values in workspace audit metadata. Transactional
+database authorization probes independently confirmed first acceptance and the
+specific fail-closed responses `invitation_already_accepted`,
+`invitation_recipient_mismatch`, `invitation_expired`, and `invitation_revoked`;
+the transaction was rolled back and left no probe invitation or membership.
+
+Closure verification:
+
+- Focused invitation, onboarding, and workspace-switching suites: 13 passed.
+- Complete regression: 1,272 passed and one intentionally skipped in 7.2
+  minutes.
+- Linked migration history: all local and staging migration versions match
+  through `20261124021928`; no migration was reapplied.
+- Staging-only curated artifact: built and verified against
+  `fdjhwxmphdzodxvhrblk`; no deployment was performed.
+- Anonymous `get_public_tournament(uuid)` execution remains available and an
+  unknown share token returns no record; no additional anonymous capability was
+  introduced.
+- Staging communication isolation remains unchanged: 18 pending deliveries and
+  zero active cron jobs. No pending delivery was sent or modified.
+
+Increment 7B is accepted and closed. The next increment should be 7C launch
+readiness and customer-facing polish rather than additional onboarding
+architecture.
