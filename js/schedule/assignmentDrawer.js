@@ -1057,14 +1057,14 @@ function autoFillCrewDraft() {
   renderAssignmentDrawer();
 }
 
-function saveCrewDraft() {
+async function saveCrewDraft() {
   const returnGameId = activeAssignmentGameId;
   const returnToGameHub =
     typeof currentPage !== "undefined" &&
     currentPage === "game-hub" &&
     Boolean(returnGameId);
 
-  const result = crewBuilderService.commit();
+  const result = await crewBuilderService.commit();
 
   if (window.qaService) {
     qaService.logAction("Save Crew");

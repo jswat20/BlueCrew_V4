@@ -180,7 +180,7 @@ const crewBuilderService = (() => {
     }
   };
 }
-  function commit() {
+  async function commit() {
   if (!draft) {
     return {
       success: false,
@@ -202,7 +202,7 @@ const crewBuilderService = (() => {
   const results = [];
 
   for (const assignment of draft.assignments) {
-    const result = assignmentService.assignToAssignment(
+    const result = await assignmentService.assignToAssignment(
       draft.gameId,
       assignment.id,
       assignment.crewId || ""

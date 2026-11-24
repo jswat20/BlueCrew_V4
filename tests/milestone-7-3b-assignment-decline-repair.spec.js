@@ -30,6 +30,19 @@ test.describe("Milestone 7.3B hosted direct assignment", () => {
     expect((await calls()).filter(call => call.name === "assign_game_assignment_crew")).toHaveLength(1);
     expect((await calls()).filter(call => call.name === "decide_assignment_claim")).toHaveLength(0);
   });
+
+  test("legacy Build Crew awaits the hosted assignment before reporting success", async ({ supabaseAuthApp }) => {
+    const { page, calls } = supabaseAuthApp;
+    const result = await page.evaluate(async () => {
+      await loginService.loginWithPassword("admin@example.com", "password");
+      crewBuilderService.createDraft(gameService.getById("game-73b"));
+      crewBuilderService.updateAssignment("assignment-73b", "crew-umpire");
+      return crewBuilderService.commit();
+    });
+    expect(result).toMatchObject({ success: true, message: "Crew saved successfully." });
+    expect((await calls()).filter(call => call.name === "assign_game_assignment_crew")).toHaveLength(1);
+    expect(await page.evaluate(() => window.__supabaseFixture.settings.assignments[0].assigned_crew_member_id)).toBe("crew-umpire");
+  });
 });
 
 test.describe("Milestone 7.3B direct assignment failure", () => {
