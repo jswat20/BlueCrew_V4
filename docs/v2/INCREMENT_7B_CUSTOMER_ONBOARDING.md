@@ -54,3 +54,19 @@ role assignment with a safe staging delivery surface. Milestone 3 will complete
 new-account hosted acceptance, invitation acceptance by a second synthetic user,
 and post-reauthentication persistence. Outbound staging email remains disabled;
 the existing 18 pending deliveries are not part of onboarding delivery.
+
+## Hosted milestone evidence — 2026-11-23
+
+Commit `8c70d2dd1efa0e843793eeec5024629aef343482` passed staging safety run
+`45307346122` and was deployed by the existing Cloudflare Pages staging
+connection. The hosted application exposed the new module-onboarding control.
+In synthetic workspace `Increment 4B Alpha`, the administrator enabled
+Tournament Management alongside the existing League and Facility modules. The
+backend recorded the entitlement with source `subscription`; the hosted header
+showed `Facilities · League · Tournament` after a full refresh.
+
+The no-workspace creation form is deployed and covered by the hosted-runtime
+browser fixture, but its live new-account demonstration remains a Milestone 2
+acceptance item. Completing that scenario requires a synthetic verified Auth
+identity and a safe invitation/verification delivery surface; real staging
+email will not be enabled to manufacture that condition.
