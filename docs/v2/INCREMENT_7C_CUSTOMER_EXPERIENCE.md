@@ -33,8 +33,8 @@ progress so a completed operation is reflected without a self-reported state.
 
 ### Verification before deployment
 
-- Focused setup-guide browser suite: 4 passed.
-- Complete regression: 1,276 passed and one intentionally skipped in 6.7
+- Focused setup-guide browser suite: 5 passed, including tablet readability.
+- Complete regression: 1,277 passed and one intentionally skipped in 6.7
   minutes.
 - Staging-only curated artifact: built and verified against project
   `fdjhwxmphdzodxvhrblk` and its exact staging URL.

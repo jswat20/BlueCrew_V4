@@ -79,4 +79,15 @@ test.describe("module-aware workspace setup", () => {
     await expect(firstAction).toBeVisible();
     expect((await firstAction.boundingBox()).height).toBeGreaterThanOrEqual(44);
   });
+
+  test("keeps task labels readable at tablet dashboard width", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await page.setViewportSize({ width: 768, height: 900 });
+    const task = page.getByTestId("setup-task-league-program");
+    await expect(task.getByRole("button", { name: "Review Create a sport program" })).toHaveText("Review");
+    const title = task.locator("strong");
+    const box = await title.boundingBox();
+    expect(box.width).toBeGreaterThan(110);
+    expect(box.height).toBeLessThan(70);
+  });
 });
