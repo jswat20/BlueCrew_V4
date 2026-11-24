@@ -2,6 +2,7 @@
 
 let currentPage = "dashboard";
 let currentPageContext = {};
+let sessionRestorationTimers = [];
 
 // ----------------------------------------------------
 // QA / Playwright Support
@@ -178,6 +179,7 @@ function initializeApp() {
     window.BlueCrew.test.currentRole = "none";
 
     loginService.initializeAuthenticatedIdentity().then(result => {
+      finishSessionRestoringState();
       if (result.data?.recovery || supabaseAuthService.isRecoveringPassword?.()) {
         window.BlueCrew.test.initialized = true;
         renderPage("password-recovery");
@@ -237,6 +239,7 @@ function initializeApp() {
       window.BlueCrew.test.initialized = true;
       renderPage(restoredPage, requestedContext);
     }).catch(error => {
+      finishSessionRestoringState();
       window.history.replaceState(
         { blueCrewPage: "login", context: {} },
         "",
@@ -265,6 +268,7 @@ function initializeApp() {
 }
 
 function renderSessionRestoringState() {
+  finishSessionRestoringState();
   document.body.dataset.page = "session-restoring";
   document.body.dataset.role = "none";
   document.querySelector("[data-testid='nav-login']")?.setAttribute("hidden", "");
@@ -275,9 +279,31 @@ function renderSessionRestoringState() {
   if (title) title.textContent = "Opening The Slate";
   if (subtitle) subtitle.textContent = "Restoring your secure session.";
   if (content) {
-    content.innerHTML = `<div class="page-wrapper" data-testid="session-restoring"><section class="page-section" aria-live="polite"><h2>Restoring your session…</h2><p>Verifying your account and workspace access.</p></section></div>`;
+    content.innerHTML = `<div class="page-wrapper session-restoring-shell" data-testid="session-restoring" aria-busy="true"><section class="session-restoring-card" aria-labelledby="session-restoring-title"><span class="session-restoring-spinner" aria-hidden="true"></span><p class="session-restoring-kicker">Secure sign-in</p><h2 id="session-restoring-title">Opening your workspace</h2><p class="session-restoring-message" data-testid="session-restoring-message" role="status" aria-live="polite">Checking your saved session…</p><ol class="session-restoring-steps" aria-label="Sign-in progress"><li class="is-active" data-restore-step="session">Secure session</li><li data-restore-step="workspace">Workspace access</li><li data-restore-step="data">Application data</li></ol><p class="session-restoring-reassurance" data-testid="session-restoring-reassurance">Your workspace remains hidden until access is verified.</p></section></div>`;
   }
+  sessionRestorationTimers.push(window.setTimeout(() => updateSessionRestoringState("workspace", "Verifying workspace access and permissions…"), 1200));
+  sessionRestorationTimers.push(window.setTimeout(() => updateSessionRestoringState("data", "Still working—loading your authorized workspace data…", true), 4000));
   window.BlueCrew.test.currentPage = "session-restoring";
+}
+
+function updateSessionRestoringState(step, message, delayed = false) {
+  const shell = document.querySelector('[data-testid="session-restoring"]');
+  if (!shell) return;
+  const order = ["session", "workspace", "data"];
+  const activeIndex = order.indexOf(step);
+  shell.querySelectorAll("[data-restore-step]").forEach(item => {
+    const index = order.indexOf(item.dataset.restoreStep);
+    item.classList.toggle("is-complete", index < activeIndex);
+    item.classList.toggle("is-active", index === activeIndex);
+  });
+  const status = shell.querySelector('[data-testid="session-restoring-message"]');
+  if (status) status.textContent = message;
+  if (delayed) shell.classList.add("is-delayed");
+}
+
+function finishSessionRestoringState() {
+  sessionRestorationTimers.forEach(timer => window.clearTimeout(timer));
+  sessionRestorationTimers = [];
 }
 
 function setupNavigation() {

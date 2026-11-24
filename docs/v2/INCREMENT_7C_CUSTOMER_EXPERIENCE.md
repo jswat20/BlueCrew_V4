@@ -41,6 +41,27 @@ progress so a completed operation is reflected without a self-reported state.
 - No schema migration, production resource, billing service, or email-delivery
   change is included in this milestone.
 
+## Milestone 2: secure session-restoration experience
+
+The hosted startup screen now communicates meaningful, accessible progress
+while retaining the existing fail-closed authorization boundary. It begins by
+checking the saved session, advances to workspace authorization after a short
+delay, and explains longer application-data hydration without displaying a
+login form or any prior-workspace content.
+
+The three stages are presented as `Secure session`, `Workspace access`, and
+`Application data`. The status uses a polite live region, the loading shell is
+marked busy, reduced-motion preferences disable spinner animation, and the
+layout collapses cleanly on phones. All timers are cleared as soon as session
+restoration resolves or fails, so a completed page cannot receive stale status
+updates.
+
+Focused authentication, accessibility, and workspace-switching verification
+passes 21 tests, including a deliberately delayed hosted session that proves
+the neutral boundary remains visible and tenant data remains absent throughout
+authorization. The complete regression passes 1,278 tests with one intentional
+skip in 6.8 minutes.
+
 ## Launch-readiness assessment
 
 | Area | Current position | Launch action |

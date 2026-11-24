@@ -61,9 +61,24 @@ hostedTest.describe("hosted runtime reload", () => {
       const { page } = supabaseAuthApp;
       await expect(page.getByTestId("session-restoring")).toBeVisible();
       await expect(page.getByTestId("login-page")).toHaveCount(0);
+      await expect(page.getByTestId("session-restoring")).toHaveAttribute("aria-busy", "true");
+      await expect(page.getByText("Your workspace remains hidden until access is verified.")).toBeVisible();
       expect(await page.evaluate(() => window.BlueCrew.test.initialized)).toBe(false);
       await expect.poll(() => page.evaluate(() => window.BlueCrew.test.currentPage)).toBe("dashboard");
       expect(await page.evaluate(() => window.BlueCrew.test.initialized)).toBe(true);
+    });
+  });
+
+  hostedTest.describe("slow persisted session", () => {
+    hostedTest.use({ supabaseScenario: { profile, crewId: null, initialSession: true, sessionRestoreDelayMs: 1500, organization: { id: "organization-1", name: "Hosted", settings: {} } } });
+
+    hostedTest("reports secure progress without exposing stale workspace content", async ({ supabaseAuthApp }) => {
+      const { page } = supabaseAuthApp;
+      await expect(page.getByTestId("session-restoring-message")).toContainText("Checking your saved session");
+      await expect(page.getByTestId("session-restoring-message")).toContainText("Verifying workspace access", { timeout: 1400 });
+      await expect(page.getByTestId("page-dashboard")).toHaveCount(0);
+      await expect(page.getByTestId("login-page")).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => window.BlueCrew.test.currentPage)).toBe("dashboard");
     });
   });
 });
