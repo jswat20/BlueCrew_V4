@@ -63,6 +63,40 @@ const supabaseSharedRepository = (() => {
     return db.rpc("enable_workspace_module", { p_module_code: moduleCode });
   }
 
+  async function issueWorkspaceInvitation({ email, role, expiresInHours = 72 }) {
+    const db = await client();
+    return db.rpc("issue_workspace_invitation", {
+      p_recipient_email: email, p_role_code: role, p_expires_in_hours: expiresInHours
+    });
+  }
+
+  async function getWorkspaceInvitations() {
+    const db = await client();
+    return db.rpc("get_workspace_invitations");
+  }
+
+  async function revokeWorkspaceInvitation(invitationId) {
+    const db = await client();
+    return db.rpc("revoke_workspace_invitation", { p_invitation_id: invitationId });
+  }
+
+  async function regenerateWorkspaceInvitation(invitationId, expiresInHours = 72) {
+    const db = await client();
+    return db.rpc("regenerate_workspace_invitation", {
+      p_invitation_id: invitationId, p_expires_in_hours: expiresInHours
+    });
+  }
+
+  async function previewWorkspaceInvitation(token) {
+    const db = await client();
+    return db.rpc("preview_workspace_invitation", { p_token: token });
+  }
+
+  async function acceptWorkspaceInvitation(token) {
+    const db = await client();
+    return db.rpc("accept_workspace_invitation", { p_token: token });
+  }
+
   async function getSeasons() {
     const db = await client();
     return db.from("seasons")
@@ -646,6 +680,12 @@ const supabaseSharedRepository = (() => {
     clearActiveWorkspace,
     createCustomerWorkspace,
     enableWorkspaceModule,
+    issueWorkspaceInvitation,
+    getWorkspaceInvitations,
+    revokeWorkspaceInvitation,
+    regenerateWorkspaceInvitation,
+    previewWorkspaceInvitation,
+    acceptWorkspaceInvitation,
     getSeasons,
     createSeason,
     activateSeason,

@@ -90,6 +90,12 @@ const supabaseAuthService = (() => {
   }
 
   async function hydrateSessionUser(user) {
+    if (workspaceInvitationService?.hasPending?.()) {
+      clearSharedState();
+      applyIdentity(null);
+      hydrationState = { status: "workspace-invitation", message: "Review the workspace invitation.", authenticated: true };
+      return { workspaceInvitation: true };
+    }
     const workspace = await workspaceService.ensureActive();
     if (!workspace.success) throw new Error(workspace.message || "Workspace access could not be verified.");
     if (workspace.selectionRequired) {
@@ -118,6 +124,7 @@ const supabaseAuthService = (() => {
     notificationService?.clearAuthenticatedNotifications?.();
     messagingService?.clear?.();
     activityService?.clearAuthenticatedActivities?.();
+    workspaceInvitationService?.clearIssuedSecret?.();
     facilityService?.clear?.();
     clearSchedulingState();
     if (typeof uiStateService !== "undefined") uiStateService.clearSelections?.();
@@ -210,6 +217,9 @@ const supabaseAuthService = (() => {
       if (account?.workspaceOnboarding) {
         return mutationResult(true, "Create your first workspace to continue.", account);
       }
+      if (account?.workspaceInvitation) {
+        return mutationResult(true, "Review the workspace invitation.", account);
+      }
       if (!account || account.status !== "approved") {
         applyIdentity(null);
         return mutationResult(false, account?.status === "pending" ? PENDING_APPROVAL_MESSAGE : "Account not found or unavailable.", account);
@@ -238,6 +248,9 @@ const supabaseAuthService = (() => {
       }
       if (account?.workspaceOnboarding) {
         return mutationResult(true, "Create your first workspace to continue.", account);
+      }
+      if (account?.workspaceInvitation) {
+        return mutationResult(true, "Review the workspace invitation.", account);
       }
       if (!account || account.status !== "approved") {
         await client.auth.signOut();
@@ -391,6 +404,10 @@ const supabaseAuthService = (() => {
             }
             if (account?.workspaceOnboarding) {
               renderPage?.("workspace-onboarding");
+              return;
+            }
+            if (account?.workspaceInvitation) {
+              renderPage?.("workspace-invitation");
               return;
             }
             if (account?.status === "approved") {

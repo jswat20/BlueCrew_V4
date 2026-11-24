@@ -41,6 +41,66 @@ function renderWorkspaceSettingsCard() {
     </section>`;
 }
 
+function invitationRoleOptions() {
+  const roles = [["administrator","Administrator"]];
+  if (workspaceService?.hasModule("umpire")) roles.push(["assigner","Assigner"],["umpire","Umpire"]);
+  if (workspaceService?.hasModule("league")) roles.push(["league_viewer","League Viewer"]);
+  return roles.map(([value,label])=>`<option value="${value}">${label}</option>`).join("");
+}
+
+function renderWorkspaceInvitationCard() {
+  const state = workspaceInvitationService.snapshot();
+  const canManage = accountService?.getAuthenticatedProfile?.()?.role === "administrator";
+  if (!canManage) return "";
+  return `<section class="card presentation-card settings-card" data-testid="settings-invitations">
+    <div class="page-section-header presentation-card-header-blue"><div><h3>Workspace Invitations</h3><p>Add members through recipient-bound, expiring links. Staging sends no email.</p></div></div>
+    <form data-testid="workspace-invitation-issue-form" class="settings-form-grid">
+      <label>Recipient email<input name="email" type="email" autocomplete="off" required></label>
+      <label>Role<select name="role">${invitationRoleOptions()}</select></label>
+      <label>Expires in<select name="expiresInHours"><option value="24">24 hours</option><option value="72" selected>3 days</option><option value="168">7 days</option></select></label>
+      <div class="form-actions"><button type="submit" class="button button-primary">Create invitation</button></div>
+      <p role="alert" data-testid="workspace-invitation-manage-error"></p>
+    </form>
+    ${state.latestIssuedLink ? `<div class="settings-empty" data-testid="workspace-invitation-secret"><strong>Copy this link now</strong><span>It will not be shown again after you leave or refresh this page.</span><label>Invitation link<input readonly value="${escapeSettingsHtml(state.latestIssuedLink)}" data-testid="workspace-invitation-link"></label><button type="button" class="button button-secondary" data-testid="workspace-invitation-copy">Copy link</button></div>` : ""}
+    <div class="settings-workspace-list" data-testid="workspace-invitation-list">
+      ${state.loadError ? `<p role="alert">${escapeSettingsHtml(state.loadError)}</p>` : state.invitations.length ? state.invitations.map(item=>`<article class="settings-competition-division" data-testid="workspace-invitation-row"><div><strong>${escapeSettingsHtml(item.recipient_email)}</strong><span class="settings-pill">${escapeSettingsHtml(item.status)}</span></div><span>${escapeSettingsHtml(item.role_code.replaceAll("_"," "))} · expires ${escapeSettingsHtml(new Date(item.expires_at).toLocaleString())}</span><div class="form-actions">${item.status!=="accepted"?`<button type="button" class="button button-link button-compact" data-invitation-regenerate="${item.invitation_id}">Regenerate</button>`:""}${item.status==="pending"?`<button type="button" class="button button-link button-compact" data-invitation-revoke="${item.invitation_id}">Revoke</button>`:""}</div></article>`).join("") : '<p class="settings-muted">No workspace invitations yet.</p>'}
+    </div>
+  </section>`;
+}
+
+function refreshWorkspaceInvitationCard() {
+  const current=document.querySelector('[data-testid="settings-invitations"]');
+  if(current) { current.outerHTML=renderWorkspaceInvitationCard(); setupWorkspaceInvitationManager(); }
+}
+
+async function submitWorkspaceInvitation(event) {
+  event.preventDefault(); const form=event.currentTarget; const error=form.querySelector('[data-testid="workspace-invitation-manage-error"]');
+  const result=await workspaceInvitationService.issue({email:form.elements.email.value.trim(),role:form.elements.role.value,expiresInHours:Number(form.elements.expiresInHours.value)});
+  if(!result.success){error.textContent=result.message;return;}
+  refreshWorkspaceInvitationCard(); toastService.success(result.message);
+}
+
+async function revokeWorkspaceInvitationFromSettings(id) {
+  if(!window.confirm("Revoke this invitation? Its current link will stop working immediately.")) return;
+  const result=await workspaceInvitationService.revoke(id); result.success?toastService.success(result.message):toastService.error(result.message); refreshWorkspaceInvitationCard();
+}
+
+async function regenerateWorkspaceInvitationFromSettings(id) {
+  const result=await workspaceInvitationService.regenerate(id,72); result.success?toastService.success(result.message):toastService.error(result.message); refreshWorkspaceInvitationCard();
+}
+
+async function copyWorkspaceInvitationLink() {
+  const input=document.querySelector('[data-testid="workspace-invitation-link"]'); if(!input)return;
+  await navigator.clipboard.writeText(input.value); toastService.success("Invitation link copied.");
+}
+
+function setupWorkspaceInvitationManager() {
+  document.querySelector('[data-testid="workspace-invitation-issue-form"]')?.addEventListener("submit",submitWorkspaceInvitation);
+  document.querySelector('[data-testid="workspace-invitation-copy"]')?.addEventListener("click",copyWorkspaceInvitationLink);
+  document.querySelectorAll('[data-invitation-revoke]').forEach(button=>button.addEventListener("click",()=>revokeWorkspaceInvitationFromSettings(button.dataset.invitationRevoke)));
+  document.querySelectorAll('[data-invitation-regenerate]').forEach(button=>button.addEventListener("click",()=>regenerateWorkspaceInvitationFromSettings(button.dataset.invitationRegenerate)));
+}
+
 async function loadWorkspaceContext() {
   if (typeof supabaseSharedRepository === "undefined") return;
   const result = await supabaseSharedRepository.getWorkspaceContext();
@@ -59,6 +119,7 @@ function renderSettings() {
       <header class="presentation-page-header settings-page-header"><div><h2>Settings</h2><p>Manage season setup, scheduling reference data, and locations.</p></div></header>
     <div class="card-grid settings-card-grid">
       ${isHosted ? renderWorkspaceSettingsCard() : ""}
+      ${isHosted ? renderWorkspaceInvitationCard() : ""}
       ${hasLeagueModule ? renderSeasonSettingsCard() : ""}
       ${renderLocationSettingsCard(canManageReservations)}
       ${isHosted ? (hasLeagueModule ? renderCompetitionCatalogCard() : "") : `${renderSettingsCard("Levels", settings.levels)}${renderSettingsCard("Teams", settings.teams)}`}
@@ -416,6 +477,8 @@ function setupSettingsPage() {
   document.querySelectorAll("[data-dialog-cancel]").forEach(button => button.addEventListener("click", event => event.currentTarget.closest("dialog").close()));
   loadSeasonSettings();
   loadWorkspaceContext();
+  workspaceInvitationService.load().then(refreshWorkspaceInvitationCard);
+  setupWorkspaceInvitationManager();
   loadCompetitionCatalog();
   facilityService.load().then(result => { if (result.success) { const current=document.querySelector('[data-testid="settings-locations"]'); if(current) current.outerHTML=renderLocationSettingsCard(); } });
 }

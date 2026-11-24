@@ -57,6 +57,7 @@ export const test = base.extend({
       deleteReturnsNoRepresentation: false,
       failedRpc: "",
       workspaces: null,
+      workspaceInvitations: [],
       activeWorkspaceId: undefined,
       profilePhotoObjects: {},
       deniedReferencedCrew: false,
@@ -382,6 +383,37 @@ export const test = base.extend({
             if (!workspace || workspace.profile?.role !== "administrator") return { data: null, error: { message: "workspace_administrator_required" } };
             if (!workspace.enabled_modules.includes(args.p_module_code)) workspace.enabled_modules.push(args.p_module_code);
             return { data: { organization_id: workspace.organization_id, module_code: args.p_module_code, enabled: true }, error: null };
+          }
+          if (name === "issue_workspace_invitation") {
+            const bytes = new Uint8Array(32); crypto.getRandomValues(bytes);
+            const token = [...bytes].map(value => value.toString(16).padStart(2,"0")).join("");
+            const row = { invitation_id:`workspace-invitation-${settings.workspaceInvitations.length+1}`,recipient_email:String(args.p_recipient_email).trim().toLowerCase(),role_code:args.p_role_code,status:"pending",issued_at:new Date().toISOString(),expires_at:new Date(Date.now()+Number(args.p_expires_in_hours)*3600000).toISOString(),accepted_at:null,revoked_at:null,regeneration_count:0,_token:token };
+            settings.workspaceInvitations.unshift(row);
+            return { data:{ invitation_id:row.invitation_id,token,expires_at:row.expires_at },error:null };
+          }
+          if (name === "get_workspace_invitations") return { data:settings.workspaceInvitations.map(({_token,...row})=>({...row})),error:null };
+          if (name === "revoke_workspace_invitation") {
+            const row=settings.workspaceInvitations.find(item=>item.invitation_id===args.p_invitation_id);
+            if(!row)return {data:null,error:{message:"invitation_not_found"}};
+            row.status="revoked"; row.revoked_at=new Date().toISOString(); return {data:true,error:null};
+          }
+          if (name === "regenerate_workspace_invitation") {
+            const row=settings.workspaceInvitations.find(item=>item.invitation_id===args.p_invitation_id);
+            if(!row)return {data:null,error:{message:"invitation_not_found"}};
+            const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);row._token=[...bytes].map(value=>value.toString(16).padStart(2,"0")).join("");row.status="pending";row.revoked_at=null;row.regeneration_count+=1;row.expires_at=new Date(Date.now()+Number(args.p_expires_in_hours)*3600000).toISOString();
+            return {data:{invitation_id:row.invitation_id,token:row._token,expires_at:row.expires_at},error:null};
+          }
+          if (name === "preview_workspace_invitation" || name === "accept_workspace_invitation") {
+            const row=settings.workspaceInvitations.find(item=>item._token===args.p_token);
+            if(!row)return {data:{[name.startsWith("preview")?"valid":"accepted"]:false,code:"invitation_invalid"},error:null};
+            if(row.status!=="pending")return {data:{[name.startsWith("preview")?"valid":"accepted"]:false,code:`invitation_${row.status}`},error:null};
+            if(String(settings.profile.email).toLowerCase()!==row.recipient_email)return {data:{[name.startsWith("preview")?"valid":"accepted"]:false,code:"invitation_recipient_mismatch"},error:null};
+            if(name === "preview_workspace_invitation")return {data:{valid:true,organization_name:"Invited Fixture Workspace",role:row.role_code,expires_at:row.expires_at},error:null};
+            row.status="accepted";row.accepted_at=new Date().toISOString();
+            const organizationId="organization-invited";const profile={...settings.profile,id:"profile-invited",organization_id:organizationId,role:row.role_code,status:"approved"};
+            settings.workspaces.push({organization_id:organizationId,organization_name:"Invited Fixture Workspace",organization_slug:"invited-fixture",organization_timezone:"America/New_York",membership_id:"membership-invited",profile_id:profile.id,membership_status:"approved",role_code:row.role_code,enabled_modules:["league"],profile,crewId:null});
+            settings.activeWorkspaceId=organizationId;settings.profile=profile;
+            return {data:{accepted:true,organization_id:organizationId,membership_id:"membership-invited",profile_id:profile.id,role:row.role_code},error:null};
           }
           if (name === "get_active_profile") {
             return { data: settings.profileMissingUntilProvision ? null : settings.profile, error: null };

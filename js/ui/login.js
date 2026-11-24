@@ -109,6 +109,11 @@ async function handleLoginSubmit(event) {
       renderPage("workspace-onboarding");
       return;
     }
+    if (result.data?.workspaceInvitation) {
+      window.history.replaceState({ blueCrewPage: "workspace-invitation", context: {} }, "", window.location.href);
+      renderPage("workspace-invitation");
+      return;
+    }
         if (
       typeof authService !== "undefined" &&
       authService.isUmpire() &&

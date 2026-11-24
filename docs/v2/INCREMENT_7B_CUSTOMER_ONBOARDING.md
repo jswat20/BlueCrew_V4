@@ -70,3 +70,72 @@ browser fixture, but its live new-account demonstration remains a Milestone 2
 acceptance item. Completing that scenario requires a synthetic verified Auth
 identity and a safe invitation/verification delivery surface; real staging
 email will not be enabled to manufacture that condition.
+
+## Milestone 2: secure workspace invitations
+
+Migrations `20261124015251`, `20261124015824`, and `20261124015915` add the
+recipient-bound invitation boundary. The first migration was created with the
+Supabase CLI and applied only after the linked staging dry run identified it as
+the sole pending migration. Two narrowly scoped follow-ups initialize invited
+League Viewer scope and make the profile-role enum conversion explicit.
+
+### Security and lifecycle
+
+- `issue_workspace_invitation(...)` generates 256 bits of randomness inside
+  Postgres. Only the SHA-256 digest is stored; the plaintext token is returned
+  once to the authorized administrator.
+- The staging interface constructs a URL fragment (`#invite=...`), copies it on
+  demand, and removes it from the address bar before application startup. The
+  token is never placed in a query string, database listing, audit event, or
+  diagnostic result.
+- Invitations are bound to one normalized recipient email, active workspace,
+  server-stored role, and expiration. Defaults are 72 hours, with a hard range
+  of 1–168 hours.
+- Issuance is limited to three invitations per inviter per ten minutes and 20
+  per workspace per day. Duplicate pending invitations, self-invitations, and
+  invitations for existing workspace members fail closed.
+- Acceptance requires an authenticated, email-confirmed Supabase identity whose
+  email matches the locked invitation row. The browser supplies only the token;
+  it cannot choose the workspace, recipient, or role during acceptance.
+- Profile, approved membership, role, optional Umpire crew identity, League
+  Viewer scope, active-workspace context, acceptance state, and audit event are
+  committed atomically. Replay returns `invitation_already_accepted`.
+- Administrators can list safe metadata, revoke, and regenerate. Regeneration
+  replaces the digest, increments a bounded counter, and reveals the replacement
+  token only in that response. Accepted invitations cannot be regenerated.
+- The invitation table has RLS enabled and no browser table grants. All access
+  is through fixed-search-path RPCs. Anonymous roles can execute neither
+  issuance nor acceptance.
+
+### Staging authorization evidence
+
+Using existing verified synthetic staging identities, a database-level
+end-to-end acceptance created a second membership in `Increment 4B Alpha` with
+exactly the invited `league_viewer` role and an all-divisions workspace-local
+scope. Recipient mismatch, revocation, expiration, replay, and self-invitation
+were each rejected with their specific fail-closed result. Issuance,
+acceptance, revocation, regeneration, and expiration produced audit events.
+Plaintext-token columns and direct `anon`/`authenticated` table grants are zero.
+
+The test mechanism kept invitation tokens inside database variables; no live
+token was printed, committed, or copied into diagnostics. Existing public
+tournament access and outbound communication configuration were not changed.
+
+### Milestone 2 verification
+
+- The focused invitation, onboarding, and workspace-switching suites passed 11
+  tests. The complete regression passed 1,270 tests with one intentionally
+  skipped test in 6.6 minutes.
+- The staging-only curated artifact build and verification passed with project
+  ref `fdjhwxmphdzodxvhrblk` and its staging URL supplied explicitly.
+- Post-acceptance staging inspection confirmed 18 pending communication
+  deliveries and zero active cron jobs. No pending delivery was processed.
+- The security advisor still reports the single intentional anonymous
+  `get_public_tournament(uuid)` SECURITY DEFINER endpoint. The five invitation
+  RPCs are authenticated-only and enforce verified identity, active-workspace
+  administration, or exact recipient binding internally. No anonymous
+  invitation execution or direct table access was introduced.
+- The performance advisor reports existing legacy debt plus one informational
+  missing covering index for the invitation acceptance audit foreign key. This
+  does not affect authorization or correctness and is deferred to a measured
+  index-maintenance increment.
