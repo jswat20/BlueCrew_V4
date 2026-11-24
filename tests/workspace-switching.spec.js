@@ -57,4 +57,16 @@ test.describe("secure multi-workspace switching", () => {
     expect(officialsSettings).not.toContain('data-testid="settings-competition-catalog"');
     expect(officialsSettings).not.toContain('data-testid="add-reservation"');
   });
+
+  test("clears facility snapshots before hydrating another workspace", async ({ page, supabaseAuthApp }) => {
+    await page.goto("/");
+    await page.getByTestId("workspace-option").filter({ hasText: "Synthetic League Workspace" }).click();
+    await expect.poll(() => page.evaluate(() => window.BlueCrew.test.currentPage)).toBe("dashboard");
+    expect(await page.evaluate(async () => { await facilityService.load(); return facilityService.snapshot().loaded; })).toBe(true);
+    await page.getByTestId("workspace-switcher-select").selectOption("organization-b");
+    await expect.poll(() => page.evaluate(() => workspaceService.snapshot().activeWorkspace.organizationId)).toBe("organization-b");
+    await expect.poll(() => page.evaluate(() => facilityService.snapshot())).toMatchObject({
+      facilities: [], fields: [], availability: [], closures: [], reservations: [], loaded: false
+    });
+  });
 });

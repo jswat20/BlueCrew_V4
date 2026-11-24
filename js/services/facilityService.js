@@ -26,6 +26,7 @@ const facilityService = (() => {
     } catch (error) { return { success: false, message: messageFor(error) }; }
   }
   const snapshot = () => structuredClone(state);
+  const clear = () => { state = { facilities: [], fields: [], availability: [], closures: [], reservations: [], loaded: false }; };
   async function run(action, successMessage) {
     try {
       const result = await action();
@@ -45,7 +46,7 @@ const facilityService = (() => {
     maximumAge: form.maximumAge ? Number(form.maximumAge) : null, divisionNotes: clean(form.divisionNotes)
   });
   return {
-    load, snapshot,
+    load, snapshot, clear,
     saveFacility(form) { const values = facilityValues(form); return run(() => values.id ? supabaseSharedRepository.updateFacility(values) : supabaseSharedRepository.createFacility(values), values.id ? "Facility updated." : "Facility created."); },
     saveField(form) { const values = fieldValues(form); return run(() => values.id ? supabaseSharedRepository.updateFacilityResource(values) : supabaseSharedRepository.createFacilityResource(values), values.id ? "Resource updated." : "Resource created."); },
     addAvailability(form) { return run(() => supabaseSharedRepository.createFieldAvailabilityRule(form), "Availability added."); },
