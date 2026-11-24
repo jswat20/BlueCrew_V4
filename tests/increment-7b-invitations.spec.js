@@ -36,6 +36,14 @@ test("invitation lifecycle is bounded, single-use, and auditable",()=>{
   expect(migration).toContain("workspace_invitations_no_direct_access");
 });
 
+test("invitation listing qualifies expiration audit columns",()=>{
+  const listingFix=fs.readFileSync(path.join(process.cwd(),"supabase/migrations/20261124021928_fix_workspace_invitation_listing_ambiguity.sql"),"utf8");
+  expect(listingFix).toContain("i.role_code as expired_role_code");
+  expect(listingFix).toContain("expired.expired_invitation_id");
+  expect(listingFix).toContain("expired.expired_role_code");
+  expect(listingFix).toContain("grant execute on function public.get_workspace_invitations() to authenticated");
+});
+
 test.describe("hosted invitation workflow",()=>{
   test.use({supabaseScenario:{initialSession:true,profile:{id:"profile-admin",auth_user_id:"auth-admin",organization_id:"organization-1",first_name:"Workspace",last_name:"Admin",email:"admin@example.test",phone:"",role:"administrator",status:"approved",communication_preferences:{}},crewId:null}});
 

@@ -139,3 +139,22 @@ tournament access and outbound communication configuration were not changed.
   missing covering index for the invitation acceptance audit foreign key. This
   does not affect authorization or correctness and is deferred to a measured
   index-maintenance increment.
+
+### Hosted acceptance correction
+
+Hosted issuance exposed a runtime ambiguity in the invitation-listing
+expiration audit: the function output variable `role_code` collided with the
+same column returned by its CTE. Migration `20261124021928` qualifies the CTE
+columns without changing invitation state, authorization, or token handling.
+After the fix, the hosted Settings screen displayed the preserved pending,
+accepted, revoked, and expired synthetic invitations. A refresh removed the
+one-time link as designed; the invitation row remained in staging.
+
+The correction passed 12 focused invitation/onboarding/workspace tests and the
+complete regression passed 1,271 tests with one intentional skip in 6.7
+minutes. The staging artifact verification also passed. The in-app acceptance
+browser did not retain its Supabase browser storage across a tool-driven full
+reload, so post-reload reauthentication required another manual sign-in; the
+application persistence contract and ordinary fixture reload coverage remain
+green, but browser-environment session restoration should be repeated in a
+standard persistent browser before closing the broader onboarding increment.
