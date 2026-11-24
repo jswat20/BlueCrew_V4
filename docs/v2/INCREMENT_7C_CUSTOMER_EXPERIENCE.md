@@ -79,6 +79,12 @@ understand and correct the problem without rebuilding their work. Facility
 reservation and closure failures likewise retain entered values and focus the
 inline backend error, including atomic conflict responses.
 
+Hosted refresh testing also found that the visual restoration boundary still
+left the previous workspace sidebar in the accessibility tree. The sidebar is
+now inert and hidden from assistive technology while server authorization and
+workspace hydration are in flight, then restored only after the validated
+context is ready. The same boundary applies during workspace switching.
+
 No schema, authorization, entitlement, scheduling transaction, or email
 delivery behavior changed. Focused workflow/accessibility verification passes
 23 tests. The complete regression passes 1,281 tests with one intentional skip

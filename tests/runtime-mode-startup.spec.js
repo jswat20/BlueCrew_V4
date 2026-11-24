@@ -62,10 +62,14 @@ hostedTest.describe("hosted runtime reload", () => {
       await expect(page.getByTestId("session-restoring")).toBeVisible();
       await expect(page.getByTestId("login-page")).toHaveCount(0);
       await expect(page.getByTestId("session-restoring")).toHaveAttribute("aria-busy", "true");
+      await expect(page.getByTestId("sidebar")).toHaveAttribute("aria-hidden", "true");
+      await expect(page.getByTestId("sidebar")).toHaveAttribute("inert", "");
       await expect(page.getByText("Your workspace remains hidden until access is verified.")).toBeVisible();
       expect(await page.evaluate(() => window.BlueCrew.test.initialized)).toBe(false);
       await expect.poll(() => page.evaluate(() => window.BlueCrew.test.currentPage)).toBe("dashboard");
       expect(await page.evaluate(() => window.BlueCrew.test.initialized)).toBe(true);
+      await expect(page.getByTestId("sidebar")).not.toHaveAttribute("aria-hidden", "true");
+      await expect(page.getByTestId("sidebar")).not.toHaveAttribute("inert", "");
     });
   });
 
@@ -78,6 +82,7 @@ hostedTest.describe("hosted runtime reload", () => {
       await expect(page.getByTestId("session-restoring-message")).toContainText("Verifying workspace access", { timeout: 1400 });
       await expect(page.getByTestId("page-dashboard")).toHaveCount(0);
       await expect(page.getByTestId("login-page")).toHaveCount(0);
+      await expect(page.getByTestId("sidebar")).toHaveAttribute("aria-hidden", "true");
       await expect.poll(() => page.evaluate(() => window.BlueCrew.test.currentPage)).toBe("dashboard");
     });
   });

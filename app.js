@@ -271,6 +271,11 @@ function renderSessionRestoringState() {
   finishSessionRestoringState();
   document.body.dataset.page = "session-restoring";
   document.body.dataset.role = "none";
+  const sidebar = document.querySelector('[data-testid="sidebar"]');
+  if (sidebar) {
+    sidebar.setAttribute("aria-hidden", "true");
+    sidebar.inert = true;
+  }
   document.querySelector("[data-testid='nav-login']")?.setAttribute("hidden", "");
   document.querySelector("[data-testid='nav-logout']")?.setAttribute("hidden", "");
   const title = document.getElementById("page-title");
@@ -304,6 +309,11 @@ function updateSessionRestoringState(step, message, delayed = false) {
 function finishSessionRestoringState() {
   sessionRestorationTimers.forEach(timer => window.clearTimeout(timer));
   sessionRestorationTimers = [];
+  const sidebar = document.querySelector('[data-testid="sidebar"]');
+  if (sidebar) {
+    sidebar.removeAttribute("aria-hidden");
+    sidebar.inert = false;
+  }
 }
 
 function setupNavigation() {

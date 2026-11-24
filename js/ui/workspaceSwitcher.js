@@ -118,6 +118,7 @@ async function switchWorkspaceFromUi(organizationId) {
   renderSessionRestoringState?.();
   const result = await supabaseAuthService.switchWorkspace(organizationId);
   if (!result.success) {
+    finishSessionRestoringState?.();
     renderPage(previousPage === "session-restoring" ? "dashboard" : previousPage);
     const error = document.querySelector("[data-testid='workspace-selection-error']");
     if (error) error.textContent = result.message;
@@ -125,6 +126,7 @@ async function switchWorkspaceFromUi(organizationId) {
     renderWorkspaceSwitcher();
     return result;
   }
+  finishSessionRestoringState?.();
   renderWorkspaceSwitcher();
   refreshNavigationAuthorization?.();
   window.history.replaceState({ blueCrewPage: "dashboard", context: {} }, "", window.location.href);
