@@ -2,6 +2,21 @@ import { test as base, expect } from "@playwright/test";
 import { test as hostedTest } from "./fixtures/supabase-auth.fixture.js";
 import fs from "node:fs";
 
+function defaultProfileForWorkspace(organizationId, profileId) {
+  return {
+    id: profileId,
+    auth_user_id: "auth-umpire-1",
+    organization_id: organizationId,
+    first_name: "Linked",
+    last_name: "User",
+    email: "linked@example.com",
+    phone: "5550101000",
+    role: "administrator",
+    status: "approved",
+    communication_preferences: {}
+  };
+}
+
 function navigationCounter(page) {
   let count = 0;
   page.on("framenavigated", frame => {
@@ -53,6 +68,48 @@ hostedTest("valid hosted form login reaches the authenticated dashboard without 
   await expect.poll(() => page.evaluate(() => window.BlueCrew.test.currentPage)).toBe("dashboard");
   await expect(page.getByTestId("login-page")).toBeHidden();
   expect(navigations.value()).toBe(0);
+});
+
+hostedTest.describe("multi-workspace hosted login", () => {
+  hostedTest.use({
+    supabaseScenario: {
+      emitSignedInOnLogin: true,
+      workspaces: [
+        {
+          organization_id: "organization-a",
+          organization_name: "Workspace A",
+          membership_status: "approved",
+          role_code: "administrator",
+          enabled_modules: ["league"],
+          profile: { ...defaultProfileForWorkspace("organization-a", "profile-a") }
+        },
+        {
+          organization_id: "organization-b",
+          organization_name: "Workspace B",
+          membership_status: "approved",
+          role_code: "league_viewer",
+          enabled_modules: ["tournament"],
+          profile: { ...defaultProfileForWorkspace("organization-b", "profile-b"), role: "league_viewer" }
+        }
+      ]
+    }
+  });
+
+  hostedTest("hydrates once and retains the session while choosing a workspace", async ({ supabaseAuthApp }) => {
+    const { page } = supabaseAuthApp;
+    await page.goto("/");
+    await page.getByTestId("login-email").fill("linked@example.com");
+    await page.getByTestId("login-password").fill("correct horse battery staple");
+    await page.getByTestId("login-submit").click();
+    await expect.poll(() => page.evaluate(() => window.BlueCrew.test.currentPage)).toBe("workspace-selection");
+    await page.waitForTimeout(50);
+    const calls = await supabaseAuthApp.calls();
+    expect(calls.filter(call => call.operation === "rpc" && call.name === "get_authorized_workspaces")).toHaveLength(1);
+    expect(calls.filter(call => call.operation === "signOut")).toHaveLength(0);
+    await page.getByTestId("workspace-option").filter({ hasText: "Workspace A" }).click();
+    await expect.poll(() => page.evaluate(() => window.BlueCrew.test.currentPage)).toBe("dashboard");
+    await expect(page.locator("body")).toHaveAttribute("data-role", "administrator");
+  });
 });
 
 base("curated production build contains CSP-compatible login wiring", () => {

@@ -3,6 +3,7 @@ const supabaseAuthService = (() => {
   let authSubscription = null;
   let hydrationState = { status: "idle", message: "" };
   let recoveryState = false;
+  let interactiveLoginInProgress = false;
   const PENDING_APPROVAL_MESSAGE = "Your account has been created and is awaiting administrator approval. You do not need to register again. You will receive an email when your account is approved.";
 
   function mutationResult(success, message, data = null) {
@@ -217,10 +218,10 @@ const supabaseAuthService = (() => {
 
   async function login(email, password) {
     const client = await supabaseClientService.getClient();
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if (error) return mutationResult(false, error.message);
-
+    interactiveLoginInProgress = true;
     try {
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      if (error) return mutationResult(false, error.message);
       const account = await hydrateSessionUser(data.user);
       if (account?.workspaceSelection) {
         return mutationResult(true, "Choose a workspace to continue.", account);
@@ -240,6 +241,8 @@ const supabaseAuthService = (() => {
       await client.auth.signOut();
       failHydration(loadError);
       return mutationResult(false, loadError.message || "Could not load the account profile.");
+    } finally {
+      interactiveLoginInProgress = false;
     }
   }
 
@@ -346,6 +349,10 @@ const supabaseAuthService = (() => {
     if (authSubscription) return;
     const client = await supabaseClientService.getClient();
     const { data } = client.auth.onAuthStateChange((event, session) => {
+      // signInWithPassword emits SIGNED_IN before login() finishes its own
+      // hydration. Running both paths concurrently can make one hydration
+      // fail and the interactive path then signs out a valid session.
+      if (event === "SIGNED_IN" && interactiveLoginInProgress) return;
       if (event === "PASSWORD_RECOVERY" && session?.user) {
         recoveryState = true;
         clearSharedState();
@@ -404,6 +411,7 @@ const supabaseAuthService = (() => {
     clearSharedState();
     hydrationState = { status: "idle", message: "" };
     recoveryState = false;
+    interactiveLoginInProgress = false;
   }
 
   function clearRecoveryState() { recoveryState = false; hydrationState = { status: "idle", message: "" }; }

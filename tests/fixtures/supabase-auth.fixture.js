@@ -49,6 +49,7 @@ export const test = base.extend({
       organization: null,
       initialSession: false,
       sessionRestoreDelayMs: 0,
+      emitSignedInOnLogin: false,
       signUpRequiresConfirmation: false,
       profileMissingUntilProvision: false,
       deniedTable: "",
@@ -309,6 +310,9 @@ export const test = base.extend({
             calls.push({ operation: "signInWithPassword", credentials });
             if (settings.signInError || credentials.password === "wrong-password") return { data: { user: null, session: null }, error: { message: settings.signInError || "Invalid login credentials" } };
             settings.initialSession = true;
+            if (settings.emitSignedInOnLogin && window.__bluecrewAuthCallback) {
+              window.__bluecrewAuthCallback("SIGNED_IN", { user, access_token: "fixture-access-token" });
+            }
             return { data: { user, session: { user, access_token: "fixture-access-token" } }, error: null };
           },
           async resetPasswordForEmail(email, options) {
