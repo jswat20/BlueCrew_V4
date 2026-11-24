@@ -203,6 +203,16 @@ function initializeApp() {
         renderPage("workspace-selection");
         return;
       }
+      if (result.data.workspaceOnboarding) {
+        window.history.replaceState(
+          { blueCrewPage: "workspace-onboarding", context: {} },
+          "",
+          window.location.href
+        );
+        window.BlueCrew.test.initialized = true;
+        renderPage("workspace-onboarding");
+        return;
+      }
       document.body.dataset.role = result.data.role;
       window.BlueCrew.test.currentRole = result.data.role;
       refreshNavigationAuthorization?.();
@@ -356,8 +366,9 @@ function renderPage(page, context = {}) {
   const hostedMode = typeof supabaseClientService !== "undefined" && supabaseClientService.isConfigured();
   const publicAuthPage = ["login", "forgot-password", "password-recovery"].includes(page);
   const workspaceSelectionPage = page === "workspace-selection";
+  const workspaceOnboardingPage = page === "workspace-onboarding";
   if (supabaseAuthService?.isRecoveringPassword?.() && page !== "password-recovery") page = "password-recovery";
-  if (hostedMode && !publicAuthPage && !workspaceSelectionPage && !loginService.isLoggedIn()) {
+  if (hostedMode && !publicAuthPage && !workspaceSelectionPage && !workspaceOnboardingPage && !loginService.isLoggedIn()) {
     page = "login";
     context = {};
     window.history.replaceState({ blueCrewPage: "login", context: {} }, "", window.location.href);
@@ -407,7 +418,7 @@ function renderPage(page, context = {}) {
     return;
   }
 
-  const isAuthorized = publicAuthPage || workspaceSelectionPage ||
+  const isAuthorized = publicAuthPage || workspaceSelectionPage || workspaceOnboardingPage ||
     typeof authorizationService === "undefined" ||
     typeof authorizationService.canView !== "function" ||
     authorizationService.canView(page);
@@ -438,6 +449,8 @@ function renderPage(page, context = {}) {
 
   const viewHtml = workspaceSelectionPage
     ? renderWorkspaceSelection()
+    : workspaceOnboardingPage
+      ? renderWorkspaceOnboarding()
     : authService.isLeagueViewer?.()
     ? renderLeagueViewerView(page, context)
     : authService.isUmpire()
@@ -524,6 +537,9 @@ function runPageSetup(page, context = {}) {
   }
   if (page === "workspace-selection" && typeof setupWorkspaceSelection === "function") {
     setupWorkspaceSelection();
+  }
+  if (page === "workspace-onboarding" && typeof setupWorkspaceOnboarding === "function") {
+    setupWorkspaceOnboarding();
   }
   if (["forgot-password", "password-recovery"].includes(page) && typeof setupAccountSecurityPage === "function") {
     setupAccountSecurityPage(page);

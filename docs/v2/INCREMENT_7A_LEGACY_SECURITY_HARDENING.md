@@ -86,3 +86,42 @@ independently to make every publication immediately inaccessible.
   tournament publication all loaded successfully after the grant changes.
 - Outbound email remains isolated: 18 pending deliveries and zero active cron
   jobs.
+
+## Final hosted acceptance — 2026-11-23
+
+Increment 7A is formally accepted on the isolated V2 deployment. The final
+acceptance pass covered the following live staging behavior:
+
+- A fresh administrator login, refresh restoration, logout/login boundary, and
+  switching among League-only, Officials-only, Tournament-only, and
+  Facility-only workspaces.
+- A League game was rescheduled through the hosted editor to 2027-03-14 at
+  20:00 on Acceptance Field B. Its canonical game ID remained
+  `197be855-3d7d-48c4-8b8e-5175d78ecb68`; the backend created active
+  reservation `6b0d0dcf-d843-40b5-ade6-08443911b022`. An invalid availability
+  attempt was rejected without changing the original game or reservation.
+- An Officials-only game was created without League prerequisites and a
+  synthetic official was assigned through Build Crew. The assignment persisted
+  after reload. The existing Officials import workflow was also re-exercised.
+- A synthetic Tournament pool result was corrected from 2-5 to 3-5. The public
+  result and recalculated standings persisted after reload.
+- A Facility-only administrative hold was created for 2027-03-01 from 18:00 to
+  20:00. A same-field 19:00-21:00 overlap was rejected by the backend and the
+  original reservation remained active.
+- Direct database authorization probes confirmed that an authenticated user
+  cannot select a workspace without an approved membership
+  (`workspace_membership_required`). Anonymous callers can execute only the
+  allowlisted public tournament RPC and cannot insert organizations or
+  reservations or select profiles. The public response contains only
+  `tournament`, `divisions`, `teams`, `pools`, `games`, `standings`, and
+  `brackets`.
+- Outbound email isolation was rechecked after acceptance: all 18 pending
+  deliveries remain pending and no cron job is active.
+
+Three hosted defects discovered during final acceptance were repaired without
+loosening authorization: duplicate session hydration no longer logs out a
+multi-workspace user (`2813053`), asynchronous crew assignments are awaited and
+reported accurately (`29e52e4`), and switching workspaces clears cached
+facility state before loading the destination tenant (`4d94ac8`). Each repair
+includes a focused regression test and was deployed through the staging-only
+pipeline.

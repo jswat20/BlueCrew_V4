@@ -48,6 +48,21 @@ const supabaseSharedRepository = (() => {
     return db.rpc("clear_active_workspace");
   }
 
+  async function createCustomerWorkspace({ name, slug, timezone, enabledModules }) {
+    const db = await client();
+    return db.rpc("create_customer_workspace", {
+      p_name: name,
+      p_slug: slug,
+      p_timezone: timezone,
+      p_enabled_modules: enabledModules
+    });
+  }
+
+  async function enableWorkspaceModule(moduleCode) {
+    const db = await client();
+    return db.rpc("enable_workspace_module", { p_module_code: moduleCode });
+  }
+
   async function getSeasons() {
     const db = await client();
     return db.from("seasons")
@@ -629,6 +644,8 @@ const supabaseSharedRepository = (() => {
     getAuthorizedWorkspaces,
     selectActiveWorkspace,
     clearActiveWorkspace,
+    createCustomerWorkspace,
+    enableWorkspaceModule,
     getSeasons,
     createSeason,
     activateSeason,

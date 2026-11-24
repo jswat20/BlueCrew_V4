@@ -34,9 +34,39 @@ const workspaceService = (() => {
       success: true,
       ready: false,
       selectionRequired: workspaces.length > 1,
+      onboardingRequired: workspaces.length === 0,
       message: workspaces.length ? "Choose a workspace to continue." : "No approved workspace membership was found.",
       data: snapshot()
     };
+  }
+
+  async function createCustomerWorkspace(input) {
+    const result = await supabaseSharedRepository.createCustomerWorkspace(input);
+    if (result.error) return { success: false, message: friendlyOnboardingError(result.error.message), data: null };
+    const loaded = await loadAuthorized();
+    if (!loaded.success) return loaded;
+    return { success: true, ready: true, message: "Workspace created.", data: result.data };
+  }
+
+  async function enableModule(moduleCode) {
+    const result = await supabaseSharedRepository.enableWorkspaceModule(moduleCode);
+    if (result.error) return { success: false, message: friendlyOnboardingError(result.error.message), data: null };
+    await loadAuthorized();
+    return { success: true, message: "Module enabled.", data: result.data };
+  }
+
+  function friendlyOnboardingError(message = "") {
+    const messages = {
+      verified_email_required: "Verify your email before creating a workspace.",
+      workspace_identity_invalid: "Enter a valid workspace name and URL name.",
+      workspace_timezone_invalid: "Select a valid timezone.",
+      workspace_modules_invalid: "Select at least one valid module.",
+      workspace_slug_unavailable: "That workspace URL name is already in use.",
+      workspace_creation_limit_reached: "This account has reached its workspace creation limit.",
+      workspace_creation_rate_limited: "Too many workspaces were created recently. Try again later.",
+      workspace_administrator_required: "Only a workspace administrator can enable modules."
+    };
+    return messages[message] || message || "Workspace onboarding failed.";
   }
 
   async function select(organizationId) {
@@ -69,5 +99,5 @@ const workspaceService = (() => {
     return Boolean(activeWorkspace?.enabledModules.includes(moduleCode));
   }
 
-  return { loadAuthorized, ensureActive, select, clearServerSelection, clear, snapshot, hasModule };
+  return { loadAuthorized, ensureActive, select, createCustomerWorkspace, enableModule, clearServerSelection, clear, snapshot, hasModule };
 })();

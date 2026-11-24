@@ -104,6 +104,11 @@ async function handleLoginSubmit(event) {
       renderPage("workspace-selection");
       return;
     }
+    if (result.data?.workspaceOnboarding) {
+      window.history.replaceState({ blueCrewPage: "workspace-onboarding", context: {} }, "", window.location.href);
+      renderPage("workspace-onboarding");
+      return;
+    }
         if (
       typeof authService !== "undefined" &&
       authService.isUmpire() &&

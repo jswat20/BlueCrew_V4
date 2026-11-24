@@ -98,6 +98,12 @@ const supabaseAuthService = (() => {
       hydrationState = { status: "workspace-selection", message: workspace.message };
       return { workspaceSelection: true, workspaces: workspace.data.workspaces };
     }
+    if (workspace.onboardingRequired) {
+      clearSharedState();
+      applyIdentity(null);
+      hydrationState = { status: "workspace-onboarding", message: workspace.message, authenticated: true };
+      return { workspaceOnboarding: true };
+    }
     const account = await loadAccountForUser(user);
     renderWorkspaceSwitcher?.();
     return account;
@@ -201,6 +207,9 @@ const supabaseAuthService = (() => {
       if (account?.workspaceSelection) {
         return mutationResult(true, "Choose a workspace to continue.", account);
       }
+      if (account?.workspaceOnboarding) {
+        return mutationResult(true, "Create your first workspace to continue.", account);
+      }
       if (!account || account.status !== "approved") {
         applyIdentity(null);
         return mutationResult(false, account?.status === "pending" ? PENDING_APPROVAL_MESSAGE : "Account not found or unavailable.", account);
@@ -226,6 +235,9 @@ const supabaseAuthService = (() => {
       const account = await hydrateSessionUser(data.user);
       if (account?.workspaceSelection) {
         return mutationResult(true, "Choose a workspace to continue.", account);
+      }
+      if (account?.workspaceOnboarding) {
+        return mutationResult(true, "Create your first workspace to continue.", account);
       }
       if (!account || account.status !== "approved") {
         await client.auth.signOut();
@@ -375,6 +387,10 @@ const supabaseAuthService = (() => {
             const account = await hydrateSessionUser(session.user);
             if (account?.workspaceSelection) {
               renderPage?.("workspace-selection");
+              return;
+            }
+            if (account?.workspaceOnboarding) {
+              renderPage?.("workspace-onboarding");
               return;
             }
             if (account?.status === "approved") {

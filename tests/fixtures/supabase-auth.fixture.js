@@ -362,6 +362,27 @@ export const test = base.extend({
             window.localStorage.removeItem("__slate_fixture_active_workspace");
             return { data: true, error: null };
           }
+          if (name === "create_customer_workspace") {
+            const organizationId = `organization-self-service-${settings.workspaces.length + 1}`;
+            const profile = { ...settings.profile, id: `profile-${organizationId}`, organization_id: organizationId, role: "administrator", status: "approved" };
+            const workspace = {
+              organization_id: organizationId, organization_name: args.p_name,
+              organization_slug: args.p_slug, organization_timezone: args.p_timezone,
+              membership_id: `membership-${organizationId}`, profile_id: profile.id,
+              membership_status: "approved", role_code: "administrator",
+              enabled_modules: [...args.p_enabled_modules], profile, crewId: null
+            };
+            settings.workspaces.push(workspace);
+            settings.activeWorkspaceId = organizationId;
+            settings.profile = profile;
+            return { data: { organization_id: organizationId, name: args.p_name, slug: args.p_slug, enabled_modules: args.p_enabled_modules }, error: null };
+          }
+          if (name === "enable_workspace_module") {
+            const workspace = settings.workspaces.find(item => String(item.organization_id) === String(settings.activeWorkspaceId));
+            if (!workspace || workspace.profile?.role !== "administrator") return { data: null, error: { message: "workspace_administrator_required" } };
+            if (!workspace.enabled_modules.includes(args.p_module_code)) workspace.enabled_modules.push(args.p_module_code);
+            return { data: { organization_id: workspace.organization_id, module_code: args.p_module_code, enabled: true }, error: null };
+          }
           if (name === "get_active_profile") {
             return { data: settings.profileMissingUntilProvision ? null : settings.profile, error: null };
           }
