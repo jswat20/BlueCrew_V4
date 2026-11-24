@@ -47,6 +47,12 @@ test.describe("Increment 6A Tournament pool play",()=>{
     expect(ui).toContain('data-testid="tournament-manager"');
     expect(ui).toContain('data-testid="tournament-proposal-preview"');
   });
+  test("manager restores focus and moves focus to validation feedback",()=>{
+    expect(ui).toContain('tabindex="-1"');
+    expect(ui).toContain('event.key === "Escape"');
+    expect(ui).toContain("tournamentManagerReturnFocus.focus()");
+    expect(ui).toContain("el.focus()");
+  });
   test("closes Tournament UI before workspace scheduling state is cleared",()=>{
     const clearState=auth.slice(auth.indexOf("function clearSchedulingState()"),auth.indexOf("async function refreshScheduling()"));
     expect(clearState).toContain('typeof closeTournamentManager === "function"');

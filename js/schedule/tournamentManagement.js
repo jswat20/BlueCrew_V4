@@ -1,4 +1,5 @@
 let tournamentManagerOverlay = null;
+let tournamentManagerReturnFocus = null;
 const tournamentEscape = (value) =>
   String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -10,19 +11,30 @@ const tournamentOption = (value, label, selected = false) =>
 const tournamentCanManage = () => authorizationService.canEditSchedule();
 async function openTournamentManager() {
   if (!workspaceService.hasModule("tournament")) return false;
+  const trigger = document.activeElement;
   await Promise.all([
     tournamentManagementService.load(),
     facilityService.load(),
   ]);
-  closeTournamentManager();
+  closeTournamentManager(false);
+  tournamentManagerReturnFocus = trigger;
   tournamentManagerOverlay = document.createElement("div");
-  tournamentManagerOverlay.innerHTML = `<div class="assign-drawer-backdrop" onclick="closeTournamentManager()"></div><aside class="assign-drawer game-editor-modal tournament-manager" role="dialog" aria-modal="true" aria-labelledby="tournament-manager-title" data-testid="tournament-manager"><header class="assign-drawer-header"><h2 id="tournament-manager-title">Tournament Management</h2><button class="button button-link" aria-label="Close tournament manager" onclick="closeTournamentManager()">×</button></header><div id="tournament-manager-body"></div></aside>`;
+  tournamentManagerOverlay.innerHTML = `<div class="assign-drawer-backdrop" onclick="closeTournamentManager()"></div><aside class="assign-drawer game-editor-modal tournament-manager" role="dialog" aria-modal="true" aria-labelledby="tournament-manager-title" data-testid="tournament-manager" tabindex="-1"><header class="assign-drawer-header"><h2 id="tournament-manager-title">Tournament Management</h2><button class="button button-link" aria-label="Close tournament manager" onclick="closeTournamentManager()">×</button></header><div id="tournament-manager-body"></div></aside>`;
+  tournamentManagerOverlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeTournamentManager();
+    }
+  });
   document.body.appendChild(tournamentManagerOverlay);
   renderTournamentList();
+  tournamentManagerOverlay.querySelector('[role="dialog"]')?.focus();
 }
-function closeTournamentManager() {
+function closeTournamentManager(restoreFocus = true) {
   tournamentManagerOverlay?.remove();
   tournamentManagerOverlay = null;
+  if (restoreFocus && tournamentManagerReturnFocus?.isConnected) tournamentManagerReturnFocus.focus();
+  if (restoreFocus) tournamentManagerReturnFocus = null;
 }
 function tournamentBody() {
   return document.getElementById("tournament-manager-body");
@@ -257,7 +269,11 @@ async function publishTournamentSchedule() {
 }
 function tournamentError(message) {
   const el = document.getElementById("tournament-error");
-  if (el) el.textContent = message;
+  if (el) {
+    el.textContent = message;
+    el.tabIndex = -1;
+    el.focus();
+  }
   else toastService.error(message);
 }
 

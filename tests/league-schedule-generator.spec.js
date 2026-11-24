@@ -53,4 +53,11 @@ test.describe("Increment 5B League schedule generation", () => {
     expect(ui).toContain('data-testid="saved-proposals"');
     expect(ui).toContain("renderLeagueScheduleProposalList()");
   });
+
+  test("generator dialog restores focus and focuses actionable validation", () => {
+    expect(ui).toContain('tabindex="-1"');
+    expect(ui).toContain('event.key==="Escape"');
+    expect(ui).toContain("leagueScheduleGeneratorReturnFocus.focus()");
+    expect(ui).toContain("error.focus()");
+  });
 });

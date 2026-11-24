@@ -64,6 +64,27 @@ skip in 6.8 minutes.
 
 ## Launch-readiness assessment
 
+## Milestone 3: workflow validation and accessible recovery
+
+The cross-module audit found a shared high-impact gap: transient success and
+failure messages were visible but did not expose reliable live-region
+semantics. Success, information, and warning feedback now use polite status
+announcements, while errors use assertive alerts. Toast motion also respects
+the customer's reduced-motion preference.
+
+League schedule generation and Tournament management now move focus into their
+custom dialogs, support Escape dismissal, and return focus to the launching
+control. Inline scheduling errors receive focus so customers can immediately
+understand and correct the problem without rebuilding their work. Facility
+reservation and closure failures likewise retain entered values and focus the
+inline backend error, including atomic conflict responses.
+
+No schema, authorization, entitlement, scheduling transaction, or email
+delivery behavior changed. Focused workflow/accessibility verification passes
+23 tests. The complete regression passes 1,281 tests with one intentional skip
+in 6.7 minutes, and the curated staging artifact verifies against staging
+project `fdjhwxmphdzodxvhrblk`.
+
 | Area | Current position | Launch action |
 | --- | --- | --- |
 | Deployment isolation | V2 has a fail-closed staging build and separate hosted site. | Preserve exact-ref checks; document and rehearse an authorized production release and rollback before launch. |

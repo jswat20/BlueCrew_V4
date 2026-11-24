@@ -79,6 +79,13 @@ const toastService = (() => {
           max-width: none;
         }
       }
+
+      @media (prefers-reduced-motion: reduce) {
+        .toast {
+          animation: none;
+          transition: none !important;
+        }
+      }
     `;
 
     document.head.appendChild(style);
@@ -92,6 +99,9 @@ const toastService = (() => {
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
     toast.textContent = message;
+    toast.setAttribute("role", type === "error" ? "alert" : "status");
+    toast.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
+    toast.setAttribute("aria-atomic", "true");
 
     container.appendChild(toast);
 

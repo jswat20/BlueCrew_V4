@@ -92,6 +92,26 @@ test.describe(
     );
 
     test(
+      "toast feedback exposes appropriate live-region semantics",
+      async ({ page }) => {
+        await page.evaluate(() => {
+          toastService.success("Schedule published.");
+          toastService.error("That field is already reserved.");
+        });
+
+        const success = page.locator(".toast.success");
+        await expect(success).toHaveAttribute("role", "status");
+        await expect(success).toHaveAttribute("aria-live", "polite");
+        await expect(success).toHaveAttribute("aria-atomic", "true");
+
+        const error = page.locator(".toast.error");
+        await expect(error).toHaveAttribute("role", "alert");
+        await expect(error).toHaveAttribute("aria-live", "assertive");
+        await expect(error).toHaveAttribute("aria-atomic", "true");
+      }
+    );
+
+    test(
       "bulk mark read announces and restores focus",
       async ({ page }) => {
         await page.evaluate(() => {
