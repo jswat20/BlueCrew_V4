@@ -26,9 +26,9 @@ connection string. Generate timestamped role, schema, and data files in a new
 private directory; never overwrite prior recovery points.
 
 ```text
-supabase db dump --db-url "[SECURE_CONNECTION_STRING]" -f roles.sql --role-only
-supabase db dump --db-url "[SECURE_CONNECTION_STRING]" -f schema.sql
-supabase db dump --db-url "[SECURE_CONNECTION_STRING]" -f data.sql --use-copy --data-only
+supabase db dump --remote="[SECURE_CONNECTION_STRING]" -f roles.sql --role-only
+supabase db dump --remote="[SECURE_CONNECTION_STRING]" -f schema.sql
+supabase db dump --remote="[SECURE_CONNECTION_STRING]" -f data.sql --use-copy --data-only
 ```
 
 If a custom PostgreSQL archive is also created for same-major-version recovery,

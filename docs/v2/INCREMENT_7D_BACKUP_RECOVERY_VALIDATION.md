@@ -1,13 +1,13 @@
 # The Slate 2.0 — Increment 7D backup and recovery validation
 
-Assessment date: 2026-11-23 (America/New_York)
+Assessment date: 2026-11-23; closed 2026-11-27 (America/New_York)
 
 Branch: `slate-v2-development`
 
 Assessed commit: `60e9c6bd7f30d2c4dceae2a5bdd3dabf65967611`
 
 Staging project: `fdjhwxmphdzodxvhrblk`
-Status: **PARTIAL — current independent backup is blocked; do not close 7D**
+Status: **COMPLETE — current independent backup restored and validated**
 
 Production Supabase, production Cloudflare, and `main` were not queried or
 modified. No hosted restore was started and no paid infrastructure was created.
@@ -22,13 +22,11 @@ standard non-login Supabase API roles, the remaining restore errors were limited
 to locally unavailable managed extensions (`pg_cron`, `pg_net`, and
 `supabase_vault`) and their internal objects.
 
-This does **not** complete Increment 7D. The existing archive contains 49
-application migrations, while current staging contains 84. No staging database
-password or supported downloadable logical archive was available in the
-execution environment. The Supabase dashboard shows a current managed physical
-backup, dated 2026-11-23 13:49:25 UTC, but exposes hosted restore rather than an
-independent download. Restoring that backup over staging or into a new billable
-project would violate this increment's boundaries.
+That first rehearsal did not complete Increment 7D because the archive contained
+49 application migrations while staging contained 84. On 2026-11-27 an
+authorized operator entered the staging database password directly into a local
+secure prompt. A new current archive was created, restored, and compared with a
+fresh read-only staging snapshot. The closure evidence is recorded below.
 
 ## Phase 1 — current recovery inventory
 
@@ -111,7 +109,7 @@ files at this commit.
 The checksum matches the previously recorded value. Existing zero-byte failed
 attempts and the valid archive were preserved.
 
-### Fresh backup blocker
+### Prior fresh-backup blocker — resolved 2026-11-27
 
 The current environment has PostgreSQL 17.10 client tools but no staging
 database password or password file. Supabase's supported logical export requires
@@ -122,11 +120,10 @@ backup is restorable only through a hosted operation. Therefore:
 2. no backup duration can be measured for a current archive; and
 3. the 2026-11-17 archive must not be described as the current recovery point.
 
-To close the gate, an authorized staging operator must supply the database
-password through a non-logged secure channel or run the documented backup
-commands locally. The resulting timestamped files must remain outside the
-repository. Do not reset the staging database password merely to automate this
-exercise without reviewing connection impact.
+The operator subsequently supplied the password through the non-logged local
+prompt. It was held only in the backup process memory, cleared after `pg_dump`,
+and never written to a command, environment file, report, chat, or repository.
+No password reset or credential change was performed.
 
 ## Phase 3 — isolated restore evidence
 
@@ -189,6 +186,84 @@ authorized operator to remove them when the evidence-retention need ends.
   the ambient non-staging configuration before the safe build was run.
 - No deployment was performed.
 
+## Current backup and restore closure — 2026-11-27
+
+### Current independent archive
+
+- Private directory:
+  `C:\Users\JSWAT\Documents\SlateV2-Backups\increment-7d-20261124-000239`
+- Archive file: `slate-staging-20261124-000239.dump`
+- Archive header timestamp: 2026-11-27 15:04:13 America/New_York
+- Source: staging session pooler for `fdjhwxmphdzodxvhrblk`
+- Size: 4,632,137 bytes
+- Format: PostgreSQL custom archive, gzip compression
+- Archive entries: 2,061
+- Source PostgreSQL: 17.6
+- `pg_dump`: 17.10
+- Backup duration: 68.619 seconds
+- Archive listing duration: 0.426 seconds
+- SHA-256:
+  `F35DB3912173ECB88C6B6CD430EEEDCCCD8534E318A79A4400C7D557F1F16BCE`
+
+The private archive and archive listing were preserved outside Git. The
+November 17 archive was not overwritten.
+
+### Isolated current restore
+
+The archive was restored into a newly initialized UTF-8 PostgreSQL 17.10
+database bound only to `127.0.0.1:55433`. The final restore took 1.052 seconds.
+Compatibility roles were non-login roles and no platform credentials or API
+keys were copied into the target.
+
+`pg_cron`, `pg_net`, and `supabase_vault` were not installed locally. Therefore
+cron jobs, HTTP workers, Vault-backed calls, Edge Functions, SMTP, and
+application workers could not execute. The final restore log contains 25 errors,
+all attributable to those unavailable managed extensions and their internal
+tables/functions. There were no unexplained application, Auth, Storage, RLS,
+grant, migration, constraint, or data errors.
+
+### Live-to-restore comparison
+
+| Item | Live | Restored | Result |
+| --- | ---: | ---: | --- |
+| Schemas | 12 | 12 | Match; empty compatibility schemas represent missing managed extensions |
+| Tables in application/Auth/Storage/migrations/cron | 96 | 94 | Expected gap: two `pg_cron` tables |
+| Public tables / public tables with RLS | 56 / 56 | 56 / 56 | Match |
+| Functions in application/Auth/Storage | 170 | 170 | Match |
+| User-defined triggers | 62 | 62 | Match |
+| RLS policies | 148 | 148 | Match |
+| Foreign keys / unvalidated constraints | 184 / 0 | 184 / 0 | Match |
+| Auth users / profiles | 5 / 12 | 5 / 12 | Match |
+| Organizations / memberships / membership roles | 6 / 12 / 12 | 6 / 12 / 12 | Match |
+| Module entitlements | 11 | 11 | Match |
+| Games / assignments / claims | 36 / 6 / 0 | 36 / 6 / 0 | Match |
+| Reservations | 37 | 37 | Match |
+| Tournaments / results | 1 / 19 | 1 / 19 | Match |
+| Pending deliveries | 18 | 18 | Match; no delivery executed |
+| Storage buckets / object rows | 1 / 0 | 1 / 0 | Match |
+| Migrations / latest version | 84 / `20261124021928` | 84 / `20261124021928` | Match |
+
+Deterministic MD5 fingerprints matched exactly for application/Auth/Storage
+function definitions, trigger definitions, RLS policies, foreign keys, and the
+ordered migration-version list. Explicit table-grant counts and fingerprints
+also matched for `anon`, `authenticated`, and `service_role`. Object-owner and
+platform-internal role grants are not portable under `--no-owner` and remain a
+managed-platform recovery responsibility.
+
+### Remaining managed-service gaps
+
+- Standalone PostgreSQL cannot validate Supabase Auth API behavior, JWT signing,
+  provider configuration, redirect URLs, or session continuity.
+- Storage object bytes require a separate export. There were zero current object
+  rows, so no byte payload existed for this rehearsal.
+- Edge Function deployments/secrets, SMTP, Realtime configuration, Vault
+  secrets, and Cloudflare settings are outside the archive.
+- The 1.052-second database import does not demonstrate the proposed four-hour
+  end-to-end RTO because managed service and application reactivation were not
+  rehearsed.
+- The private restored database must be securely removed after its evidence
+  retention need ends.
+
 ## Phase 4 — proposed recovery objectives
 
 These are initial policy targets, not demonstrated guarantees:
@@ -215,13 +290,14 @@ These are initial policy targets, not demonstrated guarantees:
 
 ## Closure checklist
 
-- [ ] Create a current timestamped independent backup.
-- [ ] Record its tool versions, duration, size, checksum, and successful listing.
-- [ ] Restore that current archive to a newly initialized isolated target.
-- [ ] Compare all current tenant/module aggregate counts.
-- [ ] Validate current RLS, grants, functions, triggers, foreign keys, and all 84
+- [x] Create a current timestamped independent backup.
+- [x] Record its tool versions, duration, size, checksum, and successful listing.
+- [x] Restore that current archive to a newly initialized isolated target.
+- [x] Compare all current tenant/module aggregate counts.
+- [x] Validate current RLS, grants, functions, triggers, foreign keys, and all 84
   migration versions.
-- [ ] Export/verify Storage object bytes separately (currently zero objects).
+- [x] Verify that Storage currently contains zero object rows; establish object
+  byte export before customer uploads begin.
 - [ ] Privately record Cloudflare configuration and a deployable rollback
   artifact/deployment ID.
 - [ ] Run a service-level Auth/Storage recovery exercise or document an approved
