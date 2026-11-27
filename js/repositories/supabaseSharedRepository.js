@@ -1,11 +1,21 @@
 const supabaseSharedRepository = (() => {
+  const FRESH_JWT_RETRY_DELAY_MS = 300;
+
   async function client() {
     return supabaseClientService.getClient();
   }
 
-  async function getProfileForAuthUser(authUserId) {
+  async function rpcWithFreshJwtRetry(functionName, parameters) {
     const db = await client();
-    return db.rpc("get_active_profile");
+    let result = await db.rpc(functionName, parameters);
+    if (!/jwt issued at future/i.test(result.error?.message || "")) return result;
+    await new Promise(resolve => setTimeout(resolve, FRESH_JWT_RETRY_DELAY_MS));
+    result = await db.rpc(functionName, parameters);
+    return result;
+  }
+
+  async function getProfileForAuthUser(authUserId) {
+    return rpcWithFreshJwtRetry("get_active_profile");
   }
 
   async function updateProfile(profileId, changes) {
@@ -34,8 +44,7 @@ const supabaseSharedRepository = (() => {
   }
 
   async function getAuthorizedWorkspaces() {
-    const db = await client();
-    return db.rpc("get_authorized_workspaces");
+    return rpcWithFreshJwtRetry("get_authorized_workspaces");
   }
 
   async function selectActiveWorkspace(organizationId) {

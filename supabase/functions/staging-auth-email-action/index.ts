@@ -3,16 +3,27 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.2";
 
 const STAGING_REF = "fdjhwxmphdzodxvhrblk";
 const STAGING_ORIGIN = "https://the-slate-v2.pages.dev";
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": STAGING_ORIGIN,
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin"
+};
 
 function response(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json", "Cache-Control": "no-store" }
   });
 }
 
 Deno.serve(async (request: Request) => {
+  if (request.method === "OPTIONS") {
+    if (request.headers.get("Origin") !== STAGING_ORIGIN) return response(403, { error: "Origin not allowed." });
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
   if (request.method !== "POST") return response(405, { error: "Method not allowed." });
+  if (request.headers.get("Origin") !== STAGING_ORIGIN) return response(403, { error: "Origin not allowed." });
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const authorization = request.headers.get("Authorization") || "";

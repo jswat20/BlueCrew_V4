@@ -4,7 +4,7 @@
 
 **Hosted origin:** `https://the-slate-v2.pages.dev`
 
-**Status:** implementation complete; hosted lifecycle acceptance pending
+**Status:** deployed to V2; final reauthentication acceptance in progress
 
 ## Isolation design
 
@@ -21,6 +21,8 @@ The hook:
 - performs no HTTP request and has no SMTP or provider integration;
 - stores no message body, action URL, OTP, password, or provider credential;
 - encrypts the Auth token hash with a database-generated, private key;
+- isolates encryption behind a private `SECURITY DEFINER` helper so the Auth
+  role cannot read the key or use the `extensions` schema directly;
 - expires captures after 15 minutes and permits a single claim;
 - rejects unsupported actions and deliberately disables email-change delivery;
 - fails closed if the key, recipient, action, or redirect is invalid.
@@ -47,6 +49,7 @@ The staging Auth configuration is intentionally narrow:
 - redirect allowlist: `https://the-slate-v2.pages.dev/**`
 - email confirmation remains required;
 - Send Email Hook: enabled, Postgres, private schema;
+- staging email-send limit: 10/hour for controlled lifecycle exercises;
 - SMTP/provider credentials: none introduced;
 - existing application communication cron: disabled.
 
@@ -63,17 +66,23 @@ Production Auth configuration and credentials were not inspected or changed.
   project and V2 origin.
 - Increment 7E's application-generated sink, its captures, and the historical
   queue remain separate and unchanged.
+- Freshly issued sessions retry only the exact transient `JWT issued at future`
+  gateway error once after 300 ms. This addresses a measured same-second
+  Supabase gateway race without retrying invalid credentials or other Auth
+  failures.
 
 ## Security verification
 
-Migration `20261127203712_staging_auth_email_capture.sql` is additive. Live
-grant inspection confirmed:
+The Increment 7F migrations are additive. Live grant inspection confirmed:
 
 - hook execute: `supabase_auth_admin` only;
 - one-time claim: `service_role` only;
 - operator authorization and metadata status: authenticated administrators,
   with server-side workspace-role enforcement;
 - safe explicit function search paths on every new function.
+- no Auth-role read access to the capture encryption key;
+- no Auth-role usage of the `extensions` schema, so inherited pgcrypto
+  function execute defaults are not reachable by the hook role.
 
 The database console cannot assume `supabase_auth_admin`, so hook execution is
 validated through the real Supabase Auth service rather than by weakening role
@@ -81,14 +90,49 @@ grants for a console test.
 
 ## Acceptance evidence
 
-To be completed after the hosted deployment:
+Initial deployed commit `7fad8e1` converged on the V2 Pages origin. The hosted Settings
+page rendered the staging-only operator control and rejected a non-allowlisted
+recipient with actionable feedback while moving focus to the alert.
 
-- signup capture, confirmation, login, and refresh restoration;
-- recovery capture, password reset, logout, and reauthentication;
-- expired/replayed action rejection;
-- external recipient and incorrect redirect rejection;
-- invitation and tenant-isolation regression;
-- exact test, artifact, deployment, and invariant results.
+Live negative checks through the actual staging API verified:
+
+- an external reserved-domain recipient was rejected and no Auth user remained;
+- a non-V2 redirect was rejected;
+- anonymous operator and claim RPCs returned `401`;
+- an unauthenticated Edge invocation returned `403`;
+- one explicit operator is provisioned, with no broad administrator access;
+- the 18 historical application deliveries remain pending and the application
+  communication cron remains disabled.
+
+Hosted lifecycle evidence completed before the final client retry deployment:
+
+- synthetic signup was captured through the real Auth hook and confirmed from
+  the hosted operator workflow;
+- the verified account signed in with zero inherited workspace memberships and
+  restored the correct onboarding state after refresh;
+- hosted Forgot Password displayed enumeration-resistant feedback;
+- the recovery action was claimed once through the hosted operator workflow;
+- password update completed through the hosted recovery page and returned the
+  user to Login with an explicit success confirmation;
+- database evidence records one claimed signup action and one claimed recovery
+  action, with no external-recipient captures.
+
+Validation results:
+
+- focused Increment 7F security contract: 8/8 passed;
+- previously combined Auth/application email and account security: 23/23 passed;
+- complete regression: 1,295 passed, one intentionally skipped (1,296 total);
+- V2 staging artifact build and isolation verification: passed;
+- migration history: 97 migrations, including all Increment 7F changes;
+- `staging-auth-email-action`: deployed version 2 with JWT verification and
+  exact-origin CORS; deployment id
+  `89e2391c-2d9c-45f1-b824-5b1e91091410`.
+
+Final closure requires reauthentication with the changed password against the
+deployed same-second JWT retry and refresh restoration. Replay and expiration
+remain enforced by the one-time claimed state and 15-minute database expiry;
+the focused contract and database authorization tests cover both negative
+paths without logging or reusing an action token.
 
 ## Production requirements
 
