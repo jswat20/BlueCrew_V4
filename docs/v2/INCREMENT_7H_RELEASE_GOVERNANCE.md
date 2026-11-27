@@ -1,6 +1,6 @@
 # Increment 7H: Release Governance and Production Readiness
 
-**Status:** operational controls implemented; production remains unchanged
+**Status:** final governance acceptance complete; production remains unchanged
 
 **Assessment date:** November 27, 2026
 
@@ -73,15 +73,24 @@ requires explicit authorization.
 Recommended controls:
 
 - `main`: require pull requests, one independent approval, dismissal of stale
-  approvals, resolution of review conversations, and the production artifact,
-  security, migration, and exact-SHA checks defined below; disallow force pushes
-  and deletion; restrict direct pushes to the named release operator.
-- `slate-v2-development`: require the `staging-artifact` job from **Slate V2
-  staging build safety** before merge; disallow force pushes and deletion.
-  Requiring pull requests or restricting direct pushes is intentionally pending
-  authorization because it changes the current increment workflow.
-- Do not treat the legacy **Playwright Tests** workflow as a V2 release check:
-  it runs only for `main`/`master` and builds a production artifact.
+  approvals, approval of the latest push, and resolution of review
+  conversations; require the `test` job from **Playwright Tests**, a production
+  artifact/environment check, security authorization tests, migration
+  compatibility, and exact-SHA release-candidate verification; disallow force
+  pushes and deletion; restrict bypass to a named emergency release operator.
+- `slate-v2-development`: disallow force pushes and deletion. Retain the current
+  direct-push workflow until a separate authorization changes it. The
+  `staging-artifact` job from **Slate V2 staging build safety** remains the
+  required staging evidence, but making it a branch gate would alter the
+  accepted workflow and was not done here.
+- The repository is public. GitHub's current documentation states that protected
+  branches and repository rulesets are available for public repositories on
+  GitHub Free, so these repository-level controls are enforceable under the
+  current plan. No organization- or enterprise-only control is required for the
+  minimum ruleset. See [Managing protected
+  branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches)
+  and [Managing repository
+  rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/managing-rulesets-for-a-repository).
 - Production deployment remains a separate manual action. The V2 development
   branch must never be connected to the production Cloudflare project or given
   production Supabase credentials.
@@ -103,14 +112,23 @@ or credential was read or exported.
 | Cloudflare source | production branch `main`; current deployment shown as `5e1efe1f`; project settings report no connected Git repository |
 | Runtime | compatibility date 2026-08-11; no Pages variables/secrets or bindings configured; Pages Functions fail-open |
 
-The public production artifact returned HTTP 200 and targets only the production
-Supabase project. Production Auth Site URL and redirect allowlist, Supabase
-managed-backup state, Edge Function secret values, email provider credentials,
-and the authorization boundary used by the two `verify_jwt=false` functions
-could not be independently verified with the available read-only interfaces.
-They are mandatory production preflight items. The Edge Functions must not be
-classified as anonymous APIs merely because gateway JWT verification is off;
-their internal authentication must be reviewed before launch.
+The public production artifact returned HTTP 200, targets only the production
+Supabase project, and supplied the expected HSTS, CSP, frame denial,
+permissions, referrer, and content-type security headers.
+
+### Production configuration classification
+
+| Item | Classification | Read-only finding |
+| --- | --- | --- |
+| Auth Site URL | Verified | `https://app.worktheslate.com` |
+| Auth redirect allowlist | Requires remediation | Both the exact application URL and `https://app.worktheslate.com/**` are present. Supabase recommends exact production paths; narrow or formally accept the wildcard before launch. See [Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls). |
+| Managed backups | Verified | Daily physical backups were present for November 20–27, 2026; latest observed backup was November 27 at 05:35:36 UTC. Storage object bytes are outside database backups and remain a separate recovery procedure. See [Database backups](https://supabase.com/docs/guides/platform/backups). |
+| Auth SMTP | Verified | Custom SMTP is enabled with the expected Slate sender identity and a Resend SMTP endpoint; the stored password remained hidden. |
+| Auth/application email credential separation | Unverified | Both paths use Resend, while secret values and account ownership were deliberately not read. Verify separate credentials/accounts and shutdown controls before launch. See [Custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp). |
+| `send-account-password-reset` internal authentication | Verified with remediation | The function requires a bearer token, validates it with Supabase Auth, requires an approved administrator, and scopes the target to the actor's organization. Its wildcard CORS response and legacy single-profile organization derivation require hardening review. |
+| `process-communication-emails` internal authentication | Verified | The function rejects a missing or incorrect worker bearer secret before using service-role access and uses provider idempotency keys. Secret rotation and the production cron caller/owner remain unverified without reading secrets. |
+| Cloudflare production source and domains | Verified | Project `the-slate-production`, production branch `main`, active TLS domains `app.worktheslate.com` and `worktheslate.com`, no Git repository connection, and no Pages variables, secrets, or bindings. |
+| Cloudflare headers/runtime | Verified with conditional remediation | Security headers and the production-only Supabase target were verified. Pages Functions are configured fail-open; this is inert while no Pages Functions exist, but must be changed or explicitly accepted before introducing them. |
 
 ## Authenticated V2 rollback rehearsal
 
@@ -127,25 +145,37 @@ focused tests, and ten additive Auth-safety migrations. The current staging
 database already contains those migrations, and the older client did not depend
 on their absence, so no database migration was reversed.
 
-Cloudflare activated the older artifact and then the newer artifact successfully.
-The hosted origin returned HTTP 200 and an already-authenticated synthetic
-session was restored after refresh on both versions. The identity was presented
-with the secure workspace-creation screen and retained its session; no data was
-mutated and no email worker ran.
+Cloudflare activated the older artifact and then restored the newer artifact
+successfully. Both deployments returned HTTP 200, retained the authenticated
+session after refresh, and targeted staging Supabase only. No database migration
+was modified or reversed.
 
-Both dashboard promotions completed without an error or retry. The operator did
-not instrument the promotion interval precisely, so this rehearsal does not
-establish a rollback-time objective. A future drill must capture timestamps from
-the confirmation click through origin convergence and completed smoke tests.
+The accepted multi-workspace identity demonstrated both sides of the tenant
+boundary on each artifact:
 
-The available synthetic browser identity had no workspace memberships. It could
-therefore not truthfully demonstrate switching between two authorized
-workspaces, role changes, tenant-isolated module navigation, or representative
-module reads during this rehearsal. Those four checks remain a release-approval
-blocker and must be repeated with the existing multi-workspace acceptance
-identity before production authorization. This limitation does not invalidate
-the artifact promotion/rollback mechanism, session restoration, environment
-target, or schema-compatibility evidence.
+- **Increment 4B Alpha:** `administrator`; Facilities, League, and Tournament
+  entitlements; administrator navigation and its own League schedule data.
+- **Increment 4B Beta:** `league_viewer`; Officials entitlement only; viewer
+  navigation with no administrator, League, Tournament, or Facility controls;
+  no Alpha schedule records appeared.
+
+The active Beta workspace persisted after refresh. Switching to Alpha replaced
+the previous workspace UI during access revalidation, and switching back did not
+expose Alpha data. Representative read-only Schedule and Dashboard views loaded
+under the correct role and module set.
+
+Measured timings:
+
+| Measurement | Result |
+| --- | --- |
+| Older activation confirmation to staging-artifact convergence | 45.394 seconds |
+| Newer restore confirmation (`2026-11-27T23:01:05.356Z`) to authenticated Beta smoke completion | 18.346 seconds |
+
+The first measurement excludes the later operator login handoff and therefore
+is not an authenticated rollback RTO. The second measurement includes artifact
+convergence, refresh, session restoration, workspace restoration, and a visible
+authorized Schedule view. These are rehearsal measurements, not a production
+RTO commitment.
 
 ## Manual production release gate
 
@@ -178,14 +208,16 @@ Frontend rollback does not automatically roll back the database.
 
 - Authorize and configure GitHub branch/ruleset protection without disrupting
   the accepted development flow.
-- Complete the rollback smoke suite with a synthetic identity authorized for at
-  least two workspaces.
-- Independently verify production Auth URL/redirect configuration, managed
-  backup state, email provider separation, and internal authentication for
-  `verify_jwt=false` Edge Functions.
+- Narrow or explicitly accept the wildcard production Auth redirect.
+- Verify production Auth SMTP and application email credentials/accounts are
+  independently controllable without reading or publishing secret values.
+- Review the password-reset function's wildcard CORS and legacy single-profile
+  organization derivation; document worker-secret rotation and cron ownership.
 - Replace or explicitly accept production Pages Functions fail-open behavior if
   Pages Functions are introduced.
 - Rehearse Storage object-byte recovery before customer-uploaded content grows.
+- Obtain separate explicit production launch authorization; this closure is not
+  production approval.
 
 No production resource, `main`, production messaging, staging communication
 cron, or historical pending delivery was changed by this increment.
