@@ -86,3 +86,25 @@ limit 20;
 ```
 
 Delivery history remains authoritative and is never deleted by the schedule. Idle executions return `claimed = 0`, `sent = 0`, `failed = 0`, and `skipped = 0`; sent rows are not claimed again, and retryable failures continue to use the existing maximum-attempt and stable-idempotency-key behavior.
+
+## V2 staging safety
+
+Do not deploy or invoke the production-capable Resend worker in V2 staging.
+Increment 7E provides `staging-email-sink`, a non-network capture worker that is
+hard-bound to staging project `fdjhwxmphdzodxvhrblk`, accepts only explicitly
+marked synthetic deliveries, and rejects every recipient outside the reserved
+`@slate.invalid` domain. Queue claim and capture RPCs are service-role-only;
+administrators can enqueue only allowlisted test events for an approved profile
+in their active workspace.
+
+The staging sink does not process the historical queue. Keep the communication
+cron disabled and confirm the original 18 pending rows remain untouched before
+and after every exercise. Captures contain no message body or action token.
+
+Supabase Auth email is a separate delivery boundary. Do not test confirmation,
+recovery, or Auth invitation email until a staging-only SMTP sink or Send Email
+Hook allowlist has been independently configured. Never reuse the production
+SMTP/provider credential.
+
+See `docs/v2/INCREMENT_7E_EMAIL_DELIVERY_SAFETY.md` for acceptance evidence,
+known gaps, and the production activation checklist.

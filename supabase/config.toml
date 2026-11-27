@@ -2,3 +2,8 @@
 # Invocation is authenticated inside the function with a dedicated worker
 # secret so pg_cron/Vault can call it without creating a public mail relay.
 verify_jwt = false
+
+[functions.staging-email-sink]
+# JWT verification and the database authorization RPC both fail closed. This
+# function is deployed only to the isolated V2 staging project.
+verify_jwt = true
