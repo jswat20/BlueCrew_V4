@@ -21,6 +21,12 @@ customer records.
 
 ## Backup procedure
 
+The latest verified staging recovery point is documented in
+`docs/v2/INCREMENT_7H_RELEASE_GOVERNANCE.md`. It contains all 97 staging
+migrations present on November 27, 2026 and was restored to a localhost-only
+PostgreSQL 17.10 instance. A release operator must still create a newer recovery
+point whenever the candidate introduces migrations after that snapshot.
+
 Use the current Supabase-supported CLI process and a securely supplied staging
 connection string. Generate timestamped role, schema, and data files in a new
 private directory; never overwrite prior recovery points.
@@ -72,6 +78,12 @@ For every file:
    identities. Never use copied passwords; reset synthetic credentials locally.
 10. Stop the drill, preserve sanitized evidence, and securely remove the restored
     private data when its evidence-retention purpose ends.
+
+An ordinary PostgreSQL restore may report errors for Supabase-managed
+`pg_cron`, `pg_net`, and `supabase_vault` objects. Classify every error; accept
+only documented managed-service gaps after proving that application, Auth,
+Storage metadata, RLS, functions, triggers, foreign keys, and migration
+fingerprints match. Never convert an unexplained restore error into a warning.
 
 ## Failed migration
 
@@ -151,6 +163,10 @@ For every file:
 6. If database and application versions differ, keep the application in
    maintenance mode until compatibility is proven; do not replay migrations
    merely to match a frontend.
+7. Rehearse with two artifacts that bracket a real backward-compatible client
+   change. Authenticate with a synthetic identity that belongs to at least two
+   workspaces, refresh the session, switch workspaces, and verify role/module
+   visibility and tenant isolation before calling the rehearsal complete.
 
 ## Safe communication reactivation
 

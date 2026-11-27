@@ -17,7 +17,7 @@
 | Supabase | `fdjhwxmphdzodxvhrblk` | `dynxjiqrdlhfhrjnhvgn` |
 | Cloudflare | `the-slate-v2`, `the-slate-v2.pages.dev` | public runtime at `app.worktheslate.com`; no settings changed |
 | Build | `npm run build:v2-staging`, output `dist` | Existing artifact only; not deployed or changed |
-| Database migrations | 97, latest `20261127213231_fix_staging_auth_crypto_caller_check` | 49, latest `20261005130023_multi_recipient_direct_messages` |
+| Database migrations | 97, latest `20261127213231_fix_staging_auth_crypto_caller_check` | 47, latest `20261005130023_multi_recipient_direct_messages` |
 
 The V2 Cloudflare project is connected to `jswat20/BlueCrew_V4`, deploys only
 from `slate-v2-development`, has no custom domain or deploy hook, and uses the
@@ -127,11 +127,10 @@ artifacts that bracket a real compatible application change.
 
 ## Recovery and remaining risks
 
-The latest independently restored archive remains readable and checksummed, but
-its snapshot contained 84 migrations while staging now contains 97. It is valid
-recovery evidence, not a current release-point backup. A fresh backup and
-isolated restore at migration 97 or later is required before any production
-release.
+Increment 7H supersedes this recovery gap with a fresh, independently restored
+97-migration staging archive. See
+`docs/v2/INCREMENT_7H_RELEASE_GOVERNANCE.md` for checksum, fingerprints,
+managed-service limitations, and the current release blockers.
 
 Other open launch risks:
 
