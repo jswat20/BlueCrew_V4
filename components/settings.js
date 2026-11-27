@@ -120,12 +120,40 @@ function renderSettings() {
     <div class="card-grid settings-card-grid">
       ${isHosted ? renderWorkspaceSettingsCard() : ""}
       ${isHosted ? renderWorkspaceInvitationCard() : ""}
+      ${typeof stagingAuthEmailService!=="undefined" && stagingAuthEmailService.isAvailable() ? renderStagingAuthEmailCard() : ""}
       ${hasLeagueModule ? renderSeasonSettingsCard() : ""}
       ${renderLocationSettingsCard(canManageReservations)}
       ${isHosted ? (hasLeagueModule ? renderCompetitionCatalogCard() : "") : `${renderSettingsCard("Levels", settings.levels)}${renderSettingsCard("Teams", settings.teams)}`}
       ${renderSettingsCard("Time Slots", settings.timeSlots.slice(0, 12))}
     </div>${hasLeagueModule ? renderSeasonEntryDialog() : ""}${renderFacilityDialogs()}${hasLeagueModule ? renderCompetitionCatalogDialogs() : ""}</section>
   `;
+}
+
+function renderStagingAuthEmailCard() {
+  return `<section class="card presentation-card settings-card" data-testid="settings-staging-auth-email">
+    <div class="page-section-header presentation-card-header-blue"><div><h3>Staging Auth Email</h3><p>Open a captured signup or recovery action for an approved synthetic identity. No email is sent.</p></div></div>
+    <form data-testid="staging-auth-email-form" class="settings-form-grid">
+      <label>Synthetic email<input name="email" type="email" autocomplete="off" placeholder="person@slate.invalid" required></label>
+      <label>Action<select name="actionType"><option value="signup">Confirm signup</option><option value="recovery">Recover password</option></select></label>
+      <div class="form-actions"><button type="submit" class="button button-primary">Open captured action</button></div>
+      <p role="alert" tabindex="-1" data-testid="staging-auth-email-error"></p>
+    </form>
+  </section>`;
+}
+
+async function submitStagingAuthEmailAction(event) {
+  event.preventDefault();
+  const form=event.currentTarget;
+  const button=form.querySelector('button[type="submit"]');
+  const error=form.querySelector('[data-testid="staging-auth-email-error"]');
+  if(button) button.disabled=true;
+  if(error) error.textContent="";
+  const result=await stagingAuthEmailService.openLatest(form.elements.email.value,form.elements.actionType.value);
+  if(!result.success){ if(error){error.textContent=result.message;error.focus?.();} if(button)button.disabled=false; }
+}
+
+function setupStagingAuthEmailManager() {
+  document.querySelector('[data-testid="staging-auth-email-form"]')?.addEventListener("submit",submitStagingAuthEmailAction);
 }
 
 function renderSettingsCard(title, items) {
@@ -479,6 +507,7 @@ function setupSettingsPage() {
   loadWorkspaceContext();
   workspaceInvitationService.load().then(refreshWorkspaceInvitationCard);
   setupWorkspaceInvitationManager();
+  setupStagingAuthEmailManager();
   loadCompetitionCatalog();
   facilityService.load().then(result => { if (result.success) { const current=document.querySelector('[data-testid="settings-locations"]'); if(current) current.outerHTML=renderLocationSettingsCard(); } });
 }

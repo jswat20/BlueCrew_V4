@@ -108,6 +108,7 @@ for (const source of [
   "js/services/authorizationService.js",
   "js/services/sharedDomainMappingService.js",
   "js/services/supabaseAuthService.js",
+  "js/services/stagingAuthEmailService.js",
   "js/ui/crewCard.js",
   "js/ui/navigationAuthorization.js",
   "js/ui/profile.js",

@@ -1,7 +1,6 @@
 const passwordSecurityService = (() => {
   const MINIMUM_PASSWORD_LENGTH = 12;
   const GENERIC_RESET_MESSAGE = "If an account exists for that email, a password reset link has been sent.";
-  const PRODUCTION_RECOVERY_URL = "https://app.worktheslate.com/";
 
   function result(success, message, data = null) { return { success, message, data }; }
   function validate(newPassword, confirmation) {
@@ -11,7 +10,7 @@ const passwordSecurityService = (() => {
     return result(true, "Password is valid.");
   }
   function recoveryRedirectUrl() {
-    if (supabaseClientService.getRuntimeMode() === "hosted") return PRODUCTION_RECOVERY_URL;
+    if (supabaseClientService.getRuntimeMode() === "hosted") return `${window.location.origin}/`;
     return recoveryCleanupUrl();
   }
   function recoveryCleanupUrl() {
@@ -75,5 +74,5 @@ const passwordSecurityService = (() => {
       return result(true, data?.message || GENERIC_RESET_MESSAGE);
     } catch (_) { return result(false, "Password reset could not be sent."); }
   }
-  return Object.freeze({ MINIMUM_PASSWORD_LENGTH, GENERIC_RESET_MESSAGE, PRODUCTION_RECOVERY_URL, validate, recoveryRedirectUrl, recoveryCleanupUrl, requestReset, completeRecovery, changePassword, requestAdministrativeReset });
+  return Object.freeze({ MINIMUM_PASSWORD_LENGTH, GENERIC_RESET_MESSAGE, validate, recoveryRedirectUrl, recoveryCleanupUrl, requestReset, completeRecovery, changePassword, requestAdministrativeReset });
 })();

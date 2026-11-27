@@ -101,10 +101,15 @@ The staging sink does not process the historical queue. Keep the communication
 cron disabled and confirm the original 18 pending rows remain untouched before
 and after every exercise. Captures contain no message body or action token.
 
-Supabase Auth email is a separate delivery boundary. Do not test confirmation,
-recovery, or Auth invitation email until a staging-only SMTP sink or Send Email
-Hook allowlist has been independently configured. Never reuse the production
-SMTP/provider credential.
+Supabase Auth email is a separate delivery boundary. Increment 7F configures a
+private, non-delivering Send Email Hook in V2 staging. It accepts only
+`@slate.invalid`, the exact V2 origin, and supported Auth actions; stores only a
+short-lived encrypted token hash; and permits a single server-side claim by an
+authorized staging administrator. It has no SMTP or provider integration.
+Never reuse this test mechanism or any production SMTP/provider credential
+across environments.
 
 See `docs/v2/INCREMENT_7E_EMAIL_DELIVERY_SAFETY.md` for acceptance evidence,
 known gaps, and the production activation checklist.
+See `docs/v2/INCREMENT_7F_AUTH_EMAIL_SAFETY.md` for the independent Auth-email
+boundary and account-lifecycle acceptance evidence.

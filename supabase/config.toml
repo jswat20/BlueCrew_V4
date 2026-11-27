@@ -7,3 +7,8 @@ verify_jwt = false
 # JWT verification and the database authorization RPC both fail closed. This
 # function is deployed only to the isolated V2 staging project.
 verify_jwt = true
+
+[functions.staging-auth-email-action]
+# Operator JWT plus server-side workspace authorization are required. The
+# function is hard-bound to the isolated V2 staging project.
+verify_jwt = true
