@@ -4,6 +4,10 @@
 
 **Candidate rehearsed:** `211eedc3b35d11a335c7c862bccbe63a813a1209`
 
+**Release-readiness implementation:** `6c7094d9451b338c0877eeff3ff14fde76bd7946`
+
+**Hosted V2 deployment:** `ff380d94-668b-40a9-a850-96223a3cb8cb`
+
 ## Verified environment inventory
 
 | Boundary | Staging / development | Existing production (read-only) |
@@ -28,6 +32,11 @@ configuration and service-worker release. Secret values were not read or
 recorded. Production Auth settings, Cloudflare build settings, Edge Function
 secrets, and cron remain a mandatory operator preflight because this rehearsal
 did not open or alter their administrative configuration.
+
+The implementation commit's GitHub staging-artifact run `46073249277` and
+Cloudflare Pages check both completed successfully. The hosted origin returned
+HTTP 200 after convergence and its runtime configuration excluded the
+production Supabase identifier.
 
 Staging currently has four Edge Functions. The application communication queue
 still contains exactly 18 pending deliveries and no active communication-email
