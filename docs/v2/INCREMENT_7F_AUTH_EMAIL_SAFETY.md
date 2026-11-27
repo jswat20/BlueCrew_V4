@@ -4,7 +4,7 @@
 
 **Hosted origin:** `https://the-slate-v2.pages.dev`
 
-**Status:** deployed to V2; final reauthentication acceptance in progress
+**Status:** accepted on hosted V2
 
 ## Isolation design
 
@@ -90,7 +90,9 @@ grants for a console test.
 
 ## Acceptance evidence
 
-Initial deployed commit `7fad8e1` converged on the V2 Pages origin. The hosted Settings
+Initial deployed commit `7fad8e1` converged on the V2 Pages origin. Closure
+commit `8e50b60` then converged with the exact transient-JWT retry and final
+least-privilege crypto boundary. The hosted Settings
 page rendered the staging-only operator control and rejected a non-allowlisted
 recipient with actionable feedback while moving focus to the alert.
 
@@ -114,6 +116,10 @@ Hosted lifecycle evidence completed before the final client retry deployment:
 - the recovery action was claimed once through the hosted operator workflow;
 - password update completed through the hosted recovery page and returned the
   user to Login with an explicit success confirmation;
+- the synthetic identity reauthenticated with the changed password after the
+  closure deployment and opened only `Create your Slate workspace`;
+- a browser refresh restored that same no-workspace onboarding state without
+  showing administrator navigation, modules, or another tenant's data;
 - database evidence records one claimed signup action and one claimed recovery
   action, with no external-recipient captures.
 
@@ -128,11 +134,11 @@ Validation results:
   exact-origin CORS; deployment id
   `89e2391c-2d9c-45f1-b824-5b1e91091410`.
 
-Final closure requires reauthentication with the changed password against the
-deployed same-second JWT retry and refresh restoration. Replay and expiration
-remain enforced by the one-time claimed state and 15-minute database expiry;
-the focused contract and database authorization tests cover both negative
-paths without logging or reusing an action token.
+Replay and expiration remain enforced by the one-time claimed state and
+15-minute database expiry; focused contract and database authorization tests
+cover both negative paths without logging or reusing an action token. A final
+post-hardening recovery request reached the configured Auth send-rate limit and
+failed closed with `429`; no provider fallback or external delivery occurred.
 
 ## Production requirements
 
