@@ -11,7 +11,8 @@
     "start:hosted": "node scripts/generate-supabase-config.cjs --mode=hosted && http-server . -a 127.0.0.1 -p 5500",
     "start:local": "node scripts/generate-supabase-config.cjs --mode=local && http-server . -a 127.0.0.1 -p 5500",
     "test": "playwright test",
-    "build:v2-staging": "node scripts/build-v2-staging.cjs"
+    "build:v2-staging": "node scripts/build-v2-staging.cjs",
+    "verify:v2-release": "node scripts/verify-v2-release-candidate.cjs"
   },
   "keywords": [],
   "author": "",

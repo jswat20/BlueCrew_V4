@@ -1,0 +1,53 @@
+name: Slate V2 release candidate validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full 40-character commit selected for validation
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RELEASE_CANDIDATE_SHA: ${{ inputs.release_sha }}
+      SUPABASE_PROJECT_REF: fdjhwxmphdzodxvhrblk
+      SUPABASE_URL: https://fdjhwxmphdzodxvhrblk.supabase.co
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_v2ci_public_placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Verify exact candidate and staging target
+        run: npm run verify:v2-release
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Full regression
+        run: npm test
+      - name: Staging artifact verification
+        run: npm run build:v2-staging
+      - name: Prove production target fails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if SUPABASE_PROJECT_REF=dynxjiqrdlhfhrjnhvgn SUPABASE_URL=https://dynxjiqrdlhfhrjnhvgn.supabase.co npm run verify:v2-release > /tmp/rejected.log 2>&1; then
+            echo 'ERROR: release gate accepted production configuration'
+            exit 1
+          fi
+          grep -q 'V2 release gate blocked:' /tmp/rejected.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slate-v2-release-candidate-${{ inputs.release_sha }}
+          path: dist/
+          retention-days: 14
