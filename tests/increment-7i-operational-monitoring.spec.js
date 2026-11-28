@@ -23,14 +23,21 @@ test.describe("Increment 7I operational monitoring", () => {
     expect(migration).toMatch(/revoke all on function private\.purge_expired_operational_events\(\)[\s\S]*from public, anon, authenticated/);
   });
 
-  test("business conflicts are classified separately and monitoring is best effort", () => {
+  test("business conflicts are classified separately and monitoring is best effort", async ({ page }) => {
     const service = readFileSync("js/services/operationalMonitoringService.js", "utf8");
     expect(service).toContain('"reservation_conflict"');
+    expect(service).toContain("already reserved during this time");
     expect(service).toContain('expected ? "expected_rejection" : "operational_failure"');
     expect(service).toContain('severity: expected ? "info" : "error"');
     expect(service).toContain("Monitoring failures are");
     expect(service).toContain('console.warn("Operational monitoring signal could not be recorded."');
     expect(service).not.toMatch(/safeContext[\s\S]{0,600}\b(token|password|email|body)\s*:/i);
+    await page.goto("/");
+    await page.addScriptTag({ path: "js/services/operationalMonitoringService.js" });
+    expect(await page.evaluate(() => operationalMonitoringService.isExpectedRejection({
+      code: "P0001",
+      message: "That resource is already reserved during this time."
+    }))).toBe(true);
   });
 
   test("thresholds escalate faults but not legitimate conflicts", async ({ page }) => {

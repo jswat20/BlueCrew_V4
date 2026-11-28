@@ -8,6 +8,14 @@ const operationalMonitoringService = (() => {
     "workspace_administrator_required", "assignment_position_filled",
     "duplicate_game", "tournament_tie_unresolved"
   ]);
+  const BUSINESS_REJECTION_MESSAGES = [
+    /already reserved during this time/i,
+    /reservation conflict/i,
+    /blocked by (?:a )?(?:maintenance |blackout |weather )?closure/i,
+    /outside (?:the )?(?:configured )?availability/i,
+    /team (?:schedule )?conflict/i,
+    /already scheduled/i
+  ];
   const SAFE_MODULES = new Set([
     "platform", "auth", "security", "league", "umpire", "tournament",
     "facility", "email", "edge_function"
@@ -34,6 +42,12 @@ const operationalMonitoringService = (() => {
       duration_ms: Number.isInteger(context.durationMs) ? context.durationMs : undefined,
       source: String(context.source || "browser").slice(0, 40)
     };
+  }
+
+  function isExpectedRejection(error, code = errorCode(error)) {
+    if (BUSINESS_REJECTIONS.has(code)) return true;
+    const message = String(error?.message || error?.details || "");
+    return BUSINESS_REJECTION_MESSAGES.some(pattern => pattern.test(message));
   }
 
   async function capture(input = {}) {
@@ -63,7 +77,7 @@ const operationalMonitoringService = (() => {
 
   function captureFailure(moduleCode, operation, error, context = {}) {
     const code = errorCode(error);
-    const expected = BUSINESS_REJECTIONS.has(code);
+    const expected = isExpectedRejection(error, code);
     return capture({
       moduleCode,
       operation,
@@ -115,5 +129,5 @@ const operationalMonitoringService = (() => {
     };
   }
 
-  return { capture, captureFailure, captureSecurity, loadHealth, thresholds, correlationId, errorCode };
+  return { capture, captureFailure, captureSecurity, loadHealth, thresholds, correlationId, errorCode, isExpectedRejection };
 })();
