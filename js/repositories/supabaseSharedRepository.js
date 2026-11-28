@@ -708,6 +708,26 @@ const supabaseSharedRepository = (() => {
     return db.rpc("get_communication_delivery_health");
   }
 
+  async function evaluateOperationalIncidents() {
+    const db = await client();
+    return db.rpc("evaluate_operational_incidents");
+  }
+
+  async function getOperationalIncidents(limit = 50) {
+    const db = await client();
+    return db.rpc("get_operational_incidents", { p_limit: limit });
+  }
+
+  async function acknowledgeOperationalIncident(incidentId) {
+    const db = await client();
+    return db.rpc("acknowledge_operational_incident", { p_incident_id: incidentId });
+  }
+
+  async function recoverOperationalIncident(incidentId) {
+    const db = await client();
+    return db.rpc("recover_operational_incident", { p_incident_id: incidentId });
+  }
+
   return {
     getProfileForAuthUser,
     getCurrentOrganization,
@@ -818,6 +838,10 @@ const supabaseSharedRepository = (() => {
     getCrewMembersByIds,
     recordOperationalEvent,
     getOperationalHealth,
-    getCommunicationDeliveryHealth
+    getCommunicationDeliveryHealth,
+    evaluateOperationalIncidents,
+    getOperationalIncidents,
+    acknowledgeOperationalIncident,
+    recoverOperationalIncident
   };
 })();

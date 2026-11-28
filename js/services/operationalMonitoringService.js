@@ -113,6 +113,30 @@ const operationalMonitoringService = (() => {
     return { events: events.data || [], email: email.data?.[0] || {} };
   }
 
+  async function evaluateAlerts() {
+    const result = await supabaseSharedRepository.evaluateOperationalIncidents();
+    if (result.error) throw result.error;
+    return result.data;
+  }
+
+  async function loadIncidents(limit = 50) {
+    const result = await supabaseSharedRepository.getOperationalIncidents(limit);
+    if (result.error) throw result.error;
+    return result.data || [];
+  }
+
+  async function acknowledgeIncident(incidentId) {
+    const result = await supabaseSharedRepository.acknowledgeOperationalIncident(incidentId);
+    if (result.error) throw result.error;
+    return result.data === true;
+  }
+
+  async function recoverIncident(incidentId) {
+    const result = await supabaseSharedRepository.recoverOperationalIncident(incidentId);
+    if (result.error) throw result.error;
+    return result.data === true;
+  }
+
   function thresholds(events = [], email = {}) {
     const recent = events.filter(event => Date.now() - new Date(event.occurred_at).getTime() <= 15 * 60000);
     const operationalFailures = recent.filter(event => event.classification === "operational_failure");
@@ -130,5 +154,5 @@ const operationalMonitoringService = (() => {
     };
   }
 
-  return { capture, captureFailure, captureSecurity, loadHealth, thresholds, correlationId, errorCode, isExpectedRejection };
+  return { capture, captureFailure, captureSecurity, loadHealth, evaluateAlerts, loadIncidents, acknowledgeIncident, recoverIncident, thresholds, correlationId, errorCode, isExpectedRejection };
 })();
