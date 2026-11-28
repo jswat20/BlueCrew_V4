@@ -116,7 +116,11 @@ const pages = {
   title: "Operations Center",
   subtitle:
     "Complete today's operational work."
-}
+},
+  "operational-monitoring": {
+    title: "Operations Health",
+    subtitle: "Privacy-safe diagnostics and incident signals for this workspace."
+  }
 };
 
 function initializeApp() {
@@ -609,6 +613,9 @@ function runPageSetup(page, context = {}) {
   if (page === "messages" && typeof setupMessagesPage === "function") {
     setupMessagesPage(context);
   }
+  if (page === "operational-monitoring" && typeof setupOperationalMonitoring === "function") {
+    setupOperationalMonitoring();
+  }
 
   if (
     page === "operations-center" &&
@@ -655,6 +662,7 @@ function renderAdminView(page, context = {}) {
         ? renderWorkbench
         : null,
     "operations-center": typeof renderOperationsCenter === "function" ? renderOperationsCenter : null,
+    "operational-monitoring": typeof renderOperationalMonitoring === "function" ? renderOperationalMonitoring : null,
     settings: typeof renderSettings === "function" ? renderSettings : null,
     admin: typeof renderAdmin === "function" ? renderAdmin : null,
     notifications: typeof renderNotifications === "function" ? renderNotifications : null,
@@ -901,6 +909,9 @@ window.addEventListener("error", event => {
   if (window.qaService) {
     qaService.logError(event.message);
   }
+  if (typeof operationalMonitoringService !== "undefined") {
+    operationalMonitoringService.captureFailure("platform", "browser.runtime_error", event.error || { message: event.message }, { source: "window_error" });
+  }
 });
 
 window.addEventListener("unhandledrejection", event => {
@@ -911,6 +922,9 @@ window.addEventListener("unhandledrejection", event => {
 
   if (window.qaService) {
     qaService.logError(event.reason);
+  }
+  if (typeof operationalMonitoringService !== "undefined") {
+    operationalMonitoringService.captureFailure("platform", "browser.unhandled_rejection", event.reason, { source: "unhandled_rejection" });
   }
 });
 

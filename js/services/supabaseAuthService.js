@@ -194,7 +194,10 @@ const supabaseAuthService = (() => {
   async function restoreSession() {
     const client = await supabaseClientService.getClient();
     const { data, error } = await client.auth.getSession();
-    if (error) return mutationResult(false, error.message);
+    if (error) {
+      if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("auth", "auth.session_read", error, { workflow: "session_restoration" });
+      return mutationResult(false, error.message);
+    }
     if (!data.session?.user) {
       clearSharedState();
       hydrationState = { status: "idle", message: "" };
@@ -229,6 +232,7 @@ const supabaseAuthService = (() => {
       await activateMessaging(account);
       return mutationResult(true, "Session restored.", account);
     } catch (error) {
+      if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("auth", "auth.session_restore", error, { workflow: "session_restoration" });
       if (error.isSchedulingHydrationError) {
         return mutationResult(false, error.message || "Could not load shared schedule data.", error.account);
       }
@@ -242,7 +246,10 @@ const supabaseAuthService = (() => {
     interactiveLoginInProgress = true;
     try {
       const { data, error } = await client.auth.signInWithPassword({ email, password });
-      if (error) return mutationResult(false, error.message);
+      if (error) {
+        if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("auth", "auth.login", error, { workflow: "interactive_login" });
+        return mutationResult(false, error.message);
+      }
       const account = await hydrateSessionUser(data.user);
       if (account?.workspaceSelection) {
         return mutationResult(true, "Choose a workspace to continue.", account);
@@ -262,6 +269,7 @@ const supabaseAuthService = (() => {
       await activateMessaging(account);
       return mutationResult(true, "Login successful.", account);
     } catch (loadError) {
+      if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("auth", "auth.account_hydration", loadError, { workflow: "interactive_login" });
       if (loadError.isSchedulingHydrationError) {
         return mutationResult(false, loadError.message || "Could not load shared schedule data.", loadError.account);
       }
@@ -367,6 +375,7 @@ const supabaseAuthService = (() => {
       hydrationState = { status: "ready", message: "" };
       return mutationResult(true, "Workspace switched.", account);
     } catch (error) {
+      if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("auth", "auth.workspace_switch", error, { workflow: "workspace_switch" });
       failHydration(error);
       return mutationResult(false, error.message || "Workspace switch failed.");
     }
@@ -416,6 +425,7 @@ const supabaseAuthService = (() => {
               await activateMessaging(account);
             }
           } catch (error) {
+            if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("auth", "auth.listener_hydration", error, { workflow: "session_restoration" });
             if (!error.isSchedulingHydrationError) failHydration(error);
           }
         }

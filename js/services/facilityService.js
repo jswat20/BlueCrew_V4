@@ -23,18 +23,24 @@ const facilityService = (() => {
       if (failure) throw failure.error;
       state = { facilities: results[0].data || [], fields: results[1].data || [], availability: results[2].data || [], closures: results[3].data || [], reservations: results[4].data || [], loaded: true };
       return { success: true };
-    } catch (error) { return { success: false, message: messageFor(error) }; }
+    } catch (error) {
+      if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("facility", "facility.load", error, { workflow: "facility_directory" });
+      return { success: false, message: messageFor(error) };
+    }
   }
   const snapshot = () => structuredClone(state);
   const clear = () => { state = { facilities: [], fields: [], availability: [], closures: [], reservations: [], loaded: false }; };
-  async function run(action, successMessage) {
+  async function run(action, successMessage, operation = "facility.mutation") {
     try {
       const result = await action();
       if (result.error) throw result.error;
       await load();
       await locationService.loadSharedLocations();
       return { success: true, message: successMessage };
-    } catch (error) { return { success: false, message: messageFor(error) }; }
+    } catch (error) {
+      if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("facility", operation, error, { workflow: "facility_scheduling" });
+      return { success: false, message: messageFor(error) };
+    }
   }
   const facilityValues = form => ({
     id: form.id || null, name: clean(form.name), address: clean(form.address), timezone: clean(form.timezone) || "America/New_York",
@@ -47,11 +53,11 @@ const facilityService = (() => {
   });
   return {
     load, snapshot, clear,
-    saveFacility(form) { const values = facilityValues(form); return run(() => values.id ? supabaseSharedRepository.updateFacility(values) : supabaseSharedRepository.createFacility(values), values.id ? "Facility updated." : "Facility created."); },
-    saveField(form) { const values = fieldValues(form); return run(() => values.id ? supabaseSharedRepository.updateFacilityResource(values) : supabaseSharedRepository.createFacilityResource(values), values.id ? "Resource updated." : "Resource created."); },
-    addAvailability(form) { return run(() => supabaseSharedRepository.createFieldAvailabilityRule(form), "Availability added."); },
-    addClosure(form) { return run(() => supabaseSharedRepository.createFieldClosure(form), "Closure added."); },
-    saveReservation(form) { return run(() => supabaseSharedRepository.saveFieldReservation(form), form.id ? "Reservation rescheduled." : "Reservation created."); },
-    cancelReservation(id) { return run(() => supabaseSharedRepository.cancelFieldReservation(id), "Reservation cancelled."); }
+    saveFacility(form) { const values = facilityValues(form); return run(() => values.id ? supabaseSharedRepository.updateFacility(values) : supabaseSharedRepository.createFacility(values), values.id ? "Facility updated." : "Facility created.", "facility.save"); },
+    saveField(form) { const values = fieldValues(form); return run(() => values.id ? supabaseSharedRepository.updateFacilityResource(values) : supabaseSharedRepository.createFacilityResource(values), values.id ? "Resource updated." : "Resource created.", "facility.resource_save"); },
+    addAvailability(form) { return run(() => supabaseSharedRepository.createFieldAvailabilityRule(form), "Availability added.", "facility.availability_save"); },
+    addClosure(form) { return run(() => supabaseSharedRepository.createFieldClosure(form), "Closure added.", "facility.closure_save"); },
+    saveReservation(form) { return run(() => supabaseSharedRepository.saveFieldReservation(form), form.id ? "Reservation rescheduled." : "Reservation created.", "facility.reservation_save"); },
+    cancelReservation(id) { return run(() => supabaseSharedRepository.cancelFieldReservation(id), "Reservation cancelled.", "facility.reservation_cancel"); }
   };
 })();

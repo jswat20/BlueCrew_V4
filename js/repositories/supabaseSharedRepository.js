@@ -680,6 +680,34 @@ const supabaseSharedRepository = (() => {
       .order("id");
   }
 
+  async function recordOperationalEvent(event = {}) {
+    const db = await client();
+    return db.rpc("record_operational_event", {
+      p_correlation_id: event.correlationId,
+      p_module_code: event.moduleCode,
+      p_operation: event.operation,
+      p_classification: event.classification,
+      p_severity: event.severity,
+      p_error_code: event.errorCode || null,
+      p_http_status: event.httpStatus || null,
+      p_retryable: event.retryable === true,
+      p_context: event.context || {}
+    });
+  }
+
+  async function getOperationalHealth(since, limit = 100) {
+    const db = await client();
+    return db.rpc("get_operational_health", {
+      p_since: since,
+      p_limit: limit
+    });
+  }
+
+  async function getCommunicationDeliveryHealth() {
+    const db = await client();
+    return db.rpc("get_communication_delivery_health");
+  }
+
   return {
     getProfileForAuthUser,
     getCurrentOrganization,
@@ -787,6 +815,9 @@ const supabaseSharedRepository = (() => {
     transitionTournamentGame,
     advanceTournamentByes,
     deleteScheduleGame,
-    getCrewMembersByIds
+    getCrewMembersByIds,
+    recordOperationalEvent,
+    getOperationalHealth,
+    getCommunicationDeliveryHealth
   };
 })();

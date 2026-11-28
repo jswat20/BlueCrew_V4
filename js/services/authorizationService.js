@@ -105,6 +105,10 @@ const authorizationService = (() => {
       ROLES.ADMINISTRATOR
     ]),
 
+    "operational-monitoring": Object.freeze([
+      ROLES.ADMINISTRATOR
+    ]),
+
     login: Object.freeze([
       ROLES.ADMINISTRATOR,
       ROLES.ASSIGNER,
@@ -278,6 +282,7 @@ const authorizationService = (() => {
     ]);
     if (umpirePages.has(page)) return workspaceService.hasModule("umpire");
     if (page === "settings") return ["league", "umpire", "tournament", "facility"].some(code => workspaceService.hasModule(code));
+    if (page === "operational-monitoring") return true;
     if (["schedule", "game-hub"].includes(page)) return ["league", "umpire", "tournament"].some(code => workspaceService.hasModule(code));
     return true;
   }

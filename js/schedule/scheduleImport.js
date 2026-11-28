@@ -158,6 +158,7 @@ async function importSchedulePreview() {
 
   const result = await gameService.importSchedule(games);
   if (!result.success) {
+    if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("umpire", "umpire.game_import", { message: result.message }, { workflow: "officials_import" });
     renderScheduleImportPreview({ ...currentScheduleImportPreview, errors: [{ row: 0, message: result.message }] });
     return;
   }

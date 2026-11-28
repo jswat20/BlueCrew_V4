@@ -697,7 +697,10 @@ async function assignSharedCrew(assignmentId, crewId) {
   const authorization = requireAssignGames();
   if (authorization) return authorization;
   const { data, error } = await supabaseSharedRepository.assignGameAssignmentCrew(assignmentId, crewId);
-  if (error) return mutationResult(false, error.message || "Crew member could not be assigned.");
+  if (error) {
+    if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("umpire", "umpire.assignment_save", error, { workflow: "official_assignment" });
+    return mutationResult(false, error.message || "Crew member could not be assigned.");
+  }
   const persistedAssignment = Array.isArray(data) ? data[0] : data;
   if (
     !persistedAssignment ||

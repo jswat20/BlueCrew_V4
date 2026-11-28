@@ -92,6 +92,7 @@ const tournamentManagementService = (() => {
       await load();
       return { success: true, data: result.data };
     } catch (error) {
+      if (typeof operationalMonitoringService !== "undefined") void operationalMonitoringService.captureFailure("tournament", "tournament.mutation", error, { workflow: "tournament_operations" });
       return { success: false, message: message(error) };
     }
   }
