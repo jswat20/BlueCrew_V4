@@ -4,6 +4,7 @@ const { readFileSync } = require("node:fs");
 const migration = readFileSync("supabase/migrations/20261128014005_operational_incident_alerting.sql", "utf8");
 const scheduleMigration = readFileSync("supabase/migrations/20261128014137_schedule_operational_retention.sql", "utf8");
 const indexMigration = readFileSync("supabase/migrations/20261128015005_index_operational_incident_actors.sql", "utf8");
+const dedupMigration = readFileSync("supabase/migrations/20261128015158_harden_operational_incident_dedup.sql", "utf8");
 
 test.describe("Increment 7J alerting and incident operations", () => {
   test("incidents are tenant-scoped, admin-only, deduplicated, and non-delivering", () => {
@@ -33,6 +34,13 @@ test.describe("Increment 7J alerting and incident operations", () => {
   test("incident actor foreign keys have covering indexes", () => {
     expect(indexMigration).toContain("operational_incidents_ack_profile_idx");
     expect(indexMigration).toContain("operational_incidents_recovery_profile_idx");
+  });
+
+  test("evaluation is serialized and recovered correlations cannot reopen", () => {
+    expect(dedupMigration).toContain("pg_advisory_xact_lock");
+    expect(dedupMigration).toContain("and i.status = 'recovered'");
+    expect(dedupMigration).toContain("and i.correlation_id = v_correlation");
+    expect(dedupMigration).toMatch(/revoke all on function public\.evaluate_operational_incidents_unlocked\(\)[\s\S]*from public, anon, authenticated/);
   });
 
   test("administrator UI supports evaluation, acknowledgement, and recovery", () => {

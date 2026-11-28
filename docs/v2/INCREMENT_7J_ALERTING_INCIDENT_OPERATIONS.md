@@ -1,6 +1,6 @@
 # Increment 7J: Alerting and Incident Operations
 
-**Status:** implemented on V2 staging; hosted acceptance pending
+**Status:** accepted on hosted V2; real delivery and named ownership remain production activation gates
 
 **Environment:** staging Supabase `fdjhwxmphdzodxvhrblk` and V2 Cloudflare only
 
@@ -97,7 +97,9 @@ a post-approval operational improvement.
 - Migrations: `20261128014005_operational_incident_alerting.sql` and
   `20261128014137_schedule_operational_retention.sql`, plus
   `20261128015005_index_operational_incident_actors.sql` to cover both optional
-  lifecycle-actor foreign keys.
+  lifecycle-actor foreign keys and
+  `20261128015158_harden_operational_incident_dedup.sql` to serialize concurrent
+  evaluation and prevent a recovered source correlation from reopening.
 - Preflight showed exactly those two migrations; they were applied separately
   so the rollback-only retention rehearsal occurred before scheduling.
 - Anonymous alert evaluation was rejected with PostgreSQL `42501`.
@@ -112,5 +114,34 @@ a post-approval operational improvement.
 - Complete regression: 1,309 passed, 1 intentionally skipped, 0 failed in 7.1
   minutes.
 
-Deployment evidence and hosted browser acceptance are added after the candidate
-is deployed.
+## Hosted acceptance
+
+- Application candidate `9888cdf93a2b49da9088eefcc0f05fc41a67bdc7`
+  converged at `https://the-slate-v2.pages.dev`; GitHub staging artifact run
+  `46095126514` passed and the served monitoring asset exposed the new controls.
+- A Facility-only administrator created one controlled operational failure. It
+  appeared as warning-level operational failure with allowlisted context only.
+- Alert evaluation created one open internal alert with external delivery
+  disabled. A second evaluation retained exactly one row, proving active
+  duplicate suppression.
+- The administrator acknowledged and recovered the incident. Refresh and
+  workspace round-trip preserved the recovered state.
+- Hosted testing exposed and corrected a lifecycle edge case: re-evaluating a
+  recovered source could reopen it. The hardening migration now serializes
+  evaluation and returns the existing recovered incident for the same source
+  correlation. Hosted repetition retained one recovered row.
+- Switching to the Beta workspace immediately replaced the prior UI with its
+  League Viewer / Officials-only navigation. Operations Health and incident
+  management were unavailable there; switching back and refreshing restored
+  the Facility workspace and its isolated incident.
+- The prior real field conflict remained `expected_rejection / info` and did
+  not create an incident. Anonymous evaluator invocation was denied with
+  PostgreSQL `42501`.
+- Final database verification retained 18 pending deliveries, zero active
+  communication jobs, one active monitoring-retention job, and no forbidden
+  diagnostic context keys.
+
+The GitHub scheduled probe is committed but GitHub executes schedules only from
+the default branch. Because this increment was prohibited from changing
+`main`, recurrence is an explicit release-approval step. No external alert
+destination was activated.
