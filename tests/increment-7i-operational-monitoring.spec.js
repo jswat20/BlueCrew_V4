@@ -38,6 +38,10 @@ test.describe("Increment 7I operational monitoring", () => {
       code: "P0001",
       message: "That resource is already reserved during this time."
     }))).toBe(true);
+    expect(await page.evaluate(() => operationalMonitoringService.isExpectedRejection({
+      code: "P0001",
+      message: "reservation_conflict"
+    }))).toBe(true);
   });
 
   test("thresholds escalate faults but not legitimate conflicts", async ({ page }) => {

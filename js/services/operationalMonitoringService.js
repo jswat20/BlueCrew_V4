@@ -46,7 +46,8 @@ const operationalMonitoringService = (() => {
 
   function isExpectedRejection(error, code = errorCode(error)) {
     if (BUSINESS_REJECTIONS.has(code)) return true;
-    const message = String(error?.message || error?.details || "");
+    const message = String(error?.message || error?.details || "").trim();
+    if (BUSINESS_REJECTIONS.has(message)) return true;
     return BUSINESS_REJECTION_MESSAGES.some(pattern => pattern.test(message));
   }
 
