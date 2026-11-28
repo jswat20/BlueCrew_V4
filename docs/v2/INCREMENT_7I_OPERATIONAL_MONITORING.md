@@ -1,6 +1,6 @@
 # Increment 7I: Operational Monitoring and Incident Response
 
-**Status:** staging migration and automated gates accepted; hosted acceptance pending deployment
+**Status:** accepted on hosted V2; production alert delivery and ownership remain open launch gates
 
 **Environment:** V2 staging only (`fdjhwxmphdzodxvhrblk`)
 
@@ -150,6 +150,39 @@ increment must not be described as complete production alerting.
 - The staging artifact verifier confirmed the browser runtime and CSP target
   only `fdjhwxmphdzodxvhrblk`; no deployment was performed by the build step.
 
-Hosted diagnostic capture, workspace-switch isolation, and representative
-module reads must still be demonstrated on the deployed V2 artifact before this
-increment is closed.
+## Hosted acceptance evidence
+
+- Application candidate `0313e1de93d7cff4b657155a3c4083685e51c6f8`
+  deployed to `https://the-slate-v2.pages.dev`; GitHub staging artifact run
+  `46091767696` passed.
+- Hosted administrator login, refresh, session restoration, and switching among
+  six authorized workspaces passed. The Beta workspace restored after refresh
+  with its `league_viewer` role, Officials-only navigation, and no administrator
+  monitoring link.
+- Representative hosted reads passed for League schedules, Officials games and
+  assignments, Tournament games/reservations, and Facility resources and
+  reservations. Each switch replaced the prior workspace UI before publishing
+  the next workspace data.
+- The hosted `Run safe diagnostic` control recorded a warning-level controlled
+  event with a generated correlation ID and only allowlisted context.
+- Hosted conflict acceptance found and corrected one defect: the raw Postgres
+  `P0001 / reservation_conflict` error was initially counted as an operational
+  failure. Commits `4753e4e29f4c95f35b9d5cc5603b082d7ee48e23`
+  and `f6e8c85f1c6fa34fa04cff55a04b182250822a1b` narrowed the classifier to
+  known business messages without treating every `P0001` as expected.
+- Final hosted repetition rejected the overlapping reservation with the
+  actionable message and recorded the newest event as `expected_rejection /
+  info`; GitHub staging artifact run `46093918192` passed for the final commit.
+- Final exact-code regression: 1,304 passed, 1 intentionally skipped, 0 failed
+  in 6.8 minutes. Final focused Facility/monitoring contract: 10 passed.
+- Live Cloudflare evidence returned HTTP 200, ETag
+  `W/"05974818f2ea5e2063bec3ed70438171"`, and confirmed the final classifier
+  in the served asset. The Cloudflare deployment ID could not be read because
+  no read-only API token is configured; no token was created for this task.
+- Final database verification: 98 migrations, 18 historical pending deliveries,
+  zero active communication cron jobs, one final expected-conflict row, and
+  zero operational rows containing forbidden diagnostic-context keys.
+
+Two earlier controlled conflict probes remain visibly classified as operational
+failures and will expire under the 30-day retention rule. They were not deleted,
+preserving the audit trail of the acceptance defect and its correction.
